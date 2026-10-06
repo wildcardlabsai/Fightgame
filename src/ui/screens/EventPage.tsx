@@ -1,8 +1,11 @@
 import { useMemo, useState } from 'react'
 import { formatDay } from '../../engine/calendar'
 import { eventView, venueFits, type CardSlot, type EventView } from '../../engine/eventViews'
+import { eventAdvice, needsConfirmation, visibleAdvice } from '../../engine/advisor'
 import type { BroadcastKind, MarketingLevel, PromoStrategy } from '../../engine/types'
 import { useGame } from '../../store/gameStore'
+import { usePrefs } from '../../store/prefs'
+import { AdviceCard, AdvicePanel } from '../components/Advice'
 import { Meter, RiskChip, Section } from '../components/Bits'
 import { AreaChart } from '../components/Charts'
 import { Modal, Stepper } from '../components/Overlay'
@@ -36,6 +39,9 @@ export function EventPage({ id }: { id: string }) {
   const [adding, setAdding] = useState(false)
   const [confirmCancel, setConfirmCancel] = useState(false)
   const [fits, setFits] = useState(false)
+  const [confirmSale, setConfirmSale] = useState(false)
+  const advisorMode = usePrefs((x) => x.advisor)
+  const advice = useMemo(() => eventAdvice(game, id), [game, id])
   if (!v) return <><h1 className="display" style={{ fontSize: 44 }}>Event not found</h1><button className="btn" onClick={() => navigate('events')}>Back to events</button></>
   const editable = v.can.editCard
 
@@ -53,6 +59,8 @@ export function EventPage({ id }: { id: string }) {
       </div>
       {v.mine && v.nextStep && v.statusKey !== 'cancelled' && <div className="attn info" style={{ marginTop: 14 }}><div className="t">{v.nextStep}</div></div>}
       {v.statusKey === 'cancelled' && <p className="attn critical">This show was cancelled: {v.cancelReason}.</p>}
+
+      <AdvicePanel list={advice} cap={3} title="Promoter’s desk" />
 
       {v.can.run && <NightPanel v={v} runNext={runNext} nightFight={nightFight} />}
       {v.result && <CompletePanel v={v} />}
@@ -153,7 +161,7 @@ export function EventPage({ id }: { id: string }) {
           <FinancePanel v={v} />
           {v.mine && (
             <div style={{ display: 'flex', gap: 10, marginTop: 14, flexWrap: 'wrap' }}>
-              {v.statusKey === 'cardBuilding' && <button className="btn primary big" disabled={!v.can.putOnSale} onClick={() => act('putOnSale', v.id)}>Put on sale ▸</button>}
+              {v.statusKey === 'cardBuilding' && <button className="btn primary big" disabled={!v.can.putOnSale} onClick={() => { const top = visibleAdvice(advice, advisorMode, 1)[0]; if (needsConfirmation(top)) setConfirmSale(true); else act('putOnSale', v.id) }}>Put on sale ▸</button>}
               {v.can.cancel && <button className="btn ghost" onClick={() => setConfirmCancel(true)}>Cancel the show</button>}
             </div>
           )}
@@ -169,6 +177,16 @@ export function EventPage({ id }: { id: string }) {
             </div>
           ))}
           <div style={{ marginTop: 12 }}><button className="linkbtn" onClick={() => { setAdding(false); navigate('matchmaking') }}>Make a new fight in Matchmaking ▸</button></div>
+        </Modal>
+      )}
+      {confirmSale && (
+        <Modal title="Before you put this on sale" onClose={() => setConfirmSale(false)} wide>
+          {visibleAdvice(advice, advisorMode, 3).filter((a) => a.level === 'highRisk' || a.level === 'critical' || a.level === 'caution').map((a) => <AdviceCard key={a.id} a={a} />)}
+          <p className="dim" style={{ fontSize: 13, margin: '8px 0 14px' }}>This is your call. Ticket sales and sponsors are estimates, and the costs are real. You can still cancel later, but a late cancellation costs reputation and fees.</p>
+          <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+            <button className="btn ghost" onClick={() => setConfirmSale(false)}>Review Event</button>
+            <button className="btn primary" onClick={() => { setConfirmSale(false); act('putOnSale', v.id) }}>Proceed Anyway</button>
+          </div>
         </Modal>
       )}
       {confirmCancel && (

@@ -112,6 +112,7 @@ export function migrate(data: unknown): GameState | null {
   if (s.version < 3) migrateV2toV3(s as never)
   if (s.version < 4) migrateV3toV4(s as never)
   if (s.version < 5) migrateV4toV5(s as never)
+  if (s.version < 6) migrateV5toV6(s as never)
   return s as GameState
 }
 
@@ -219,4 +220,9 @@ function migrateV4toV5(s: any): void {
     if (p.stats && p.stats.form === undefined) p.stats.form = 50
   }
   s.version = 5
+}
+
+/** v5 → v6 (Phase 4.7): the optional `scenario` field. Older games simply have no scenario (a classic start). */
+function migrateV5toV6(s: any): void {
+  s.version = 6
 }

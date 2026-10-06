@@ -1,7 +1,9 @@
 import { useMemo, useState } from 'react'
+import { rosterAdvice } from '../../engine/advisor'
 import type { FighterView } from '../../engine/view'
 import { useGame } from '../../store/gameStore'
 import { useViews } from '../../store/hooks'
+import { AdvicePanel } from '../components/Advice'
 import { FighterTable, type SortKey } from '../components/FighterTable'
 import { applyFilter, EMPTY_FILTER, sortRows, type FighterFilter } from '../fighterFilters'
 import { FilterBar } from './ScoutingScreen'
@@ -59,6 +61,7 @@ export function FightersScreen() {
         <button className="btn" onClick={() => navigate('scouting')}>Open Scouting ▸</button>
       </div>
 
+      {tab === 'roster' && <AdvicePanel list={rosterAdvice(game)} cap={4} title="Roster notes" compact />}
       <div className="tabs" role="tablist">
         {TABS.map((t) => (
           <button key={t.key} role="tab" aria-selected={tab === t.key} className={`tab${tab === t.key ? ' active' : ''}`} onClick={() => { setTab(t.key); setShown(50) }}>

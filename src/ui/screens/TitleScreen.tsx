@@ -1,15 +1,39 @@
 import { useEffect, useRef, useState } from 'react'
 import { formatDay } from '../../engine/calendar'
 import { LOGO_COLORS, LOGO_EMBLEMS, monogramFor } from '../../engine/promotions'
-import type { Difficulty, Promotion } from '../../engine/types'
+import { DEFAULT_SCENARIO, SCENARIOS, SCENARIO_ORDER, type CareerScenario, type ScenarioId } from '../../engine/scenarios'
+import type { Promotion } from '../../engine/types'
 import { useGame } from '../../store/gameStore'
 import { EmblemGlyph } from '../components/Icons'
 import { PromoLogo } from '../components/Bits'
 
-const DIFFICULTY: Record<Difficulty, { label: string; blurb: string }> = {
-  forgiving: { label: 'Forgiving', blurb: '£750k starting capital, cheaper overheads.' },
-  standard: { label: 'Standard', blurb: '£500k starting capital.' },
-  brutal: { label: 'Brutal', blurb: '£300k starting capital, 20% heavier overheads.' },
+const money = (n: number) => (n >= 1_000_000 ? `£${(n / 1_000_000).toFixed(n % 1_000_000 === 0 ? 0 : 1)}m` : `£${Math.round(n / 1000)}k`)
+const DIFF_TONE: Record<CareerScenario['difficultyLabel'], string> = { Easy: 'good', Normal: '', Hard: 'gold', Expert: 'red' }
+
+/** Five pips, no raw numbers: relative comparison between careers. */
+function Pips({ n, label }: { n: number; label: string }) {
+  return (
+    <div className="pips" role="img" aria-label={`${label}: ${n} of 5`}>
+      <span className="pip-label">{label}</span>
+      <span className="pip-row">{[1, 2, 3, 4, 5].map((i) => <span key={i} className={`pip${i <= n ? ' on' : ''}`} />)}</span>
+    </div>
+  )
+}
+
+function ScenarioCard({ sc, on, pick }: { sc: CareerScenario; on: boolean; pick: () => void }) {
+  const fighters = sc.roster.reduce((n, g) => n + g.count, 0)
+  return (
+    <button type="button" role="radio" aria-checked={on} className={`scen${on ? ' on' : ''}`} onClick={pick} data-scenario={sc.id}>
+      <div className="scen-top"><span className="display scen-name">{sc.name}</span><span className={`chip ${DIFF_TONE[sc.difficultyLabel]}`}>{sc.difficultyLabel}</span></div>
+      <div className="scen-tag">{sc.tagline}</div>
+      <div className="scen-facts"><span><b>{money(sc.startingCash)}</b> cash</span><span><b>{fighters}</b> fighter{fighters === 1 ? '' : 's'}</span><span><b>{sc.reputation}</b> reputation</span></div>
+      <div className="scen-bars">
+        <Pips n={sc.bars.cash} label="Cash" /><Pips n={sc.bars.roster} label="Roster" /><Pips n={sc.bars.reputation} label="Reputation" /><Pips n={sc.bars.size} label="Size" />
+      </div>
+      <div className="scen-desc">{sc.description}</div>
+      <div className="scen-goal"><span className="caps">Objective</span> {sc.objectives[0].label}</div>
+    </button>
+  )
 }
 
 function randomSeed(): string {
@@ -32,7 +56,8 @@ export function TitleScreen() {
   const [name, setName] = useState('Iron Crown Promotions')
   const [promoter, setPromoter] = useState('')
   const [home, setHome] = useState<'ENG' | 'USA'>('ENG')
-  const [difficulty, setDifficulty] = useState<Difficulty>('standard')
+  const [scenarioId, setScenarioId] = useState<ScenarioId>(DEFAULT_SCENARIO)
+  const scenario = SCENARIOS[scenarioId]
   const [seed, setSeed] = useState(randomSeed)
   const [color, setColor] = useState(LOGO_COLORS[0])
   const [emblem, setEmblem] = useState<Promotion['logo']['emblem']>('crown')
@@ -74,9 +99,15 @@ export function TitleScreen() {
           <>
             <div>
               <h1 className="display" style={{ fontSize: 56 }}>Found your <span className="red">promotion</span></h1>
-              <p className="dim">Four unproven fighters, a rented gym, and a world that won’t wait for you.</p>
+              <p className="dim">Choose how your career begins, then name your promotion.</p>
             </div>
-            <form className="form-grid" onSubmit={(e) => { e.preventDefault(); if (valid) start({ seed, promotionName: name.trim(), promoterName: promoter.trim(), homeCountry: home, difficulty, logo }) }}>
+            <div className="field"><label id="scen-label">Starting career</label>
+              <div className="scen-grid" role="radiogroup" aria-labelledby="scen-label">
+                {SCENARIO_ORDER.map((id) => <ScenarioCard key={id} sc={SCENARIOS[id]} on={scenarioId === id} pick={() => setScenarioId(id)} />)}
+              </div>
+              <span className="dim" style={{ fontSize: 13 }}>{scenario.opens}</span>
+            </div>
+            <form className="form-grid" onSubmit={(e) => { e.preventDefault(); if (valid) start({ seed, promotionName: name.trim(), promoterName: promoter.trim(), homeCountry: home, difficulty: scenario.difficulty, logo, scenario: scenarioId }) }}>
               <div className="field"><label htmlFor="pn">Promotion name</label>
                 <input id="pn" className="input" value={name} maxLength={32} onChange={(e) => setName(e.target.value)} /></div>
               <div className="field"><label htmlFor="pr">Your name</label>
@@ -98,11 +129,6 @@ export function TitleScreen() {
                 <select id="hm" className="select" value={home} onChange={(e) => setHome(e.target.value as 'ENG' | 'USA')}>
                   <option value="ENG">United Kingdom</option><option value="USA">United States</option>
                 </select></div>
-              <div className="field"><label htmlFor="df">Difficulty</label>
-                <select id="df" className="select" value={difficulty} onChange={(e) => setDifficulty(e.target.value as Difficulty)}>
-                  {(Object.keys(DIFFICULTY) as Difficulty[]).map((d) => <option key={d} value={d}>{DIFFICULTY[d].label}</option>)}
-                </select>
-                <span className="dim" style={{ fontSize: 13 }}>{DIFFICULTY[difficulty].blurb}</span></div>
               <div className="field"><label htmlFor="sd">World seed</label>
                 <div style={{ display: 'flex', gap: 8 }}>
                   <input id="sd" className="input" value={seed} maxLength={24} onChange={(e) => setSeed(e.target.value)} />

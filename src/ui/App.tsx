@@ -24,7 +24,7 @@ function Toasts() {
   return (
     <div className="toasts" aria-live="polite">
       {notices.map((n) => (
-        <button key={n.id} className={`toast ${n.tone}`} onClick={() => dismiss(n.id)}>{n.text}</button>
+        <button key={n.id} data-sfx="none" className={`toast ${n.tone}`} onClick={() => dismiss(n.id)}>{n.text}</button>
       ))}
     </div>
   )

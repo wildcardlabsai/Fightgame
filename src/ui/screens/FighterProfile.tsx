@@ -1,10 +1,12 @@
 import { useState } from 'react'
+import { fighterAdvice } from '../../engine/advisor'
 import { formatDay } from '../../engine/calendar'
 import { STAGE_LABEL } from '../../engine/systems/contracts'
 import { FOCUS_BLURBS, FOCUS_LABELS } from '../../engine/systems/development'
 import type { TrainingFocus } from '../../engine/types'
 import { useGame } from '../../store/gameStore'
 import { useViews } from '../../store/hooks'
+import { AdvicePanel } from '../components/Advice'
 import { Avatar, Flag, Meter, Section } from '../components/Bits'
 import { FormDots } from '../components/FightBits'
 import { Ring } from '../components/Charts'
@@ -75,6 +77,7 @@ export function FighterProfile({ id }: { id: string }) {
           </div>
         </div>
       </div>
+      <AdvicePanel list={fighterAdvice(v)} cap={2} />
 
       <div className="grid-2" style={{ marginTop: 6 }}>
         <div>

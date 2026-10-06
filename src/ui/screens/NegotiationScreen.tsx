@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useState } from 'react'
 import { formatDay } from '../../engine/calendar'
+import { contractAdvice } from '../../engine/advisor'
 import { negotiationInfo, offerSummary } from '../../engine/quotes'
 import type { NegotiationKind, NegotiationRound, Offer } from '../../engine/types'
 import { useGame } from '../../store/gameStore'
 import { useViews } from '../../store/hooks'
+import { AdvicePanel } from '../components/Advice'
 import { Avatar, Flag, Section } from '../components/Bits'
 import { RangeText } from '../components/Estimates'
 import { Stepper } from '../components/Overlay'
@@ -92,6 +94,7 @@ export function NegotiationScreen({ id }: { id: string }) {
   }
   const set = <K extends keyof Offer>(k: K, val: Offer[K]) => setOffer({ ...offer, [k]: val })
   const sum = offerSummary(offer)
+  const advice = contractAdvice(game, id, offer)
   const broke = info.status === 'broken'
   const cannotAfford = offer.signingBonus > info.cash
   const afterCash = info.cash - offer.signingBonus
@@ -156,6 +159,7 @@ export function NegotiationScreen({ id }: { id: string }) {
                 <button className="btn primary big" onClick={submit} disabled={cannotAfford || broke}>{info.counter ? 'Send revised offer' : 'Make offer'} ▸</button>
                 {info.status !== 'none' && <button className="btn ghost" onClick={() => { walkAway(id); navigate('fighter', id) }}>Walk away</button>}
               </div>
+              <AdvicePanel list={advice} cap={3} />
               {cannotAfford && <p className="red" style={{ marginTop: 8 }}>You can’t afford that signing bonus ({money(info.cash, false)} in the bank).</p>}
               {kind === 'signing' && info.rosterCount >= info.rosterCap && <p className="red" style={{ marginTop: 8 }}>Your roster is full ({info.rosterCount}/{info.rosterCap}).</p>}
             </Section>

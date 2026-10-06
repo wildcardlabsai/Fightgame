@@ -1,3 +1,7 @@
+import { deskAdvice } from '../../engine/advisor'
+import { firstSteps } from '../../engine/onboarding'
+import { objectiveStatuses, scenarioById } from '../../engine/scenarios'
+import { usePrefs } from '../../store/prefs'
 import { formatDay, weekOfYear } from '../../engine/calendar'
 import { fightList } from '../../engine/fightViews'
 import { dashboardEvent } from '../../engine/eventViews'
@@ -9,6 +13,7 @@ import { STAGE_LABEL } from '../../engine/systems/contracts'
 import { FOCUS_LABELS } from '../../engine/systems/development'
 import { useGame } from '../../store/gameStore'
 import { useViews } from '../../store/hooks'
+import { AdvicePanel } from '../components/Advice'
 import { Avatar, Meter, RiskChip, Section } from '../components/Bits'
 import { AreaChart } from '../components/Charts'
 import { RangeText } from '../components/Estimates'
@@ -44,6 +49,13 @@ export function Dashboard() {
   const mail = game.inbox.slice(0, 4)
   const de = dashboardEvent(game)
   const health = financialHealth(game)
+  const allDesk = deskAdvice(game, 'full', 12)
+  const sc = scenarioById(game.scenario?.id)
+  const objectives = objectiveStatuses(game)
+  const steps = firstSteps(game)
+  const stepsHidden = usePrefs((s) => s.firstStepsHidden)
+  const hideSteps = usePrefs((s) => s.hideFirstSteps)
+  const showSteps = !stepsHidden && steps.some((s) => !s.done)
 
   return (
     <>
@@ -70,6 +82,36 @@ export function Dashboard() {
           <button className="btn primary big" style={{ marginLeft: 'auto' }} onClick={() => navigate('fight', night.id)}>Go to the fight ▸</button>
         </div>
       )}
+
+      {(sc || showSteps) && (
+        <div className="grid-2" style={{ marginTop: 18 }}>
+          {sc && (
+            <Section title={`Your career: ${sc.name}`} right={<span className="chip">{sc.difficultyLabel}</span>}>
+              {objectives.map((o) => (
+                <div key={o.id} className="attn" style={{ borderLeftColor: o.done ? 'var(--good)' : undefined }}>
+                  <div style={{ flex: 1 }}>
+                    <div className="t">{o.done ? '✓ ' : ''}{o.label}</div>
+                    <div className="d">{o.done ? 'Objective complete.' : o.progressText}</div>
+                    {!o.done && <div style={{ marginTop: 6 }}><Meter value={Math.min(100, Math.round((o.value / o.target) * 100))} tone="good" label="Progress" /></div>}
+                  </div>
+                </div>
+              ))}
+            </Section>
+          )}
+          {showSteps && (
+            <Section title="First steps" right={<button className="linkbtn" onClick={() => hideSteps(true)}>Hide</button>}>
+              {steps.map((st) => (
+                <div key={st.id} className={`attn${st.done ? '' : ' info'}`} style={st.done ? { opacity: 0.6 } : undefined}>
+                  <div><div className="t">{st.done ? '✓ ' : ''}{st.label}</div>{!st.done && <div className="d">{st.hint}</div>}</div>
+                  {!st.done && <button className="btn small go" onClick={() => navigate(st.screen as never)}>Go</button>}
+                </div>
+              ))}
+            </Section>
+          )}
+        </div>
+      )}
+
+      <div className="desk"><AdvicePanel list={allDesk} cap={4} title="Promoter’s desk" compact /></div>
 
       <Section title="Next show" right={<button className="linkbtn" onClick={() => navigate('events')}>{de.openCount > 1 ? `All ${de.openCount} shows` : 'Events'}</button>}>
         {!de.next ? (

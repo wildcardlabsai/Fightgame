@@ -1,17 +1,20 @@
 import { useEffect, type ReactNode } from 'react'
+import { emitGameEvent } from '../../store/gameEvents'
 
 export function Modal({ title, onClose, children, wide }: { title: string; onClose: () => void; children: ReactNode; wide?: boolean }) {
+  const close = () => { emitGameEvent({ type: 'modal.close' }); onClose() }
+  useEffect(() => { emitGameEvent({ type: 'modal.open' }) }, [])
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') { emitGameEvent({ type: 'modal.close' }); onClose() } }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [onClose])
   return (
-    <div className="modal-back" onClick={onClose} role="presentation">
+    <div className="modal-back" onClick={close} role="presentation">
       <div className={`modal${wide ? ' wide' : ''}`} role="dialog" aria-modal="true" aria-label={title} onClick={(e) => e.stopPropagation()}>
         <div className="modal-head">
           <h3 className="display">{title}</h3>
-          <button className="linkbtn" onClick={onClose} aria-label="Close">Close ✕</button>
+          <button className="linkbtn" data-sfx="none" onClick={close} aria-label="Close">Close ✕</button>
         </div>
         {children}
       </div>

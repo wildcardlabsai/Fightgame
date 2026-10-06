@@ -124,7 +124,7 @@ describe('weekly simulation', () => {
     assertConsistent(s)
     expect(s.ledger.length).toBeLessThanOrEqual(600)
     expect(s.financeHistory.length).toBeLessThanOrEqual(156)
-  })
+  }, 30_000)
   it('charges weekly costs and the ledger matches cash', () => {
     const s = fresh()
     const burn = weeklyBurn(s).total

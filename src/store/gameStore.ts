@@ -7,6 +7,7 @@ import type { GameState, Id, NegotiationKind, Offer, ScoutDepth, TrainingFocus }
 import type { SearchSpec } from '../engine/scouting'
 import type { FightOffer, FightPrep } from '../engine/types'
 import { createNewGame, type NewGameOptions } from '../engine/worldgen'
+import { emitGameEvent } from './gameEvents'
 
 export type ScreenId =
   | 'dashboard' | 'fighters' | 'fighter' | 'calendar' | 'inbox' | 'finances' | 'promotions'
@@ -86,11 +87,22 @@ interface GameStore {
   setAutosave: (v: boolean) => void
   exportGame: () => string | null
   importGame: (json: string) => boolean
-  notify: (text: string, tone?: Notice['tone']) => void
+  /** `sound: false` when the caller emits a more specific game event for the same moment. */
+  notify: (text: string, tone?: Notice['tone'], sound?: boolean) => void
   dismissNotice: (id: number) => void
 }
 
 let noticeSeq = 0
+
+/** Tell the audio layer how a fight ended (method and knockdowns only — no hidden information). */
+function announceFight(g: GameState, fightId: string): void {
+  const res = g.fights[fightId]?.result
+  if (res) emitGameEvent({ type: 'fight.result', fightId, method: res.method, knockdowns: res.kd[0] + res.kd[1] })
+}
+function announceFinish(before: GameState, after: GameState, eventId: string): void {
+  const done = (s: GameState) => ['completed', 'settled', 'archived'].includes(s.events[eventId]?.status ?? '')
+  if (!done(before) && done(after)) emitGameEvent({ type: 'event.completed', eventId })
+}
 
 const EVENT_COMMANDS = {
   addFight: commands.addFightToEvent, removeFight: commands.removeFightFromEvent, moveFight: commands.moveFightOnCard, setSlot: commands.setCardSlot,
@@ -174,7 +186,8 @@ export const useGame = create<GameStore>((set, get) => {
       if (!g) return
       try {
         await persist(g, opts?.slotName ? { slotId: `${g.saveId}~${Date.now().toString(36)}`, name: opts.slotName } : {})
-        get().notify('Game saved.', 'good')
+        get().notify('Game saved.', 'good', false)
+        emitGameEvent({ type: 'save' })
       } catch {
         get().notify('Save failed — browser storage may be full. Try exporting the save file.', 'bad')
       }
@@ -210,8 +223,8 @@ export const useGame = create<GameStore>((set, get) => {
       const newMail = result.state.inbox.length - before
       const night = Object.values(result.state.fights).find((f) => f.status === 'fightNight' && (f.organiserId === g.playerPromotionId || f.sideA.promotionId === g.playerPromotionId || f.sideB.promotionId === g.playerPromotionId))
       if (night) {
-        get().notify('It is fight week!', 'good')
-        if (night.eventId) get().navigate('event', night.eventId); else get().navigate('fight', night.id)
+        get().notify('It is fight week!', 'good', !night.eventId)
+        if (night.eventId) { emitGameEvent({ type: 'event.intro', eventId: night.eventId }); get().navigate('event', night.eventId) } else get().navigate('fight', night.id)
       } else if (result.interrupted) {
         get().notify(`Stopped after ${result.weeksAdvanced} week${result.weeksAdvanced === 1 ? '' : 's'} — something urgent needs you.`, 'bad')
       } else if (newMail > 0) {
@@ -247,9 +260,9 @@ export const useGame = create<GameStore>((set, get) => {
       if (!out.ok) { get().notify(out.error ?? 'Offer failed.', 'bad'); return 'error' }
       set({ game: out.state })
       const v = out.round!.verdict
-      if (v === 'accept') get().notify(kind === 'renewal' ? 'Contract renewed.' : 'Signed! They have joined your roster.', 'good')
+      if (v === 'accept') { get().notify(kind === 'renewal' ? 'Contract renewed.' : 'Signed! They have joined your roster.', 'good', false); emitGameEvent({ type: 'contract.accepted' }) }
       else if (v === 'counter') get().notify('They have countered.', 'neutral')
-      else get().notify('Offer rejected.', 'bad')
+      else { get().notify('Offer rejected.', 'bad', false); emitGameEvent({ type: 'contract.rejected' }) }
       return v === 'walkedAway' ? 'error' : v
     },
     walkAway: (fighterId) => update((g) => commands.endNegotiation(g, fighterId)),
@@ -293,7 +306,8 @@ export const useGame = create<GameStore>((set, get) => {
       const r = commands.schedule(g, fightId, day)
       if (!r.ok) { get().notify(r.error ?? 'Could not schedule.', 'bad'); return false }
       set({ game: r.state })
-      get().notify('Fight scheduled. Camp opens four weeks out.', 'good')
+      get().notify('Fight scheduled. Camp opens four weeks out.', 'good', false)
+      emitGameEvent({ type: 'fight.scheduled' })
       return true
     },
     setPrep: (fightId, side, patch) => {
@@ -310,6 +324,7 @@ export const useGame = create<GameStore>((set, get) => {
       const r = commands.runFightNight(g, fightId)
       if (!r.ok) { get().notify(r.error ?? 'Could not start the fight.', 'bad'); return false }
       set({ game: r.state, justRan: fightId })
+      announceFight(r.state, fightId)
       if (r.state.settings.autosave) void persist(r.state, { auto: true }).catch(() => undefined)
       return true
     },
@@ -329,6 +344,7 @@ export const useGame = create<GameStore>((set, get) => {
       const r = fn(g, ...args)
       if (!r.ok) { get().notify(r.error ?? 'That did not work.', 'bad'); return false }
       set({ game: r.state })
+      if (name === 'quickSim' || name === 'runToEnd') announceFinish(g, r.state, args[0] as string)
       if (EVENT_OK[name]) get().notify(EVENT_OK[name]!, 'good')
       return true
     },
@@ -338,6 +354,11 @@ export const useGame = create<GameStore>((set, get) => {
       const r = commands.runNextEventFight(g, eventId)
       if (!r.ok) { get().notify(r.error ?? 'Could not run the next fight.', 'bad'); return null }
       set({ game: r.state, nightFight: r.fightId ?? null, justRan: r.fightId ?? null })
+      const before = g.events[eventId], after = r.state.events[eventId]
+      if (before?.status === 'fightWeek') emitGameEvent({ type: 'event.started', eventId })
+      if (after && r.fightId && after.card[after.card.length - 1] === r.fightId && after.card.length > 1) emitGameEvent({ type: 'event.mainEvent', eventId })
+      if (r.fightId) announceFight(r.state, r.fightId)
+      announceFinish(g, r.state, eventId)
       if (r.state.settings.autosave) void persist(r.state, { auto: true }).catch(() => undefined)
       return r.fightId ?? null
     },
@@ -370,7 +391,8 @@ export const useGame = create<GameStore>((set, get) => {
       return true
     },
 
-    notify: (text, tone = 'neutral') => {
+    notify: (text, tone = 'neutral', sound = true) => {
+      if (sound) emitGameEvent({ type: 'notice', tone })
       const id = ++noticeSeq
       set((s) => ({ notices: [...s.notices.filter((n) => n.text !== text).slice(-2), { id, text, tone }] }))
       setTimeout(() => get().dismissNotice(id), 4500)

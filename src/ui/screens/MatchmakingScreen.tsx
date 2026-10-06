@@ -1,7 +1,9 @@
 import { useMemo, useState } from 'react'
+import { matchmakingAdvice } from '../../engine/advisor'
 import { opponentCandidates, type OpponentCandidate, type OpponentFilters } from '../../engine/matchmaking'
 import { useGame } from '../../store/gameStore'
 import { useViews } from '../../store/hooks'
+import { AdvicePanel } from '../components/Advice'
 import { Avatar, Flag, Section } from '../components/Bits'
 import { RangeText } from '../components/Estimates'
 import { FormDots, StarRating, VerdictChip } from '../components/FightBits'
@@ -116,6 +118,7 @@ export function MatchmakingScreen({ fighterId }: { fighterId?: string }) {
               </tbody>
             </table>
           </div>
+          {me && (chosen.length > 0 ? chosen : rows.slice(0, 1)).length > 0 && <AdvicePanel cap={3} list={(chosen.length > 0 ? chosen : rows.slice(0, 1)).flatMap((c) => matchmakingAdvice(me, c.view, c.assessment))} title="Promoter’s notes" />}
           {rows.length === 0 && <p className="empty">No opponents match. Loosen the filters, or run a talent search in Scouting to discover more fighters.</p>}
 
           {chosen.length >= 1 && (

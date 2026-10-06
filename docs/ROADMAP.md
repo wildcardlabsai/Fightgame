@@ -65,3 +65,7 @@ Injuries, rivalries, media, random events, scandals, suspensions, career arcs, l
 
 ## Phase 8 — Polish ⬜
 Animation, sound, richer charts, fight/event presentation, tutorial/onboarding, performance, mobile pass.
+
+## Phase 4.7 — Promoter advisor, career scenarios, onboarding & audio ✅
+
+See `docs/PLAYER_EXPERIENCE.md`. Phase 4.6 (progression/economic curve tuning) was paused part-way for this phase: its diagnosis harness (cash-flow breakdown, career tracker) is committed; no balance values were changed.

@@ -70,13 +70,14 @@ export function Shell() {
         <div className="nav-group">
           <div className="nav-label caps">Run the promotion</div>
           {LIVE_NAV.map((n) => (
-            <button key={n.screen} className={`nav-item${activeScreen === n.screen ? ' active' : ''}`} onClick={() => navigate(n.screen)}
+            <button key={n.screen} data-sfx="navigate" className={`nav-item${activeScreen === n.screen ? ' active' : ''}`} onClick={() => navigate(n.screen)}
               aria-current={activeScreen === n.screen ? 'page' : undefined}>
               <Icon name={n.icon} />
               {n.label}
               {n.screen === 'inbox' && unread > 0 && <span className="badge">{unread}</span>}
             </button>
           ))}
+          <button data-sfx="navigate" className={`nav-item nav-settings-mobile${activeScreen === 'settings' ? ' active' : ''}`} onClick={() => navigate('settings')} aria-current={activeScreen === 'settings' ? 'page' : undefined}>Settings</button>
         </div>
         <div className="nav-group">
           <div className="nav-label caps">Coming soon</div>
@@ -89,7 +90,7 @@ export function Shell() {
           ))}
         </div>
         <div className="rail-foot">
-          <button className={`nav-item${activeScreen === 'settings' ? ' active' : ''}`} style={{ padding: '6px 0', borderLeft: 0 }} onClick={() => navigate('settings')}>
+          <button className={`nav-item${activeScreen === 'settings' ? ' active' : ''}`} style={{ padding: '6px 0', borderLeft: 0 }} data-sfx="navigate" onClick={() => navigate('settings')}>
             <Icon name="settings" />Save &amp; Settings
           </button>
         </div>

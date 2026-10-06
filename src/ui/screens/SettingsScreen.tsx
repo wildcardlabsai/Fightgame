@@ -1,8 +1,68 @@
 import { useEffect, useRef } from 'react'
+import { ADVISOR_MODES, type AdvisorMode } from '../../engine/advisor'
 import { formatDay } from '../../engine/calendar'
+import { scenarioById } from '../../engine/scenarios'
 import { useGame } from '../../store/gameStore'
 import { useViews } from '../../store/hooks'
+import { usePrefs } from '../../store/prefs'
 import { Section } from '../components/Bits'
+
+const ADVISOR_BLURB: Record<AdvisorMode, string> = {
+  full: 'Show the most useful tips, as well as warnings.',
+  standard: 'Important warnings and the occasional tip. (Default)',
+  minimal: 'Only serious financial and career warnings.',
+  off: 'No advisor. You are on your own.',
+}
+const SLIDERS = [['master', 'Master'], ['music', 'Music'], ['ui', 'UI'], ['sfx', 'Sound effects'], ['fight', 'Fight']] as const
+
+function AdvisorSettings() {
+  const mode = usePrefs((s) => s.advisor)
+  const setAdvisor = usePrefs((s) => s.setAdvisor)
+  const stepsHidden = usePrefs((s) => s.firstStepsHidden)
+  const hideSteps = usePrefs((s) => s.hideFirstSteps)
+  return (
+    <Section title="Advisor">
+      <p className="dim" style={{ fontSize: 13, marginBottom: 10 }}>Your promoter’s advisor points out financial and career risks. It never changes prices, results or the rules — you can always ignore it.</p>
+      <div className="seg" role="radiogroup" aria-label="Advisor level">
+        {ADVISOR_MODES.map((m) => <button key={m} type="button" role="radio" aria-checked={mode === m} onClick={() => setAdvisor(m)}>{m}</button>)}
+      </div>
+      <p className="dim" style={{ fontSize: 13, marginTop: 8 }}>{ADVISOR_BLURB[mode]}</p>
+      <label style={{ display: 'flex', gap: 10, alignItems: 'center', margin: '12px 0 0' }}>
+        <input type="checkbox" checked={!stepsHidden} onChange={(e) => hideSteps(!e.target.checked)} /> Show “First steps” on the dashboard
+      </label>
+    </Section>
+  )
+}
+
+function AudioSettings() {
+  const a = usePrefs((s) => s.audio)
+  const setAudio = usePrefs((s) => s.setAudio)
+  const reset = usePrefs((s) => s.resetAudio)
+  return (
+    <Section title="Audio">
+      <label style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 6 }}>
+        <input type="checkbox" checked={a.enabled} onChange={(e) => setAudio({ enabled: e.target.checked })} data-testid="audio-enabled" /> Enable audio
+      </label>
+      <label style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 10 }}>
+        <input type="checkbox" checked={a.muted} onChange={(e) => setAudio({ muted: e.target.checked })} data-testid="audio-mute" /> Mute all
+      </label>
+      {SLIDERS.map(([k, label]) => (
+        <div className="vol-row" key={k}>
+          <label htmlFor={`vol-${k}`}>{label}</label>
+          <input id={`vol-${k}`} type="range" min={0} max={100} step={1} value={a[k]} disabled={!a.enabled} onChange={(e) => setAudio({ [k]: Number(e.target.value) })} aria-valuetext={`${a[k]} percent`} />
+          <span className="num">{a[k]}</span>
+        </div>
+      ))}
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 10 }}>
+        <button className="btn small ghost" data-sfx="click">Test UI</button>
+        <button className="btn small ghost" data-sfx="notification">Test effects</button>
+        <button className="btn small ghost" data-sfx="bell">Test fight bell</button>
+        <button className="btn small ghost" data-sfx="none" onClick={reset}>Reset</button>
+      </div>
+      <p className="dim" style={{ fontSize: 13, marginTop: 10 }}>Every sound is paired with something you can see — nothing is conveyed by audio alone. Sound only starts after you click or tap something, and music has no tracks yet.</p>
+    </Section>
+  )
+}
 
 export function SettingsScreen() {
   const game = useGame((s) => s.game)!
@@ -38,10 +98,13 @@ export function SettingsScreen() {
       </div>
       <div className="grid-2">
         <div>
+          <AdvisorSettings />
+          <AudioSettings />
           <Section title="This game">
             <dl>
               <div className="kv"><dt>World seed</dt><dd className="num" style={{ fontSize: 18 }}>{game.seed}</dd></div>
               <div className="kv"><dt>Difficulty</dt><dd style={{ textTransform: 'capitalize' }}>{game.settings.difficulty}</dd></div>
+              {game.scenario && <div className="kv"><dt>Career</dt><dd>{scenarioById(game.scenario.id)?.name}</dd></div>}
               <div className="kv"><dt>Game date</dt><dd>{formatDay(game.today)}</dd></div>
               <div className="kv"><dt>Fighters you know of</dt><dd>{views.known().length}</dd></div>
               <div className="kv"><dt>Save version</dt><dd>{game.version}</dd></div>

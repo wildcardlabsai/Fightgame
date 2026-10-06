@@ -1,10 +1,12 @@
 import { useState } from 'react'
 import { formatDay } from '../../engine/calendar'
 import { WEEKLY_COSTS } from '../../engine/config'
+import { allAdvice, financeAdvisor } from '../../engine/advisor'
 import { cashRunwayWeeks, financialHealth, overheadCost, player, weeklyBurn } from '../../engine/selectors'
 import { commitments, recentSpend } from '../../engine/quotes'
 import type { GameState, TransactionCategory } from '../../engine/types'
 import { useGame } from '../../store/gameStore'
+import { AdvicePanel } from '../components/Advice'
 import { Section } from '../components/Bits'
 import { AreaChart } from '../components/Charts'
 import { money } from '../format'
@@ -30,6 +32,8 @@ export function FinancesScreen() {
   const cats = Array.from(new Set(game.ledger.map((t) => t.category)))
   const com = commitments(game)
   const health = financialHealth(game)
+  const fin = financeAdvisor(game)
+  const finKey = fin.standing.split(' ')[0]
   const spent = game.ledger.filter((t) => t.amount < 0).reduce((s, t) => s - t.amount, 0)
 
   return (
@@ -46,6 +50,13 @@ export function FinancesScreen() {
         <div className="kpi"><div className="caps">Runway</div><div className={`v num ${runway !== null && runway < 8 ? 'red' : ''}`}>{runway === null ? '—' : `${runway} wks`}</div></div>
         <div className="kpi"><div className="caps">Spent since launch</div><div className="v num">{money(spent)}</div></div>
       </div>
+
+      <Section title="Promotion financial health" right={<span className={`standing ${finKey}`} style={{ fontFamily: 'var(--display)', fontWeight: 700, letterSpacing: '.08em', textTransform: 'uppercase' }}>{fin.standing}</span>}>
+        <div className="finhealth">
+          <ul style={{ margin: '0 0 0 18px', color: 'var(--text)' }}>{fin.reasons.map((r, i) => <li key={i}>{r}</li>)}</ul>
+        </div>
+        <AdvicePanel list={allAdvice(game).filter((a) => a.topic === 'event' || a.topic === 'contract')} cap={3} compact />
+      </Section>
 
       <Section title="Financial health" right={<span className={`chip hp ${health.state}`}>{health.label}</span>}>
         <p>{health.reason}</p>

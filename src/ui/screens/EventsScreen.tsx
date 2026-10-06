@@ -1,8 +1,10 @@
 import { useMemo, useState } from 'react'
 import { formatDay } from '../../engine/calendar'
 import { eventList, venueViews, type EventListItem } from '../../engine/eventViews'
+import { venueBookingAdvice } from '../../engine/advisor'
 import { financialHealth } from '../../engine/selectors'
 import { useGame } from '../../store/gameStore'
+import { AdvicePanel } from '../components/Advice'
 import { Modal } from '../components/Overlay'
 import { money } from '../format'
 
@@ -41,6 +43,7 @@ function NewEventModal({ onClose }: { onClose: () => void }) {
   const date = day !== null && v.freeDates.includes(day) ? day : v.freeDates[0]
   const cash = game.promotions[game.playerPromotionId].cash
   const ok = name.trim().length >= 3 && date !== undefined
+  const bookingAdvice = useMemo(() => { const a = venueBookingAdvice(game, v.hireCost, v.productionCost, v.name); return a ? [a] : [] }, [game, v])
   return (
     <Modal title="Plan a new show" onClose={onClose} wide>
       <label className="field"><span className="caps">Event name</span>
@@ -55,6 +58,7 @@ function NewEventModal({ onClose }: { onClose: () => void }) {
         <div className="kpi"><div className="caps">Hire fee</div><div className={`v num ${v.hireCost > cash ? 'red' : ''}`} style={{ fontSize: 22 }}>{money(v.hireCost, false)}</div><div className="s">paid now</div></div>
         <div className="kpi"><div className="caps">Card size</div><div className="v num" style={{ fontSize: 22 }}>{v.minFights}–{v.maxFights}</div><div className="s">fights</div></div>
       </div>
+      <AdvicePanel list={bookingAdvice} cap={1} />
       <div className="caps" style={{ marginBottom: 6 }}>Date (Saturdays, at least 6 weeks away)</div>
       {v.freeDates.length === 0 ? <p className="empty">No free dates at this venue.</p> : (
         <div className="opp-grid">

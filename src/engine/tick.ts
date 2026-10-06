@@ -1,3 +1,4 @@
+import { checkObjectives } from './scenarios'
 import { DAYS_PER_WEEK } from './calendar'
 import { stateIds } from './ids'
 import { driftKnowledge, observeRoster } from './knowledge'
@@ -77,6 +78,9 @@ export function advanceOneWeek(input: GameState): GameState {
   aiSigning(state, rng, ids)
   aiFinances(state)
   processObligations(state)
+  for (const o of checkObjectives(state)) {
+    postMessage(state, { from: 'Board', category: 'system', priority: 'important', key: `objective-${o.id}`, cooldownWeeks: 9999, subject: 'Objective complete', body: `${o.label}. Well done — the board is impressed. Keep building.`, link: { kind: 'screen', screen: 'dashboard' } })
+  }
   purgeNegotiations(state)
   if (Math.floor((state.today - state.startDay) / 7) % 52 === 51) { pruneFights(state); pruneRetired(state); pruneEvents(state) }
 

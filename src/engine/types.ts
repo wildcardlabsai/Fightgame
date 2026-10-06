@@ -758,6 +758,8 @@ export interface GameState {
   news: NewsItem[]
 
   settings: GameSettings
+  /** Phase 4.7: the career the player chose (undefined for classic starts and pre-4.7 saves). */
+  scenario?: { id: 'groundUp' | 'regional' | 'national' | 'champion'; done: Record<string, number> }
 }
 
-export const GAME_STATE_VERSION = 5
+export const GAME_STATE_VERSION = 6

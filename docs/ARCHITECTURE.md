@@ -146,3 +146,10 @@ UI (EventsScreen, EventPage)  →  store.eventDo(name,…) / runNextEventFight  
 * `sim/` — `strategies.ts` (five scripted promoters), `runner.ts` (world runs and metrics), `audit.ts` (synthetic shows),
   `bench.test.ts` (opt-in driver), `audit.test.ts` (relationships the design promises). Not imported by the game.
 * Retention: `fights.ts#trimUntrackedHistory` keeps 12 recent bouts for fighters the player has any relationship with, 6 for the rest.
+
+## Phase 4.7 additions
+
+- `engine/advisor.ts`, `engine/scenarios.ts`, `engine/onboarding.ts`, `engine/preferences.ts` are presentation-facing engine modules (allow-listed in `leakAudit.test.ts`; each is also static-scanned for hidden-field access in `phase47.test.ts`). The UI never touches browser storage directly.
+- `src/audio/` (manager, synth backend, bindings) and `store/gameEvents.ts`: audio is driven by `data-sfx` attributes and store-emitted game events, never from render paths.
+- `GAME_STATE_VERSION` 6: optional `scenario` field.
+- Test hooks: `window.__audio` (always) and `window.__fe` (only with `?e2e`) in `main.tsx`; browser checks in `scripts/browser/phase47.mjs`.

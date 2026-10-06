@@ -6,6 +6,7 @@ import { applyReport, discover } from './knowledge'
 import { baseMoney, marketValue } from './market'
 import { createStartingScout } from './scouting'
 import { pushHistory } from './roster'
+import { scenarioById, type ScenarioId } from './scenarios'
 import { IdGen, type IdSource } from './ids'
 import { postMessage } from './messages'
 import { monogramFor } from './promotions'
@@ -24,6 +25,8 @@ export interface NewGameOptions {
   homeCountry: 'ENG' | 'USA'
   difficulty: Difficulty
   logo: Promotion['logo']
+  /** Phase 4.7: start from a career scenario. Omitted = the classic start (kept so older tests and sims are unchanged). */
+  scenario?: ScenarioId
 }
 
 const STARTING_CASH: Record<Difficulty, number> = { forgiving: 750_000, standard: 500_000, brutal: 300_000 }
@@ -54,6 +57,8 @@ const AI_PROMOTIONS: AiPromotionSeed[] = [
 ]
 
 export function createNewGame(opts: NewGameOptions, now = Date.now()): GameState {
+  const sc = scenarioById(opts.scenario)
+  if (sc) opts = { ...opts, difficulty: sc.difficulty }
   const rng = Rng.fromSeed(opts.seed)
   const ids = new IdGen()
   const today = dayFromIso(START_DATE)
@@ -77,13 +82,13 @@ export function createNewGame(opts: NewGameOptions, now = Date.now()): GameState
     promoterName: opts.promoterName,
     isPlayer: true,
     homeCountry: opts.homeCountry,
-    tier: 'Startup',
+    tier: sc?.tier ?? 'Startup',
     logo: opts.logo,
-    cash: STARTING_CASH[opts.difficulty],
-    reputation: 6,
-    fanbase: 1_200,
-    regionalPopularity: 4,
-    globalPopularity: 0,
+    cash: sc?.startingCash ?? STARTING_CASH[opts.difficulty],
+    reputation: sc?.reputation ?? 6,
+    fanbase: sc?.fanbase ?? 1_200,
+    regionalPopularity: sc?.regionalPopularity ?? 4,
+    globalPopularity: sc?.globalPopularity ?? 0,
     foundedDay: today,
     ai: null,
     stats: emptyStats(today), accounting: null,
@@ -117,27 +122,47 @@ export function createNewGame(opts: NewGameOptions, now = Date.now()): GameState
     }
   }
 
-  // Player's four starting fighters: raw club-level talent, one with real potential.
-  const playerQualities = [0.38, 0.32, 0.28, 0.5]
-  playerQualities.forEach((q, i) => {
-    const nationality = biasedNation(rng, opts.homeCountry, 0.85)
-    const f = generateFighter(rng, ids, {
-      quality: q, today, nationality,
-      ageMin: i === 3 ? 19 : 21, ageMax: i === 3 ? 21 : 30,
+  // Player's starting fighters. A scenario describes its roster as data; the classic start is four raw
+  // club-level fighters, one with real potential.
+  if (sc) {
+    for (const g of sc.roster) {
+      for (let i = 0; i < g.count; i++) {
+        const f = generateFighter(rng, ids, { quality: rng.float(g.quality[0], g.quality[1]), today, nationality: biasedNation(rng, opts.homeCountry, 0.85), ageMin: g.ageMin, ageMax: g.ageMax })
+        fighters[f.id] = f
+        const c = signContract(rng, ids, f, playerId, today)
+        c.startDay = today
+        c.endDay = today + g.contractYears * 365
+        c.fightsTotal = c.fightsRemaining = g.contractYears * c.minFightsPerYear
+        contracts[c.id] = c
+        f.morale = rng.int(66, 82)
+        f.fitness = Math.max(f.fitness, 78)
+        f.contractId = c.id
+        f.availableSince = null
+        pushHistory(f, { day: today, kind: 'signed', promotionId: playerId })
+      }
+    }
+  } else {
+    const playerQualities = [0.38, 0.32, 0.28, 0.5]
+    playerQualities.forEach((q, i) => {
+      const nationality = biasedNation(rng, opts.homeCountry, 0.85)
+      const f = generateFighter(rng, ids, {
+        quality: q, today, nationality,
+        ageMin: i === 3 ? 19 : 21, ageMax: i === 3 ? 21 : 30,
+      })
+      fighters[f.id] = f
+      const c = signContract(rng, ids, f, playerId, today)
+      c.startDay = today
+      c.endDay = today + 3 * 365 // long enough that renewals (Phase 2) arrive well before expiry
+      c.fightsTotal = c.fightsRemaining = rng.int(6, 8)
+      contracts[c.id] = c
+      // Fresh signings arrive hungry and healthy.
+      f.morale = rng.int(66, 82)
+      f.fitness = Math.max(f.fitness, 78)
+      f.contractId = c.id
+      f.availableSince = null
+      pushHistory(f, { day: today, kind: 'signed', promotionId: playerId })
     })
-    fighters[f.id] = f
-    const c = signContract(rng, ids, f, playerId, today)
-    c.startDay = today
-    c.endDay = today + 3 * 365 // long enough that renewals (Phase 2) arrive well before expiry
-    c.fightsTotal = c.fightsRemaining = rng.int(6, 8)
-    contracts[c.id] = c
-    // Fresh signings arrive hungry and healthy.
-    f.morale = rng.int(66, 82)
-    f.fitness = Math.max(f.fitness, 78)
-    f.contractId = c.id
-    f.availableSince = null
-    pushHistory(f, { day: today, kind: 'signed', promotionId: playerId })
-  })
+  }
 
   // Free-agent pool: the open market the player will scout from (Phase 2).
   for (let i = 0; i < 170; i++) {
@@ -184,6 +209,7 @@ export function createNewGame(opts: NewGameOptions, now = Date.now()): GameState
     inbox: [],
     news: [],
     settings: { difficulty: opts.difficulty, autosave: true },
+    ...(sc ? { scenario: { id: sc.id, done: {} } } : {}),
   }
   state.idCounter = ids.counter
   state.scouts.push(createStartingScout(state, opts.homeCountry))
@@ -247,10 +273,13 @@ function seedHistory(rng: Rng, f: Fighter, c: Contract, currentPromo: Id, aiIds:
 
 function postWelcomeMessages(state: GameState): void {
   const p = state.promotions[state.playerPromotionId]
+  const sc = scenarioById(state.scenario?.id)
+  const n = Object.values(state.contracts).filter((c) => c.promotionId === p.id).length
+  const goal = sc ? ` Your objective: ${sc.objectives[0].label.replace(/^./, (c) => c.toLowerCase())}.` : ''
   postMessage(state, {
     from: 'Board', category: 'system', priority: 'important',
     subject: `Welcome to ${p.name}`,
-    body: `${p.promoterName}, the paperwork is signed and the doors are open. You have four fighters, a rented gym and £${Math.round(p.cash / 1000)}k in the bank. Every week the bills land and the rest of boxing moves on without you. Your scout Dennis can investigate fighters on the open market — but reports cost money and are never perfect. Fights and events arrive in the phases ahead.`,
+    body: `${p.promoterName}, the paperwork is signed and the doors are open. You have ${n === 1 ? 'one fighter' : `${n} fighters`}, a gym and £${Math.round(p.cash / 1000)}k in the bank. Every week the bills land and the rest of boxing moves on without you. Scout the market, book a show, and watch the forecast before you commit.${goal}`,
     link: { kind: 'screen', screen: 'dashboard' },
   })
   const roster = Object.values(state.contracts)
