@@ -4,7 +4,8 @@ import type { Fight, FightStatus } from '../types'
 const NEXT: Record<FightStatus, FightStatus[]> = {
   negotiating: ['agreed', 'cancelled'],
   agreed: ['scheduled', 'cancelled'],
-  scheduled: ['training', 'cancelled'],
+  // `agreed` again = taken off an event card before camp opens.
+  scheduled: ['training', 'cancelled', 'agreed'],
   training: ['fightNight', 'cancelled'],
   fightNight: ['completed', 'cancelled'],
   completed: ['processed'],

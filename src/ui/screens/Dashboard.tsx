@@ -1,8 +1,10 @@
 import { formatDay, weekOfYear } from '../../engine/calendar'
 import { fightList } from '../../engine/fightViews'
+import { dashboardEvent } from '../../engine/eventViews'
+import { RiskChip } from './EventPage'
 import { opViews } from '../../engine/quotes'
 import {
-  attentionItems, cashRunwayWeeks, player, unreadCount, weeklyBurn,
+  attentionItems, cashRunwayWeeks, financialHealth, player, unreadCount, weeklyBurn,
 } from '../../engine/selectors'
 import { STAGE_LABEL } from '../../engine/systems/contracts'
 import { FOCUS_LABELS } from '../../engine/systems/development'
@@ -18,8 +20,8 @@ const LOOP: { name: string; status: 'live' | 'partial' | 'locked'; note: string 
   { name: 'Sign', status: 'live', note: 'Negotiation live' },
   { name: 'Develop', status: 'live', note: 'Training live' },
   { name: 'Arrange fights', status: 'live', note: 'Matchmaking & fights live' },
-  { name: 'Build events', status: 'locked', note: 'Phase 4' },
-  { name: 'Earn', status: 'partial', note: 'Costs live · income P4–5' },
+  { name: 'Build events', status: 'live', note: 'Venues, cards & promotion live' },
+  { name: 'Earn', status: 'live', note: 'Gate, sponsors, TV & PPV live' },
   { name: 'Rankings', status: 'partial', note: 'Form & standing · titles Phase 6' },
 ]
 
@@ -41,6 +43,8 @@ export function Dashboard() {
   const burn = weeklyBurn(game)
   const unread = unreadCount(game)
   const mail = game.inbox.slice(0, 4)
+  const de = dashboardEvent(game)
+  const health = financialHealth(game)
 
   return (
     <>
@@ -53,7 +57,7 @@ export function Dashboard() {
           <button className="btn ghost big" onClick={() => advance(4)}>+4 Weeks</button>
         </div>
         <div className="kpis">
-          <div className="kpi"><div className="caps">Cash</div><div className={`v num ${p.cash < 0 ? 'red' : ''}`}>{money(p.cash)}</div><div className="s">{runway === null ? 'No running costs' : `${runway} weeks of runway`}</div></div>
+          <div className="kpi"><div className="caps">Cash</div><div className={`v num ${p.cash < 0 ? 'red' : ''}`}>{money(p.cash)}</div><div className="s">{runway === null ? 'No running costs' : `${runway} weeks of runway`} · <span className={`hp ${health.state}`}>{health.label}</span></div></div>
           <div className="kpi"><div className="caps">Weekly burn</div><div className="v num">{money(burn.total, false)}</div><div className="s">{money(burn.overheads, false)} overheads</div></div>
           <div className="kpi"><div className="caps">Reputation</div><div className="v num">{Math.round(p.reputation)}<span className="dim" style={{ fontSize: 20 }}>/100</span></div><div className="s">{p.tier}</div></div>
           <div className="kpi"><div className="caps">Fanbase</div><div className="v num">{compactNumber(p.fanbase)}</div><div className="s">followers</div></div>
@@ -67,6 +71,22 @@ export function Dashboard() {
           <button className="btn primary big" style={{ marginLeft: 'auto' }} onClick={() => navigate('fight', night.id)}>Go to the fight ▸</button>
         </div>
       )}
+
+      <Section title="Next show" right={<button className="linkbtn" onClick={() => navigate('events')}>{de.openCount > 1 ? `All ${de.openCount} shows` : 'Events'}</button>}>
+        {!de.next ? (
+          <div className="attn"><div><div className="t">No show planned</div><div className="d">{de.actions[0]}</div></div><button className="btn small go" onClick={() => navigate('events')}>Plan a show</button></div>
+        ) : (
+          <div className="attn info" style={{ cursor: 'pointer' }} onClick={() => navigate('event', de.next!.id)}>
+            <div style={{ flex: 1 }}>
+              <div className="t">{de.next.name} <span className="dim">· {formatDay(de.next.day, false)} · {de.next.weeksAway}w</span></div>
+              <div className="d">{de.next.venueName}, {de.next.city} · {de.next.status} · {de.next.main}</div>
+              <div className="d">{de.next.sold > 0 ? `${de.next.sold.toLocaleString('en-GB')} / ${de.next.capacity.toLocaleString('en-GB')} sold (${de.next.fillPct}%)` : `${de.next.capacity.toLocaleString('en-GB')} seats`}{de.forecastProfit ? ` · forecast profit ${money(de.forecastProfit.lo)} to ${money(de.forecastProfit.hi)}` : ''}</div>
+              {de.actions.length > 0 && <div className="d warn">To do: {de.actions.join(' · ')}</div>}
+            </div>
+            {de.risk && <RiskChip risk={de.risk} />}
+          </div>
+        )}
+      </Section>
 
       <Section title="The empire pipeline" right={<span className="dim" style={{ fontSize: 13 }}>What’s playable now vs. what’s coming</span>}>
         <div className="pipeline">
@@ -177,7 +197,7 @@ export function Dashboard() {
         {game.news.length === 0 ? <p className="empty">The world is quiet. Advance time and the headlines will follow.</p> : (
           <div style={{ display: 'grid', gap: 0 }}>
             {game.news.slice(0, 8).map((n) => (
-              <div key={n.id} className="attn" style={{ cursor: n.fighterId || n.fightId ? 'pointer' : 'default' }} onClick={() => n.fightId ? navigate('fight', n.fightId) : n.fighterId && navigate('fighter', n.fighterId)}>
+              <div key={n.id} className="attn" style={{ cursor: n.fighterId || n.fightId || n.eventId ? 'pointer' : 'default' }} onClick={() => n.eventId ? navigate('event', n.eventId) : n.fightId ? navigate('fight', n.fightId) : n.fighterId && navigate('fighter', n.fighterId)}>
                 <span className="caps" style={{ minWidth: 64 }}>{formatDay(n.day, false)}</span>
                 <span>{n.headline}</span>
                 <span className="chip" style={{ marginLeft: 'auto' }}>{n.category}</span>

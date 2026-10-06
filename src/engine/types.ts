@@ -269,6 +269,9 @@ export interface Promotion {
   foundedDay: Day
   /** Behaviour profile for AI-controlled promotions (null for the player). */
   ai: AiProfile | null
+  stats: PromotionStats
+  /** Only for AI promotions: cash reconciliation. */
+  accounting: AiAccounting | null
 }
 
 export type AiStrategy = 'traditional' | 'prospectFactory' | 'money' | 'regional'
@@ -282,6 +285,8 @@ export interface AiProfile {
 
 // ------------------------------------------------------------------ Venues
 
+export type VenueTier = 'local' | 'regional' | 'national' | 'arena' | 'stadium'
+
 export interface Venue {
   id: Id
   name: string
@@ -292,13 +297,135 @@ export interface Venue {
   hireCost: number
   /** 1 (club) – 5 (arena/stadium). */
   prestige: number
+  tier: VenueTier
+  /** 1–5: what the building can do for lighting, cameras and staging. */
+  production: number
+  /** City pull (0.5–1.6): how big the local market is. */
+  market: number
+  /** Smallest / largest card the venue will host. */
+  minFights: number
+  maxFights: number
 }
+
+// ------------------------------------------------------------------- Events
+
+export type EventStatus =
+  | 'planning' | 'venueBooked' | 'cardBuilding' | 'onSale' | 'promoting' | 'fightWeek'
+  | 'live' | 'completed' | 'settled' | 'archived' | 'cancelled'
+
+export type MarketingLevel = 'none' | 'low' | 'standard' | 'heavy' | 'major'
+export type PromoStrategy = 'local' | 'standard' | 'aggressive' | 'superstar'
+export type BroadcastKind = 'none' | 'localTv' | 'nationalTv' | 'streaming' | 'ppv'
+
+export interface TicketPrices { ga: number; premium: number; vip: number }
+
+export interface SponsorOffer {
+  id: Id
+  brand: string
+  /** Paid at settlement (halved if the main-event requirement is breached). */
+  fixedFee: number
+  attendanceBonus: { threshold: number; amount: number } | null
+  /** Bonus if the event's reputation score reaches the threshold. */
+  qualityBonus: { threshold: number; amount: number } | null
+  /** Main-event headliner popularity the sponsor expects. */
+  minMainPopularity: number
+}
+
+export interface EventFinance {
+  revenue: { tickets: number; sponsorship: number; broadcast: number; ppv: number }
+  costs: { venue: number; marketing: number; production: number; purses: number; bonuses: number; officials: number; security: number; broadcast: number }
+}
+
+export interface EventSales {
+  /** Tickets sold: [general admission, premium, VIP]. */
+  sold: [number, number, number]
+  weeksOnSale: number
+  /** Awareness built by marketing (0–100). */
+  awareness: number
+  /** Sales trend: >1 accelerating, <1 slowing. */
+  momentum: number
+  /** Cumulative tickets sold at each weekly tick (dropped when archived). */
+  history: number[]
+}
+
+export interface EventResult {
+  attendance: number
+  ppvBuys: number
+  viewers: number
+  revenue: number
+  costs: number
+  profit: number
+  atmosphere: number
+  /** Event reputation score 0–100. */
+  reputation: number
+  promoRepDelta: number
+  fanDelta: number
+  cardQuality: number
+  importance: number
+  notable: string[]
+  /** Popularity movement for the most affected fighters. */
+  risers: { fighterId: Id; delta: number }[]
+  settledDay: Day
+}
+
+export interface BoxingEvent {
+  id: Id
+  promotionId: Id
+  kind: 'player' | 'ai'
+  name: string
+  day: Day
+  venueId: Id
+  city: string
+  country: string
+  status: EventStatus
+  /** Fight ids in running order: opener first, MAIN EVENT last, co-main second last. */
+  card: Id[]
+  prices: TicketPrices
+  marketing: { level: MarketingLevel; strategy: PromoStrategy; budget: number; spent: number }
+  broadcast: { kind: BroadcastKind; ppvPrice: number }
+  sponsor: { offers: SponsorOffer[]; accepted: SponsorOffer | null }
+  sales: EventSales
+  finance: EventFinance
+  result?: EventResult
+  /** Settlement has happened (guard against paying twice). */
+  settled: boolean
+  createdDay: Day
+  onSaleDay: Day | null
+  cancelReason?: string
+  /** Index of the next card fight to run on the night. */
+  nextFight: number
+  /** Pre-event reported attendance forecast midpoint (for the "beat expectations" story). */
+  expectedAttendance: number
+  /** The player has manually ordered the card (new fights then go to the opener slot). */
+  manualOrder?: boolean
+}
+
+export interface PromotionStats {
+  events: number
+  attendance: number
+  bestAttendance: number
+  profit: number
+  lastEventDay: Day
+  /** Reported-for-public gross gate of the best show. */
+  bestGate: number
+}
+
+/** AI books: lets us prove rival cash reconciles. */
+export interface AiAccounting {
+  startCash: number
+  revenue: number
+  costs: number
+  overhead: number
+  bailouts: number
+}
+
+export type FinancialHealth = 'healthy' | 'concern' | 'critical' | 'insolvent'
 
 // ----------------------------------------------------------------- Finance
 
 export type TransactionCategory =
   | 'startingFunds' | 'office' | 'staff' | 'gym' | 'insurance' | 'retainers'
-  | 'purses' | 'tickets' | 'sponsorship' | 'ppv' | 'venue' | 'scouting' | 'signingBonus' | 'releaseFees' | 'other'
+  | 'purses' | 'tickets' | 'sponsorship' | 'ppv' | 'venue' | 'marketing' | 'production' | 'broadcast' | 'officials' | 'security' | 'scouting' | 'signingBonus' | 'releaseFees' | 'other'
 
 export interface Transaction {
   id: Id
@@ -332,16 +459,17 @@ export interface InboxMessage {
   /** De-duplication key: the same key is not posted twice within its cooldown. */
   key?: string
   /** Optional deep link the UI can offer (e.g. open a fighter profile). */
-  link?: { kind: 'fighter'; id: Id } | { kind: 'screen'; screen: string } | { kind: 'fight'; id: Id }
+  link?: { kind: 'fighter'; id: Id } | { kind: 'screen'; screen: string } | { kind: 'fight'; id: Id } | { kind: 'event'; id: Id }
 }
 
 export interface NewsItem {
   id: Id
   day: Day
   headline: string
-  category: 'prospect' | 'retirement' | 'signing' | 'release' | 'market' | 'result' | 'business' | 'world'
+  category: 'prospect' | 'retirement' | 'signing' | 'release' | 'market' | 'result' | 'business' | 'world' | 'event'
   fighterId?: Id
   fightId?: Id
+  eventId?: Id
   /** 0–100 newsworthiness. */
   importance?: number
 }
@@ -539,6 +667,10 @@ export interface Fight {
   /** Second fight of a two-fight deal. */
   seriesOf?: Id
   rematchOf?: Id
+  /** The event card this fight is on. */
+  eventId?: Id
+  /** Event the player was building when approaching the opponent (auto-attached once agreed). */
+  intendedEventId?: Id
 }
 
 // ------------------------------------------------------------- Game state
@@ -581,6 +713,7 @@ export interface GameState {
   fights: Record<Id, Fight>
   /** Pair lock after collapsed talks: key `${idA}|${idB}` (sorted) → day until which they will not talk. */
   fightLocks: Record<string, Day>
+  events: Record<Id, BoxingEvent>
   knowledge: Record<Id, FighterKnowledge>
   scouts: Scout[]
   scoutOps: ScoutAssignment[]
@@ -596,4 +729,4 @@ export interface GameState {
   settings: GameSettings
 }
 
-export const GAME_STATE_VERSION = 3
+export const GAME_STATE_VERSION = 4

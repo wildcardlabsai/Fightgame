@@ -1,7 +1,7 @@
 import { MAX_FINANCE_HISTORY, WEEKLY_COSTS } from '../config'
 import { post as record } from '../ledger'
 import { postMessage } from '../messages'
-import { cashRunwayWeeks, overheadCost, player } from '../selectors'
+import { cashRunwayWeeks, financialHealth, overheadCost, player } from '../selectors'
 import type { GameState } from '../types'
 
 /** Pay the week's running costs and record a snapshot for the cash chart. */
@@ -23,6 +23,14 @@ export function processWeeklyFinance(state: GameState): void {
   state.financeHistory.push({ day: state.today, cash: p.cash, income: 0, expenses })
   if (state.financeHistory.length > MAX_FINANCE_HISTORY) state.financeHistory.shift()
 
+  const health = financialHealth(state)
+  if (health.state === 'insolvent') {
+    postMessage(state, { from: 'Accounts', category: 'finance', priority: 'important', key: 'insolvent', cooldownWeeks: 26,
+      subject: 'The promotion is insolvent', body: 'Creditors are circling. You cannot book venues, sign fighters or start negotiations until cash recovers. Cut costs, sell tickets, or run a profitable show.', link: { kind: 'screen', screen: 'finances' } })
+  } else if (health.state === 'critical') {
+    postMessage(state, { from: 'Accounts', category: 'finance', priority: 'important', key: 'fin-critical', cooldownWeeks: 26,
+      subject: 'Finances are critical', body: health.reason, link: { kind: 'screen', screen: 'finances' } })
+  }
   const runway = cashRunwayWeeks(state)
   if (p.cash < 0) {
     postMessage(state, { from: 'Accounts', category: 'finance', priority: 'urgent', key: 'cash-negative', cooldownWeeks: 26,

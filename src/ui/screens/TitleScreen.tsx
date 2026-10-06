@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { formatDay } from '../../engine/calendar'
 import { LOGO_COLORS, LOGO_EMBLEMS, monogramFor } from '../../engine/promotions'
 import type { Difficulty, Promotion } from '../../engine/types'
@@ -22,7 +22,13 @@ export function TitleScreen() {
   const load = useGame((s) => s.loadSaved)
   const remove = useGame((s) => s.removeSave)
   const importGame = useGame((s) => s.importGame)
-  const [creating, setCreating] = useState(saves.length === 0)
+  const refresh = useGame((s) => s.refreshSaves)
+  const storageKind = useGame((s) => s.storageKind)
+  const [creating, setCreating] = useState(false)
+  const [touched, setTouched] = useState(false)
+  useEffect(() => { void refresh() }, [refresh])
+  // Saves arrive asynchronously (IndexedDB): once we know there are none, open the new-game form.
+  useEffect(() => { if (!touched && storageKind !== 'opening…') setCreating(saves.length === 0) }, [saves.length, storageKind, touched])
   const [name, setName] = useState('Iron Crown Promotions')
   const [promoter, setPromoter] = useState('')
   const [home, setHome] = useState<'ENG' | 'USA'>('ENG')
@@ -51,7 +57,7 @@ export function TitleScreen() {
               {saves.map((m) => (
                 <div key={m.id} className="save-row">
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontWeight: 600 }}>{m.promotionName}</div>
+                    <div style={{ fontWeight: 600 }}>{m.promotionName}{m.slot === 'auto' && <span className="chip" style={{ marginLeft: 8 }}>Autosave</span>}</div>
                     <div className="dim" style={{ fontSize: 13 }}>{formatDay(m.today)} · saved {new Date(m.savedAt).toLocaleString('en-GB')}</div>
                   </div>
                   <button className="btn small" onClick={() => load(m.id)}>Load</button>
@@ -60,7 +66,7 @@ export function TitleScreen() {
               ))}
             </div>
             <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-              <button className="btn ghost" onClick={() => setCreating(true)}>New Game</button>
+              <button className="btn ghost" onClick={() => { setTouched(true); setCreating(true) }}>New Game</button>
               <button className="btn ghost" onClick={() => fileRef.current?.click()}>Import Save File</button>
             </div>
           </>
@@ -105,7 +111,7 @@ export function TitleScreen() {
                 <span className="dim" style={{ fontSize: 13 }}>The same seed always generates the same boxing world.</span></div>
               <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
                 <button className="btn primary big" type="submit" disabled={!valid || seed.trim() === ''}>Open the doors ▸</button>
-                {saves.length > 0 && <button type="button" className="btn ghost" onClick={() => setCreating(false)}>Back</button>}
+                {saves.length > 0 && <button type="button" className="btn ghost" onClick={() => { setTouched(true); setCreating(false) }}>Back</button>}
               </div>
             </form>
           </>

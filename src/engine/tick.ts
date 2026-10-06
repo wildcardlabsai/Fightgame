@@ -6,7 +6,8 @@ import { postMessage } from './messages'
 import { processObligations } from './roster'
 import { processInjuries } from './fight/injuries'
 import { processFights, pruneFights, pruneRetired, resolveFight, fightInvolvesPlayer } from './fights'
-import { aiMatchmaking } from './systems/aiFights'
+import { aiEvents } from './events/ai'
+import { processEvents, pruneEvents, runWholeEvent } from './events/events'
 import { Rng } from './rng'
 import { passiveDiscovery, processScouting } from './scouting'
 import { playerRoster } from './selectors'
@@ -31,6 +32,7 @@ export function advanceOneWeek(input: GameState): GameState {
   const ids = stateIds(state)
 
   // A player's fight left unresolved is settled before time moves on (the UI normally stops you first).
+  for (const ev of Object.values(state.events)) if (ev.status === 'fightWeek' || ev.status === 'live') runWholeEvent(state, ev)
   for (const fight of Object.values(state.fights)) if (fight.status === 'fightNight') resolveFight(state, fight)
 
   state.today += DAYS_PER_WEEK
@@ -64,17 +66,18 @@ export function advanceOneWeek(input: GameState): GameState {
   aiRenewals(state, rng, ids)
   processContracts(state)
   processInjuries(state)
-  processFights(state, rng) // camp, fight night, results, records, reputation, news, knowledge
+  processFights(state, rng) // camp, fight week, (AI-run) results
+  processEvents(state) // sales, marketing, fight week, AI show nights, settlement
   inactivityNudges(state)
   processRetirements(state, rng)
   talentIntake(state, rng, ids)
-  aiMatchmaking(state, rng)
+  aiEvents(state, rng)
   aiReleases(state, rng)
   aiSigning(state, rng, ids)
   aiFinances(state)
   processObligations(state)
   purgeNegotiations(state)
-  if (Math.floor((state.today - state.startDay) / 7) % 52 === 51) { pruneFights(state); pruneRetired(state) }
+  if (Math.floor((state.today - state.startDay) / 7) % 52 === 51) { pruneFights(state); pruneRetired(state); pruneEvents(state) }
 
   // 4. Money.
   processWeeklyFinance(state)

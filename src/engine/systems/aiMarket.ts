@@ -48,20 +48,35 @@ function affordable(promo: Promotion, ask: Offer): boolean {
 
 function aiContract(state: GameState, ids: IdSource, f: Fighter, promo: Promotion, kind: 'signing' | 'renewal'): Contract {
   const ask = normaliseOffer(askTerms(state, f, promo, kind))
-  promo.cash = Math.max(0, promo.cash - ask.signingBonus)
+  promo.cash -= ask.signingBonus
+  if (promo.accounting) promo.accounting.costs += ask.signingBonus
   const c = buildContract(state, f, promo.id, ask)
   c.id = ids.next('c')
   c.aiReviewed = false
   return c
 }
 
-/** Weekly abstract finances for rivals (full AI economy arrives in Phase 6). */
+/**
+ * Weekly overheads for rivals. Their income now comes only from the events they promote (same engine as yours);
+ * here they pay retainers and a tier-scaled overhead. An owner top-up keeps a promotion alive if it runs dry
+ * and is recorded in `accounting.bailouts`, so rival books always reconcile.
+ */
 export function aiFinances(state: GameState): void {
   const retainers: Record<string, number> = {}
   for (const c of Object.values(state.contracts)) retainers[c.promotionId] = (retainers[c.promotionId] ?? 0) + c.weeklyRetainer
+  const X = B.events.ai
   for (const p of Object.values(state.promotions)) {
-    if (p.isPlayer) continue
-    p.cash = Math.max(0, p.cash + B.ai.weeklyIncome[p.tier] - (retainers[p.id] ?? 0))
+    if (p.isPlayer || !p.accounting) continue
+    const cost = (retainers[p.id] ?? 0)
+    const over = X.overheadPerWeek[p.tier]
+    p.cash -= cost + over
+    p.accounting.costs += cost
+    p.accounting.overhead += over
+    if (p.cash < X.bailoutFloor[p.tier]) {
+      const top = X.bailoutAmount[p.tier]
+      p.cash += top
+      p.accounting.bailouts += top
+    }
   }
 }
 

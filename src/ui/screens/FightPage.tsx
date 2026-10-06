@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { formatDay } from '../../engine/calendar'
+import { eventList } from '../../engine/eventViews'
 import { fightView, type FightSideView, type FightView, type ResultView } from '../../engine/fightViews'
 import type { CampIntensity, FightPlan } from '../../engine/types'
 import { useGame } from '../../store/gameStore'
@@ -161,6 +162,24 @@ function ResultSection({ fv, r, shown }: { fv: FightView; r: ResultView; shown: 
   )
 }
 
+function AddToEvent({ fightId }: { fightId: string }) {
+  const game = useGame((s) => s.game)!
+  const act = useGame((s) => s.eventDo)
+  const navigate = useGame((s) => s.navigate)
+  const evs = eventList(game, 'mine-open').filter((e) => ['venueBooked', 'cardBuilding', 'onSale', 'promoting'].includes(e.statusKey))
+  if (evs.length === 0) return <p className="empty">You have no show open for cards. <button className="linkbtn" onClick={() => navigate('events')}>Plan one</button></p>
+  return (
+    <>
+      {evs.map((e) => (
+        <div key={e.id} className="attn">
+          <div><div className="t">{e.name}</div><div className="d">{formatDay(e.day, false)} · {e.venueName} · {e.fights} fights so far</div></div>
+          <button className="btn small go" onClick={() => { if (act('addFight', e.id, fightId)) navigate('event', e.id) }}>Add to this show</button>
+        </div>
+      ))}
+    </>
+  )
+}
+
 export function FightPage({ id }: { id: string }) {
   const game = useGame((s) => s.game)!
   const navigate = useGame((s) => s.navigate)
@@ -192,12 +211,13 @@ export function FightPage({ id }: { id: string }) {
   return (
     <>
       <Hero fv={fv} after={fv.result?.after} showWinner={revealed} />
+      {fv.eventId && <p className="dim" style={{ marginTop: 8 }}>Part of <button className="linkbtn" onClick={() => navigate('event', fv.eventId!)}>{fv.eventName}</button></p>}
 
       {fv.statusKey === 'fightNight' && fv.canRunNight && (
         <div style={{ textAlign: 'center', padding: '30px 0 6px' }}>
           <div className="caps">It’s fight week</div>
           <p style={{ margin: '8px 0 18px' }}>Both fighters have made weight{fv.a.prep?.weightIssue || fv.b.prep?.weightIssue ? ' — though not without drama' : ''}. The crowd is in. Ring the bell.</p>
-          <button className="btn primary bell" onClick={() => run(id)}>Ring the bell ▸</button>
+          <button className="btn primary bell" onClick={() => (fv.eventId ? navigate('event', fv.eventId) : run(id))}>{fv.eventId ? 'Go to the show ▸' : 'Ring the bell ▸'}</button>
         </div>
       )}
 
@@ -219,6 +239,12 @@ export function FightPage({ id }: { id: string }) {
             </>
           )}
           <button className="linkbtn" style={{ marginLeft: 16 }} onClick={() => { withdraw(id); navigate('fights') }}>Call it off</button>
+        </Section>
+      )}
+      {fv.statusKey === 'agreed' && fv.mine && (
+        <Section title="Or put it on a bigger show">
+          <p className="dim" style={{ marginBottom: 10 }}>Fights earn most as part of a card: a venue, tickets, sponsors and broadcast turn them into a show.</p>
+          <AddToEvent fightId={id} />
         </Section>
       )}
 

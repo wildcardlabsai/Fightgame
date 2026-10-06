@@ -1,4 +1,4 @@
-import { VENUE_SEEDS } from '../data/venues'
+import { VENUE_SEEDS, venueFields } from '../data/venues'
 import { dayFromIso } from './calendar'
 import { generateFighter, publicFacts, visibility } from './fighters'
 import { BALANCE as B } from './balance'
@@ -66,7 +66,7 @@ export function createNewGame(opts: NewGameOptions, now = Date.now()): GameState
   // Venues
   for (const v of VENUE_SEEDS) {
     const id = ids.next('v')
-    venues[id] = { id, ...v }
+    venues[id] = { id, name: v.name, city: v.city, country: v.country, capacity: v.capacity, hireCost: v.hireCost, prestige: v.prestige, ...venueFields(v) }
   }
 
   // Player promotion
@@ -86,6 +86,7 @@ export function createNewGame(opts: NewGameOptions, now = Date.now()): GameState
     globalPopularity: 0,
     foundedDay: today,
     ai: null,
+    stats: emptyStats(today), accounting: null,
   }
 
   // AI promotions with their rosters
@@ -102,6 +103,7 @@ export function createNewGame(opts: NewGameOptions, now = Date.now()): GameState
       globalPopularity: seed.tier === 'Global' ? 85 : seed.tier === 'Major' ? 55 : seed.tier === 'National' ? 25 : 4,
       foundedDay: today - rng.int(2, 25) * 365,
       ai: { strategy: seed.strategy, urgency: 0, cooldownUntil: today },
+      stats: emptyStats(today - rng.int(20, 60) * 7), accounting: { startCash: seed.cash, revenue: 0, costs: 0, overhead: 0, bailouts: 0 },
     }
     for (let i = 0; i < seed.rosterSize; i++) {
       const quality = rng.clampedNormal(seed.quality, 0.14, 0.08, 0.98)
@@ -177,7 +179,7 @@ export function createNewGame(opts: NewGameOptions, now = Date.now()): GameState
     ],
     ledgerArchive: 0,
     financeHistory: [{ day: today, cash, income: cash, expenses: 0 }],
-    contractHistory: [], negotiations: {}, obligations: [], fights: {}, fightLocks: {},
+    contractHistory: [], negotiations: {}, obligations: [], fights: {}, fightLocks: {}, events: {},
     knowledge: {}, scouts: [], scoutOps: [], shortlist: [],
     inbox: [],
     news: [],
@@ -191,6 +193,10 @@ export function createNewGame(opts: NewGameOptions, now = Date.now()): GameState
 }
 
 /** Who the player already knows about on day one, and the coach's read of the starting roster. */
+export function emptyStats(day: number): Promotion['stats'] {
+  return { events: 0, attendance: 0, bestAttendance: 0, profit: 0, lastEventDay: day, bestGate: 0 }
+}
+
 export function initKnowledge(state: GameState): void {
   const home = state.promotions[state.playerPromotionId].homeCountry
   const own = new Set(Object.values(state.contracts).filter((c) => c.promotionId === state.playerPromotionId).map((c) => c.fighterId))

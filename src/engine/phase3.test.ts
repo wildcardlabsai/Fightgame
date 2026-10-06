@@ -412,12 +412,14 @@ describe('a full player fight', () => {
     }
   })
 
-  it('pays purses and bonuses once through the ledger, with no income', () => {
+  it('pays purses and bonuses once through the ledger; income comes only from the show', () => {
     const f = g.s.fights[g.fightId]
     const lines = g.s.ledger.filter((t) => t.category === 'purses')
     const expected = f.terms.purseA + f.terms.purseB + (f.result!.winner === 0 ? f.terms.winBonusA : f.result!.winner === 1 ? f.terms.winBonusB : 0)
     expect(-lines.reduce((n, t) => n + t.amount, 0)).toBe(expected)
-    expect(g.s.ledger.filter((t) => t.amount > 0 && t.category !== 'startingFunds')).toHaveLength(0) // no fake revenue
+    // Phase 4: a fight is a one-fight show, so money can come in — but only as ticket/sponsor/broadcast/PPV income from that show.
+    const income = g.s.ledger.filter((t) => t.amount > 0 && t.category !== 'startingFunds')
+    expect(income.every((t) => ['tickets', 'sponsorship', 'broadcast', 'ppv', 'venue'].includes(t.category))).toBe(true)
     ledgerBalanced(g.s)
     expect(() => resolveFight(structuredClone(g.s), structuredClone(g.s).fights[g.fightId])).toThrow() // cannot be processed twice
   })

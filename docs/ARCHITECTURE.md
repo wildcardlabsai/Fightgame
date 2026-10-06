@@ -110,3 +110,27 @@ Matchmaking (player)                         AI matchmaking (weekly tick)
   (stats, cards, round story, injuries, consequences) — never causes. `leakAudit.test.ts` covers the new surfaces.
 * **Extension points for Phase 4+:** `Fight.venueId/city/country` (events), `FightTerms` (PPV/purse splits),
   `FightResult.importance` (media), `Fight.kind`/`organiserId` (promotion-run cards), `observeFightPerformance` (broadcast).
+
+## Events (Phase 4)
+```
+UI (EventsScreen, EventPage)  →  store.eventDo(name,…) / runNextEventFight  →  commands.ts  →  events/events.ts (pure)
+                                                                                     │
+       events/demand.ts  (public model: card quality → interest → demand → sales/PPV/TV/forecast ranges)
+       events/lifecycle.ts (legal status transitions)     eventFinance.ts (the ONLY event money path → ledger.post)
+       events/ai.ts (rival shows)   events/bot.ts (scripted player for balance tests)   eventViews.ts (what the UI may see)
+```
+* **BoxingEvent** is its own entity in `state.events`; fights point at it with `Fight.eventId` and the card is an ordered id list
+  (opener first, main event last). Illegal transitions throw (`events/lifecycle.ts`).
+* **Money.** Player events call `eventFinance.receive/spend`, which post to the ledger (cash === archive + Σ ledger still holds);
+  rival events adjust `promo.cash` and `promo.accounting` the same way, so rival books reconcile exactly. Ticket cash is booked weekly
+  (refunded on cancellation), marketing in weekly slices, production in fight week, security/officials at the end, sponsor/broadcast/PPV
+  once at settlement (guarded by `event.settled`).
+* **Information boundary.** Forecasts and all views use public inputs only (records, reputation, popularity, venue facts, prices).
+  The *actual* outcome multiplies the same model by a hidden factor (keyed noise × the headliners' true marketability) that is never
+  exposed; forecast ranges shrink with promoter experience. `phase4.test.ts` proves forecasts do not move when hidden traits change.
+* **Show night.** Fights go to `fightNight` in fight week; the event runs them in card order (`runNextFightInternal`), then settles.
+  AI shows run whole. `advanceOneWeek` finishes a player show left unrun so state can never stall.
+* **Persistence.** `persistence.ts`: `SaveVault` over IndexedDB (versioned schema, separate meta/data stores, gzip), falling back to
+  localStorage then memory; legacy localStorage saves migrate on first start. The sync `save.ts` API remains for tests and export.
+* **Compaction.** Archived events drop sales history; rival events shrink after 2 years and vanish after 5; cancelled rival events go
+  after a year.

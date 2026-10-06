@@ -33,11 +33,21 @@ news, AI promotions arranging and simulating fights, fight history on profiles, 
 (every fight is a cost), no titles or official rankings (only public form/standing), no inbound fight offers from rivals,
 no trainers/camp staff, rematch clauses are recorded but only influence price, two-fight deals are booked one at a time.
 
-## Phase 4 — Events ⬜
-Event builder, fight cards, venue booking, ticket pricing, attendance, event finances/results.
+## Phase 4 — Events, Venues & Promotion Economics ✅
+BoxingEvent entity with a strict lifecycle (planning → venue booked → card building → on sale → promoting → fight week →
+live → completed → settled → archived, or cancelled); event builder (date, venue, card order, main/co-main, prices, marketing,
+broadcast, sponsors, put on sale, cancel); 24 venues in five tiers; public-information demand model with ranged forecasts and a
+SAFE / WATCH / HIGH RISK indicator; weekly ticket sales with a sales curve; four marketing levels × four strategies; basic
+sponsors; none/local TV/national TV/streaming/PPV with PPV risk; one-time settlement through the ledger; event reputation,
+atmosphere, popularity exposure by billing; show-night flow (run, quick-sim undercard, skip) with an EVENT COMPLETE summary;
+AI promotions plan and run their own shows; financial health states; IndexedDB saves (gzip, slots, autosave, migration).
+
+**Known Phase 4 limits:** no titles/rankings; sponsors are per-event offers (no relationships); broadcast is a single choice
+with fixed terms (no negotiation); one venue per show, no touring; ticket prices are three tiers; rival promotions do not poach
+your dates deliberately; AI owners top up rivals that run dry (counted in `accounting.bailouts`) and rich rivals accumulate cash.
 
 ## Phase 5 — Business ⬜
-Revenue streams, sponsors, PPV/TV, reputation + fanbase growth, bankruptcy/game-over rules.
+Sponsor relationships and contracts, TV/streaming deals, merchandise, staff and facilities, promotion tiers, bankruptcy rules.
 
 ## Phase 6 — Boxing World ⬜
 Rankings, titles/champions, sanctioning, full AI promoters (matchmaking, events, bidding), world simulation.

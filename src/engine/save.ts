@@ -3,7 +3,8 @@ import { clamp, fighterRating, hiddenBase, PERSONALITY_LINES } from './fighters'
 import { keyedNormal } from './rng'
 import { createStartingScout } from './scouting'
 import { GAME_STATE_VERSION, type AiStrategy, type GameState } from './types'
-import { initKnowledge } from './worldgen'
+import { emptyStats, initKnowledge } from './worldgen'
+import { VENUE_SEEDS, venueFields } from '../data/venues'
 
 /**
  * Persistence layer. The engine only depends on the `SaveStorage` interface so
@@ -109,6 +110,7 @@ export function migrate(data: unknown): GameState | null {
   if (s.version > GAME_STATE_VERSION) return null // saved by a newer build
   if (s.version < 2) migrateV1toV2(s as never)
   if (s.version < 3) migrateV2toV3(s as never)
+  if (s.version < 4) migrateV3toV4(s as never)
   return s as GameState
 }
 
@@ -184,4 +186,26 @@ function migrateV2toV3(s: any): void {
   s.fights = {}
   s.fightLocks = {}
   s.version = 3
+}
+
+
+/** v3 (Phase 3) → v4 (Phase 4): events, richer venues, promotion stats and AI accounting. */
+function migrateV3toV4(s: any): void {
+  s.events = {}
+  // Venues: keep existing ids (fights reference them), refresh fields by name, add the new ones.
+  const byName = new Map<string, any>(Object.values<any>(s.venues).map((v) => [v.name, v]))
+  let counter = s.idCounter
+  for (const seed of VENUE_SEEDS) {
+    const existing = byName.get(seed.name)
+    const fields = { name: seed.name, city: seed.city, country: seed.country, capacity: seed.capacity, hireCost: seed.hireCost, prestige: seed.prestige, ...venueFields(seed) }
+    if (existing) Object.assign(existing, fields)
+    else { counter += 1; const id = `v_${counter.toString(36)}`; s.venues[id] = { id, ...fields } }
+  }
+  for (const v of Object.values<any>(s.venues)) if (!v.tier) Object.assign(v, venueFields({ name: v.name, city: v.city, country: v.country, capacity: v.capacity, hireCost: v.hireCost, prestige: v.prestige }))
+  s.idCounter = counter
+  for (const p of Object.values<any>(s.promotions)) {
+    p.stats = emptyStats(s.today)
+    p.accounting = p.isPlayer ? null : { startCash: p.cash, revenue: 0, costs: 0, overhead: 0, bailouts: 0 }
+  }
+  s.version = 4
 }

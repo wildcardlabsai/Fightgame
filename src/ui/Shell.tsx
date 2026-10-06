@@ -1,5 +1,5 @@
 import { formatDay, weekOfYear } from '../engine/calendar'
-import { cashRunwayWeeks, player, unreadCount } from '../engine/selectors'
+import { cashRunwayWeeks, financialHealth, player, unreadCount } from '../engine/selectors'
 import { useGame, type ScreenId } from '../store/gameStore'
 import { Icon } from './components/Icons'
 import { PromoLogo } from './components/Bits'
@@ -7,6 +7,8 @@ import { money } from './format'
 import { FightDealScreen } from './screens/FightDealScreen'
 import { FightPage } from './screens/FightPage'
 import { FightsScreen } from './screens/FightsScreen'
+import { EventsScreen } from './screens/EventsScreen'
+import { EventPage } from './screens/EventPage'
 import { MatchmakingScreen } from './screens/MatchmakingScreen'
 import { ContractsScreen } from './screens/ContractsScreen'
 import { NegotiationScreen } from './screens/NegotiationScreen'
@@ -30,6 +32,7 @@ const LIVE_NAV: NavDef[] = [
   { screen: 'contracts', label: 'Contracts', icon: 'contracts' },
   { screen: 'matchmaking', label: 'Matchmaking', icon: 'matchmaking' },
   { screen: 'fights', label: 'Fights', icon: 'fights' },
+  { screen: 'events', label: 'Events', icon: 'events' },
   { screen: 'inbox', label: 'Inbox', icon: 'inbox' },
   { screen: 'calendar', label: 'Calendar', icon: 'calendar' },
   { screen: 'finances', label: 'Finances', icon: 'finances' },
@@ -39,7 +42,6 @@ const LIVE_NAV: NavDef[] = [
 
 /** Planned areas. Shown disabled and labelled with the phase that delivers them — never faked. */
 const LOCKED_NAV: { label: string; icon: string; phase: number }[] = [
-  { label: 'Events', icon: 'events', phase: 4 },
   { label: 'Sponsors', icon: 'sponsors', phase: 5 },
   { label: 'Rankings', icon: 'rankings', phase: 6 },
   { label: 'Titles', icon: 'titles', phase: 6 },
@@ -55,7 +57,8 @@ export function Shell() {
   const p = player(game)
   const runway = cashRunwayWeeks(game)
   const unread = unreadCount(game)
-  const activeScreen: ScreenId = route.screen === 'fighter' ? 'fighters' : route.screen === 'negotiation' ? 'contracts' : route.screen === 'fight' || route.screen === 'deal' ? 'fights' : route.screen
+  const health = financialHealth(game)
+  const activeScreen: ScreenId = route.screen === 'fighter' ? 'fighters' : route.screen === 'negotiation' ? 'contracts' : route.screen === 'fight' || route.screen === 'deal' ? 'fights' : route.screen === 'event' ? 'events' : route.screen
 
   return (
     <div className="app">
@@ -116,6 +119,10 @@ export function Shell() {
             <span className="caps">Runway</span>
             <span className={`v num ${runway !== null && runway < 8 ? 'red' : runway !== null && runway < 26 ? 'warn' : ''}`}>{runway === null ? '—' : `${runway}w`}</span>
           </div>
+          <div className="hud-stat">
+            <span className="caps">Finances</span>
+            <span className={`v num hp ${health.state}`} title={health.reason}>{health.label}</span>
+          </div>
           <div className="hud-spacer" />
           <div className="hud-actions">
             <button className="btn ghost small" onClick={() => advance(4)} title="Advance four weeks (stops early if something urgent happens)">+4 Weeks</button>
@@ -148,6 +155,8 @@ function Screen() {
     case 'matchmaking': return <MatchmakingScreen fighterId={route.param} />
     case 'fights': return <FightsScreen />
     case 'fight': return <FightPage id={route.param ?? ''} />
+    case 'events': return <EventsScreen />
+    case 'event': return <EventPage id={route.param ?? ''} />
     case 'deal': return <FightDealScreen id={route.param ?? ''} />
     case 'negotiation': return <NegotiationScreen id={route.param ?? ''} />
   }

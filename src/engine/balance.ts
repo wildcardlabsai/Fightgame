@@ -55,7 +55,7 @@ export const BALANCE = {
     homeRegionVisibility: 12,
     /** Weekly ask for a fighter of market value 0–100: min + (mv/100)^exp * span. */
     retainer: { min: 70, span: 4_800, exp: 2.2 },
-    purse: { min: 1_500, span: 135_000, exp: 2.4 },
+    purse: { min: 1_500, span: 135_000, exp: 3.0 },
     signingBonusOfPurse: 0.3,
     winBonusOfPurse: 0.1,
     /** Width of the public "expectation band" shown while browsing. */
@@ -204,5 +204,75 @@ export const BALANCE = {
     ai: { perPromoPerWeek: 0.6, rosterPerAttempt: 8, maxOpenShare: 0.4, minWeeksNotice: 6, maxWeeksNotice: 14, journeymanPurseFactor: 0.5, freeAgentChance: 0.22 },
     recentListSize: 12,
     reputationK: 1.0,
+  },
+
+  /** EVENTS (Phase 4). Tuning assumptions — see docs/BALANCE.md. */
+  events: {
+    minLeadWeeks: 6,
+    maxLeadWeeks: 52,
+    /** Weeks before the show the event can go on sale (and typical default). */
+    onSaleWeeks: 12,
+    promotingWeeks: 6,
+    /** Fraction of venue rental refunded on cancellation, by weeks to go. */
+    cancelRefund: { early: 0.5, late: 0 },
+    cancelEarlyWeeks: 8,
+    seatSplit: { ga: 0.78, premium: 0.17, vip: 0.05 },
+    /** Demand: attendance at reference price = demandScale * (interest/10)^demandExp (before multipliers). */
+    demandScale: 90,
+    demandExp: 2.1,
+    priceShape: 3,
+    priceRefBase: 20,
+    priceRefPerInterest: 0.48,
+    premiumMult: 2.4,
+    vipMult: 7,
+    premiumShare: 0.22,
+    vipShare: 0.06,
+    /** Weights for event interest (0–100). */
+    interestWeights: { main: 0.5, coMain: 0.16, depth: 0.14, promo: 0.12, importance: 0.08 },
+    marketing: {
+      /** Default budgets (£). */
+      budgets: { none: 0, low: 500, standard: 2_000, heavy: 5_000, major: 10_000 },
+      strategies: {
+        local: { cost: 0.6, reach: 0.7, local: 1.5, star: 0 },
+        standard: { cost: 1, reach: 1, local: 1, star: 0 },
+        aggressive: { cost: 1.6, reach: 1.25, local: 1, star: 0.1 },
+        superstar: { cost: 2.5, reach: 1.15, local: 1, star: 0.6 },
+      },
+      /** Spend is measured against event scale: effect = 1 − exp(−spend·reach / (scaleBase + scalePerSeat·capacity)). */
+      scaleBase: 2_500,
+      scalePerSeat: 1.6,
+      maxDemandBoost: 0.85,
+    },
+    ppv: { scale: 0.8, exp: 2.5, ref: 55, priceRef: 17, priceShape: 2.5, promoterShare: 0.55, min: 0 },
+    tv: {
+      local: { base: 1_500, perInterest: 160, minRep: 0, minQuality: 0, production: 3_000 },
+      national: { base: 8_000, perInterest: 900, minRep: 30, minQuality: 42, production: 18_000 },
+      streaming: { perViewer: 2.2, production: 8_000, minRep: 10 },
+      ppvProduction: 25_000,
+    },
+    sponsor: { baseFactor: 0.045, maxOffers: 3 },
+    costs: {
+      /** Production by venue capability 1–5, plus a per-seat staging element. */
+      productionByLevel: [600, 2_500, 15_000, 70_000, 200_000], productionPerSeat: 0.8,
+      sanctionShare: 0.1, officialsBase: 1_200, officialsPerFight: 650, securityPerHead: 1.1, medicalPerFight: 300,
+    },
+    /** Forecast uncertainty shown to the player (± share). Narrows with experience. */
+    forecastError: { start: 0.3, floor: 0.14, perEvent: 0.012 },
+    /** Hidden actual-demand noise (sd of the log-factor). */
+    actualNoise: 0.2,
+    maxCancelledKept: 20,
+    archiveAfterWeeks: 26,
+    ai: {
+      cadenceWeeks: { Startup: 6, Regional: 4, National: 4, Major: 3, Global: 3 } as Record<PromotionTier, number>,
+      leadWeeks: [8, 14] as [number, number],
+      marketingShare: { traditional: 0.04, prospectFactory: 0.02, money: 0.07, regional: 0.03 } as Record<string, number>,
+      overheadPerWeek: { Startup: 0, Regional: 3_000, National: 18_000, Major: 70_000, Global: 220_000 } as Record<PromotionTier, number>,
+      /** Owner top-up when an AI promotion runs dry (keeps the world alive; counted in reports). */
+      bailoutFloor: { Startup: 0, Regional: 150_000, National: 700_000, Major: 3_000_000, Global: 12_000_000 } as Record<PromotionTier, number>,
+      bailoutAmount: { Startup: 0, Regional: 400_000, National: 2_000_000, Major: 8_000_000, Global: 30_000_000 } as Record<PromotionTier, number>,
+    },
+    health: { concernWeeks: 26, criticalWeeks: 8, insolventCash: -75_000 },
+    slotExposure: { main: 1.6, coMain: 1.3, mid: 1.0, opener: 0.75 },
+    broadcastExposure: { none: 1, localTv: 1.05, nationalTv: 1.25, streaming: 1.1, ppv: 1.3 },
   },
 }

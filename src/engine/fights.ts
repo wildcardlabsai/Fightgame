@@ -17,6 +17,7 @@ import { simulateFight } from './fight/sim'
 import { stateIds } from './ids'
 import { observeFightPerformance } from './knowledge'
 import { post } from './ledger'
+import { spend } from './eventFinance'
 import { postMessage, postNews } from './messages'
 import { keyedRng, type Rng } from './rng'
 import type {
@@ -288,7 +289,8 @@ export function processFights(state: GameState, rng: Rng): void {
         side.prep.campWeeks = Math.max(side.prep.campWeeks, B.fights.campWeeks)
       }
       transition(fight, 'fightNight')
-      if (!fightInvolvesPlayer(state, fight)) resolveFight(state, fight)
+      if (fight.eventId) { /* the event runs the night */ }
+      else if (!fightInvolvesPlayer(state, fight)) resolveFight(state, fight)
       else {
         postMessage(state, {
           from: 'Matchmaking', category: 'fighter', priority: 'urgent', key: `night-${fight.id}`, cooldownWeeks: 20,
@@ -386,6 +388,7 @@ function processResult(state: GameState, fight: Fight, endDamage: [number, numbe
       dPop = excitement * 0.8 - 0.2
     }
     dRep *= B.fights.reputationK
+    dPop *= exposureFor(state, fight, dPop)
     r.dRep[i] = Math.round(dRep * 10) / 10
     r.dPop[i] = Math.round(dPop * 10) / 10
     f.reputation = clamp(f.reputation + dRep, 1, 100)
@@ -416,6 +419,17 @@ function processResult(state: GameState, fight: Fight, endDamage: [number, numbe
   r.upset = r2(r.upset)
   r.perf = [r2(r.perf[0]), r2(r.perf[1])]
   payPurses(state, fight, fs)
+}
+
+/** Billing and broadcast decide how many people see a fight: headliners on big platforms gain (and lose) more. */
+function exposureFor(state: GameState, fight: Fight, dPop: number): number {
+  const ev = fight.eventId ? state.events[fight.eventId] : null
+  if (!ev) return 1
+  const X = B.events
+  const idx = ev.card.indexOf(fight.id), n = ev.card.length
+  const slot = idx === n - 1 ? X.slotExposure.main : idx === n - 2 && n >= 3 ? X.slotExposure.coMain : idx === 0 && n >= 4 ? X.slotExposure.opener : X.slotExposure.mid
+  const m = slot * X.broadcastExposure[ev.broadcast.kind]
+  return dPop >= 0 ? m : 1 + (m - 1) * 0.4
 }
 
 function applyFightDevelopment(state: GameState, f: Fighter, opp: Fighter, won: boolean, lost: boolean, ko: boolean, endDamage: number, hadKd: boolean): void {
@@ -452,11 +466,16 @@ function payPurses(state: GameState, fight: Fight, fs: Fighter[]): void {
   if (r.winner === 0 && t.winBonusA) lines.push([`Win bonus — ${fighterName(fs[0])}`, t.winBonusA])
   if (r.winner === 1 && t.winBonusB) lines.push([`Win bonus — ${fighterName(fs[1])}`, t.winBonusB])
   const total = lines.reduce((n, l) => n + l[1], 0)
+  const ev = fight.eventId ? state.events[fight.eventId] : null
+  if (ev) {
+    lines.forEach(([d, amt], i) => { if (amt > 0) spend(state, ev, i < 2 ? 'purses' : 'bonuses', amt, d) })
+    return
+  }
   if (fight.organiserId === state.playerPromotionId) {
     for (const [d, amt] of lines) if (amt > 0) post(state, 'purses', -amt, d)
   } else {
     const org = state.promotions[fight.organiserId]
-    if (org) org.cash = Math.max(0, org.cash - total)
+    if (org) { org.cash -= total; if (org.accounting) org.accounting.costs += total }
   }
 }
 

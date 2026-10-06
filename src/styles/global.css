@@ -540,3 +540,24 @@ a { color: inherit; text-decoration: none; }
   .round-row .sc { grid-column: 2; text-align: left; }
   .bell { padding: 16px 30px; width: 100%; }
 }
+
+/* ---------------------------------------------------------------- Phase 4: events */
+.cal-ev.blue { border-left-color: var(--blue); background: rgba(80,140,230,.14); }
+.slot { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border: 1px solid var(--line); border-left: 3px solid var(--faint); margin-bottom: 6px; background: linear-gradient(180deg, rgba(255,255,255,.03), rgba(255,255,255,.01)); flex-wrap: wrap; }
+.slot.main { border-left-color: var(--red); background: linear-gradient(90deg, rgba(225,29,42,.14), transparent 70%); }
+.slot.co { border-left-color: var(--gold); }
+.slot-tag { min-width: 96px; font-size: 12px; color: var(--dim); }
+.slot.main .slot-tag { color: var(--red-hot); }
+.slot-ctl { display: flex; gap: 4px; flex-wrap: wrap; }
+.night-wrap { margin: 6px 0 24px; }
+.main-card { text-align: center; padding: 34px 16px; border: 1px solid var(--line-strong); background: radial-gradient(ellipse at top, rgba(225,29,42,.2), transparent 70%); margin-top: 10px; }
+.complete { margin: 18px 0; padding: 22px 24px; border: 1px solid var(--gold); background: linear-gradient(180deg, rgba(212,162,76,.1), transparent); }
+.notable { margin: 10px 0 0 18px; color: var(--text); }
+.notable li { margin: 3px 0; }
+.pill.hot { background: var(--red); color: #fff; }
+.hp.healthy { color: var(--good); }
+.hp.concern { color: var(--warn); }
+.hp.critical, .hp.insolvent { color: var(--red-hot); }
+.chip.hp.healthy { border-color: var(--good); }
+.chip.hp.concern { border-color: var(--warn); }
+.chip.hp.critical, .chip.hp.insolvent { border-color: var(--red); }

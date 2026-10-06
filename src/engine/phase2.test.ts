@@ -371,11 +371,11 @@ describe('contracts: renewal, expiry, release', () => {
 
   it('an expired contract frees the fighter into the market', () => {
     let s = fresh()
-    const f = playerRoster(s)[0]
+    const f = playerRoster(s).sort((a, b) => fighterAge(b, s.today) - fighterAge(a, s.today)).slice(-1)[0] // youngest: will not retire this week
     s.contracts[f.contractId!].endDay = s.today + 7
     s = advanceOneWeek(s)
     expect(s.fighters[f.id].contractId).toBeNull()
-    expect(s.contractHistory[0].status).toBe('expired')
+    expect(s.contractHistory.find((h) => h.fighterId === f.id)?.status).toBe('expired')
     expect(viewsOf(s).freeAgents().some((v) => v.id === f.id)).toBe(true)
   })
 
@@ -580,7 +580,7 @@ describe('persistence of knowledge, contracts and negotiations', () => {
       c.warned12 = false; c.warned4 = false
     }
     const migrated = migrate(JSON.parse(JSON.stringify(v1)))!
-    expect(migrated.version).toBe(3)
+    expect(migrated.version).toBe(4)
     expect(migrated.scouts.length).toBe(1)
     expect(Object.keys(migrated.knowledge).length).toBeGreaterThan(50)
     expect(Object.values(migrated.fighters).every((f) => !f.bio.includes('easiest fighter in the gym'))).toBe(true)

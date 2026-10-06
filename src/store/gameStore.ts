@@ -1,9 +1,7 @@
 import { create } from 'zustand'
 import * as commands from '../engine/commands'
-import {
-  browserStorage, deleteSave as deleteSaveSlot, deserialiseGame, listSaves, loadGame, saveGame,
-  serialiseGame, type SaveMeta,
-} from '../engine/save'
+import { browserStorage, deserialiseGame, serialiseGame } from '../engine/save'
+import { openBestBackend, SaveVault, type SlotMeta } from '../engine/persistence'
 import { advanceWeeks } from '../engine/tick'
 import type { GameState, Id, NegotiationKind, Offer, ScoutDepth, TrainingFocus } from '../engine/types'
 import type { SearchSpec } from '../engine/scouting'
@@ -12,14 +10,14 @@ import { createNewGame, type NewGameOptions } from '../engine/worldgen'
 
 export type ScreenId =
   | 'dashboard' | 'fighters' | 'fighter' | 'calendar' | 'inbox' | 'finances' | 'promotions'
-  | 'venues' | 'settings' | 'scouting' | 'contracts' | 'negotiation' | 'matchmaking' | 'fights' | 'fight' | 'deal'
+  | 'venues' | 'settings' | 'scouting' | 'contracts' | 'negotiation' | 'matchmaking' | 'fights' | 'fight' | 'deal' | 'events' | 'event'
 
 export interface Route {
   screen: ScreenId
   param?: string
 }
 
-const SCREENS: ScreenId[] = ['dashboard', 'fighters', 'fighter', 'calendar', 'inbox', 'finances', 'promotions', 'venues', 'settings', 'scouting', 'contracts', 'negotiation', 'matchmaking', 'fights', 'fight', 'deal']
+const SCREENS: ScreenId[] = ['dashboard', 'fighters', 'fighter', 'calendar', 'inbox', 'finances', 'promotions', 'venues', 'settings', 'scouting', 'contracts', 'negotiation', 'matchmaking', 'fights', 'fight', 'deal', 'events', 'event']
 
 export function parseHash(hash: string): Route {
   const [, screen, param, extra] = hash.replace(/^#/, '').split('/')
@@ -39,19 +37,21 @@ export interface Notice {
 interface GameStore {
   game: GameState | null
   route: Route
-  saves: SaveMeta[]
+  saves: SlotMeta[]
+  /** Where saves live: indexeddb | localstorage | memory (unknown until the vault has opened). */
+  storageKind: string
   notices: Notice[]
   /** Briefly true after advancing time (drives the UI transition). */
   simulating: boolean
 
   navigate: (screen: ScreenId, param?: string) => void
   syncRouteFromHash: () => void
-  refreshSaves: () => void
+  refreshSaves: () => Promise<void>
   startNewGame: (o: NewGameOptions) => void
-  loadSaved: (id: string) => boolean
-  saveNow: () => void
-  removeSave: (id: string) => void
-  quitToMenu: () => void
+  loadSaved: (id: string) => Promise<boolean>
+  saveNow: (opts?: { slotName?: string }) => Promise<void>
+  removeSave: (id: string) => Promise<void>
+  quitToMenu: () => Promise<void>
   advance: (weeks: number) => void
   setTraining: (fighterId: Id, focus: TrainingFocus) => void
   orderReport: (fighterId: Id, depth: ScoutDepth, scoutId: Id) => boolean
@@ -62,7 +62,14 @@ interface GameStore {
   walkAway: (fighterId: Id) => void
   release: (fighterId: Id) => boolean
   /** Opens a link produced by the engine (fighter profile or screen). */
-  openLink: (link: { kind: 'fighter'; id: string } | { kind: 'screen'; screen: string } | { kind: 'fight'; id: string }) => void
+  openLink: (link: { kind: 'fighter'; id: string } | { kind: 'screen'; screen: string } | { kind: 'fight'; id: string } | { kind: 'event'; id: string }) => void
+  // ---- Phase 4: events ----
+  createEvent: (spec: { name: string; day: number; venueId: Id }) => string | null
+  /** Run a named event command against the current game; toasts the engine's error or a short success note. */
+  eventDo: <K extends EventCmd>(name: K, ...args: Rest<Parameters<(typeof EVENT_COMMANDS)[K]>>) => boolean
+  runNextEventFight: (eventId: Id) => Id | null
+  /** Event whose night is running (drives the reveal screen). */
+  nightFight: string | null
   // ---- Phase 3: fights ----
   /** Fight whose result was just produced (drives the fight-night reveal). */
   justRan: string | null
@@ -83,14 +90,39 @@ interface GameStore {
   dismissNotice: (id: number) => void
 }
 
-const storage = browserStorage()
 let noticeSeq = 0
+
+const EVENT_COMMANDS = {
+  addFight: commands.addFightToEvent, removeFight: commands.removeFightFromEvent, moveFight: commands.moveFightOnCard, setSlot: commands.setCardSlot,
+  setPrices: commands.setEventPrices, setMarketing: commands.setEventMarketing, setBroadcast: commands.setEventBroadcast,
+  refreshSponsors: commands.refreshEventSponsors, chooseSponsor: commands.chooseSponsor, putOnSale: commands.putEventOnSale,
+  quickSim: commands.quickSimEvent, runToEnd: commands.runEventToEnd, cancel: commands.cancelEvent,
+} as const
+export type EventCmd = keyof typeof EVENT_COMMANDS
+type Rest<T extends unknown[]> = T extends [unknown, ...infer R] ? R : never
+const EVENT_OK: Partial<Record<EventCmd, string>> = { addFight: 'Added to the card.', putOnSale: 'Tickets are on sale!', cancel: 'Show cancelled.' }
+
+/** The save vault opens asynchronously (IndexedDB); everything waits on this promise. */
+let vaultPromise: Promise<SaveVault> | null = null
+function vault(): Promise<SaveVault> {
+  vaultPromise ??= openBestBackend().then(async (b) => {
+    const v = new SaveVault(b)
+    try { await v.migrateLegacy(browserStorage()) } catch { /* old saves stay where they are */ }
+    return v
+  })
+  return vaultPromise
+}
 
 function currentHashRoute(): Route {
   return typeof window === 'undefined' ? { screen: 'dashboard' } : parseHash(window.location.hash)
 }
 
 export const useGame = create<GameStore>((set, get) => {
+  const persist = async (g: GameState, opts: { slotId?: string; name?: string; auto?: boolean } = {}) => {
+    const v = await vault()
+    await v.save(g, opts)
+    set({ saves: await v.list(), storageKind: v.backend.kind })
+  }
   const update = (fn: (g: GameState) => GameState) => {
     const g = get().game
     if (!g) return
@@ -101,10 +133,12 @@ export const useGame = create<GameStore>((set, get) => {
   return {
     game: null,
     route: currentHashRoute(),
-    saves: listSaves(storage),
+    saves: [],
+    storageKind: 'opening…',
     notices: [],
     simulating: false,
     justRan: null,
+    nightFight: null,
 
     navigate: (screen, param) => {
       const route = { screen, param }
@@ -112,17 +146,20 @@ export const useGame = create<GameStore>((set, get) => {
       set({ route })
     },
     syncRouteFromHash: () => set({ route: currentHashRoute() }),
-    refreshSaves: () => set({ saves: listSaves(storage) }),
+    refreshSaves: async () => {
+      const v = await vault()
+      set({ saves: await v.list(), storageKind: v.backend.kind })
+    },
 
     startNewGame: (o) => {
       const game = createNewGame(o)
-      saveGame(storage, game)
-      set({ game, saves: listSaves(storage), route: { screen: 'dashboard' } })
+      void persist(game)
+      set({ game, route: { screen: 'dashboard' } })
       if (typeof window !== 'undefined') window.location.hash = '#/dashboard'
     },
 
-    loadSaved: (id) => {
-      const game = loadGame(storage, id)
+    loadSaved: async (id) => {
+      const game = await (await vault()).load(id)
       if (!game) {
         get().notify('That save could not be loaded — it may be corrupt or from a newer version.', 'bad')
         return false
@@ -132,29 +169,28 @@ export const useGame = create<GameStore>((set, get) => {
       return true
     },
 
-    saveNow: () => {
+    saveNow: async (opts) => {
       const g = get().game
       if (!g) return
       try {
-        saveGame(storage, g)
-        set({ saves: listSaves(storage) })
+        await persist(g, opts?.slotName ? { slotId: `${g.saveId}~${Date.now().toString(36)}`, name: opts.slotName } : {})
         get().notify('Game saved.', 'good')
       } catch {
         get().notify('Save failed — browser storage may be full. Try exporting the save file.', 'bad')
       }
     },
 
-    removeSave: (id) => {
-      deleteSaveSlot(storage, id)
-      set({ saves: listSaves(storage) })
+    removeSave: async (id) => {
+      await (await vault()).remove(id)
+      await get().refreshSaves()
     },
 
-    quitToMenu: () => {
+    quitToMenu: async () => {
       const g = get().game
       if (g) {
-        try { saveGame(storage, g) } catch { /* surfaced via manual save */ }
+        try { await persist(g) } catch { /* surfaced via manual save */ }
       }
-      set({ game: null, saves: listSaves(storage) })
+      set({ game: null })
     },
 
     advance: (weeks) => {
@@ -162,22 +198,20 @@ export const useGame = create<GameStore>((set, get) => {
       if (!g) return
       const pending = Object.values(g.fights).find((f) => f.status === 'fightNight' && (f.organiserId === g.playerPromotionId || f.sideA.promotionId === g.playerPromotionId || f.sideB.promotionId === g.playerPromotionId))
       if (pending) {
-        get().notify('Fight night is here — ring the bell before moving on.', 'bad')
-        get().navigate('fight', pending.id)
+        get().notify('Fight night is here — run the show before moving on.', 'bad')
+        if (pending.eventId) get().navigate('event', pending.eventId); else get().navigate('fight', pending.id)
         return
       }
       const before = g.inbox.length
       const result = advanceWeeks(g, weeks)
       set({ game: result.state, simulating: true })
       setTimeout(() => set({ simulating: false }), 450)
-      if (result.state.settings.autosave) {
-        try { saveGame(storage, result.state); set({ saves: listSaves(storage) }) } catch { /* ignore */ }
-      }
+      if (result.state.settings.autosave) void persist(result.state, { auto: true }).catch(() => get().notify('Autosave failed — export your save to be safe.', 'bad'))
       const newMail = result.state.inbox.length - before
       const night = Object.values(result.state.fights).find((f) => f.status === 'fightNight' && (f.organiserId === g.playerPromotionId || f.sideA.promotionId === g.playerPromotionId || f.sideB.promotionId === g.playerPromotionId))
       if (night) {
         get().notify('It is fight week!', 'good')
-        get().navigate('fight', night.id)
+        if (night.eventId) get().navigate('event', night.eventId); else get().navigate('fight', night.id)
       } else if (result.interrupted) {
         get().notify(`Stopped after ${result.weeksAdvanced} week${result.weeksAdvanced === 1 ? '' : 's'} — something urgent needs you.`, 'bad')
       } else if (newMail > 0) {
@@ -276,10 +310,39 @@ export const useGame = create<GameStore>((set, get) => {
       const r = commands.runFightNight(g, fightId)
       if (!r.ok) { get().notify(r.error ?? 'Could not start the fight.', 'bad'); return false }
       set({ game: r.state, justRan: fightId })
-      if (r.state.settings.autosave) { try { saveGame(storage, r.state); set({ saves: listSaves(storage) }) } catch { /* ignore */ } }
+      if (r.state.settings.autosave) void persist(r.state, { auto: true }).catch(() => undefined)
       return true
     },
+    createEvent: (spec) => {
+      const g = get().game
+      if (!g) return null
+      const r = commands.createEvent(g, spec)
+      if (!r.ok) { get().notify(r.error ?? 'Could not create the event.', 'bad'); return null }
+      set({ game: r.state })
+      get().notify('Venue booked. Now build the card.', 'good')
+      return r.eventId ?? null
+    },
+    eventDo: (name, ...args) => {
+      const g = get().game
+      if (!g) return false
+      const fn = EVENT_COMMANDS[name] as unknown as (g: GameState, ...a: unknown[]) => { ok: boolean; error?: string; state: GameState }
+      const r = fn(g, ...args)
+      if (!r.ok) { get().notify(r.error ?? 'That did not work.', 'bad'); return false }
+      set({ game: r.state })
+      if (EVENT_OK[name]) get().notify(EVENT_OK[name]!, 'good')
+      return true
+    },
+    runNextEventFight: (eventId) => {
+      const g = get().game
+      if (!g) return null
+      const r = commands.runNextEventFight(g, eventId)
+      if (!r.ok) { get().notify(r.error ?? 'Could not run the next fight.', 'bad'); return null }
+      set({ game: r.state, nightFight: r.fightId ?? null, justRan: r.fightId ?? null })
+      if (r.state.settings.autosave) void persist(r.state, { auto: true }).catch(() => undefined)
+      return r.fightId ?? null
+    },
     openLink: (link) => {
+      if (link.kind === 'event') return get().navigate('event', link.id)
       if (link.kind === 'fighter') return get().navigate('fighter', link.id)
       if (link.kind === 'fight') return get().navigate('fight', link.id)
       const [screen, ...rest] = link.screen.split('/')
@@ -301,8 +364,8 @@ export const useGame = create<GameStore>((set, get) => {
         get().notify('That file is not a valid Fight Empire save.', 'bad')
         return false
       }
-      try { saveGame(storage, game) } catch { /* still playable in memory */ }
-      set({ game, saves: listSaves(storage), route: { screen: 'dashboard' } })
+      void persist(game).catch(() => undefined)
+      set({ game, route: { screen: 'dashboard' } })
       get().notify('Save imported.', 'good')
       return true
     },

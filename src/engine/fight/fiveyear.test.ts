@@ -36,7 +36,7 @@ describe('five-year world simulation (player passive)', () => {
     const maxPerYear = Math.max(...active.map((f) => f.recentFights.map((id) => s.fights[id]).filter((x) => x && x.day > s.today - 365).length))
     // fighters who fought nobody in 3 years while contracted
     const idle = active.filter((f) => f.contractId && (f.lastFightDay === null || s.today - f.lastFightDay > 3 * 365)).length
-    const old = active.filter((f) => startAges.has(f.id) && startAges.get(f.id)!.age >= 34)
+    const old = active.filter((f) => startAges.has(f.id) && startAges.get(f.id)!.age >= 31)
     const dSpeed = old.reduce((a, f) => a + f.attributes.speed - startAges.get(f.id)!.sp, 0) / Math.max(1, old.length)
     const dIq = old.reduce((a, f) => a + f.attributes.ringIQ - startAges.get(f.id)!.iq, 0) / Math.max(1, old.length)
     const young = active.filter((f) => startAges.has(f.id) && startAges.get(f.id)!.age <= 22)
@@ -47,7 +47,7 @@ describe('five-year world simulation (player passive)', () => {
       `stoppage ${(stop / n * 100).toFixed(1)}% | KO ${((methods.KO ?? 0) / n * 100).toFixed(1)}% | draws ${(draws / n * 100).toFixed(1)}% | round-1 stops ${(r1 / n * 100).toFixed(1)}% | fights with a knockdown ${(kdFights / n * 100).toFixed(1)}%`,
       `favourites (public, ≥15pt gap) won ${(favWins / fav.length * 100).toFixed(1)}% of ${fav.length} | strong favourites ${(strongWins / Math.max(1, strongFav.length) * 100).toFixed(1)}% of ${strongFav.length} | big upsets ${upsets} (${(upsets / n * 100).toFixed(1)}%)`,
       `injury rate ${(injFights / n * 100).toFixed(1)}% of fights | retired ${retired} of ${Object.keys(s.fighters).length} fighters | idle >3y while contracted ${idle}`,
-      `development: veterans(34+) speed Δ${dSpeed.toFixed(1)} ringIQ Δ${dIq.toFixed(1)} | young ringIQ/def Δ${dYoung.toFixed(1)}`,
+      `development: veterans(31+ at start) speed Δ${dSpeed.toFixed(1)} ringIQ Δ${dIq.toFixed(1)} | young ringIQ/def Δ${dYoung.toFixed(1)}`,
       `market: free agents ${freeAgents(s).length} | rival rosters [${Object.values(s.promotions).filter((p) => !p.isPlayer).map((p) => rosterOf(s, p.id).length).join(',')}] | news ${s.news.length}`,
       `perf ${ms.toFixed(1)} ms/week | max save ${(maxSave / 1024).toFixed(0)} kB | fights stored ${Object.keys(s.fights).length}`,
     ].join('\n'))

@@ -2,7 +2,8 @@ import { DAYS_PER_WEEK, weeksBetween } from './calendar'
 import { WEEKLY_COSTS } from './config'
 import { BALANCE } from './balance'
 import { fighterAge, fighterName } from './fighters'
-import type { Contract, Fighter, GameState, Promotion } from './types'
+import { cardFights, officialsCost, productionCost, purseCommitments } from './events/demand'
+import type { Contract, Fighter, FinancialHealth, GameState, Promotion } from './types'
 
 export function player(state: GameState): Promotion {
   return state.promotions[state.playerPromotionId]
@@ -51,6 +52,44 @@ export function cashRunwayWeeks(state: GameState): number | null {
   const burn = weeklyBurn(state).total
   if (burn <= 0) return null
   return Math.max(0, Math.floor(player(state).cash / burn))
+}
+
+export interface HealthReport {
+  state: FinancialHealth
+  label: string
+  reason: string
+  runwayWeeks: number | null
+  /** Cash still to be paid out for shows that have not yet run (purses, production, officials). */
+  commitments: number
+}
+
+/** Cash still owed on open shows: purses, staging and officials that have not been paid yet. */
+export function eventCommitments(state: GameState): number {
+  let n = 0
+  for (const ev of Object.values(state.events)) {
+    if (ev.promotionId !== state.playerPromotionId || !['venueBooked', 'cardBuilding', 'onSale', 'promoting', 'fightWeek', 'live'].includes(ev.status)) continue
+    const fights = cardFights(state, ev).filter((f) => !f.paid)
+    if (fights.length === 0) continue
+    const pc = purseCommitments(state, ev)
+    const v = state.venues[ev.venueId]
+    n += pc.purses + (ev.status === 'fightWeek' || ev.status === 'live' ? 0 : productionCost(v)) + officialsCost(fights.length) + Math.max(0, ev.marketing.budget - ev.marketing.spent)
+  }
+  return Math.round(n)
+}
+
+/** Healthy → concern → critical → insolvent. Never a game over: insolvency just blocks new spending. */
+export function financialHealth(state: GameState): HealthReport {
+  const H = BALANCE.events.health
+  const cash = player(state).cash
+  const runway = cashRunwayWeeks(state)
+  const commitments = eventCommitments(state)
+  const free = cash - commitments
+  if (cash < H.insolventCash) return { state: 'insolvent', label: 'INSOLVENT', reason: 'You owe more than you can cover. New spending is blocked until cash recovers.', runwayWeeks: 0, commitments }
+  if (cash < 0 || (runway !== null && runway < H.criticalWeeks) || free < 0) {
+    return { state: 'critical', label: 'CRITICAL', reason: cash < 0 ? 'The account is overdrawn.' : free < 0 ? 'Upcoming show costs exceed your cash.' : `Only ${runway} weeks of running costs in the bank.`, runwayWeeks: runway, commitments }
+  }
+  if ((runway !== null && runway < H.concernWeeks) || free < cash * 0.25) return { state: 'concern', label: 'CONCERN', reason: runway !== null && runway < H.concernWeeks ? `${runway} weeks of running costs in the bank.` : 'Most of your cash is already committed to upcoming shows.', runwayWeeks: runway, commitments }
+  return { state: 'healthy', label: 'HEALTHY', reason: 'Comfortable cash and no pressing commitments.', runwayWeeks: runway, commitments }
 }
 
 export function unreadCount(state: GameState): number {

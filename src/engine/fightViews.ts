@@ -103,6 +103,9 @@ export interface FightView {
   matchup: Assessment | null
   previousMeetings: number
   canRunNight: boolean
+  /** Set when the fight is part of a show: the night is run from the event. */
+  eventId: Id | null
+  eventName: string | null
   cancelReason: string | null
   result: ResultView | null
   headline: string
@@ -185,7 +188,7 @@ export function fightView(state: GameState, id: Id): FightView | null {
       patience: neg.patience >= 3 ? 'Patient' : neg.patience >= 2 ? 'Cooling' : 'Running out of patience', status: neg.status, suggested: suggested(state, fight.sideB.fighterId),
     } : null,
     scheduleOptions: fight.status === 'agreed' ? scheduleOptions(state, id) : [],
-    stakes, matchup, previousMeetings: prev, canRunNight: fight.status === 'fightNight' && mine, cancelReason: fight.cancelReason ?? null, result: res,
+    stakes, matchup, previousMeetings: prev, canRunNight: fight.status === 'fightNight' && mine, eventId: fight.eventId ?? null, eventName: fight.eventId ? state.events[fight.eventId]?.name ?? null : null, cancelReason: fight.cancelReason ?? null, result: res,
     headline: r ? resultHeadline(fight, nA, nB) : `${nA} vs ${nB}`,
     seriesNote: fight.seriesOf ? 'Second fight of a two-fight deal' : Object.values(state.fights).some((x) => x.seriesOf === id) ? 'First fight of a two-fight deal' : null,
   }

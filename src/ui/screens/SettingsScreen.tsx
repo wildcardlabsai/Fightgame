@@ -1,4 +1,4 @@
-import { useRef } from 'react'
+import { useEffect, useRef } from 'react'
 import { formatDay } from '../../engine/calendar'
 import { useGame } from '../../store/gameStore'
 import { useViews } from '../../store/hooks'
@@ -7,6 +7,9 @@ import { Section } from '../components/Bits'
 export function SettingsScreen() {
   const game = useGame((s) => s.game)!
   const saves = useGame((s) => s.saves)
+  const storageKind = useGame((s) => s.storageKind)
+  const refresh = useGame((s) => s.refreshSaves)
+  useEffect(() => { void refresh() }, [refresh])
   const saveNow = useGame((s) => s.saveNow)
   const load = useGame((s) => s.loadSaved)
   const remove = useGame((s) => s.removeSave)
@@ -31,7 +34,7 @@ export function SettingsScreen() {
   return (
     <>
       <div className="page-head">
-        <div><h1 className="display">Save &amp; Settings</h1><p className="sub">Saves live in this browser. Export a file to back up or move your game.</p></div>
+        <div><h1 className="display">Save &amp; Settings</h1><p className="sub">Saves live in this browser ({storageKind === 'indexeddb' ? 'IndexedDB, compressed' : storageKind}). Export a file to back up or move your game.</p></div>
       </div>
       <div className="grid-2">
         <div>
@@ -48,15 +51,16 @@ export function SettingsScreen() {
               Autosave whenever time advances
             </label>
             <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-              <button className="btn primary" onClick={saveNow}>Save now</button>
+              <button className="btn primary" onClick={() => void saveNow()}>Save now</button>
+              <button className="btn ghost" onClick={() => { const n = prompt('Name this save slot'); if (n) void saveNow({ slotName: n }) }}>Save to new slot…</button>
               <button className="btn ghost" onClick={download}>Export save file</button>
               <button className="btn ghost" onClick={() => fileRef.current?.click()}>Import save file</button>
-              <button className="btn ghost" onClick={quit}>Save &amp; quit to menu</button>
+              <button className="btn ghost" onClick={() => void quit()}>Save &amp; quit to menu</button>
             </div>
             <input ref={fileRef} type="file" accept="application/json,.json" hidden onChange={async (e) => {
               const f = e.target.files?.[0]
               if (f && confirm('Importing replaces the game you are currently playing (it is autosaved first). Continue?')) {
-                saveNow()
+                await saveNow()
                 importGame(await f.text())
               }
               e.target.value = ''
@@ -70,11 +74,11 @@ export function SettingsScreen() {
                 {saves.map((m) => (
                   <div key={m.id} className="save-row">
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontWeight: 600 }}>{m.promotionName}{m.id === game.saveId && <span className="chip gold" style={{ marginLeft: 8 }}>Current</span>}</div>
-                      <div className="dim" style={{ fontSize: 13 }}>{formatDay(m.today)} · saved {new Date(m.savedAt).toLocaleString('en-GB')}</div>
+                      <div style={{ fontWeight: 600 }}>{m.name}{m.slot === 'auto' && <span className="chip" style={{ marginLeft: 8 }}>Autosave</span>}{m.id === game.saveId && <span className="chip gold" style={{ marginLeft: 8 }}>Current</span>}</div>
+                      <div className="dim" style={{ fontSize: 13 }}>{formatDay(m.today)} · saved {new Date(m.savedAt).toLocaleString('en-GB')} · {(m.bytes / 1024 / (m.compressed ? 1 : 1)).toFixed(0)} kB{m.compressed ? ' (compressed)' : ''}</div>
                     </div>
-                    {m.id !== game.saveId && <button className="btn small" onClick={() => load(m.id)}>Load</button>}
-                    <button className="linkbtn" onClick={() => { if (confirm(`Delete "${m.promotionName}"?`)) remove(m.id) }}>Delete</button>
+                    <button className="btn small" onClick={() => void load(m.id)}>Load</button>
+                    <button className="linkbtn" onClick={() => { if (confirm(`Delete "${m.name}"?`)) void remove(m.id) }}>Delete</button>
                   </div>
                 ))}
               </div>

@@ -1,9 +1,9 @@
 import { useState } from 'react'
 import { formatDay } from '../../engine/calendar'
 import { WEEKLY_COSTS } from '../../engine/config'
-import { cashRunwayWeeks, overheadCost, player, weeklyBurn } from '../../engine/selectors'
+import { cashRunwayWeeks, financialHealth, overheadCost, player, weeklyBurn } from '../../engine/selectors'
 import { commitments, recentSpend } from '../../engine/quotes'
-import type { TransactionCategory } from '../../engine/types'
+import type { GameState, TransactionCategory } from '../../engine/types'
 import { useGame } from '../../store/gameStore'
 import { Section } from '../components/Bits'
 import { AreaChart } from '../components/Charts'
@@ -12,6 +12,7 @@ import { money } from '../format'
 const CAT_LABEL: Record<TransactionCategory, string> = {
   startingFunds: 'Capital', office: 'Office', staff: 'Staff', gym: 'Gym', insurance: 'Insurance', retainers: 'Retainers',
   purses: 'Purses', tickets: 'Tickets', sponsorship: 'Sponsorship', ppv: 'PPV', venue: 'Venue', scouting: 'Scouting', signingBonus: 'Signing bonus', releaseFees: 'Release fee', other: 'Other',
+  broadcast: 'Broadcast', marketing: 'Marketing', officials: 'Officials & medical', production: 'Production', security: 'Security',
 }
 
 export function FinancesScreen() {
@@ -28,6 +29,7 @@ export function FinancesScreen() {
   const ledger = game.ledger.filter((t) => cat === 'all' || t.category === cat)
   const cats = Array.from(new Set(game.ledger.map((t) => t.category)))
   const com = commitments(game)
+  const health = financialHealth(game)
   const spent = game.ledger.filter((t) => t.amount < 0).reduce((s, t) => s - t.amount, 0)
 
   return (
@@ -35,7 +37,7 @@ export function FinancesScreen() {
       <div className="page-head">
         <div>
           <h1 className="display">Finances</h1>
-          <p className="sub">Every pound in and out is recorded. Right now the promotion has costs but no income — ticket sales, sponsorship and PPV arrive in Phases 4–5.</p>
+          <p className="sub">Every pound in and out is recorded. Shows are your income: tickets, sponsors, broadcast and PPV come in; venues, purses, marketing and production go out. Per-show profit lives on each event.</p>
         </div>
       </div>
       <div className="kpis" style={{ marginTop: 0 }}>
@@ -44,6 +46,16 @@ export function FinancesScreen() {
         <div className="kpi"><div className="caps">Runway</div><div className={`v num ${runway !== null && runway < 8 ? 'red' : ''}`}>{runway === null ? '—' : `${runway} wks`}</div></div>
         <div className="kpi"><div className="caps">Spent since launch</div><div className="v num">{money(spent)}</div></div>
       </div>
+
+      <Section title="Financial health" right={<span className={`chip hp ${health.state}`}>{health.label}</span>}>
+        <p>{health.reason}</p>
+        <dl style={{ marginTop: 8 }}>
+          <div className="kv"><dt>Committed to open shows</dt><dd className="num">{money(health.commitments, false)}</dd></div>
+          <div className="kv"><dt>Income, last 12 months</dt><dd className="num good">+{money(income12(game), false)}</dd></div>
+          <div className="kv"><dt>Show costs, last 12 months</dt><dd className="num">−{money(showCosts12(game), false)}</dd></div>
+        </dl>
+        <p className="dim" style={{ fontSize: 13 }}>Healthy → Concern → Critical → Insolvent. Insolvency never ends the game, but you cannot book venues, sign fighters or commission scouting until cash recovers.</p>
+      </Section>
 
       <Section title="Where the money went (last 12 months)">
         <div className="kpis" style={{ marginTop: 0 }}>
@@ -97,3 +109,8 @@ export function FinancesScreen() {
     </>
   )
 }
+
+const INCOME: TransactionCategory[] = ['tickets', 'sponsorship', 'ppv', 'broadcast']
+const SHOW_COSTS: TransactionCategory[] = ['venue', 'marketing', 'production', 'purses', 'officials', 'security']
+const income12 = (g: GameState) => g.ledger.filter((t) => t.day > g.today - 365 && INCOME.includes(t.category)).reduce((n, t) => n + t.amount, 0)
+const showCosts12 = (g: GameState) => g.ledger.filter((t) => t.day > g.today - 365 && SHOW_COSTS.includes(t.category)).reduce((n, t) => n - Math.min(0, t.amount) + 0, 0)

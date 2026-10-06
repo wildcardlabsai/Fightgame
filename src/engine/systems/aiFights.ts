@@ -18,9 +18,9 @@ import type { Rng } from '../rng'
 import type { Contract, Fighter, GameState, Id, Promotion } from '../types'
 
 const SAT = 5
-const weeksSince = (state: GameState, f: Fighter) => (f.lastFightDay === null ? 40 : Math.floor((state.today - f.lastFightDay) / 7))
+export const weeksSince = (state: GameState, f: Fighter) => (f.lastFightDay === null ? 40 : Math.floor((state.today - f.lastFightDay) / 7))
 
-function bookable(state: GameState, f: Fighter, day: number): boolean {
+export function bookable(state: GameState, f: Fighter, day: number): boolean {
   return f.status === 'active' && !f.activeFightId && fightAvailability(state, f, day).ok
 }
 
@@ -74,7 +74,7 @@ export function aiMatchmaking(state: GameState, rng: Rng): void {
   }
 }
 
-function pickOpponent(state: GameState, promo: Promotion, x: Fighter, day: number, playerRoster: Set<Id>, rng: Rng): Fighter | null {
+export function pickOpponent(state: GameState, promo: Promotion, x: Fighter, day: number, playerRoster: Set<Id>, rng: Rng): Fighter | null {
   const strat = promo.ai!.strategy
   const aX = appraise(state, promo, x).rating
   const recent = new Set<Id>()

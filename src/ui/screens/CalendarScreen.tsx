@@ -2,8 +2,9 @@ import { useMemo, useState } from 'react'
 import { DAYS_PER_WEEK, MONTHS, dayToDate, weeksBetween, formatDay } from '../../engine/calendar'
 import { useGame } from '../../store/gameStore'
 import { useViews } from '../../store/hooks'
+import { calendarEntries } from '../../engine/eventViews'
 
-interface Marker { day: number; label: string; tone: 'gold' | 'red'; fighterId?: string }
+interface Marker { day: number; label: string; tone: 'gold' | 'red' | 'blue'; fighterId?: string; eventId?: string }
 
 export function CalendarScreen() {
   const game = useGame((s) => s.game)!
@@ -30,8 +31,9 @@ export function CalendarScreen() {
         if (d >= game.today) out.push({ day: d, label: `${f.lastName}'s birthday (${y - b.getUTCFullYear()})`, tone: 'gold', fighterId: f.id })
       }
     }
+    for (const e of calendarEntries(game)) out.push({ day: e.day, label: e.mine ? `★ ${e.label}` : e.label, tone: e.mine ? 'red' : 'blue', eventId: e.id })
     return out
-  }, [game.today, views, year, t])
+  }, [game, views, year, t])
 
   const cells: (number | null)[] = [...Array(lead).fill(null), ...Array.from({ length: daysInMonth }, (_, i) => i + 1)]
   while (cells.length % 7) cells.push(null)
@@ -44,7 +46,7 @@ export function CalendarScreen() {
       <div className="page-head">
         <div>
           <h1 className="display">Calendar</h1>
-          <p className="sub">Time moves in weekly steps. Contract deadlines and birthdays for your fighters are tracked here; fight nights and events join the calendar in Phases 3–4.</p>
+          <p className="sub">Time moves in weekly steps. Shows (yours starred, rivals’ in blue), contract deadlines and birthdays are tracked here. Click a show to open it.</p>
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
           <button className="btn ghost small" onClick={() => setOffset((o) => o - 1)} aria-label="Previous month">◂</button>
@@ -64,7 +66,7 @@ export function CalendarScreen() {
             <div key={i} className={`cal-d${isToday ? ' today' : ''}`} title={isToday ? 'Current week' : undefined}>
               <div className="dn">{d}</div>
               {markers.filter((m) => m.day === dn).map((m, j) => (
-                <div key={j} className={`cal-ev ${m.tone}`} style={{ cursor: 'pointer' }} onClick={() => m.fighterId && navigate('fighter', m.fighterId)}>{m.label}</div>
+                <div key={j} className={`cal-ev ${m.tone}`} style={{ cursor: 'pointer' }} onClick={() => (m.eventId ? navigate('event', m.eventId) : m.fighterId && navigate('fighter', m.fighterId))}>{m.label}</div>
               ))}
             </div>
           )
@@ -75,7 +77,7 @@ export function CalendarScreen() {
       <div className="section">
         <div className="section-head"><h2>Coming up</h2></div>
         {upcoming.length === 0 ? <p className="empty">Nothing scheduled.</p> : upcoming.map((m, i) => (
-          <div key={i} className={`attn ${m.tone === 'red' ? 'warning' : 'info'}`} style={{ cursor: 'pointer' }} onClick={() => m.fighterId && navigate('fighter', m.fighterId)}>
+          <div key={i} className={`attn ${m.tone === 'red' ? 'warning' : 'info'}`} style={{ cursor: 'pointer' }} onClick={() => (m.eventId ? navigate('event', m.eventId) : m.fighterId && navigate('fighter', m.fighterId))}>
             <span className="caps" style={{ minWidth: 90 }}>{formatDay(m.day)}</span>
             <span>{m.label}</span>
             <span className="dim" style={{ marginLeft: 'auto' }}>in {Math.max(0, weeksBetween(game.today, m.day))} wk</span>
