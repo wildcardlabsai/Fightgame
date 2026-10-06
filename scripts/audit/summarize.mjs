@@ -28,6 +28,16 @@ if (show('players')) {
   }
 }
 
+if (show('flows')) {
+  console.log('\n## PLAYER CASH FLOW by category (mean £k per year, years 1-5)')
+  for (const st of strategies.filter((x) => x !== 'passive')) {
+    const rs = runs.filter((r) => r.strategy === st)
+    const cats = new Set(); rs.forEach((r) => r.rows.slice(0, 5).forEach((x) => Object.keys(x.flows ?? {}).forEach((c) => cats.add(c))))
+    const line = [...cats].map((c) => [c, mean(rs.flatMap((r) => r.rows.slice(0, 5).map((x) => (x.flows ?? {})[c] ?? 0)))]).sort((a, b) => Math.abs(b[1]) - Math.abs(a[1])).map(([c, v]) => `${c} ${Math.round(v / 1000)}k`).join(' | ')
+    console.log(`${st.padEnd(13)} ${line}`)
+  }
+}
+
 if (show('events')) {
   for (const kind of ['player', 'ai']) {
     const ev = runs.flatMap((r) => r.events.filter((e) => e.kind === kind))

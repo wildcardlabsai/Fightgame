@@ -19,6 +19,8 @@ export interface YearRow {
   fightsYear: number; retiredYear: number; newProsYear: number; avgAge: number; popOver50: number; active: number
   aiCash: Record<string, number>; aiState: Record<string, string>
   /** Career health: mean popularity/reputation of active fighters, share of prospects (≤23) who fought in the last year, mean age of the top-20 by reputation. */
+  /** Player cash flow by ledger category this year. */
+  flows: Record<string, number>
   meanPop: number; meanRep: number; prospectFought: number; top20Age: number; top20Rep: number; vetShareTop20: number; fightsPerActive: number
 }
 
@@ -55,6 +57,8 @@ export function runWorld(opts: { seed: string; years: number; strategy: string |
   const strat = opts.strategy ? STRATEGIES[opts.strategy] : null
   const log = newLog()
   const rows: YearRow[] = []
+  const ledgerSeen = new Set<string>()
+  let flows: Record<string, number> = {}
   const events: EventRow[] = []
   const demand: DemandRow[] = []
   const seenWeek = new Set<string>()
@@ -74,6 +78,8 @@ export function runWorld(opts: { seed: string; years: number; strategy: string |
     const dt = performance.now() - t0
     engineMs += dt; yearAcc.ms += dt
     if (financialHealth(s).state === 'insolvent') insolventWeeks++
+    for (const t of s.ledger) if (!ledgerSeen.has(t.id)) { ledgerSeen.add(t.id); if (t.category !== 'startingFunds') flows[t.category] = (flows[t.category] ?? 0) + t.amount }
+    if (ledgerSeen.size > 5000) { const keep = new Set(s.ledger.map((t) => t.id)); for (const id of ledgerSeen) if (!keep.has(id)) ledgerSeen.delete(id) }
 
     for (const f of Object.values(s.fights)) {
       if (f.status === 'postFight' && f.result && !seenFight.has(f.id)) {
@@ -112,6 +118,7 @@ export function runWorld(opts: { seed: string; years: number; strategy: string |
       const rev = mine.reduce((n, e) => n + e.revenue, 0), prof = mine.reduce((n, e) => n + e.profit, 0), att = mine.reduce((n, e) => n + e.att, 0)
       const ai = Object.values(s.promotions).filter((x) => !x.isPlayer)
       rows.push({
+        flows,
         year: y, cash: p.cash, roster: Object.values(s.contracts).filter((c) => c.promotionId === p.id).length, reputation: p.reputation, fans: p.fanbase, shows: mine.length - lastShows,
         revenue: rev - lastRev, profit: prof - lastProfit, attendance: att - lastAtt, health: financialHealth(s).state, insolventWeeks, ms: yearAcc.ms / 52,
         fightsYear: yearAcc.fights, retiredYear: yearAcc.retired, newProsYear: yearAcc.newPros, avgAge: active.reduce((n, f) => n + fighterAge(f, s.today), 0) / Math.max(1, active.length),
@@ -124,6 +131,7 @@ export function runWorld(opts: { seed: string; years: number; strategy: string |
         fightsPerActive: yearAcc.fights * 2 / Math.max(1, active.length),
         aiCash: Object.fromEntries(ai.map((x) => [x.name, x.cash])), aiState: Object.fromEntries(ai.map((x) => [x.name, x.ai?.fin?.state ?? '?'])),
       })
+      flows = {}
       lastShows = mine.length; lastRev = rev; lastProfit = prof; lastAtt = att
       yearAcc.fights = 0; yearAcc.retired = 0; yearAcc.newPros = 0; yearAcc.ms = 0
       if (sizeAt.includes(y)) {
