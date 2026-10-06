@@ -18,6 +18,8 @@ export interface YearRow {
   /** World */
   fightsYear: number; retiredYear: number; newProsYear: number; avgAge: number; popOver50: number; active: number
   aiCash: Record<string, number>; aiState: Record<string, string>
+  /** Career health: mean popularity/reputation of active fighters, share of prospects (≤23) who fought in the last year, mean age of the top-20 by reputation. */
+  meanPop: number; meanRep: number; prospectFought: number; top20Age: number; top20Rep: number; vetShareTop20: number; fightsPerActive: number
 }
 
 export interface DemandRow { kind: 'player' | 'ai'; tier: VenueTier; cap: number; pub: number; act: number; price: number; pub0: number }
@@ -37,9 +39,10 @@ export interface RunResult {
   /** Same-fighter repetition: the most-frequent pairing and the most fights by one fighter in any 12 months. */
   maxPairRepeats: number
   pairs: { total: number; ge3: number; ge5: number }
-  log: { planned: number; noCard: number; noVenue: number; signed: number }
+  log: { planned: number; noCard: number; noVenue: number; signed: number; betDay: number | null }
 }
 
+const mean = (a: number[]) => (a.length ? a.reduce((x, y) => x + y, 0) / a.length : 0)
 const parts = (s: GameState): Record<string, number> => {
   const out: Record<string, number> = {}
   for (const [k, v] of Object.entries(s)) out[k] = JSON.stringify(v)?.length ?? 0
@@ -113,6 +116,12 @@ export function runWorld(opts: { seed: string; years: number; strategy: string |
         revenue: rev - lastRev, profit: prof - lastProfit, attendance: att - lastAtt, health: financialHealth(s).state, insolventWeeks, ms: yearAcc.ms / 52,
         fightsYear: yearAcc.fights, retiredYear: yearAcc.retired, newProsYear: yearAcc.newPros, avgAge: active.reduce((n, f) => n + fighterAge(f, s.today), 0) / Math.max(1, active.length),
         popOver50: active.filter((f) => f.popularity > 50).length / Math.max(1, active.length), active: active.length,
+        meanPop: mean(active.map((f) => f.popularity)), meanRep: mean(active.map((f) => f.reputation)),
+        prospectFought: (() => { const pr = active.filter((f) => fighterAge(f, s.today) <= 23); return pr.filter((f) => f.lastFightDay !== null && s.today - f.lastFightDay <= 365).length / Math.max(1, pr.length) })(),
+        top20Age: (() => { const t = active.slice().sort((a, b) => b.reputation - a.reputation).slice(0, 20); return mean(t.map((f) => fighterAge(f, s.today))) })(),
+        top20Rep: (() => { const t = active.slice().sort((a, b) => b.reputation - a.reputation).slice(0, 20); return mean(t.map((f) => f.reputation)) })(),
+        vetShareTop20: (() => { const t = active.slice().sort((a, b) => b.reputation - a.reputation).slice(0, 20); return t.filter((f) => fighterAge(f, s.today) >= 34).length / 20 })(),
+        fightsPerActive: yearAcc.fights * 2 / Math.max(1, active.length),
         aiCash: Object.fromEntries(ai.map((x) => [x.name, x.cash])), aiState: Object.fromEntries(ai.map((x) => [x.name, x.ai?.fin?.state ?? '?'])),
       })
       lastShows = mine.length; lastRev = rev; lastProfit = prof; lastAtt = att
@@ -136,6 +145,6 @@ export function runWorld(opts: { seed: string; years: number; strategy: string |
     totals: { fights, events: events.length, retired: retired.size, newPros, fightersEver: seenFighter.size }, ai, sizes, msPerWeek: engineMs / (52 * opts.years), totalMs: engineMs,
     maxPairRepeats: Math.max(0, ...pairs.values()),
     pairs: { total: pairs.size, ge3: [...pairs.values()].filter((v) => v >= 3).length, ge5: [...pairs.values()].filter((v) => v >= 5).length },
-    log: { planned: log.planned, noCard: log.noCard, noVenue: log.noVenue, signed: log.signed },
+    log: { planned: log.planned, noCard: log.noCard, noVenue: log.noVenue, signed: log.signed, betDay: log.betDay },
   }
 }

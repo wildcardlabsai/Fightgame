@@ -46,6 +46,14 @@ AI promotions plan and run their own shows; financial health states; IndexedDB s
 with fixed terms (no negotiation); one venue per show, no touring; ticket prices are three tiers; rival promotions do not poach
 your dates deliberately; AI owners top up rivals that run dry (counted in `accounting.bailouts`) and rich rivals accumulate cash.
 
+## Phase 4.5 — Balance, AI behaviour & simulation integrity ✅
+Dedicated audit of Phases 1–4 (no new player-facing systems). Scripted promoters (five strategies) and a multi-seed, 5/10/20-year
+world runner (`src/engine/sim`, `scripts/audit`); multi-source hidden demand uncertainty and calibrated forecasts; rival promoters
+with competence (poor→elite) and personality that change decisions; a rival financial life cycle (growing → … → insolvent →
+rescue-or-collapse) with real consequences; an exponential purse curve; PPV/sponsor/broadcast/pricing/venue-size audits; difficulty
+that changes the world; momentum in promotion reputation; retention policy for fight history; lazy-loaded screens.
+See `docs/ECONOMY.md` and the Phase 4.5 section of `docs/BALANCE.md`.
+
 ## Phase 5 — Business ⬜
 Sponsor relationships and contracts, TV/streaming deals, merchandise, staff and facilities, promotion tiers, bankruptcy rules.
 

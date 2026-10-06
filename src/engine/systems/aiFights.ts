@@ -98,6 +98,10 @@ export function pickOpponent(state: GameState, promo: Promotion, x: Fighter, day
     if (strat === 'money') score += o.popularity * 0.12
     if (strat === 'regional' && regionOf(o.nationality) === regionOf(promo.homeCountry)) score += 6
     if (recent.has(o.id)) score -= 14
+    // The public tires of the same two fighters: every prior meeting in recent memory costs, and three is a trilogy — enough.
+    const meetings = o.recentFights.filter((id) => x.recentFights.includes(id)).length
+    if (meetings >= 3) continue
+    score -= 12 * meetings
     if (o.contractId === null) score -= 1 // journeymen are a fallback, not a first choice…
     else if (state.contracts[o.contractId].promotionId === promo.id) score += 2
     if (o.contractId === null && rng.chance(B.fights.ai.freeAgentChance)) score += 4 // …but a good source of opposition for prospects

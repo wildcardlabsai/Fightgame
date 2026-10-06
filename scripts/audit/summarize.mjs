@@ -66,6 +66,26 @@ if (show('demand')) {
   }
 }
 
+if (show('style')) {
+  console.log('\n## RIVAL STYLES (do they behave differently?) and dominance')
+  const ai = runs.flatMap((r) => r.events.filter((e) => e.kind === 'ai').map((e) => ({ ...e, years: r.years })))
+  const names = [...new Set(ai.map((e) => e.promo))]
+  const totalAtt = ai.reduce((n, e) => n + e.att, 0), totalFights = ai.reduce((n, e) => n + e.fights, 0), totalProfit = ai.reduce((n, e) => n + e.profit, 0)
+  const nRuns = runs.length, yrs = mean(runs.map((r) => r.years))
+  for (const n of names) {
+    const e = ai.filter((x) => x.promo === n)
+    const tiers = {}; e.forEach((x) => (tiers[x.tier] = (tiers[x.tier] ?? 0) + 1))
+    console.log(`${n.padEnd(26)} events/yr ${(e.length / nRuns / yrs).toFixed(1)} | mean seats ${Math.round(mean(e.map((x) => x.cap)))} | mean fights ${mean(e.map((x) => x.fights)).toFixed(1)} | PPV ${pct(e.filter((x) => x.ppvKind).length / e.length)} | sellout ${pct(e.filter((x) => x.fill >= 0.99).length / e.length)} | loss ${pct(e.filter((x) => x.profit < 0).length / e.length)} | profit/event ${k(mean(e.map((x) => x.profit)))} | share of attendance ${pct(e.reduce((a, x) => a + x.att, 0) / totalAtt)}, fights ${pct(e.reduce((a, x) => a + x.fights, 0) / totalFights)} | tiers ${Object.entries(tiers).map(([a, b]) => a[0] + a[1] + ':' + Math.round((100 * b) / e.length) + '%').join(' ')}`)
+  }
+  const all = runs.flatMap((r) => r.events)
+  for (const tier of ['local', 'regional', 'national', 'arena', 'stadium']) {
+    const t = all.filter((e) => e.tier === tier)
+    if (t.length) console.log(`${tier.padEnd(9)} share of all events ${pct(t.length / all.length)} | share of all profit ${pct(t.reduce((a, e) => a + e.profit, 0) / all.reduce((a, e) => a + e.profit, 0))} | PPV used ${pct(t.filter((e) => e.ppvKind).length / t.length)} | loss ${pct(t.filter((e) => e.profit < 0).length / t.length)}`)
+  }
+  const ppv = all.filter((e) => e.ppvKind)
+  console.log(`PPV events: ${ppv.length} (${pct(ppv.length / all.length)}); loss ${pct(ppv.filter((e) => e.profit < 0).length / Math.max(1, ppv.length))}; median profit ${k(q(ppv.map((e) => e.profit), 0.5))} vs non-PPV ${k(q(all.filter((e) => !e.ppvKind).map((e) => e.profit), 0.5))}`)
+}
+
 if (show('ai')) {
   console.log('\n## AI PROMOTIONS (end of run, all runs)')
   const names = [...new Set(runs.flatMap((r) => r.ai.map((a) => a.name)))]
@@ -84,6 +104,12 @@ if (show('world')) {
     const rr = rs.map((r) => r.rows.slice(0, y))
     const fights = rr.map((rows) => rows.reduce((n, r) => n + r.fightsYear, 0))
     console.log(`y${y} (n=${rs.length}): fights/yr ${mean(fights.map((f) => f / y)).toFixed(0)} | retired/yr ${mean(rr.map((rows) => rows.reduce((n, r) => n + r.retiredYear, 0) / y)).toFixed(0)} | new pros/yr ${mean(rr.map((rows) => rows.reduce((n, r) => n + r.newProsYear, 0) / y)).toFixed(0)} | active ${mean(rr.map((rows) => rows[y - 1].active)).toFixed(0)} | avg age ${mean(rr.map((rows) => rows[y - 1].avgAge)).toFixed(1)} | pop>50 ${pct(mean(rr.map((rows) => rows[y - 1].popOver50)))} | ms/wk ${mean(rs.map((r) => r.rows.slice(0, y).reduce((n, x) => n + x.ms, 0) / y)).toFixed(0)}`)
+  }
+  for (const y of [5, 10, 20]) {
+    const rs = runs.filter((r) => r.rows.length >= y && r.rows[y - 1].meanPop !== undefined)
+    if (!rs.length) continue
+    const g = (f) => mean(rs.map((r) => r.rows[y - 1][f]))
+    console.log(`y${y} careers: mean pop ${g('meanPop').toFixed(1)} rep ${g('meanRep').toFixed(1)} | prospects (≤23) who fought in last 12m ${pct(g('prospectFought'))} | top-20 by rep: mean age ${g('top20Age').toFixed(1)}, mean rep ${g('top20Rep').toFixed(0)}, share aged 34+ ${pct(g('vetShareTop20'))} | fights per active fighter-year ${g('fightsPerActive').toFixed(2)}`)
   }
   console.log(`max repeat pairings: ${Math.max(...runs.map((r) => r.maxPairRepeats))} | pairs fought ≥3×: ${mean(runs.map((r) => r.pairs?.ge3 ?? 0)).toFixed(1)}/run, ≥5×: ${mean(runs.map((r) => r.pairs?.ge5 ?? 0)).toFixed(1)}/run of ${mean(runs.map((r) => r.pairs?.total ?? 0)).toFixed(0)} distinct pairings`)
 }

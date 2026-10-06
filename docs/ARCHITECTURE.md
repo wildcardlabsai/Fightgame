@@ -134,3 +134,15 @@ UI (EventsScreen, EventPage)  →  store.eventDo(name,…) / runNextEventFight  
   localStorage then memory; legacy localStorage saves migrate on first start. The sync `save.ts` API remains for tests and export.
 * **Compaction.** Archived events drop sales history; rival events shrink after 2 years and vanish after 5; cancelled rival events go
   after a year.
+
+## Phase 4.5 additions
+* `systems/aiFinance.ts` — rival bills, owner distributions, the financial life cycle and its consequences (`behaviour()` is read by
+  `events/ai.ts` and the AI market). `Promotion.ai = { strategy, competence, risk, fin }`; save version 5 (`migrateV4toV5`).
+* `events/ai.ts` — rival event planning under uncertainty: perception factor (competence), venue choice by risk appetite and
+  strategy caps, price-to-a-comfortable-house, strategy-driven marketing/broadcast. It keeps the promoter's own forecast on the
+  event for auditing.
+* `events/demand.ts` — `hiddenFactor` (event, city, economy, weather, competition, season, marketability), `nationalAwareness`
+  (PPV/TV audiences are national, not venue-sized), `hireFor` (difficulty-adjusted rent).
+* `sim/` — `strategies.ts` (five scripted promoters), `runner.ts` (world runs and metrics), `audit.ts` (synthetic shows),
+  `bench.test.ts` (opt-in driver), `audit.test.ts` (relationships the design promises). Not imported by the game.
+* Retention: `fights.ts#trimUntrackedHistory` keeps 12 recent bouts for fighters the player has any relationship with, 6 for the rest.

@@ -213,6 +213,12 @@ export const BALANCE = {
     recentListSize: 12,
     /** Bouts kept for fighters the player has no relationship with. */
     untrackedRecent: 6,
+    /** Years after retirement at which an unwatched retiree's bout detail shrinks to 3 bouts and then to none. */
+    retiredFadeYears: [1, 3] as [number, number],
+    /** Retired fighters nobody refers to are dropped after this many years. */
+    retiredPruneYears: 4,
+    /** Fame is hard to win and easy to lose; without this multiplier the whole world slowly cools as stars retire and prospects start at the bottom. */
+    popularityGainK: 1.2,
     reputationK: 1.0,
   },
 
@@ -253,9 +259,9 @@ export const BALANCE = {
       scalePerSeat: 1.6,
       maxDemandBoost: 0.85,
     },
-    /** PPV buys ∝ national reach × (main-event appeal / ref)^exp: a real star sells enormously more than a good fighter. Price ref = priceBase + priceInterest·interest. */
     /** Live-gate demand lost to people watching at home, by broadcast option. */
     cannibal: { none: 1, localTv: 0.99, nationalTv: 0.97, streaming: 0.95, ppv: 0.9 } as Record<string, number>,
+    /** PPV buys ∝ national reach × (main-event appeal / ref)^exp × campaign: a real star sells enormously more than a good fighter. Price ref = priceBase + priceInterest·interest. */
     ppv: { scale: 0.34, campaignFloor: 0.35, campaignScale: 25_000, campaignPerFan: 0.015, exp: 4.0, ref: 55, priceBase: 14, priceInterest: 0.5, priceShape: 2.5, promoterShare: 0.55, min: 0 },
     tv: {
       local: { base: 1_500, perInterest: 160, minRep: 0, minQuality: 0, production: 3_000 },
@@ -303,8 +309,7 @@ export const BALANCE = {
       distributionCeiling: { Startup: 400_000, Regional: 2_500_000, National: 10_000_000, Major: 40_000_000, Global: 120_000_000 } as Record<PromotionTier, number>,
       /** Owner rescue: limited, costly, and not available forever. */
       rescue: { maxPer5Years: 2, repHit: 8, shedShare: 0.4, collapseReleaseShare: 0.15 },
-      /** Owner top-up when an AI promotion runs dry (keeps the world alive; counted in reports). */
-      bailoutFloor: { Startup: 0, Regional: 150_000, National: 700_000, Major: 3_000_000, Global: 12_000_000 } as Record<PromotionTier, number>,
+      /** Size of an owner rescue (halved; plus whatever clears the debt). Rare, costly in reputation and talent — see `rescue`. */
       bailoutAmount: { Startup: 0, Regional: 400_000, National: 2_000_000, Major: 8_000_000, Global: 30_000_000 } as Record<PromotionTier, number>,
     },
     health: { concernWeeks: 26, criticalWeeks: 8, insolventCash: -75_000 },

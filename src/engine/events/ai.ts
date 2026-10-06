@@ -15,7 +15,7 @@ import type { BoxingEvent, BroadcastKind, Fight, GameState, Id, MarketingLevel, 
 import { baseMoney, valueOf } from '../market'
 import { bookable, pickOpponent, weeksSince } from '../systems/aiFights'
 import { behaviour } from '../systems/aiFinance'
-import { broadcastTerms, cardFights, cardQuality, demandFor, eventInterest, fightAppeal, ppvRefPrice, refPrices, soldFromDemand } from './demand'
+import { broadcastTerms, cardFights, demandFor, eventInterest, fightAppeal, ppvBuysFor, ppvRefPrice, refPrices, soldFromDemand } from './demand'
 import { attachFight, createEventInternal, startSales, venueBookedOn } from './events'
 import { isEventOpen } from './lifecycle'
 
@@ -109,6 +109,14 @@ function planEvent(state: GameState, promo: Promotion, rng: Rng, playerRoster: S
   configure(state, ev, promo, rng, u, mktMult)
   startSales(state, ev)
   stat(promo).ok++
+  // The promoter's OWN expectation (its read of demand, with its own error band) — kept so the audit can compare it with what happens.
+  {
+    const c = E.ai.competence[ai.competence]
+    const d = demandFor(state, ev, 'public', ev.prices, ev.marketing.budget)
+    const sc = Math.min(1.6, u)
+    const at = (k: number) => soldFromDemand({ ...d, ga: d.ga * sc * k, premium: d.premium * sc * k, vip: d.vip * sc * k }, state.venues[ev.venueId]).reduce((a, b) => a + b, 0)
+    ev.forecast = { att: [at(1 - c.sd), at(1 + c.sd)], profit: ev.forecast?.profit ?? [0, 0] }
+  }
   ev.sponsor.accepted = ev.sponsor.offers.slice().sort((a, b) => b.fixedFee - a.fixedFee).find((o) => o.minMainPopularity <= maxPop(state, ev) + 5) ?? null
 }
 
@@ -183,7 +191,7 @@ function pickVenue(state: GameState, promo: Promotion, fights: Fight[], day: num
 }
 
 /** Prices, marketing, broadcast and sponsor the way this promotion's style and competence would. */
-function configure(state: GameState, ev: BoxingEvent, promo: Promotion, rng: Rng, u: number, mktMult: number): void {
+function configure(state: GameState, ev: BoxingEvent, promo: Promotion, _rng: Rng, u: number, mktMult: number): void {
   const ai = promo.ai!
   const comp = E.ai.competence[ai.competence]
   const v0 = state.venues[ev.venueId]
@@ -225,9 +233,14 @@ function configure(state: GameState, ev: BoxingEvent, promo: Promotion, rng: Rng
     const net = (kind === 'streaming' ? t.fee * u : t.fee) - t.production
     if (t.available && net > bestNet) { best = kind; bestNet = net }
   }
-  const q = cardQuality(state, ev)
-  const ppvBar = 62 - 25 * ai.risk + (comp.sd > 0.3 ? -10 : 0)
-  if (q.main * Math.min(1.3, u) >= ppvBar && broadcastTerms(state, ev, 'ppv', 'public').available && rng.chance(0.3 + 0.5 * ai.risk)) best = 'ppv'
+  // PPV only when the promoter's own sums say it beats the best fixed deal by a margin (risk-takers want a smaller margin).
+  // The sums use its own noisy read of demand, so over-optimists gamble when they should not.
+  if (broadcastTerms(state, ev, 'ppv', 'public').available) {
+    const price = ppvRefPrice(interest)
+    const buys = ppvBuysFor(state, ev, 'public', price) * Math.pow(Math.min(1.6, u), 1.5)
+    const ppvNet = buys * price * E.ppv.promoterShare - broadcastTerms(state, ev, 'ppv', 'public').production
+    if (ppvNet > 0 && ppvNet > bestNet * (1.9 - 0.8 * ai.risk) + 20_000) best = 'ppv'
+  }
   ev.broadcast.kind = best
   ev.broadcast.ppvPrice = ppvRefPrice(interest)
 }

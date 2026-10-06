@@ -388,6 +388,7 @@ function processResult(state: GameState, fight: Fight, endDamage: [number, numbe
       dPop = excitement * 0.8 - 0.2
     }
     dRep *= B.fights.reputationK
+    if (dPop > 0) dPop *= B.fights.popularityGainK
     dPop *= exposureFor(state, fight, dPop)
     r.dRep[i] = Math.round(dRep * 10) / 10
     r.dPop[i] = Math.round(dPop * 10) / 10
@@ -527,6 +528,14 @@ function postFight(state: GameState, fight: Fight): void {
 function trimUntrackedHistory(state: GameState): void {
   const keep = B.fights.untrackedRecent
   for (const f of Object.values(state.fighters)) {
+    // Retired and nobody's concern: their record stays on the fighter; the bout-by-bout detail fades (3 bouts after a year, none after three).
+    if (f.status === 'retired' && f.retiredDay !== null && f.recentFights.length > 0) {
+      const years = (state.today - f.retiredDay) / 365
+      const keepRetired = years >= B.fights.retiredFadeYears[1] ? 0 : years >= B.fights.retiredFadeYears[0] ? 3 : keep
+      const trackedR = state.shortlist.includes(f.id) || !!state.negotiations[f.id] || (state.knowledge[f.id]?.reports.length ?? 0) > 0 || f.recentFights.some((id) => state.fights[id] && fightInvolvesPlayer(state, state.fights[id]))
+      if (!trackedR && f.recentFights.length > keepRetired) f.recentFights = keepRetired ? f.recentFights.slice(-keepRetired) : []
+      continue
+    }
     if (f.recentFights.length <= keep) continue
     const own = f.contractId !== null && state.contracts[f.contractId]?.promotionId === state.playerPromotionId
     const tracked = own || state.shortlist.includes(f.id) || !!state.negotiations[f.id] || (state.knowledge[f.id]?.reports.length ?? 0) > 0
@@ -549,7 +558,7 @@ export function pruneFights(state: GameState): void {
 
 /** Long-retired fighters nobody refers to any more are dropped so the world stays lean after decades. */
 export function pruneRetired(state: GameState): void {
-  const cutoff = state.today - 6 * 365
+  const cutoff = state.today - B.fights.retiredPruneYears * 365
   const referenced = new Set<Id>(state.shortlist)
   for (const ft of Object.values(state.fights)) { referenced.add(ft.sideA.fighterId); referenced.add(ft.sideB.fighterId) }
   for (const n of state.news.slice(0, 40)) if (n.fighterId) referenced.add(n.fighterId)
