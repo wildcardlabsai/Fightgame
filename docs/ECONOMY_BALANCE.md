@@ -30,7 +30,7 @@ Method: cash-flow decomposition by ledger category (`diagnose.mjs`), per-event r
 
 ### P5 — Fixed costs did not scale with the size of the operation
 - **Evidence.** National-scenario Balanced: office+staff+gym+insurance £190k of £13m revenue (1.5%); cash £16–19m after 5 years.
-- **Change.** `TierDef.overheadMult`: Local ×1, Regional ×1.6, National ×3.5, International ×8, Global ×18. Higher tiers need much more money — and earn much more.
+- **Change.** `TierDef.overheadMult`: Local ×1, Regional ×1.25, National ×2, International ×4.5, Global ×10. Higher tiers need more money — and earn much more. (First version was ×1.6/×3.5/×8/×18. The 10-year suite showed that was too punishing: tier-ups are automatic, and a conservative promoter who earned National status but kept running seven regional-size shows a year was squeezed to insolvency by overhead alone — 0/3 survived from the Regional start. The softer table fixes that without removing the scaling; see §6.)
 
 ### P6 — Local halls cannot carry a multi-fight card (kept as designed)
 - **Evidence (Before, all strategies, n=9,326 player shows).** Local venues (<1,500 seats): median profit £7k, **44% lose money**, purses 91% of revenue. Regional venues (1,500–5,000): median profit £114k, 8% loss, almost always sold out. National (5–14k): median £367k, 15% loss. Arena: median £249k, **37% lose money**, 81% fill.
@@ -43,11 +43,11 @@ Purse curve, retainers, demand model, forecast noise, PPV/broadcast economics an
 
 | Tier (id) | Roster cap | Biggest venue | Standing sponsors | Overhead × | Entry requirements |
 |---|---|---|---|---|---|
-| Local (`Startup`) | 10 | 3,500 seats | 1 | 1 | — |
-| Regional | 18 | 6,000 | 2 | 1.6 | rep 14 · 6k fans · 5 events · £100k revenue · not in financial trouble |
-| National | 28 | 20,000 (arenas) | 3 | 3.5 | rep 30 · 40k fans · 14 events · £1.0m revenue · 2,000 crowd · 2 fighters rated 38+ |
-| International (`Major`) | 40 | 20,000 | 4 | 8 | rep 52 · 350k fans · 35 events · £9m revenue · 8,000 crowd · 4 fighters 52+ · healthy · £1.5m cash |
-| Global | 60 | stadiums | 5 | 18 | rep 72 · 1.5m fans · 70 events · £45m revenue · 18,000 crowd · 7 fighters 62+ · healthy · £8m cash |
+| Local (`Startup`) | 10 | 3,500 seats | 1 | ×1 | — |
+| Regional | 18 | 6,000 | 2 | ×1.25 | rep 14 · 6k fans · 5 events · £100k revenue · not in financial trouble |
+| National | 28 | 20,000 (arenas) | 3 | ×2 | rep 30 · 40k fans · 14 events · £1.0m revenue · 2,000 crowd · 2 fighters rated 38+ |
+| International (`Major`) | 40 | 20,000 | 4 | ×4.5 | rep 52 · 350k fans · 35 events · £9m revenue · 8,000 crowd · 4 fighters 52+ · healthy · £1.5m cash |
+| Global | 60 | stadiums | 5 | ×10 | rep 72 · 1.5m fans · 70 events · £45m revenue · 18,000 crowd · 7 fighters 62+ · healthy · £8m cash |
 
 Rules: qualify four weeks in a row to be promoted; demotion needs a full year below 70% of the tier's reputation and 50% of its fanbase. PPV opens at National; national TV/streaming at Regional. Cash alone never promotes (tested). Old saves are placed on the tier they already earned, quietly.
 Earlier iterations and why they were changed: venue gating by venue *tier* (Local could book 4,800-seat halls → no local stage) → by *capacity*; Local cap 2,500 → 3,500 (only four venues were profitable and AI shows booked them: conservative players stalled, 67% survival); reputations for Regional/National lowered (16→14, 36→30) so a Balanced promoter reaches Regional in ~3–5 years and National in ~8–9.
