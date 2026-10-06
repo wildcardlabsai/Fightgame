@@ -360,6 +360,7 @@ export function processEvents(state: GameState): void {
       }
       if (ev.status === 'cardBuilding') startSalesLate(state, ev)
       if (ev.status === 'venueBooked') { cancelEvent(state, ev, 'there was no card'); continue }
+      if ((ev.status === 'onSale' || ev.status === 'promoting') && cardFights(state, ev).length === 0) { cancelEvent(state, ev, 'every fight on the card fell through'); continue }
       if (ev.status === 'onSale' || ev.status === 'promoting') enterFightWeek(state, ev)
       continue
     }

@@ -490,13 +490,21 @@ describe('a full player fight', () => {
   })
 
   it('the tick refuses to skip past an unresolved fight night (advanceWeeks stops)', () => {
-    const s0 = fresh('stop')
-    const my = playerRoster(s0)[0]
-    const a = agree(s0, my.id, pickOpponent(s0, my.id).view.id)
-    const sch = schedule(a.state, a.fightId, scheduleOptions(a.state, a.fightId)[0].day)
-    const r = advanceWeeks(sch.state, 40)
-    expect(r.interrupted).toBe(true)
-    expect(Object.values(r.state.fights).some((f) => f.status === 'fightNight')).toBe(true)
+    // A camp injury can legitimately cancel the fight, so try a few worlds (as playFight does).
+    let ok = false
+    for (const seed of ['stop', 'stop-1', 'stop-2', 'stop-3']) {
+      const s0 = fresh(seed)
+      const my = playerRoster(s0)[0]
+      const a = agree(s0, my.id, pickOpponent(s0, my.id).view.id)
+      const sch = schedule(a.state, a.fightId, scheduleOptions(a.state, a.fightId)[0].day)
+      const r = advanceWeeks(sch.state, 40)
+      if (r.state.fights[a.fightId].status === 'cancelled') continue
+      expect(r.interrupted).toBe(true)
+      expect(Object.values(r.state.fights).some((f) => f.status === 'fightNight')).toBe(true)
+      ok = true
+      break
+    }
+    expect(ok).toBe(true)
   })
 })
 
