@@ -1,14 +1,18 @@
 import { DAYS_PER_WEEK } from './calendar'
 import { stateIds } from './ids'
+import { driftKnowledge, observeRoster } from './knowledge'
+import { fighterName } from './fighters'
+import { postMessage } from './messages'
+import { processObligations } from './roster'
 import { Rng } from './rng'
+import { passiveDiscovery, processScouting } from './scouting'
+import { playerRoster } from './selectors'
+import { aiFinances, aiReleases, aiRenewals, aiSigning } from './systems/aiMarket'
 import { processContracts } from './systems/contracts'
 import { birthdayMessages, developFighter, updateCondition } from './systems/development'
 import { processWeeklyFinance } from './systems/finance'
-import { aiRosterManagement, processRetirements, talentIntake } from './systems/world'
+import { processRetirements, talentIntake } from './systems/world'
 import type { GameState } from './types'
-import { postMessage } from './messages'
-import { fighterName } from './fighters'
-import { playerRoster } from './selectors'
 
 export interface TickResult {
   state: GameState
@@ -32,6 +36,7 @@ export function advanceOneWeek(input: GameState): GameState {
     updateCondition(f, state.today)
   }
   for (const f of playerRoster(state)) {
+    observeRoster(state, f) // the gym learns about its own fighters
     birthdayMessages(state, f)
     if (f.morale < 35) {
       postMessage(state, {
@@ -42,18 +47,40 @@ export function advanceOneWeek(input: GameState): GameState {
       })
     }
   }
+  driftKnowledge(state) // old information goes stale
 
-  // 2. Contracts, retirements, new talent and rival promotions.
+  // 2. Scouting finishes; word reaches you.
+  processScouting(state, rng)
+  passiveDiscovery(state, rng)
+
+  // 3. The market moves: rivals decide on renewals first, then contracts close, people retire, new talent arrives,
+  //    rivals release and then bid on whoever is free.
+  aiRenewals(state, rng, ids)
   processContracts(state)
   processRetirements(state, rng)
   talentIntake(state, rng, ids)
-  aiRosterManagement(state, rng, ids)
+  aiReleases(state, rng)
+  aiSigning(state, rng, ids)
+  aiFinances(state)
+  processObligations(state)
+  purgeNegotiations(state)
 
-  // 3. Money.
+  // 4. Money.
   processWeeklyFinance(state)
 
   state.rngState = rng.state
   return state
+}
+
+/** Drop stale negotiations (talks that went quiet, or lockouts that have ended). */
+function purgeNegotiations(state: GameState): void {
+  for (const [fid, n] of Object.entries(state.negotiations)) {
+    const f = state.fighters[fid]
+    const stale = state.today - (n.rounds[n.rounds.length - 1]?.day ?? n.openedDay) > 42
+    if (!f || f.status !== 'active' || (n.status === 'open' && stale)) delete state.negotiations[fid]
+    else if (n.status === 'broken' && (n.lockedUntil ?? 0) <= state.today) delete state.negotiations[fid]
+    else if (n.kind === 'signing' && f.contractId) delete state.negotiations[fid]
+  }
 }
 
 /**

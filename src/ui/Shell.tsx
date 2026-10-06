@@ -4,6 +4,9 @@ import { useGame, type ScreenId } from '../store/gameStore'
 import { Icon } from './components/Icons'
 import { PromoLogo } from './components/Bits'
 import { money } from './format'
+import { ContractsScreen } from './screens/ContractsScreen'
+import { NegotiationScreen } from './screens/NegotiationScreen'
+import { ScoutingScreen } from './screens/ScoutingScreen'
 import { CalendarScreen } from './screens/CalendarScreen'
 import { Dashboard } from './screens/Dashboard'
 import { FinancesScreen } from './screens/FinancesScreen'
@@ -19,6 +22,8 @@ interface NavDef { screen: ScreenId; label: string; icon: string }
 const LIVE_NAV: NavDef[] = [
   { screen: 'dashboard', label: 'Dashboard', icon: 'dashboard' },
   { screen: 'fighters', label: 'Fighters', icon: 'fighters' },
+  { screen: 'scouting', label: 'Scouting', icon: 'scouting' },
+  { screen: 'contracts', label: 'Contracts', icon: 'contracts' },
   { screen: 'inbox', label: 'Inbox', icon: 'inbox' },
   { screen: 'calendar', label: 'Calendar', icon: 'calendar' },
   { screen: 'finances', label: 'Finances', icon: 'finances' },
@@ -28,8 +33,6 @@ const LIVE_NAV: NavDef[] = [
 
 /** Planned areas. Shown disabled and labelled with the phase that delivers them — never faked. */
 const LOCKED_NAV: { label: string; icon: string; phase: number }[] = [
-  { label: 'Scouting', icon: 'scouting', phase: 2 },
-  { label: 'Contracts', icon: 'contracts', phase: 2 },
   { label: 'Events', icon: 'events', phase: 4 },
   { label: 'Sponsors', icon: 'sponsors', phase: 5 },
   { label: 'Rankings', icon: 'rankings', phase: 6 },
@@ -46,7 +49,7 @@ export function Shell() {
   const p = player(game)
   const runway = cashRunwayWeeks(game)
   const unread = unreadCount(game)
-  const activeScreen: ScreenId = route.screen === 'fighter' ? 'fighters' : route.screen
+  const activeScreen: ScreenId = route.screen === 'fighter' ? 'fighters' : route.screen === 'negotiation' ? 'contracts' : route.screen
 
   return (
     <div className="app">
@@ -134,5 +137,8 @@ function Screen() {
     case 'promotions': return <PromotionsScreen />
     case 'venues': return <VenuesScreen />
     case 'settings': return <SettingsScreen />
+    case 'scouting': return <ScoutingScreen />
+    case 'contracts': return <ContractsScreen />
+    case 'negotiation': return <NegotiationScreen id={route.param ?? ''} />
   }
 }

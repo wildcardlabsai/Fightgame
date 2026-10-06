@@ -138,3 +138,12 @@ export const NICKNAMES = [
   'The Professor', 'Little Giant', 'The Butcher', 'Quicksilver', 'The Saint', 'Thunder', 'Iron',
   'The Prince', 'Wildcat', 'Lights Out', 'The Hawk', 'Sugar', 'Gravedigger', 'Pretty Boy', 'The Wall',
 ]
+
+export type Region = 'UKI' | 'AMERICAS' | 'WORLD'
+const REGION_BY_NATION: Record<string, Region> = {
+  ENG: 'UKI', SCO: 'UKI', WAL: 'UKI', IRL: 'UKI',
+  USA: 'AMERICAS', MEX: 'AMERICAS', PUR: 'AMERICAS', CUB: 'AMERICAS', DOM: 'AMERICAS', ARG: 'AMERICAS',
+}
+export function regionOf(nationKey: string): Region {
+  return REGION_BY_NATION[nationKey] ?? 'WORLD'
+}

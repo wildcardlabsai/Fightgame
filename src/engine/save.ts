@@ -1,4 +1,9 @@
-import { GAME_STATE_VERSION, type GameState } from './types'
+/* eslint-disable @typescript-eslint/no-explicit-any */
+import { clamp, fighterRating, hiddenBase, PERSONALITY_LINES } from './fighters'
+import { keyedNormal } from './rng'
+import { createStartingScout } from './scouting'
+import { GAME_STATE_VERSION, type AiStrategy, type GameState } from './types'
+import { initKnowledge } from './worldgen'
 
 /**
  * Persistence layer. The engine only depends on the `SaveStorage` interface so
@@ -102,6 +107,60 @@ export function migrate(data: unknown): GameState | null {
   const s = data as Partial<GameState> & { version?: number }
   if (typeof s.version !== 'number' || !s.promotions || !s.fighters) return null
   if (s.version > GAME_STATE_VERSION) return null // saved by a newer build
-  // v1 is current; future migrations: if (s.version < 2) { ...; s.version = 2 }
+  if (s.version < 2) migrateV1toV2(s as never)
   return s as GameState
+}
+
+const V1_STRATEGY: Record<string, AiStrategy> = {
+  'Apex Fight Group': 'money', 'Redline Promotions': 'traditional', 'Golden State Prizefights': 'prospectFactory',
+  'Steel City Boxing': 'regional', 'Lone Star Fight Night': 'regional', 'Northern Lights Boxing': 'prospectFactory',
+}
+
+/** v1 (Phase 1) → v2 (Phase 2): hidden traits, history, rich contracts, AI profiles, player knowledge. */
+function migrateV1toV2(s: any): void {
+  const lines = Object.values(PERSONALITY_LINES)
+  for (const f of Object.values<any>(s.fighters)) {
+    f.personalityNote = PERSONALITY_LINES[f.personality as keyof typeof PERSONALITY_LINES] ?? ''
+    for (const line of lines) if (typeof f.bio === 'string' && f.bio.endsWith(' ' + line)) f.bio = f.bio.slice(0, -(line.length + 1))
+    const rating = fighterRating(f)
+    f.discipline = clamp(Math.round(hiddenBase(f.personality, 'discipline', rating) + keyedNormal(s.seed, 'mig-d', f.id) * 8), 5, 98)
+    f.composure = clamp(Math.round(hiddenBase(f.personality, 'composure', rating) + keyedNormal(s.seed, 'mig-c', f.id) * 8), 5, 98)
+    f.injuryRisk = clamp(Math.round(40 + keyedNormal(s.seed, 'mig-i', f.id) * 12), 3, 95)
+    f.availableSince = f.contractId ? null : s.today
+    f.promoRelations = {}
+    f.history = []
+  }
+  for (const c of Object.values<any>(s.contracts)) {
+    c.basePurse = c.minPurse ?? 0
+    delete c.minPurse
+    c.winBonus = Math.round((c.basePurse * 0.1) / 100) * 100
+    c.titleBonus = 0
+    c.ppvShare = 0
+    c.signingBonus = 0
+    c.minFightsPerYear = 2
+    c.releaseFee = null
+    c.titlePromise = false
+    c.status = 'active'
+    c.notices = { approaching: !!c.warned12, window: !!c.warned12, expiring: !!c.warned4 }
+    c.aiReviewed = false
+    delete c.warned12
+    delete c.warned4
+    const f = s.fighters[c.fighterId]
+    if (f) f.history.push({ day: c.startDay, kind: 'signed', promotionId: c.promotionId })
+  }
+  for (const p of Object.values<any>(s.promotions)) {
+    p.ai = p.isPlayer ? null : { strategy: V1_STRATEGY[p.name] ?? 'traditional', urgency: 0, cooldownUntil: s.today }
+  }
+  s.contractHistory = []
+  s.negotiations = {}
+  s.obligations = []
+  s.knowledge = {}
+  s.scoutOps = []
+  s.shortlist = []
+  s.ledgerArchive = 0
+  s.scouts = []
+  const home = s.promotions[s.playerPromotionId].homeCountry
+  s.scouts.push(createStartingScout(s, home))
+  initKnowledge(s)
+  s.version = 2
 }

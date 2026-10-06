@@ -1,17 +1,20 @@
 import { formatDay, weekOfYear } from '../../engine/calendar'
-import { fighterAge, fighterName, fighterRating, recordLabel } from '../../engine/fighters'
+import { opViews } from '../../engine/quotes'
 import {
-  attentionItems, cashRunwayWeeks, contractOf, player, playerRoster, unreadCount, weeklyBurn,
+  attentionItems, cashRunwayWeeks, player, unreadCount, weeklyBurn,
 } from '../../engine/selectors'
+import { STAGE_LABEL } from '../../engine/systems/contracts'
 import { FOCUS_LABELS } from '../../engine/systems/development'
 import { useGame } from '../../store/gameStore'
-import { Avatar, Meter, Rating, Section } from '../components/Bits'
+import { useViews } from '../../store/hooks'
+import { Avatar, Meter, Section } from '../components/Bits'
 import { AreaChart } from '../components/Charts'
-import { compactNumber, money, moodLabel } from '../format'
+import { RangeText } from '../components/Estimates'
+import { compactNumber, money } from '../format'
 
 const LOOP: { name: string; status: 'live' | 'partial' | 'locked'; note: string }[] = [
-  { name: 'Scout', status: 'locked', note: 'Phase 2' },
-  { name: 'Sign', status: 'locked', note: 'Phase 2' },
+  { name: 'Scout', status: 'live', note: 'Reports & searches live' },
+  { name: 'Sign', status: 'live', note: 'Negotiation live' },
   { name: 'Develop', status: 'live', note: 'Training live' },
   { name: 'Arrange fights', status: 'locked', note: 'Phase 3' },
   { name: 'Build events', status: 'locked', note: 'Phase 4' },
@@ -22,9 +25,13 @@ const LOOP: { name: string; status: 'live' | 'partial' | 'locked'; note: string 
 export function Dashboard() {
   const game = useGame((s) => s.game)!
   const navigate = useGame((s) => s.navigate)
+  const openLink = useGame((s) => s.openLink)
   const advance = useGame((s) => s.advance)
   const p = player(game)
-  const roster = playerRoster(game).sort((a, b) => fighterRating(b) - fighterRating(a))
+  const views = useViews()
+  const roster = views.mine().sort((a, b) => b.grade.mid - a.grade.mid)
+  const hot = views.freeAgents().filter((v) => v.status === 'active').sort((a, b) => b.reputation + b.popularity - (a.reputation + a.popularity)).slice(0, 4)
+  const ops = opViews(game).filter((o) => o.status === 'active')
   const attention = attentionItems(game)
   const runway = cashRunwayWeeks(game)
   const burn = weeklyBurn(game)
@@ -72,7 +79,7 @@ export function Dashboard() {
                 <div className="d">{a.detail}</div>
               </div>
               {a.link && (
-                <button className="btn small go" onClick={() => a.link!.kind === 'fighter' ? navigate('fighter', a.link!.id) : navigate(a.link!.screen as never)}>
+                <button className="btn small go" onClick={() => openLink(a.link!)}>
                   {a.actionLabel ?? 'Open'}
                 </button>
               )}
@@ -84,28 +91,25 @@ export function Dashboard() {
           {roster.length === 0 ? <p className="empty">No fighters under contract.</p> : (
             <table className="table">
               <tbody>
-                {roster.map((f) => {
-                  const c = contractOf(game, f)
-                  return (
-                    <tr key={f.id} className="row" onClick={() => navigate('fighter', f.id)}>
-                      <td>
-                        <div className="fighter-cell">
-                          <Avatar f={f} />
-                          <div>
-                            <div className="fighter-name">{fighterName(f)}</div>
-                            <div className="fighter-sub">{recordLabel(f)} · {fighterAge(f, game.today)} · {FOCUS_LABELS[f.trainingFocus]}</div>
-                          </div>
+                {roster.map((f) => (
+                  <tr key={f.id} className="row" onClick={() => navigate('fighter', f.id)}>
+                    <td>
+                      <div className="fighter-cell">
+                        <Avatar f={f} />
+                        <div>
+                          <div className="fighter-name">{f.name}</div>
+                          <div className="fighter-sub">{f.recordText} · {f.age} · {FOCUS_LABELS[f.own!.trainingFocus]}</div>
                         </div>
-                      </td>
-                      <td><Rating f={f} /></td>
-                      <td className="mini-meters">
-                        <Meter value={f.fitness} tone="good" label="Fitness" />
-                        <Meter value={f.morale} label="Morale" />
-                      </td>
-                      <td className="dim" style={{ fontSize: 13 }}>{moodLabel(f.morale)}{c ? '' : ''}</td>
-                    </tr>
-                  )
-                })}
+                      </div>
+                    </td>
+                    <td><RangeText r={f.grade} /></td>
+                    <td className="mini-meters">
+                      <Meter value={f.own!.fitness.value} tone="good" label="Fitness" />
+                      <Meter value={f.own!.morale.value} label="Morale" />
+                    </td>
+                    <td className="dim" style={{ fontSize: 13 }}>{f.contract.kind === 'own' && f.contract.stage !== 'healthy' ? <span className="warn">{STAGE_LABEL[f.contract.stage]}</span> : f.own!.mood}</td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           )}
@@ -122,6 +126,22 @@ export function Dashboard() {
               <div className="s" style={{ fontWeight: m.read ? 400 : 700 }}>{m.subject}</div>
               <div className="m"><span>{m.from}</span><span>{formatDay(m.day, false)}</span></div>
             </button>
+          ))}
+        </Section>
+      </div>
+
+      <div className="grid-2">
+        <Section title="Market watch" right={<button className="linkbtn" onClick={() => navigate('scouting')}>Scouting</button>}>
+          {hot.length === 0 ? <p className="empty">Nobody notable is on the market. Send your scout looking.</p> : hot.map((v) => (
+            <div key={v.id} className="attn" style={{ cursor: 'pointer' }} onClick={() => navigate('fighter', v.id)}>
+              <div><div className="t">{v.name}</div><div className="d">{v.division} · {v.age} · {v.recordText} · {v.market.tags[0]}</div></div>
+              <span className="go"><RangeText r={v.grade} scouted={v.knowledge.reports > 0} /></span>
+            </div>
+          ))}
+        </Section>
+        <Section title="Scouting desk" right={<button className="linkbtn" onClick={() => navigate('scouting')}>Open</button>}>
+          {ops.length === 0 ? <p className="empty">Your scout is idle. Reports cost money — pick your targets carefully.</p> : ops.map((o) => (
+            <div key={o.id} className="op"><div><div className="fighter-name">{o.title}</div><div className="dim" style={{ fontSize: 13 }}>{o.scoutName}</div></div><div className="caps" style={{ alignSelf: 'center' }}>{o.weeksLeft} wk left</div></div>
           ))}
         </Section>
       </div>

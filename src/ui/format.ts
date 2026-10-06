@@ -18,22 +18,6 @@ export function compactNumber(n: number): string {
   return String(Math.round(n))
 }
 
-export function ratingTier(r: number): 1 | 2 | 3 | 4 | 5 {
-  if (r >= 85) return 5
-  if (r >= 72) return 4
-  if (r >= 60) return 3
-  if (r >= 48) return 2
-  return 1
-}
-
-export function moodLabel(morale: number): string {
-  if (morale >= 80) return 'Fired up'
-  if (morale >= 62) return 'Content'
-  if (morale >= 45) return 'Restless'
-  if (morale >= 30) return 'Unhappy'
-  return 'Miserable'
-}
-
 export function cap(s: string): string {
   return s.charAt(0).toUpperCase() + s.slice(1)
 }

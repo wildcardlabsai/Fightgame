@@ -1,15 +1,8 @@
-import { MAX_FINANCE_HISTORY, MAX_LEDGER, WEEKLY_COSTS } from '../config'
+import { MAX_FINANCE_HISTORY, WEEKLY_COSTS } from '../config'
+import { post as record } from '../ledger'
 import { postMessage } from '../messages'
 import { cashRunwayWeeks, overheadCost, player } from '../selectors'
-import type { GameState, TransactionCategory } from '../types'
-
-function record(state: GameState, category: TransactionCategory, amount: number, description: string): void {
-  if (amount === 0) return
-  state.idCounter += 1
-  state.ledger.unshift({ id: `t_${state.idCounter.toString(36)}`, day: state.today, category, amount, description })
-  if (state.ledger.length > MAX_LEDGER) state.ledger.length = MAX_LEDGER
-  player(state).cash += amount
-}
+import type { GameState } from '../types'
 
 /** Pay the week's running costs and record a snapshot for the cash chart. */
 export function processWeeklyFinance(state: GameState): void {
@@ -23,9 +16,10 @@ export function processWeeklyFinance(state: GameState): void {
   record(state, 'staff', -Math.round(WEEKLY_COSTS.staff * scale), 'Admin & matchmaking staff')
   record(state, 'gym', -Math.round(WEEKLY_COSTS.gym * scale), 'Gym lease')
   record(state, 'insurance', -Math.round(WEEKLY_COSTS.insurance * scale), 'Insurance')
+  for (const sc of state.scouts) record(state, 'staff', -sc.weeklyWage, `Scout — ${sc.name}`)
   record(state, 'retainers', -retainers, 'Fighter retainers')
 
-  const expenses = overheadCost(state) + retainers
+  const expenses = overheadCost(state) + retainers + state.scouts.reduce((n, x) => n + x.weeklyWage, 0)
   state.financeHistory.push({ day: state.today, cash: p.cash, income: 0, expenses })
   if (state.financeHistory.length > MAX_FINANCE_HISTORY) state.financeHistory.shift()
 

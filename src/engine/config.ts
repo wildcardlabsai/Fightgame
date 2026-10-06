@@ -5,6 +5,8 @@
 export const FEATURES = {
   /** Phase 3: once fights exist, fighter inactivity should hurt morale and popularity. */
   fightsImplemented: false,
+  /** Phase 6: title-shot promises are tracked now but only enforced once titles exist. */
+  titlesImplemented: false,
 }
 
 export const WEEKLY_COSTS = {

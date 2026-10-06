@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { formatDay } from '../../engine/calendar'
 import { WEEKLY_COSTS } from '../../engine/config'
 import { cashRunwayWeeks, overheadCost, player, weeklyBurn } from '../../engine/selectors'
+import { commitments, recentSpend } from '../../engine/quotes'
 import type { TransactionCategory } from '../../engine/types'
 import { useGame } from '../../store/gameStore'
 import { Section } from '../components/Bits'
@@ -10,7 +11,7 @@ import { money } from '../format'
 
 const CAT_LABEL: Record<TransactionCategory, string> = {
   startingFunds: 'Capital', office: 'Office', staff: 'Staff', gym: 'Gym', insurance: 'Insurance', retainers: 'Retainers',
-  purses: 'Purses', tickets: 'Tickets', sponsorship: 'Sponsorship', ppv: 'PPV', venue: 'Venue', other: 'Other',
+  purses: 'Purses', tickets: 'Tickets', sponsorship: 'Sponsorship', ppv: 'PPV', venue: 'Venue', scouting: 'Scouting', signingBonus: 'Signing bonus', releaseFees: 'Release fee', other: 'Other',
 }
 
 export function FinancesScreen() {
@@ -22,10 +23,11 @@ export function FinancesScreen() {
   const scale = overheadCost(game) / (WEEKLY_COSTS.office + WEEKLY_COSTS.staff + WEEKLY_COSTS.gym + WEEKLY_COSTS.insurance)
   const lines: [string, number][] = [
     ['Office rent & utilities', WEEKLY_COSTS.office * scale], ['Admin & matchmaking staff', WEEKLY_COSTS.staff * scale],
-    ['Gym lease', WEEKLY_COSTS.gym * scale], ['Insurance', WEEKLY_COSTS.insurance * scale], ['Fighter retainers', burn.retainers],
+    ['Gym lease', WEEKLY_COSTS.gym * scale], ['Insurance', WEEKLY_COSTS.insurance * scale], ['Scouting department', burn.scouting], ['Fighter retainers', burn.retainers],
   ]
   const ledger = game.ledger.filter((t) => cat === 'all' || t.category === cat)
   const cats = Array.from(new Set(game.ledger.map((t) => t.category)))
+  const com = commitments(game)
   const spent = game.ledger.filter((t) => t.amount < 0).reduce((s, t) => s - t.amount, 0)
 
   return (
@@ -42,6 +44,15 @@ export function FinancesScreen() {
         <div className="kpi"><div className="caps">Runway</div><div className={`v num ${runway !== null && runway < 8 ? 'red' : ''}`}>{runway === null ? '—' : `${runway} wks`}</div></div>
         <div className="kpi"><div className="caps">Spent since launch</div><div className="v num">{money(spent)}</div></div>
       </div>
+
+      <Section title="Where the money went (last 12 months)">
+        <div className="kpis" style={{ marginTop: 0 }}>
+          <div className="kpi"><div className="caps">Signing bonuses</div><div className="v num">{money(recentSpend(game, 'signingBonus'))}</div></div>
+          <div className="kpi"><div className="caps">Scouting</div><div className="v num">{money(recentSpend(game, 'scouting'))}</div></div>
+          <div className="kpi"><div className="caps">Release fees</div><div className="v num">{money(recentSpend(game, 'releaseFees'))}</div></div>
+          <div className="kpi"><div className="caps">Purses owed (guaranteed)</div><div className="v num">{money(com.guaranteedPurses)}</div><div className="s">committed, paid from Phase 3</div></div>
+        </div>
+      </Section>
 
       <div className="grid-2">
         <Section title="Cash over time">

@@ -1,25 +1,25 @@
-import { nation } from '../../data/nations'
-import { weightClassLabel, weightLimitLabel } from '../../data/weightClasses'
-import { formatDay, weeksBetween } from '../../engine/calendar'
-import {
-  ATTRIBUTE_KEYS, ATTRIBUTE_LABELS, careerStage, fighterAge, fighterRating, koRate,
-  potentialBand, totalFights,
-} from '../../engine/fighters'
-import { contractOf, promotionOf } from '../../engine/selectors'
+import { useState } from 'react'
+import { formatDay } from '../../engine/calendar'
+import { STAGE_LABEL } from '../../engine/systems/contracts'
 import { FOCUS_BLURBS, FOCUS_LABELS } from '../../engine/systems/development'
 import type { TrainingFocus } from '../../engine/types'
 import { useGame } from '../../store/gameStore'
+import { useViews } from '../../store/hooks'
 import { Avatar, Flag, Meter, Section } from '../components/Bits'
 import { Ring } from '../components/Charts'
-import { money, moodLabel } from '../format'
+import { RangeText, TraitRow } from '../components/Estimates'
+import { ScoutDialog } from '../components/ScoutDialog'
+import { money } from '../format'
 
 export function FighterProfile({ id }: { id: string }) {
-  const game = useGame((s) => s.game)!
   const navigate = useGame((s) => s.navigate)
   const setTraining = useGame((s) => s.setTraining)
-  const f = game.fighters[id]
+  const toggleShortlist = useGame((s) => s.toggleShortlist)
+  const views = useViews()
+  const v = views.fighter(id)
+  const [scouting, setScouting] = useState(false)
 
-  if (!f) {
+  if (!v) {
     return (
       <>
         <h1 className="display" style={{ fontSize: 48 }}>Fighter not found</h1>
@@ -28,130 +28,161 @@ export function FighterProfile({ id }: { id: string }) {
       </>
     )
   }
-
-  const age = fighterAge(f, game.today)
-  const rating = fighterRating(f)
-  const contract = contractOf(game, f)
-  const promo = promotionOf(game, f)
-  const mine = !!promo?.isPlayer
-  const stage = careerStage(f, game.today)
-  const fights = totalFights(f)
-  const weeksLeft = contract ? weeksBetween(game.today, contract.endDay) : null
+  const mine = v.own !== null
+  const scouted = v.knowledge.reports > 0 || mine
+  const c = v.contract
 
   return (
     <>
       <div className="profile-hero">
-        <Avatar f={f} large />
+        <Avatar f={v} large />
         <div style={{ flex: 1, minWidth: 260 }}>
           <button className="linkbtn" onClick={() => navigate('fighters')}>◂ All fighters</button>
-          <div className="caps" style={{ marginTop: 8 }}>
-            {f.nickname ? `“${f.nickname}”` : stage}
-          </div>
-          <h1 className="display">{f.firstName} <span className="red">{f.lastName}</span></h1>
+          <div className="caps" style={{ marginTop: 8 }}>{v.nickname ? `“${v.nickname}”` : v.stage}</div>
+          <h1 className="display">{v.firstName} <span className="red">{v.lastName}</span></h1>
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 10, alignItems: 'center' }}>
-            <Flag code={f.nationality} />
-            <span>{weightClassLabel(f.weightClass)} <span className="dim">({weightLimitLabel(f.weightClass)})</span></span>
-            <span className="chip">{stage}</span>
-            <span className="chip">{f.style}</span>
+            <Flag code={v.nationKey} />
+            <span>{v.division}</span>
+            <span className="chip">{v.stage}</span>
+            <span className="chip">{v.style}</span>
             {mine && <span className="chip gold">On your roster</span>}
-            {f.status === 'retired' && <span className="chip red">Retired</span>}
+            {v.status === 'retired' && <span className="chip red">Retired</span>}
+            {v.market.tags.filter((t) => t !== 'Looking for a promotion').map((t) => <span key={t} className="chip good">{t}</span>)}
           </div>
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 14 }}>
+            {v.status === 'active' && <button className="btn" onClick={() => setScouting(true)}>{v.knowledge.reports ? 'Scout again' : 'Scout this fighter'}</button>}
+            {!mine && <button className="btn ghost" onClick={() => toggleShortlist(v.id)} aria-pressed={v.shortlisted}>{v.shortlisted ? '★ Shortlisted' : '☆ Shortlist'}</button>}
+            {!mine && v.market.signable && <button className="btn primary" onClick={() => navigate('negotiation', v.id)}>{v.market.negotiation ? 'Continue negotiation' : 'Make an offer'}</button>}
+            {mine && c.kind === 'own' && <button className={`btn${c.stage !== 'healthy' ? ' primary' : ''}`} onClick={() => navigate('negotiation', v.id)}>Renew contract</button>}
+          </div>
+          {!mine && !v.market.signable && v.status === 'active' && <p className="dim" style={{ marginTop: 8, fontSize: 13.5 }}>{v.market.unavailableReason}</p>}
         </div>
         <div style={{ display: 'flex', gap: 30, alignItems: 'center', flexWrap: 'wrap' }}>
           <div>
             <div className="caps">Record</div>
-            <div className="display num" style={{ fontSize: 52 }}>{f.record.wins}-{f.record.losses}-{f.record.draws}</div>
-            <div className="dim" style={{ fontSize: 13 }}>{f.record.koWins} KOs · {koRate(f)}% KO rate</div>
+            <div className="display num" style={{ fontSize: 52 }}>{v.recordText}</div>
+            <div className="dim" style={{ fontSize: 13 }}>{v.record.koWins} KOs · {v.koRate}% KO rate</div>
           </div>
-          <div className="ring">
-            <Ring value={rating} />
-            <div className="c"><div><div className="num">{rating}</div><div className="caps" style={{ fontSize: 11 }}>Overall</div></div></div>
+          <div className="ring" title="Scout's estimate of overall ability — a range, not a fact">
+            <Ring value={v.grade.mid} color={scouted ? 'var(--red)' : '#55555f'} />
+            <div className="c"><div>
+              <div className="num" style={{ fontSize: 30 }}><RangeText r={v.grade} scouted={scouted} /></div>
+              <div className="caps" style={{ fontSize: 11 }}>{scouted ? 'Scout grade' : 'Rough guess'}</div>
+            </div></div>
           </div>
         </div>
       </div>
 
       <div className="grid-2" style={{ marginTop: 6 }}>
         <div>
-          <Section title="In-ring attributes" right={mine ? <span className="dim" style={{ fontSize: 13 }}><span className="gold">▮</span> potential ceiling</span> : undefined}>
-            {ATTRIBUTE_KEYS.map((k) => {
-              const v = f.attributes[k]
-              return (
-                <div className="attr-row" key={k}>
-                  <span>{ATTRIBUTE_LABELS[k]}</span>
-                  <Meter value={v} potential={mine ? f.potential : undefined} label={ATTRIBUTE_LABELS[k]} tone={k === 'marketability' ? 'gold' : undefined} />
-                  <span className="num" style={{ fontSize: 20, textAlign: 'right' }}>{Math.round(v)}</span>
-                </div>
-              )
-            })}
-            <p className="dim" style={{ marginTop: 10, fontSize: 13 }}>
-              {mine
-                ? `Potential: ${Math.round(f.potential)} — ${potentialBand(f.potential)}. ${rating >= f.potential - 2 ? 'Fully developed.' : `${Math.round(f.potential - rating)} points of growth still to come.`}`
-                : 'Potential: unknown — scouting reports arrive in Phase 2.'}
-            </p>
+          <Section title="Scouting report" right={<span className="dim" style={{ fontSize: 13 }}>Intel: <b style={{ color: 'var(--text)' }}>{v.knowledge.level}</b> · {v.knowledge.confidence} confidence</span>}>
+            {!scouted && <p className="dim" style={{ marginBottom: 10 }}>You have no scouting information on {v.firstName}. The “~” ranges below are guesses from the public record alone and could be well off.</p>}
+            <div className="caps" style={{ margin: '6px 0 0' }}>Physical</div>
+            {v.traits.physical.map((t) => <TraitRow key={t.key} t={t} />)}
+            <div className="caps" style={{ margin: '14px 0 0' }}>Technical</div>
+            {v.traits.technical.map((t) => <TraitRow key={t.key} t={t} />)}
+            <div className="caps" style={{ margin: '14px 0 0' }}>Mental</div>
+            {v.traits.mental.map((t) => <TraitRow key={t.key} t={t} />)}
+            <div className="attr-row" style={{ gridTemplateColumns: '128px 1fr auto', marginTop: 14, borderTop: '1px solid var(--line)', paddingTop: 12 }}>
+              <span className="gold">Potential ceiling</span>
+              <span className="dim" style={{ fontSize: 13 }}>{scouted ? 'Hardest thing to judge — treat with care.' : 'Unknown without scouting.'}</span>
+              <span><RangeText r={v.ceiling} scouted={scouted} /> <small className="dim">{scouted ? v.ceiling.label : ''}</small></span>
+            </div>
+            {v.knowledge.reportLog.length > 0 && (
+              <div style={{ marginTop: 14 }}>
+                <div className="caps">Reports on file</div>
+                {v.knowledge.reportLog.map((r, i) => <div key={i} className="dim" style={{ fontSize: 13.5 }}>{r.depth} report by {r.scoutName} · {r.weeksAgo === 0 ? 'this week' : `${r.weeksAgo} wk ago`}</div>)}
+              </div>
+            )}
+            {mine && <p className="dim" style={{ marginTop: 12, fontSize: 13 }}>Your coaches see {v.firstName} every day, so this picture sharpens by itself the longer they stay.</p>}
+          </Section>
+
+          <Section title="Personality">
+            {v.personality.reveal === 'unknown' && <p className="dim">You don’t know {v.firstName} well enough to say. Deep scouting — or doing business with them — will reveal more.</p>}
+            {v.personality.reveal === 'hint' && <p>First impression: <b>{v.personality.hint}</b>. <span className="dim">Not enough to know what really drives them.</span></p>}
+            {v.personality.reveal === 'revealed' && <><p style={{ marginBottom: 6 }}><span className="chip gold">{v.personality.trait}</span> <span className="dim">· {v.personality.hint}</span></p><p style={{ maxWidth: '60ch' }}>{v.personality.note}</p></>}
           </Section>
 
           <Section title="Biography">
-            <p style={{ lineHeight: 1.6, maxWidth: '62ch' }}>{f.bio}</p>
-            <dl style={{ marginTop: 14 }}>
-              <div className="kv"><dt>Personality</dt><dd>{f.personality}</dd></div>
-              <div className="kv"><dt>Hometown</dt><dd>{f.hometown}, {nation(f.nationality).name}</dd></div>
-              <div className="kv"><dt>Age</dt><dd>{age} <span className="dim">(born {formatDay(f.birthDay)})</span></dd></div>
-              <div className="kv"><dt>Height / reach</dt><dd>{f.heightCm} cm / {f.reachCm} cm</dd></div>
-              <div className="kv"><dt>Stance</dt><dd>{f.stance}</dd></div>
-              <div className="kv"><dt>Career</dt><dd>{fights} fights · {f.record.koWins} KO wins · {f.record.koLosses} stopped</dd></div>
-            </dl>
+            <p style={{ lineHeight: 1.6, maxWidth: '62ch' }}>{v.bio}</p>
           </Section>
         </div>
 
         <div>
-          <Section title="Condition & standing">
-            {([
-              ['Fitness', f.fitness, 'good'], ['Conditioning', f.conditioning, 'good'],
-              ['Confidence', f.confidence, 'blue'], ['Morale', f.morale, undefined],
-              ['Popularity', f.popularity, 'gold'], ['Reputation', f.reputation, 'gold'],
-            ] as const).map(([label, value, tone]) => (
-              <div className="attr-row" key={label}>
-                <span>{label}</span>
-                <Meter value={value} tone={tone} label={label} />
-                <span className="num" style={{ fontSize: 20, textAlign: 'right' }}>{Math.round(value)}</span>
-              </div>
-            ))}
-            <p className="dim" style={{ marginTop: 8, fontSize: 13 }}>Mood: <b style={{ color: 'var(--text)' }}>{moodLabel(f.morale)}</b></p>
+          <Section title="Identity">
+            <dl>
+              <div className="kv"><dt>Age</dt><dd>{v.age}</dd></div>
+              <div className="kv"><dt>Nationality</dt><dd>{v.nationName} <span className="dim">· {v.hometown}</span></dd></div>
+              <div className="kv"><dt>Division</dt><dd>{v.division}</dd></div>
+              <div className="kv"><dt>Height / reach</dt><dd>{v.heightCm} cm / {v.reachCm} cm</dd></div>
+              <div className="kv"><dt>Stance</dt><dd>{v.stance}</dd></div>
+              <div className="kv"><dt>Style</dt><dd>{v.style}</dd></div>
+            </dl>
           </Section>
 
-          <Section title="Contract">
-            {contract && promo ? (
-              <dl>
-                <div className="kv"><dt>Promotion</dt><dd>{promo.name}{mine && <span className="chip gold" style={{ marginLeft: 8 }}>You</span>}</dd></div>
-                <div className="kv"><dt>Weekly retainer</dt><dd className="num" style={{ fontSize: 18 }}>{money(contract.weeklyRetainer, false)}</dd></div>
-                <div className="kv"><dt>Minimum purse</dt><dd className="num" style={{ fontSize: 18 }}>{money(contract.minPurse, false)}</dd></div>
-                <div className="kv"><dt>Fights remaining</dt><dd>{contract.fightsRemaining} of {contract.fightsTotal}</dd></div>
-                <div className="kv"><dt>Expires</dt><dd>{formatDay(contract.endDay)} <span className={weeksLeft! <= 12 ? 'warn' : 'dim'}>({weeksLeft} weeks)</span></dd></div>
-              </dl>
-            ) : (
-              <p className="dim">{f.status === 'retired' ? `Retired ${f.retiredDay ? formatDay(f.retiredDay) : ''}.` : 'Free agent — signing and contract negotiation arrive in Phase 2.'}</p>
+          <Section title="Career">
+            <dl>
+              <div className="kv"><dt>Record</dt><dd>{v.recordText} <span className="dim">({v.fights} fights)</span></dd></div>
+              <div className="kv"><dt>Knockouts</dt><dd>{v.record.koWins} wins · {v.koRate}% · stopped {v.record.koLosses}×</dd></div>
+              <div className="kv"><dt>Last fought</dt><dd>{v.lastFightWeeksAgo === null ? 'No bouts on file' : `${v.lastFightWeeksAgo} weeks ago`}</dd></div>
+              <div className="kv"><dt>Career stage</dt><dd>{v.stage}</dd></div>
+              <div className="kv"><dt>Ranking</dt><dd className="dim">Unranked — rankings arrive in Phase 6</dd></div>
+              <div className="kv"><dt>Titles</dt><dd className="dim">None on record</dd></div>
+            </dl>
+          </Section>
+
+          <Section title="Market">
+            <div className="attr-row"><span>Popularity</span><Meter value={v.popularity} tone="gold" label="Popularity" /><span className="num" style={{ fontSize: 20, textAlign: 'right' }}>{v.popularity}</span></div>
+            <div className="attr-row"><span>Reputation</span><Meter value={v.reputation} tone="gold" label="Reputation" /><span className="num" style={{ fontSize: 20, textAlign: 'right' }}>{v.reputation}</span></div>
+            <div className="attr-row"><span>Marketability</span><span className="dim" style={{ fontSize: 13 }}>{scouted ? 'scout read' : 'rough guess'}</span><span><RangeText r={v.marketability} scouted={v.knowledge.reports > 0 || mine} /></span></div>
+            <div className="kv" style={{ marginTop: 8 }}><dt>Value tier</dt><dd>{v.market.valueTier}</dd></div>
+            {v.contract.kind !== 'own' && v.status === 'active' && (
+              <div className="kv"><dt>Typical ask</dt><dd className="num" style={{ fontSize: 17 }}>{money(v.market.askBand.retainerLo, false)}–{money(v.market.askBand.retainerHi, false)}/wk · {money(v.market.askBand.purseLo)}–{money(v.market.askBand.purseHi)}/fight</dd></div>
             )}
           </Section>
 
-          {mine && f.status === 'active' && (
-            <Section title="Training focus">
+          <Section title="Contract">
+            {c.kind === 'own' && (
+              <dl>
+                <div className="kv"><dt>Status</dt><dd><span className={`pill ${c.stage}`}>{STAGE_LABEL[c.stage]}</span></dd></div>
+                <div className="kv"><dt>Term</dt><dd>{formatDay(c.contract.startDay)} → {formatDay(c.contract.endDay)} <span className="dim">({c.weeksLeft} weeks left)</span></dd></div>
+                <div className="kv"><dt>Weekly retainer</dt><dd className="num" style={{ fontSize: 18 }}>{money(c.contract.weeklyRetainer, false)}</dd></div>
+                <div className="kv"><dt>Base purse</dt><dd className="num" style={{ fontSize: 18 }}>{money(c.contract.basePurse, false)} <span className="dim" style={{ fontSize: 13 }}>+ {money(c.contract.winBonus, false)} win bonus</span></dd></div>
+                <div className="kv"><dt>Fights</dt><dd>{c.contract.fightsRemaining} of {c.contract.fightsTotal} remaining · min {c.contract.minFightsPerYear}/yr</dd></div>
+                <div className="kv"><dt>PPV share</dt><dd>{c.contract.ppvShare > 0 ? `${(c.contract.ppvShare * 100).toFixed(1)}%` : 'None'}</dd></div>
+                <div className="kv"><dt>Signing bonus</dt><dd>{money(c.contract.signingBonus, false)} <span className="dim">(paid)</span></dd></div>
+                <div className="kv"><dt>Promises</dt><dd>{c.contract.titlePromise ? <span className="gold">Title opportunity owed</span> : 'None'}</dd></div>
+              </dl>
+            )}
+            {c.kind === 'rival' && <p>Under contract with <b>{c.promotionName}</b> — expected to run for roughly {c.approxMonthsLeft} more months.</p>}
+            {c.kind === 'none' && <p className="dim">{v.status === 'retired' ? 'Retired.' : `Free agent${v.market.availableWeeks !== null ? ` for ${v.market.availableWeeks} weeks` : ''}.`}</p>}
+          </Section>
+
+          {v.own && (
+            <Section title="Condition & training">
+              {([['Fitness', v.own.fitness, 'good'], ['Conditioning', v.own.conditioning, 'good'], ['Confidence', v.own.confidence, 'blue'], ['Morale', v.own.morale, undefined]] as const).map(([label, b, tone]) => (
+                <div className="attr-row" key={label}><span>{label}</span><Meter value={b.value} tone={tone} label={label} /><span className="dim" style={{ textAlign: 'right', fontSize: 13 }}>{b.label}</span></div>
+              ))}
+              <p className="dim" style={{ margin: '6px 0 12px', fontSize: 13 }}>Mood: <b style={{ color: 'var(--text)' }}>{v.own.mood}</b></p>
               <div className="focus-grid">
                 {(Object.keys(FOCUS_LABELS) as TrainingFocus[]).map((k) => (
-                  <button key={k} className={`focus-opt${f.trainingFocus === k ? ' on' : ''}`} aria-pressed={f.trainingFocus === k} onClick={() => setTraining(f.id, k)}>
-                    <div className="n">{FOCUS_LABELS[k]}</div>
-                    <div className="d">{FOCUS_BLURBS[k]}</div>
+                  <button key={k} className={`focus-opt${v.own!.trainingFocus === k ? ' on' : ''}`} aria-pressed={v.own!.trainingFocus === k} onClick={() => setTraining(v.id, k)}>
+                    <div className="n">{FOCUS_LABELS[k]}</div><div className="d">{FOCUS_BLURBS[k]}</div>
                   </button>
                 ))}
               </div>
-              <p className="dim" style={{ marginTop: 10, fontSize: 13 }}>Applied every week you advance. Growth depends on age, remaining potential, morale and fitness.</p>
             </Section>
           )}
 
-          <Section title="Fight history">
-            <p className="empty">No bouts on file yet. Round-by-round history and fight statistics arrive with the fight engine in Phase 3 — until then the career record above is this fighter’s summary.</p>
+          <Section title="Career history">
+            {v.history.length === 0 ? <p className="empty">Nothing on record.</p> : (
+              <ul className="history">{v.history.map((h, i) => <li key={i}><span className="caps" style={{ marginRight: 10 }}>{formatDay(h.day, true)}</span>{h.text}</li>)}</ul>
+            )}
+            <p className="dim" style={{ fontSize: 13, marginTop: 8 }}>Notable fights and achievements are recorded from Phase 3 onwards.</p>
           </Section>
         </div>
       </div>
+      {scouting && <ScoutDialog id={v.id} onClose={() => setScouting(false)} />}
     </>
   )
 }

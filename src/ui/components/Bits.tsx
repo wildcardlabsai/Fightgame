@@ -1,8 +1,6 @@
 import type { CSSProperties, ReactNode } from 'react'
 import { nation } from '../../data/nations'
-import { fighterRating } from '../../engine/fighters'
-import type { Fighter, Promotion } from '../../engine/types'
-import { ratingTier } from '../format'
+import type { Promotion } from '../../engine/types'
 import { EmblemGlyph } from './Icons'
 
 export function Section({ title, right, children }: { title: string; right?: ReactNode; children: ReactNode }) {
@@ -24,7 +22,7 @@ export function Flag({ code }: { code: string }) {
 
 const AVATAR_COLORS = ['#8c1b24', '#1f4f9a', '#2a7a56', '#7a4a1c', '#5b3a8c', '#3a5f6e', '#8a6a1e']
 
-export function Avatar({ f, large }: { f: Pick<Fighter, 'firstName' | 'lastName' | 'id'>; large?: boolean }) {
+export function Avatar({ f, large }: { f: { firstName: string; lastName: string; id: string }; large?: boolean }) {
   let h = 0
   for (const ch of f.id) h = (h * 31 + ch.charCodeAt(0)) >>> 0
   const bg = AVATAR_COLORS[h % AVATAR_COLORS.length]
@@ -33,11 +31,6 @@ export function Avatar({ f, large }: { f: Pick<Fighter, 'firstName' | 'lastName'
       {f.firstName[0]}{f.lastName[0]}
     </span>
   )
-}
-
-export function Rating({ f, value }: { f?: Pick<Fighter, 'attributes'>; value?: number }) {
-  const r = value ?? (f ? fighterRating(f) : 0)
-  return <span className={`rating t${ratingTier(r)}`} title="Overall rating">{r}</span>
 }
 
 export function Meter({ value, tone, potential, label }: { value: number; tone?: 'good' | 'gold' | 'blue'; potential?: number; label?: string }) {

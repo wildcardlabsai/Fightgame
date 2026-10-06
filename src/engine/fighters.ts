@@ -167,8 +167,11 @@ export function generateFighter(rng: Rng, ids: IdSource, o: FighterGenOptions): 
     firstName, lastName, nickname,
     nationality: nat.key, hometown, birthDay,
     weightClass: wc.id, heightCm, reachCm, stance, style, personality,
-    bio: '',
+    bio: '', personalityNote: PERSONALITY_LINES[personality],
     attributes: attrs, potential,
+    discipline: clamp(Math.round(hiddenBase(personality, 'discipline', baseRating) + rng.normal(0, 8)), 5, 98),
+    composure: clamp(Math.round(hiddenBase(personality, 'composure', baseRating) + rng.normal(0, 8)), 5, 98),
+    injuryRisk: clamp(Math.round(40 + (age - 27) * 1.2 - (attrs.chin - 50) * 0.3 + rng.normal(0, 12)), 3, 95),
     fitness: Math.round(rng.clampedNormal(82, 8, 50, 100)),
     conditioning: Math.round(rng.clampedNormal(70, 10, 35, 98)),
     confidence: Math.round(rng.clampedNormal(55 + (wins - losses) * 0.4, 12, 15, 95)),
@@ -180,6 +183,9 @@ export function generateFighter(rng: Rng, ids: IdSource, o: FighterGenOptions): 
     lastFightDay: fights > 0 ? o.today - rng.int(21, 300) : null,
     contractId: null,
     retiredDay: null,
+    availableSince: o.today - rng.int(0, 60),
+    promoRelations: {},
+    history: [],
   }
   fighter.bio = generateBio(rng, fighter, age)
   return fighter
@@ -198,7 +204,7 @@ const ORIGINS = [
   'turned professional late after years on the {town} small-hall circuit',
 ]
 
-const PERSONALITY_LINES: Record<Personality, string> = {
+export const PERSONALITY_LINES: Record<Personality, string> = {
   Professional: 'Coaches call him the easiest fighter in the gym — always on weight, always on time.',
   Ambitious: 'He talks openly about world titles and expects the right opportunities to follow.',
   Loyal: 'He sticks with the people who back him and rarely shops himself around.',
@@ -228,5 +234,63 @@ function generateBio(rng: Rng, f: Fighter, age: number): string {
     : fights <= 6 ? `Now ${age}, he is just ${fights === 1 ? 'one fight' : `${fights} fights`} into his professional career.`
     : f.record.losses === 0 ? `Now ${age}, he arrives unbeaten after ${fights} fights.`
     : `Now ${age}, he carries a ${f.record.wins}-${f.record.losses}-${f.record.draws} record.`
-  return `${f.firstName} ${f.lastName} ${origin}. ${career} ${STYLE_LINES[f.style]} ${PERSONALITY_LINES[f.personality]}`
+  return `${f.firstName} ${f.lastName} ${origin}. ${career} ${STYLE_LINES[f.style]}`
+}
+
+/** Personality nudges the hidden mental traits (so personality is not cosmetic). */
+export function hiddenBase(p: Personality, trait: 'discipline' | 'composure', base: number): number {
+  const d: Record<Personality, [number, number]> = {
+    Professional: [14, 6], Ambitious: [6, 2], Loyal: [6, 4], Volatile: [-14, -14], Greedy: [-2, 0],
+    Showman: [-8, 4], Quiet: [4, 8], Arrogant: [-6, 0], Humble: [8, 6], Fragile: [-2, -16],
+  }
+  return base + d[p][trait === 'discipline' ? 0 : 1]
+}
+
+// ------------------------------------------------------ Public information
+
+/**
+ * Everything about a fighter that is public knowledge — what anyone can look up in a record book
+ * or see on TV. This is the ONLY fighter input the player-knowledge priors are allowed to use.
+ */
+export interface PublicFacts {
+  age: number
+  weightClass: WeightClassId
+  nationality: string
+  heightCm: number
+  reachCm: number
+  stance: Stance
+  style: FightingStyle
+  record: Fighter['record']
+  reputation: number
+  popularity: number
+  retired: boolean
+}
+
+export function publicFacts(f: Fighter, today: Day): PublicFacts {
+  return {
+    age: fighterAge(f, today), weightClass: f.weightClass, nationality: f.nationality,
+    heightCm: f.heightCm, reachCm: f.reachCm, stance: f.stance, style: f.style,
+    record: f.record, reputation: f.reputation, popularity: f.popularity, retired: f.status === 'retired',
+  }
+}
+
+export type PublicStage = 'Debutant' | 'Prospect' | 'Rising' | 'Contender' | 'Prime' | 'Veteran' | 'Declining' | 'Journeyman' | 'Retired'
+
+/** Career stage inferred from public information only (no hidden rating/potential). */
+export function publicStage(p: PublicFacts): PublicStage {
+  if (p.retired) return 'Retired'
+  const fights = p.record.wins + p.record.losses + p.record.draws
+  const winPct = fights ? p.record.wins / fights : 0.5
+  if (fights === 0) return 'Debutant'
+  if (p.age >= 36) return 'Declining'
+  if (fights >= 18 && winPct < 0.5 && p.reputation < 40) return 'Journeyman'
+  if (p.age >= 33) return 'Veteran'
+  if (fights <= 8 && p.age <= 25) return 'Prospect'
+  if (p.reputation >= 55 && winPct >= 0.75 && fights >= 12) return 'Contender'
+  if (p.age <= 27 && winPct >= 0.65) return 'Rising'
+  return p.age >= 28 ? 'Prime' : 'Rising'
+}
+
+export function visibility(p: Pick<PublicFacts, 'reputation' | 'popularity'>): number {
+  return Math.max(p.reputation, p.popularity * 0.9)
 }

@@ -1,14 +1,14 @@
 import { useMemo, useState } from 'react'
 import { DAYS_PER_WEEK, MONTHS, dayToDate, weeksBetween, formatDay } from '../../engine/calendar'
-import { fighterAge } from '../../engine/fighters'
-import { playerRoster, contractOf } from '../../engine/selectors'
 import { useGame } from '../../store/gameStore'
+import { useViews } from '../../store/hooks'
 
 interface Marker { day: number; label: string; tone: 'gold' | 'red'; fighterId?: string }
 
 export function CalendarScreen() {
   const game = useGame((s) => s.game)!
   const navigate = useGame((s) => s.navigate)
+  const views = useViews()
   const t = dayToDate(game.today)
   const [offset, setOffset] = useState(0) // months relative to the current month
 
@@ -22,17 +22,16 @@ export function CalendarScreen() {
 
   const markers = useMemo<Marker[]>(() => {
     const out: Marker[] = []
-    for (const f of playerRoster(game)) {
-      const c = contractOf(game, f)
-      if (c) out.push({ day: c.endDay, label: `${f.lastName}: contract ends`, tone: 'red', fighterId: f.id })
+    for (const f of views.mine()) {
+      if (f.contract.kind === 'own') out.push({ day: f.contract.contract.endDay, label: `${f.lastName}: contract ends`, tone: 'red', fighterId: f.id })
       const b = dayToDate(f.birthDay)
       for (const y of new Set([t.getUTCFullYear(), t.getUTCFullYear() + 1, year])) {
         const d = Math.floor(Date.UTC(y, b.getUTCMonth(), b.getUTCDate()) / 86_400_000)
-        if (d >= game.today) out.push({ day: d, label: `${f.lastName}'s birthday (${fighterAge(f, d)})`, tone: 'gold', fighterId: f.id })
+        if (d >= game.today) out.push({ day: d, label: `${f.lastName}'s birthday (${y - b.getUTCFullYear()})`, tone: 'gold', fighterId: f.id })
       }
     }
     return out
-  }, [game, year, t])
+  }, [game.today, views, year, t])
 
   const cells: (number | null)[] = [...Array(lead).fill(null), ...Array.from({ length: daysInMonth }, (_, i) => i + 1)]
   while (cells.length % 7) cells.push(null)

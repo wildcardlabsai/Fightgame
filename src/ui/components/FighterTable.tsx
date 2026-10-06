@@ -1,0 +1,103 @@
+import type { ReactNode } from 'react'
+import type { FighterView } from '../../engine/view'
+import { useGame } from '../../store/gameStore'
+import { money } from '../format'
+import { Avatar, Flag, Meter } from './Bits'
+import { KnowledgePips, RangeText } from './Estimates'
+
+export type ColKey =
+  | 'fighter' | 'division' | 'age' | 'record' | 'stage' | 'rep' | 'pop' | 'grade' | 'ceiling' | 'know' | 'club' | 'ask' | 'tags' | 'actions'
+
+export type SortKey = 'name' | 'age' | 'record' | 'rep' | 'pop' | 'grade' | 'ceiling' | 'ask' | 'division'
+
+const HEAD: Record<ColKey, { label: string; sort?: SortKey; right?: boolean }> = {
+  fighter: { label: 'Fighter', sort: 'name' }, division: { label: 'Division', sort: 'division' }, age: { label: 'Age', sort: 'age', right: true },
+  record: { label: 'Record', sort: 'record' }, stage: { label: 'Stage' }, rep: { label: 'Reputation', sort: 'rep' }, pop: { label: 'Popularity', sort: 'pop' },
+  grade: { label: 'Scout grade', sort: 'grade' }, ceiling: { label: 'Ceiling', sort: 'ceiling' }, know: { label: 'Intel' },
+  club: { label: 'Status' }, ask: { label: 'Typical ask', sort: 'ask' }, tags: { label: 'Market' }, actions: { label: '' },
+}
+
+export function FighterCell({ v }: { v: FighterView }) {
+  return (
+    <div className="fighter-cell">
+      <Avatar f={v} />
+      <div>
+        <div className="fighter-name">{v.name} <Flag code={v.nationKey} /></div>
+        <div className="fighter-sub">{v.nickname ? `“${v.nickname}” · ` : ''}{v.stage} · {v.style}</div>
+      </div>
+    </div>
+  )
+}
+
+export function statusText(v: FighterView): string {
+  if (v.status === 'retired') return 'Retired'
+  if (v.contract.kind === 'own') return 'Your roster'
+  if (v.contract.kind === 'rival') return v.contract.promotionName
+  return v.market.tags[0] ?? 'Free agent'
+}
+
+function cell(v: FighterView, c: ColKey, actions?: (v: FighterView) => ReactNode): ReactNode {
+  switch (c) {
+    case 'fighter': return <FighterCell v={v} />
+    case 'division': return v.division
+    case 'age': return <span className="num">{v.age}</span>
+    case 'record': return <span className="num">{v.recordText}</span>
+    case 'stage': return v.stage
+    case 'rep': return <div style={{ minWidth: 70 }}><Meter value={v.reputation} tone="gold" label="Reputation" /></div>
+    case 'pop': return <div style={{ minWidth: 70 }}><Meter value={v.popularity} tone="gold" label="Popularity" /></div>
+    case 'grade': return <span className="num grade-cell"><RangeText r={v.grade} scouted={v.knowledge.reports > 0 || v.own !== null} /></span>
+    case 'ceiling': return <span className="num grade-cell"><RangeText r={v.ceiling} scouted={v.knowledge.reports > 0 || v.own !== null} /></span>
+    case 'know': return <KnowledgePips level={v.knowledge.level} />
+    case 'club': return <span className={v.contract.kind === 'none' ? 'gold' : 'dim'}>{statusText(v)}</span>
+    case 'ask': return <span className="num ask-cell">{money(v.market.askBand.retainerLo, false)}–{money(v.market.askBand.retainerHi, false)}<small className="dim"> /wk</small></span>
+    case 'tags': return <span className="dim">{v.market.tags.join(' · ')}</span>
+    case 'actions': return actions?.(v)
+  }
+}
+
+export function FighterTable({ rows, cols, sort, dir, onSort, actions, onOpen, emptyText }: {
+  rows: FighterView[]
+  cols: ColKey[]
+  sort?: SortKey
+  dir?: 1 | -1
+  onSort?: (k: SortKey) => void
+  actions?: (v: FighterView) => ReactNode
+  onOpen?: (v: FighterView) => void
+  emptyText?: string
+}) {
+  const navigate = useGame((s) => s.navigate)
+  if (rows.length === 0) return <p className="empty">{emptyText ?? 'No fighters match.'}</p>
+  const open = onOpen ?? ((v: FighterView) => navigate('fighter', v.id))
+  return (
+    <div className="table-wrap">
+      <table className="table stack">
+        <thead>
+          <tr>
+            {cols.map((c) => {
+              const h = HEAD[c]
+              return (
+                <th key={c} className={`${h.sort && onSort ? 'sortable' : ''}${h.right ? ' r' : ''}`} onClick={() => h.sort && onSort?.(h.sort)}
+                  aria-sort={h.sort && sort === h.sort ? (dir === 1 ? 'ascending' : 'descending') : undefined}>
+                  {h.label}{h.sort && sort === h.sort ? (dir === 1 ? ' ▲' : ' ▼') : ''}
+                </th>
+              )
+            })}
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((v) => (
+            <tr key={v.id} className={`row${v.own ? ' mine' : ''}`} tabIndex={0} onClick={() => open(v)}
+              onKeyDown={(e) => { if (e.key === 'Enter') open(v) }}>
+              {cols.map((c) => (
+                <td key={c} data-label={HEAD[c].label} className={`${c === 'fighter' ? 'primary' : ''}${c === 'actions' ? ' actions' : ''}${HEAD[c].right ? ' r' : ''}`}
+                  onClick={c === 'actions' ? (e) => e.stopPropagation() : undefined}>
+                  {cell(v, c, actions)}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )
+}

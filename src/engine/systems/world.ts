@@ -3,8 +3,8 @@ import { generateFighter, fighterAge, fighterName, fighterRating, clamp } from '
 import type { IdSource } from '../ids'
 import { postMessage, postNews } from '../messages'
 import type { Rng } from '../rng'
-import { signContract } from '../worldgen'
-import type { Fighter, GameState, PromotionTier } from '../types'
+import type { Fighter, GameState } from '../types'
+import { archiveContract, pushHistory } from '../roster'
 
 /** Weekly chance a fighter calls it a day. Rises steeply after 33. */
 export function retirementChance(f: Fighter, age: number): number {
@@ -24,8 +24,11 @@ export function processRetirements(state: GameState, rng: Rng): void {
     const mine = contract?.promotionId === state.playerPromotionId
     f.status = 'retired'
     f.retiredDay = state.today
-    if (contract) delete state.contracts[contract.id]
+    if (contract) archiveContract(state, contract, 'retired')
     f.contractId = null
+    f.availableSince = null
+    pushHistory(f, { day: state.today, kind: 'retired', promotionId: contract?.promotionId ?? null })
+    if (contract && !mine) { const pr = state.promotions[contract.promotionId]; if (pr.ai) pr.ai.urgency = Math.min(3, pr.ai.urgency + 1) }
     if (mine) {
       postMessage(state, {
         from: 'Gym', category: 'fighter', priority: 'important',
@@ -50,49 +53,11 @@ export function talentIntake(state: GameState, rng: Rng, ids: IdSource): void {
     f.record = { wins: 0, losses: 0, draws: 0, koWins: 0, koLosses: 0 }
     f.lastFightDay = null
     f.popularity = clamp(f.popularity - 10, 1, 100)
+    f.availableSince = state.today
+    pushHistory(f, { day: state.today, kind: 'turnedPro', promotionId: null })
     state.fighters[f.id] = f
     if (f.potential >= 82) {
       postNews(state, { headline: `Amateur star ${fighterName(f)} (${f.hometown}) is turning professional`, category: 'prospect', fighterId: f.id })
-    }
-  }
-}
-
-const TIER_TARGET: Record<PromotionTier, number> = { Startup: 35, Regional: 44, National: 54, Major: 64, Global: 72 }
-const TIER_ROSTER: Record<PromotionTier, number> = { Startup: 8, Regional: 18, National: 24, Major: 28, Global: 30 }
-
-/** Lightweight AI: rivals re-sign or release expiring fighters and fill gaps from the free-agent pool. */
-export function aiRosterManagement(state: GameState, rng: Rng, ids: IdSource): void {
-  const free = Object.values(state.fighters).filter((f) => f.status === 'active' && f.contractId === null)
-  const taken = new Set<string>()
-
-  for (const promo of Object.values(state.promotions)) {
-    if (promo.isPlayer) continue
-    const roster = Object.values(state.contracts).filter((c) => c.promotionId === promo.id)
-    const target = TIER_TARGET[promo.tier]
-    const wanted = TIER_ROSTER[promo.tier]
-    if (roster.length >= wanted || !rng.chance(0.6)) continue
-
-    // Look at a random sample of the market and take the best fit.
-    const sample = rng.shuffle(free.filter((f) => !taken.has(f.id))).slice(0, 14)
-    let best: Fighter | null = null
-    let bestScore = -Infinity
-    for (const f of sample) {
-      const age = fighterAge(f, state.today)
-      if (age > 34) continue
-      const rating = fighterRating(f)
-      if (rating < target - 14) continue
-      const score = rating + f.potential * 0.4 + f.popularity * 0.2 - Math.abs(rating - target) * 0.5 - Math.max(0, age - 30) * 2
-      if (score > bestScore) { best = f; bestScore = score }
-    }
-    if (!best) continue
-    taken.add(best.id)
-    const c = signContract(rng, ids, best, promo.id, state.today, Math.min(0.9, fighterRating(best) / 110))
-    c.startDay = state.today
-    c.endDay = state.today + rng.int(1, 3) * 365
-    state.contracts[c.id] = c
-    best.contractId = c.id
-    if (fighterRating(best) >= 62 || best.potential >= 82) {
-      postNews(state, { headline: `${promo.name} sign ${fighterName(best)} (${best.record.wins}-${best.record.losses}-${best.record.draws})`, category: 'signing', fighterId: best.id })
     }
   }
 }

@@ -2,50 +2,79 @@
 
 ## Stack
 Vite · React 19 · TypeScript (strict) · Zustand · Vitest. No backend; saves are local (localStorage + JSON export).
-Chosen because the repo was empty, the game is UI-heavy and turn-based, and a pure-TypeScript engine keeps all
-simulation testable in Node without a browser.
+A pure-TypeScript engine keeps all simulation testable in Node without a browser.
 
 ## Layers
 ```
-UI (src/ui)            React components. Render state, dispatch store actions. No game rules.
+UI (src/ui)            React components. Render views; dispatch store actions. No game rules, no hidden data.
   ↓
-Store (src/store)      Zustand. Holds { game, route, saves, notices }. Calls engine commands/ticks, handles persistence.
+Store (src/store)      Zustand: { game, route, saves, notices }. Calls engine commands/ticks; persistence.
   ↓
-Engine (src/engine)    Pure TypeScript. No React, no DOM, no Date.now (except save timestamps).
+Engine (src/engine)    Pure TypeScript. No React/DOM.
   ├─ types.ts          Every data model; GameState is plain JSON.
   ├─ worldgen.ts       Seeded world + new-game factory.
   ├─ tick.ts           advanceOneWeek / advanceWeeks — the game loop.
-  ├─ systems/          One file per simulation system (development, contracts, world, finance).
-  ├─ commands.ts       Player actions; validate + return new state.
-  ├─ selectors.ts      Derived read-only views (roster, runway, attention items).
-  ├─ save.ts           SaveStorage interface, slots, versioned migrations.
-  └─ rng.ts            Seeded mulberry32; state is a single int stored in GameState.
+  ├─ systems/          development, contracts (stages/expiry), world (retire/intake), aiMarket, finance.
+  ├─ commands.ts       Player actions → new state.
+  ├─ negotiation.ts    Offer evaluation, counters, patience, signing.
+  ├─ roster.ts         Contract building/archiving, free-agent transitions, release.
+  ├─ scouting.ts       Scouts, report/search orders, completion, discovery.
+  ├─ market.ts         Market value, asking terms, availability, AI appraisal.
+  ├─ knowledge.ts      ★ Engine truth → player beliefs (priors, Bayesian updates, ranges).
+  ├─ view.ts           ★ The ONLY gateway to the UI: FighterView / ContractView.
+  ├─ quotes.ts         Read-only UI helpers (prices, negotiation status, own-contract summaries).
+  ├─ ledger.ts         The only way player cash changes.
+  ├─ balance.ts        Central tuning sheet. save.ts: slots + versioned migrations. rng.ts: seeded + keyed noise.
   ↓
-Data (src/data)        Static content: weight classes, nations/names, venues.
+Data (src/data)        Static content: divisions, nations/names/regions, venues.
 ```
 
+## Engine Truth vs Player Knowledge (Phase 2)
+The engine knows every fighter's real attributes, potential, discipline, composure, injury risk and personality.
+The player knows only:
+
+| Source | What it gives |
+|---|---|
+| **Public facts** (`PublicFacts`) | age, record, KO rate, reputation, popularity, style, stance, reach, nationality |
+| **Prior** (`knowledge.priorFor`) | a *belief* per trait computed **only** from public facts (wide, e.g. sd ≈ 17) |
+| **Scouting reports** | noisy measurements `truth + N(0, sd)`; sd depends on scout accuracy/experience, depth, fighter visibility, regional familiarity, and is larger for potential and mental traits |
+| **Daily contact** | your own roster is observed weekly (training camp) |
+| **Fights** (Phase 3) | `observeFight()` hook already provided |
+| **Negotiation** | reveals personality (insight) |
+
+Beliefs are stored as `{mean, sd}` in `GameState.knowledge` and combined by precision weighting. Uncertainty grows
+each week (`weeklyDrift`) so old reports fade. What the UI sees is `toRange(belief)` — a range at least 4 points wide —
+never the posterior mean as a bare number and never the true value. Noise is **keyed** (`keyedNormal(seed, …)`), so
+reports are reproducible and cannot be re-rolled by save-scumming.
+
+**The boundary is enforced, not just conventional.** `src/engine/leakAudit.test.ts` statically scans `src/ui` and
+`src/store` (no `.attributes`, `.potential`, `.fighters`, `BALANCE`, `fighterRating`, raw engine modules, etc.) and
+proves at runtime that an unscouted fighter's view is *identical* whatever their hidden attributes/personality are.
+
+Intentional, bounded information channels: **industry buzz** (young prospects' market value is partly informed by a
+noisy read of their potential — "word on the street"), and the negotiation itself (counters/reasons hint at personality).
+
+Not protected against: a determined player reading localStorage / the exported save / browser dev tools. Saves are
+plaintext JSON containing engine truth; this is a single-player game and no obfuscation is attempted.
+
 ## Rules of the road
-* **GameState is the single source of truth** and is JSON-serialisable: ids + records, no classes/functions/Dates.
-  Relationships are by id (`fighter.contractId` ↔ `contract.fighterId`); invariants are enforced by tests.
-* **Engine functions are pure**: `advanceOneWeek(state) → newState` (structuredClone, then mutate the clone).
-* **All randomness goes through `Rng`**, whose state lives in `GameState.rngState`. Same seed ⇒ same world; a loaded
-  game continues the exact same random sequence (tested).
-* **All ids come from `state.idCounter`** (`stateIds`) so they are deterministic and collision-free.
-* **UI never mutates state.** It calls store actions → engine commands.
-* **Unbuilt features are flagged, not faked**: `engine/config.ts` `FEATURES`, and disabled "Coming soon" nav items.
-* **Saves are versioned** (`GAME_STATE_VERSION`); add a migration step in `save.ts#migrate` whenever the shape changes.
+* **GameState is the single source of truth**, JSON-serialisable, relationships by id; invariants are tested.
+* **Engine functions are pure**: `advanceOneWeek(state) → newState`.
+* **All randomness goes through `Rng`** (state in `GameState.rngState`) or keyed noise for reproducible lookups.
+* **All ids come from `state.idCounter`**.
+* **Every pound goes through `ledger.post`**; `cash === ledgerArchive + Σ ledger` is a tested invariant.
+* **UI never mutates state and never reads fighters/knowledge directly** — it uses `useViews()` and `quotes`.
+* **Unbuilt features are flagged, not faked** (`FEATURES`, disabled nav).
+* **Saves are versioned** (`GAME_STATE_VERSION = 2`); `migrate()` upgrades v1 saves.
 
 ## Adding a system
-1. Add types to `types.ts` (and bump `GAME_STATE_VERSION` + migration if the saved shape changes).
-2. Write `systems/<name>.ts` exporting `(state, rng, ids) => void` and call it from `tick.ts`.
-3. Add selectors for the UI, commands for player actions, tests in `engine/*.test.ts`.
-4. Add a screen under `ui/screens` and register it in `Shell.tsx` + `gameStore.ts`.
+1. Types in `types.ts` (bump `GAME_STATE_VERSION` + migration if the saved shape changes).
+2. `systems/<name>.ts` exporting `(state, rng, ids) => void`, called from `tick.ts`.
+3. Selectors/quotes/views for the UI (never raw truth), commands for player actions, tests.
+4. Screen under `ui/screens`, registered in `Shell.tsx` + `gameStore.ts`.
 
-## Core data model (summary)
-`GameState { promotions, fighters, contracts, venues, ledger, financeHistory, inbox, news, settings, today, rngState, idCounter }`
-
-* `Fighter` — identity, physical, 10 attributes (1–100), hidden `potential`, condition (fitness/conditioning/confidence/morale),
-  standing (popularity/reputation), record, style, personality, bio, training focus, contract link.
-* `Contract` — retainer, minimum purse, fights remaining, term, one-shot expiry warnings.
-* `Promotion` — tier, logo, cash, reputation, fanbase, regional/global popularity (player + AI share one type).
-* Planned (later phases): `Fight`, `BoxingEvent`, `Title`, `Ranking`, `Sponsor`, `Injury`, `Rivalry`, `Trainer`.
+## AI promotions
+`Promotion.ai = { strategy, urgency, cooldownUntil }`. Strategies: **traditional**, **prospectFactory**, **money**,
+**regional** (`systems/aiMarket.ts#aiFit`). Rivals appraise fighters with noise that shrinks with tier, decide renewals
+~8 weeks out, release surplus/declining fighters, and bid weekly; contested fighters go to the most attractive suitor,
+losers become more urgent. Rival finances are abstract (`balance.ai.weeklyIncome`) until Phase 6.

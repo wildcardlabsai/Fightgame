@@ -1,21 +1,31 @@
 import { useState } from 'react'
 import { formatDay } from '../../engine/calendar'
-import { fighterRating } from '../../engine/fighters'
 import { TIER_ORDER } from '../../engine/promotions'
-import { rosterOf } from '../../engine/selectors'
+import type { AiStrategy } from '../../engine/types'
 import { useGame } from '../../store/gameStore'
+import { useViews } from '../../store/hooks'
 import { PromoLogo, Section } from '../components/Bits'
-import { compactNumber, money } from '../format'
-import { FighterRow } from './FightersScreen'
+import { FighterTable } from '../components/FighterTable'
+import { sortRows } from '../fighterFilters'
+import { compactNumber } from '../format'
+
+const STRATEGY: Record<AiStrategy, { label: string; blurb: string }> = {
+  traditional: { label: 'Traditional', blurb: 'Signs proven, established fighters in their prime.' },
+  prospectFactory: { label: 'Prospect factory', blurb: 'Hunts young fighters with big futures.' },
+  money: { label: 'Big-money', blurb: 'Chases popular, marketable names.' },
+  regional: { label: 'Regional', blurb: 'Builds around fighters from its home region.' },
+}
 
 export function PromotionsScreen() {
   const game = useGame((s) => s.game)!
+  const views = useViews()
   const [sel, setSel] = useState<string | null>(null)
   const promos = Object.values(game.promotions)
     .map((p) => {
-      const roster = rosterOf(game, p.id)
-      const avg = roster.length ? Math.round(roster.reduce((s, f) => s + fighterRating(f), 0) / roster.length) : 0
-      return { p, roster, avg }
+      const roster = views.rosterOf(p.id)
+      const avgRep = roster.length ? Math.round(roster.reduce((s, f) => s + f.reputation, 0) / roster.length) : 0
+      const avgAge = roster.length ? Math.round(roster.reduce((s, f) => s + f.age, 0) / roster.length) : 0
+      return { p, roster, avgRep, avgAge }
     })
     .sort((a, b) => TIER_ORDER.indexOf(b.p.tier) - TIER_ORDER.indexOf(a.p.tier) || b.p.reputation - a.p.reputation)
   const chosen = promos.find((x) => x.p.id === sel)
@@ -25,40 +35,35 @@ export function PromotionsScreen() {
       <div className="page-head">
         <div>
           <h1 className="display">Promotions</h1>
-          <p className="sub">The competition. Rivals sign free agents and re-stock their rosters as the weeks pass; full AI matchmaking and events arrive in Phase 6.</p>
+          <p className="sub">The competition. Each rival has its own habits — they scout, bid, re-sign and release, and they will go after the same fighters you do.</p>
         </div>
       </div>
       <div className="table-wrap">
-        <table className="table">
-          <thead><tr><th>Promotion</th><th>Tier</th><th className="r">Reputation</th><th className="r">Fanbase</th><th className="r">Roster</th><th className="r">Avg rating</th><th className="r">Cash</th></tr></thead>
+        <table className="table stack">
+          <thead><tr><th>Promotion</th><th>Tier</th><th>Known for</th><th className="r">Reputation</th><th className="r">Fanbase</th><th className="r">Roster</th><th className="r">Avg rep.</th><th className="r">Avg age</th></tr></thead>
           <tbody>
-            {promos.map(({ p, roster, avg }) => (
+            {promos.map(({ p, roster, avgRep, avgAge }) => (
               <tr key={p.id} className={`row${p.isPlayer ? ' mine' : ''}`} onClick={() => setSel(p.id === sel ? null : p.id)}>
-                <td><div className="fighter-cell"><PromoLogo p={p} size={36} />
+                <td className="primary" data-label="Promotion"><div className="fighter-cell"><PromoLogo p={p} size={36} />
                   <div><div className="fighter-name">{p.name}{p.isPlayer && <span className="chip gold" style={{ marginLeft: 8 }}>You</span>}</div>
                     <div className="fighter-sub">{p.promoterName} · est. {formatDay(p.foundedDay, true).split(' ').pop()}</div></div></div></td>
-                <td>{p.tier}</td>
-                <td className="r num" style={{ fontSize: 20 }}>{Math.round(p.reputation)}</td>
-                <td className="r num">{compactNumber(p.fanbase)}</td>
-                <td className="r num">{roster.length}</td>
-                <td className="r num">{avg || '—'}</td>
-                <td className="r num">{money(p.cash)}</td>
+                <td data-label="Tier">{p.tier}</td>
+                <td data-label="Known for" className="dim" style={{ fontSize: 13.5 }}>{p.ai ? <><b style={{ color: 'var(--text)' }}>{STRATEGY[p.ai.strategy].label}</b> — {STRATEGY[p.ai.strategy].blurb}</> : '—'}</td>
+                <td className="r num" data-label="Reputation" style={{ fontSize: 20 }}>{Math.round(p.reputation)}</td>
+                <td className="r num" data-label="Fanbase">{compactNumber(p.fanbase)}</td>
+                <td className="r num" data-label="Roster">{roster.length}</td>
+                <td className="r num" data-label="Avg rep.">{avgRep || '—'}</td>
+                <td className="r num" data-label="Avg age">{avgAge || '—'}</td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
-      {chosen && (
+      {chosen ? (
         <Section title={`${chosen.p.name} — roster`}>
-          {chosen.roster.length === 0 ? <p className="empty">No fighters under contract.</p> : (
-            <div className="table-wrap"><table className="table">
-              <thead><tr><th>Fighter</th><th>Division</th><th className="r">Age</th><th>Record</th><th>Rating</th><th>Popularity</th></tr></thead>
-              <tbody>{chosen.roster.sort((a, b) => fighterRating(b) - fighterRating(a)).map((f) => <FighterRow key={f.id} f={f} showClub={false} />)}</tbody>
-            </table></div>
-          )}
+          <FighterTable rows={sortRows(chosen.roster, 'rep', -1)} cols={['fighter', 'division', 'age', 'record', 'stage', 'rep', 'pop']} emptyText="No fighters under contract." />
         </Section>
-      )}
-      {!chosen && <p className="dim" style={{ marginTop: 12, fontSize: 13 }}>Select a promotion to see its roster.</p>}
+      ) : <p className="dim" style={{ marginTop: 12, fontSize: 13 }}>Select a promotion to see its roster. Rival finances and contract terms are private.</p>}
     </>
   )
 }

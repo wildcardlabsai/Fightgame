@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { formatDay } from '../../engine/calendar'
 import type { MessageCategory } from '../../engine/types'
-import { useGame, type ScreenId } from '../../store/gameStore'
+import { useGame } from '../../store/gameStore'
 
 const CATS: (MessageCategory | 'all')[] = ['all', 'contract', 'fighter', 'finance', 'system', 'world']
 
@@ -10,7 +10,7 @@ export function InboxScreen() {
   const read = useGame((s) => s.readMessage)
   const readAll = useGame((s) => s.readAll)
   const remove = useGame((s) => s.removeMessage)
-  const navigate = useGame((s) => s.navigate)
+  const openLink = useGame((s) => s.openLink)
   const [cat, setCat] = useState<MessageCategory | 'all'>('all')
   const [selId, setSelId] = useState<string | null>(null)
 
@@ -52,7 +52,7 @@ export function InboxScreen() {
               <p>{sel.body}</p>
               <div style={{ display: 'flex', gap: 10, marginTop: 24 }}>
                 {sel.link && (
-                  <button className="btn primary" onClick={() => sel.link!.kind === 'fighter' ? navigate('fighter', sel.link!.id) : navigate(sel.link!.screen as ScreenId)}>
+                  <button className="btn primary" onClick={() => openLink(sel.link!)}>
                     {sel.link.kind === 'fighter' ? 'View fighter' : 'Go there'}
                   </button>
                 )}

@@ -1,137 +1,76 @@
 import { useMemo, useState } from 'react'
-import { NATIONS } from '../../data/nations'
-import { WEIGHT_CLASSES, weightClassLabel } from '../../data/weightClasses'
-import {
-  fighterAge, fighterName, fighterRating, recordLabel,
-} from '../../engine/fighters'
-import { freeAgents, playerRoster, promotionOf } from '../../engine/selectors'
-import type { Fighter, WeightClassId } from '../../engine/types'
+import type { FighterView } from '../../engine/view'
 import { useGame } from '../../store/gameStore'
-import { Avatar, Flag, Meter, Rating } from '../components/Bits'
+import { useViews } from '../../store/hooks'
+import { FighterTable, type SortKey } from '../components/FighterTable'
+import { applyFilter, EMPTY_FILTER, sortRows, type FighterFilter } from '../fighterFilters'
+import { FilterBar } from './ScoutingScreen'
 
-type Tab = 'roster' | 'free' | 'all'
-type SortKey = 'rating' | 'age' | 'popularity' | 'name' | 'record'
+type Tab = 'roster' | 'free' | 'expiring' | 'signed' | 'released' | 'known'
+const RECENT_DAYS = 12 * 7
 
-const PAGE = 60
-
-export function FighterRow({ f, showClub = true }: { f: Fighter; showClub?: boolean }) {
-  const game = useGame((s) => s.game)!
-  const navigate = useGame((s) => s.navigate)
-  const promo = promotionOf(game, f)
-  const mine = promo?.isPlayer
-  return (
-    <tr className={`row${mine ? ' mine' : ''}`} onClick={() => navigate('fighter', f.id)} tabIndex={0}
-      onKeyDown={(e) => { if (e.key === 'Enter') navigate('fighter', f.id) }}>
-      <td>
-        <div className="fighter-cell">
-          <Avatar f={f} />
-          <div>
-            <div className="fighter-name">{fighterName(f)} <Flag code={f.nationality} /></div>
-            <div className="fighter-sub">{f.nickname ? `“${f.nickname}” · ` : ''}{f.style} · {f.stance}</div>
-          </div>
-        </div>
-      </td>
-      <td>{weightClassLabel(f.weightClass)}</td>
-      <td className="r num">{fighterAge(f, game.today)}</td>
-      <td className="num">{recordLabel(f)}</td>
-      <td><Rating f={f} /></td>
-      <td style={{ minWidth: 90 }}><Meter value={f.popularity} tone="gold" label="Popularity" /></td>
-      {showClub && <td className={promo ? '' : 'dim'}>{promo ? promo.name : f.status === 'retired' ? 'Retired' : 'Free agent'}</td>}
-    </tr>
-  )
-}
+const TABS: { key: Tab; label: string }[] = [
+  { key: 'roster', label: 'My Roster' }, { key: 'free', label: 'Free Agents' }, { key: 'expiring', label: 'Expiring Contracts' },
+  { key: 'signed', label: 'Recently Signed' }, { key: 'released', label: 'Recently Released' }, { key: 'known', label: 'All Known' },
+]
 
 export function FightersScreen() {
   const game = useGame((s) => s.game)!
+  const navigate = useGame((s) => s.navigate)
+  const views = useViews()
   const [tab, setTab] = useState<Tab>('roster')
-  const [wc, setWc] = useState<WeightClassId | ''>('')
-  const [nat, setNat] = useState('')
-  const [q, setQ] = useState('')
-  const [sort, setSort] = useState<SortKey>('rating')
+  const [filter, setFilter] = useState<FighterFilter>(EMPTY_FILTER)
+  const [sort, setSort] = useState<SortKey>('grade')
   const [dir, setDir] = useState<1 | -1>(-1)
-  const [shown, setShown] = useState(PAGE)
+  const [shown, setShown] = useState(50)
 
-  const roster = playerRoster(game)
-  const free = freeAgents(game)
-  const all = useMemo(() => Object.values(game.fighters).filter((f) => f.status === 'active'), [game.fighters])
-
-  const base = tab === 'roster' ? roster : tab === 'free' ? free : all
-  const rows = useMemo(() => {
-    const needle = q.trim().toLowerCase()
-    const list = base.filter((f) =>
-      (!wc || f.weightClass === wc) && (!nat || f.nationality === nat) &&
-      (!needle || fighterName(f).toLowerCase().includes(needle) || (f.nickname ?? '').toLowerCase().includes(needle)))
-    const val = (f: Fighter): number | string => {
-      switch (sort) {
-        case 'rating': return fighterRating(f)
-        case 'age': return fighterAge(f, game.today)
-        case 'popularity': return f.popularity
-        case 'record': return f.record.wins - f.record.losses
-        case 'name': return f.lastName
-      }
+  const base = useMemo<FighterView[]>(() => {
+    const recent = (v: FighterView, kind: string, mineOnly: boolean) =>
+      v.history.some((h) => h.kind === kind && game.today - h.day <= RECENT_DAYS && (mineOnly ? h.promotionId === game.playerPromotionId : true))
+    switch (tab) {
+      case 'roster': return views.mine()
+      case 'free': return views.freeAgents().filter((v) => v.status === 'active')
+      case 'expiring': return views.mine().filter((v) => v.contract.kind === 'own' && v.contract.stage !== 'healthy')
+      case 'signed': return views.known().filter((v) => recent(v, 'signed', false) || recent(v, 'renewed', false)).filter((v) => v.status === 'active')
+      case 'released': return views.known().filter((v) => (recent(v, 'released', false) || recent(v, 'expired', false)) && v.contract.kind === 'none' && v.status === 'active')
+      case 'known': return views.known().filter((v) => v.status === 'active')
     }
-    return list.sort((a, b) => {
-      const x = val(a), y = val(b)
-      const c = typeof x === 'string' ? x.localeCompare(y as string) : (x as number) - (y as number)
-      return c * dir || fighterRating(b) - fighterRating(a)
-    })
-  }, [base, wc, nat, q, sort, dir, game.today])
+  }, [tab, views, game.today, game.playerPromotionId])
 
-  const th = (key: SortKey, label: string, cls = '') => (
-    <th className={`sortable ${cls}`} onClick={() => { if (sort === key) setDir((d) => (d === 1 ? -1 : 1)); else { setSort(key); setDir(key === 'name' || key === 'age' ? 1 : -1) } }}
-      aria-sort={sort === key ? (dir === 1 ? 'ascending' : 'descending') : 'none'}>
-      {label}{sort === key ? (dir === 1 ? ' ▲' : ' ▼') : ''}
-    </th>
-  )
+  const counts: Record<Tab, number> = {
+    roster: views.mine().length, free: views.freeAgents().length, expiring: views.mine().filter((v) => v.contract.kind === 'own' && v.contract.stage !== 'healthy').length,
+    signed: 0, released: 0, known: 0,
+  }
+
+  const rows = useMemo(() => sortRows(applyFilter(base, filter), sort, dir), [base, filter, sort, dir])
+  const onSort = (k: SortKey) => { if (k === sort) setDir((d) => (d === 1 ? -1 : 1)); else { setSort(k); setDir(k === 'name' || k === 'age' ? 1 : -1) } }
+
+  const cols = tab === 'roster' || tab === 'expiring'
+    ? (['fighter', 'division', 'age', 'record', 'stage', 'grade', 'ceiling', 'rep', 'pop', 'club'] as const)
+    : (['fighter', 'division', 'age', 'record', 'stage', 'rep', 'pop', 'grade', 'club', 'tags'] as const)
 
   return (
     <>
       <div className="page-head">
         <div>
           <h1 className="display">Fighters</h1>
-          <p className="sub">Your gym, the open market, and every professional in the world. Click anyone for their full profile.</p>
+          <p className="sub">Your roster and the wider market. Grades and ceilings are your scouts’ estimates, not facts — fighters you have not scouted show a rough “~” guess.</p>
         </div>
+        <button className="btn" onClick={() => navigate('scouting')}>Open Scouting ▸</button>
       </div>
 
       <div className="tabs" role="tablist">
-        {([['roster', 'My Roster', roster.length], ['free', 'Free Agents', free.length], ['all', 'All Fighters', all.length]] as const).map(([k, label, n]) => (
-          <button key={k} role="tab" aria-selected={tab === k} className={`tab${tab === k ? ' active' : ''}`} onClick={() => { setTab(k); setShown(PAGE) }}>
-            {label}<span className="count">{n}</span>
+        {TABS.map((t) => (
+          <button key={t.key} role="tab" aria-selected={tab === t.key} className={`tab${tab === t.key ? ' active' : ''}`} onClick={() => { setTab(t.key); setShown(50) }}>
+            {t.label}{counts[t.key] > 0 && <span className="count">{counts[t.key]}</span>}
           </button>
         ))}
       </div>
 
-      <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 14 }}>
-        <input className="input" style={{ maxWidth: 260 }} placeholder="Search name or nickname…" value={q} onChange={(e) => { setQ(e.target.value); setShown(PAGE) }} aria-label="Search fighters" />
-        <select className="select" style={{ maxWidth: 220 }} value={wc} onChange={(e) => { setWc(e.target.value as WeightClassId | ''); setShown(PAGE) }} aria-label="Weight class">
-          <option value="">All divisions</option>
-          {WEIGHT_CLASSES.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
-        </select>
-        <select className="select" style={{ maxWidth: 200 }} value={nat} onChange={(e) => { setNat(e.target.value); setShown(PAGE) }} aria-label="Nationality">
-          <option value="">All nations</option>
-          {NATIONS.map((n) => <option key={n.key} value={n.key}>{n.name}</option>)}
-        </select>
-        <span className="dim" style={{ alignSelf: 'center' }}>{rows.length} fighter{rows.length === 1 ? '' : 's'}</span>
-      </div>
-
-      {rows.length === 0 ? (
-        <p className="empty">{tab === 'roster' ? 'No fighters match. Your roster is empty — signing arrives with scouting in Phase 2.' : 'No fighters match those filters.'}</p>
-      ) : (
-        <div className="table-wrap">
-          <table className="table">
-            <thead><tr>
-              {th('name', 'Fighter')}<th>Division</th>{th('age', 'Age', 'r')}{th('record', 'Record')}{th('rating', 'Rating')}{th('popularity', 'Popularity')}<th>Promotion</th>
-            </tr></thead>
-            <tbody>{rows.slice(0, shown).map((f) => <FighterRow key={f.id} f={f} />)}</tbody>
-          </table>
-          {rows.length > shown && (
-            <div style={{ padding: 16, textAlign: 'center' }}>
-              <button className="btn ghost" onClick={() => setShown((n) => n + PAGE)}>Show more ({rows.length - shown} left)</button>
-            </div>
-          )}
-        </div>
-      )}
-      {tab !== 'roster' && <p className="dim" style={{ marginTop: 14, fontSize: 13 }}>Hidden potential is only revealed for fighters on your roster. Scouting reports arrive in Phase 2 — signing too.</p>}
+      <FilterBar f={filter} set={(f) => { setFilter(f); setShown(50) }} />
+      <FighterTable rows={rows.slice(0, shown)} cols={[...cols]} sort={sort} dir={dir} onSort={onSort}
+        emptyText={tab === 'roster' ? 'No fighters match.' : tab === 'expiring' ? 'No contracts need attention right now.' : tab === 'signed' ? 'No notable signings in the last 12 weeks that you know about.' : tab === 'released' ? 'Nobody you know of has hit the market in the last 12 weeks.' : 'No fighters match those filters.'} />
+      {rows.length > shown && <div style={{ textAlign: 'center', padding: 16 }}><button className="btn ghost" onClick={() => setShown((n) => n + 50)}>Show more ({rows.length - shown} left)</button></div>}
     </>
   )
 }

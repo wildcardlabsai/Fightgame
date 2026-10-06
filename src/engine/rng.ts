@@ -84,3 +84,23 @@ export class Rng {
     return a
   }
 }
+
+/**
+ * Deterministic noise keyed by arbitrary parts, independent of the global RNG sequence.
+ * Used so scouting results and AI appraisals are reproducible and cannot be re-rolled by
+ * reloading or reordering other game events.
+ */
+export function keyedRng(...parts: (string | number)[]): Rng {
+  const r = Rng.fromSeed(parts.join('|'))
+  r.next()
+  r.next()
+  return r
+}
+
+export function keyedNormal(...parts: (string | number)[]): number {
+  return keyedRng(...parts).normal()
+}
+
+export function keyedFloat(...parts: (string | number)[]): number {
+  return keyedRng(...parts).next()
+}

@@ -1,6 +1,7 @@
 import { useRef } from 'react'
 import { formatDay } from '../../engine/calendar'
 import { useGame } from '../../store/gameStore'
+import { useViews } from '../../store/hooks'
 import { Section } from '../components/Bits'
 
 export function SettingsScreen() {
@@ -13,6 +14,7 @@ export function SettingsScreen() {
   const exportGame = useGame((s) => s.exportGame)
   const importGame = useGame((s) => s.importGame)
   const quit = useGame((s) => s.quitToMenu)
+  const views = useViews()
   const fileRef = useRef<HTMLInputElement>(null)
 
   const download = () => {
@@ -38,7 +40,7 @@ export function SettingsScreen() {
               <div className="kv"><dt>World seed</dt><dd className="num" style={{ fontSize: 18 }}>{game.seed}</dd></div>
               <div className="kv"><dt>Difficulty</dt><dd style={{ textTransform: 'capitalize' }}>{game.settings.difficulty}</dd></div>
               <div className="kv"><dt>Game date</dt><dd>{formatDay(game.today)}</dd></div>
-              <div className="kv"><dt>Fighters in world</dt><dd>{Object.keys(game.fighters).length}</dd></div>
+              <div className="kv"><dt>Fighters you know of</dt><dd>{views.known().length}</dd></div>
               <div className="kv"><dt>Save version</dt><dd>{game.version}</dd></div>
             </dl>
             <label style={{ display: 'flex', gap: 10, alignItems: 'center', margin: '16px 0' }}>

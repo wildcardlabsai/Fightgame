@@ -1,6 +1,7 @@
 import { DAYS_PER_WEEK } from './calendar'
 import type { GameState, InboxMessage, NewsItem } from './types'
 import { MAX_INBOX, MAX_NEWS } from './config'
+import { discover } from './knowledge'
 
 type NewMessage = Omit<InboxMessage, 'id' | 'day' | 'read'> & { cooldownWeeks?: number }
 
@@ -23,6 +24,7 @@ export function postNews(state: GameState, n: Omit<NewsItem, 'id' | 'day'>): New
   state.idCounter += 1
   const item: NewsItem = { ...n, id: `n_${state.idCounter.toString(36)}`, day: state.today }
   state.news.unshift(item)
+  if (n.fighterId && state.fighters[n.fighterId]) discover(state, n.fighterId, 'tip') // headlines put names on your radar
   if (state.news.length > MAX_NEWS) state.news.length = MAX_NEWS
   return item
 }

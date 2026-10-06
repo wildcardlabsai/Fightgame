@@ -1,12 +1,17 @@
 import { VENUE_SEEDS } from '../data/venues'
 import { dayFromIso } from './calendar'
-import { generateFighter } from './fighters'
+import { generateFighter, publicFacts, visibility } from './fighters'
+import { BALANCE as B } from './balance'
+import { applyReport, discover } from './knowledge'
+import { baseMoney, marketValue } from './market'
+import { createStartingScout } from './scouting'
+import { pushHistory } from './roster'
 import { IdGen, type IdSource } from './ids'
 import { postMessage } from './messages'
 import { monogramFor } from './promotions'
 import { Rng } from './rng'
 import type {
-  Contract, Day, Difficulty, Fighter, GameState, Id, Promotion, PromotionTier, Venue,
+  AiStrategy, Contract, Day, Difficulty, Fighter, GameState, Id, Promotion, PromotionTier, Venue,
 } from './types'
 import { GAME_STATE_VERSION } from './types'
 
@@ -36,15 +41,16 @@ interface AiPromotionSeed {
   fanbase: number
   color: string
   emblem: Promotion['logo']['emblem']
+  strategy: AiStrategy
 }
 
 const AI_PROMOTIONS: AiPromotionSeed[] = [
-  { name: 'Apex Fight Group', promoter: 'Walter Kessler', country: 'USA', tier: 'Global', rosterSize: 30, quality: 0.78, cash: 220_000_000, reputation: 92, fanbase: 9_500_000, color: '#2f7de1', emblem: 'shield' },
-  { name: 'Redline Promotions', promoter: 'Barry Holloway', country: 'ENG', tier: 'Major', rosterSize: 28, quality: 0.68, cash: 85_000_000, reputation: 80, fanbase: 3_200_000, color: '#e11d2a', emblem: 'bolt' },
-  { name: 'Golden State Prizefights', promoter: 'Delia Ortega', country: 'USA', tier: 'National', rosterSize: 24, quality: 0.55, cash: 22_000_000, reputation: 62, fanbase: 900_000, color: '#d4a24c', emblem: 'star' },
-  { name: 'Steel City Boxing', promoter: 'Frank Dunmore', country: 'ENG', tier: 'Regional', rosterSize: 20, quality: 0.40, cash: 3_500_000, reputation: 38, fanbase: 120_000, color: '#26a269', emblem: 'glove' },
-  { name: 'Lone Star Fight Night', promoter: 'Ray Castellano', country: 'USA', tier: 'Regional', rosterSize: 18, quality: 0.38, cash: 2_800_000, reputation: 34, fanbase: 95_000, color: '#9b5de5', emblem: 'crown' },
-  { name: 'Northern Lights Boxing', promoter: 'Moira Gilchrist', country: 'SCO', tier: 'Regional', rosterSize: 14, quality: 0.34, cash: 1_600_000, reputation: 28, fanbase: 60_000, color: '#f2f2f2', emblem: 'bolt' },
+  { name: 'Apex Fight Group', promoter: 'Walter Kessler', country: 'USA', tier: 'Global', rosterSize: 30, quality: 0.78, cash: 220_000_000, reputation: 92, fanbase: 9_500_000, color: '#2f7de1', emblem: 'shield', strategy: 'money' },
+  { name: 'Redline Promotions', promoter: 'Barry Holloway', country: 'ENG', tier: 'Major', rosterSize: 28, quality: 0.68, cash: 85_000_000, reputation: 80, fanbase: 3_200_000, color: '#e11d2a', emblem: 'bolt' , strategy: 'traditional' },
+  { name: 'Golden State Prizefights', promoter: 'Delia Ortega', country: 'USA', tier: 'National', rosterSize: 24, quality: 0.55, cash: 22_000_000, reputation: 62, fanbase: 900_000, color: '#d4a24c', emblem: 'star' , strategy: 'prospectFactory' },
+  { name: 'Steel City Boxing', promoter: 'Frank Dunmore', country: 'ENG', tier: 'Regional', rosterSize: 20, quality: 0.40, cash: 3_500_000, reputation: 38, fanbase: 120_000, color: '#26a269', emblem: 'glove' , strategy: 'regional' },
+  { name: 'Lone Star Fight Night', promoter: 'Ray Castellano', country: 'USA', tier: 'Regional', rosterSize: 18, quality: 0.38, cash: 2_800_000, reputation: 34, fanbase: 95_000, color: '#9b5de5', emblem: 'crown' , strategy: 'regional' },
+  { name: 'Northern Lights Boxing', promoter: 'Moira Gilchrist', country: 'SCO', tier: 'Regional', rosterSize: 14, quality: 0.34, cash: 1_600_000, reputation: 28, fanbase: 60_000, color: '#f2f2f2', emblem: 'bolt' , strategy: 'prospectFactory' },
 ]
 
 export function createNewGame(opts: NewGameOptions, now = Date.now()): GameState {
@@ -79,11 +85,14 @@ export function createNewGame(opts: NewGameOptions, now = Date.now()): GameState
     regionalPopularity: 4,
     globalPopularity: 0,
     foundedDay: today,
+    ai: null,
   }
 
   // AI promotions with their rosters
+  const aiIds: Id[] = []
   for (const seed of AI_PROMOTIONS) {
     const id = ids.next('p')
+    aiIds.push(id)
     promotions[id] = {
       id, name: seed.name, promoterName: seed.promoter, isPlayer: false, homeCountry: seed.country,
       tier: seed.tier,
@@ -92,14 +101,17 @@ export function createNewGame(opts: NewGameOptions, now = Date.now()): GameState
       regionalPopularity: Math.min(95, seed.reputation + 5),
       globalPopularity: seed.tier === 'Global' ? 85 : seed.tier === 'Major' ? 55 : seed.tier === 'National' ? 25 : 4,
       foundedDay: today - rng.int(2, 25) * 365,
+      ai: { strategy: seed.strategy, urgency: 0, cooldownUntil: today },
     }
     for (let i = 0; i < seed.rosterSize; i++) {
       const quality = rng.clampedNormal(seed.quality, 0.14, 0.08, 0.98)
       const f = generateFighter(rng, ids, { quality, today, nationality: biasedNation(rng, seed.country) })
       fighters[f.id] = f
-      const c = signContract(rng, ids, f, id, today, quality)
+      const c = signContract(rng, ids, f, id, today)
       contracts[c.id] = c
       f.contractId = c.id
+      f.availableSince = null
+      seedHistory(rng, f, c, id, aiIds, today)
     }
   }
 
@@ -112,7 +124,7 @@ export function createNewGame(opts: NewGameOptions, now = Date.now()): GameState
       ageMin: i === 3 ? 19 : 21, ageMax: i === 3 ? 21 : 30,
     })
     fighters[f.id] = f
-    const c = signContract(rng, ids, f, playerId, today, 0.1)
+    const c = signContract(rng, ids, f, playerId, today)
     c.startDay = today
     c.endDay = today + 3 * 365 // long enough that renewals (Phase 2) arrive well before expiry
     c.fightsTotal = c.fightsRemaining = rng.int(6, 8)
@@ -121,6 +133,8 @@ export function createNewGame(opts: NewGameOptions, now = Date.now()): GameState
     f.morale = rng.int(66, 82)
     f.fitness = Math.max(f.fitness, 78)
     f.contractId = c.id
+    f.availableSince = null
+    pushHistory(f, { day: today, kind: 'signed', promotionId: playerId })
   })
 
   // Free-agent pool: the open market the player will scout from (Phase 2).
@@ -128,6 +142,22 @@ export function createNewGame(opts: NewGameOptions, now = Date.now()): GameState
     const quality = rng.clampedNormal(0.3, 0.15, 0.05, 0.95)
     const f = generateFighter(rng, ids, { quality, today })
     fighters[f.id] = f
+    const fights = f.record.wins + f.record.losses + f.record.draws
+    if (fights === 0) pushHistory(f, { day: today - rng.int(7, 120), kind: 'turnedPro', promotionId: null })
+    else if (rng.chance(0.45)) {
+      const day = today - rng.int(3, 180)
+      pushHistory(f, { day, kind: rng.chance(0.6) ? 'expired' : 'released', promotionId: rng.pick(aiIds) })
+      f.availableSince = day
+    }
+  }
+  // A handful of established names on the market: ageing former contenders and a few hot properties.
+  for (let i = 0; i < 8; i++) {
+    const old = i < 5
+    const f = generateFighter(rng, ids, { quality: rng.float(0.62, 0.85), today, ageMin: old ? 33 : 24, ageMax: old ? 37 : 29 })
+    fighters[f.id] = f
+    const day = today - rng.int(2, 60)
+    pushHistory(f, { day, kind: 'expired', promotionId: rng.pick(aiIds) })
+    f.availableSince = day
   }
 
   const cash = promotions[playerId].cash
@@ -145,14 +175,50 @@ export function createNewGame(opts: NewGameOptions, now = Date.now()): GameState
     ledger: [
       { id: ids.next('t'), day: today, category: 'startingFunds', amount: cash, description: 'Starting capital' },
     ],
+    ledgerArchive: 0,
     financeHistory: [{ day: today, cash, income: cash, expenses: 0 }],
+    contractHistory: [], negotiations: {}, obligations: [],
+    knowledge: {}, scouts: [], scoutOps: [], shortlist: [],
     inbox: [],
     news: [],
     settings: { difficulty: opts.difficulty, autosave: true },
   }
   state.idCounter = ids.counter
+  state.scouts.push(createStartingScout(state, opts.homeCountry))
+  initKnowledge(state)
   postWelcomeMessages(state)
   return state
+}
+
+/** Who the player already knows about on day one, and the coach's read of the starting roster. */
+export function initKnowledge(state: GameState): void {
+  const home = state.promotions[state.playerPromotionId].homeCountry
+  const own = new Set(Object.values(state.contracts).filter((c) => c.promotionId === state.playerPromotionId).map((c) => c.fighterId))
+  for (const f of Object.values(state.fighters)) {
+    const vis = visibility(publicFacts(f, state.today))
+    const known = own.has(f.id) || vis >= B.market.publicVisibility || (f.nationality === home && vis >= B.market.homeRegionVisibility)
+    if (known) discover(state, f.id, own.has(f.id) ? 'roster' : 'public')
+  }
+  for (const id of own) {
+    const f = state.fighters[id]
+    const coach = { id: 'coach', name: 'Head Coach', quality: 58, experience: 20, regionKnowledge: [f.nationality], divisions: [f.weightClass], weeklyWage: 0, reputation: 0, reportsDone: 0 }
+    const entry = applyReport(state, f, 'standard', coach, 'Head Coach')
+    entry.insight = 40
+  }
+}
+
+/** Give contracted fighters a believable past: this deal, and sometimes earlier stints elsewhere. */
+function seedHistory(rng: Rng, f: Fighter, c: Contract, currentPromo: Id, aiIds: Id[], today: Day): void {
+  const fights = f.record.wins + f.record.losses + f.record.draws
+  if (fights > 8 && f.birthDay < today - 25 * 365 && rng.chance(0.45)) {
+    const others = aiIds.filter((x) => x !== currentPromo)
+    const n = rng.int(1, 2)
+    for (let i = 0; i < n; i++) {
+      pushHistory(f, { day: c.startDay - (i + 1) * rng.int(250, 900), kind: 'expired', promotionId: rng.pick(others) })
+    }
+    f.history.sort((a, b) => a.day - b.day)
+  }
+  pushHistory(f, { day: c.startDay, kind: 'signed', promotionId: currentPromo })
 }
 
 function postWelcomeMessages(state: GameState): void {
@@ -160,7 +226,7 @@ function postWelcomeMessages(state: GameState): void {
   postMessage(state, {
     from: 'Board', category: 'system', priority: 'important',
     subject: `Welcome to ${p.name}`,
-    body: `${p.promoterName}, the paperwork is signed and the doors are open. You have four fighters, a rented gym and £${Math.round(p.cash / 1000)}k in the bank. Every week the bills land and the rest of boxing moves on without you. Phase 1 gives you the foundations — roster, training, calendar, finances and a living world. Scouting, fights and events arrive in the phases ahead.`,
+    body: `${p.promoterName}, the paperwork is signed and the doors are open. You have four fighters, a rented gym and £${Math.round(p.cash / 1000)}k in the bank. Every week the bills land and the rest of boxing moves on without you. Your scout Dennis can investigate fighters on the open market — but reports cost money and are never perfect. Fights and events arrive in the phases ahead.`,
     link: { kind: 'screen', screen: 'dashboard' },
   })
   const roster = Object.values(state.contracts)
@@ -178,21 +244,21 @@ function biasedNation(rng: Rng, home: string, p = 0.6): string | undefined {
   return rng.chance(p) ? home : undefined
 }
 
-/** Contract terms scale with the fighter's standing. */
-export function signContract(rng: Rng, ids: IdSource, f: Fighter, promotionId: Id, today: Day, quality: number): Contract {
+/** Contract terms for a pre-existing deal, scaled to the fighter's public standing. */
+export function signContract(rng: Rng, ids: IdSource, f: Fighter, promotionId: Id, today: Day, discount = 1): Contract {
   const years = rng.int(1, 3)
-  const stature = Math.max(quality, (f.reputation + f.popularity) / 200)
-  const weeklyRetainer = Math.round((60 + stature * stature * 4_000) / 10) * 10
-  const minPurse = Math.round((1_500 + stature * stature * 150_000) / 100) * 100
-  const fights = years * rng.int(2, 3)
+  const mv = marketValue(publicFacts(f, today), f.reputation)
+  const base = baseMoney(mv)
+  const fpy = rng.int(2, 3)
+  const purse = Math.round((base.purse * discount) / 100) * 100
   return {
-    id: ids.next('c'),
-    fighterId: f.id,
-    promotionId,
-    startDay: today - rng.int(0, 200),
-    endDay: today + years * 365 - rng.int(0, 200),
-    weeklyRetainer, minPurse,
-    fightsTotal: fights, fightsRemaining: fights,
-    warned12: false, warned4: false,
+    id: ids.next('c'), fighterId: f.id, promotionId,
+    startDay: today - rng.int(0, 200), endDay: today + years * 365 - rng.int(0, 200),
+    weeklyRetainer: Math.round((base.retainer * discount) / 10) * 10, basePurse: purse,
+    winBonus: Math.round((purse * B.market.winBonusOfPurse) / 100) * 100, titleBonus: f.reputation >= 45 ? Math.round((purse * 0.15) / 100) * 100 : 0,
+    ppvShare: 0, signingBonus: 0,
+    fightsTotal: years * fpy, fightsRemaining: years * fpy, minFightsPerYear: fpy,
+    releaseFee: null, titlePromise: false, status: 'active',
+    notices: { approaching: false, window: false, expiring: false }, aiReviewed: false,
   }
 }

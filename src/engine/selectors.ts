@@ -1,6 +1,7 @@
 import { DAYS_PER_WEEK, weeksBetween } from './calendar'
 import { WEEKLY_COSTS } from './config'
-import { fighterAge, fighterName, fighterRating } from './fighters'
+import { BALANCE } from './balance'
+import { fighterAge, fighterName } from './fighters'
 import type { Contract, Fighter, GameState, Promotion } from './types'
 
 export function player(state: GameState): Promotion {
@@ -32,12 +33,13 @@ export function promotionOf(state: GameState, f: Fighter): Promotion | null {
 }
 
 /** Total weekly running costs of the player's promotion. */
-export function weeklyBurn(state: GameState): { overheads: number; retainers: number; total: number } {
+export function weeklyBurn(state: GameState): { overheads: number; scouting: number; retainers: number; total: number } {
   const retainers = Object.values(state.contracts)
     .filter((c) => c.promotionId === state.playerPromotionId)
     .reduce((s, c) => s + c.weeklyRetainer, 0)
   const overheads = overheadCost(state)
-  return { overheads, retainers, total: overheads + retainers }
+  const scouting = state.scouts.reduce((n, x) => n + x.weeklyWage, 0)
+  return { overheads, scouting, retainers, total: overheads + scouting + retainers }
 }
 
 export function overheadCost(state: GameState): number {
@@ -86,24 +88,37 @@ export function attentionItems(state: GameState): AttentionItem[] {
     const c = contractOf(state, f)
     if (c) {
       const weeksLeft = weeksBetween(state.today, c.endDay)
-      if (weeksLeft <= 12) {
+      if (weeksLeft <= BALANCE.contracts.approachingWeeks) {
+        const closing = weeksLeft <= BALANCE.contracts.expiringWeeks
         items.push({
-          id: `contract-${f.id}`, severity: weeksLeft <= 4 ? 'critical' : 'warning',
+          id: `contract-${f.id}`, severity: closing ? 'critical' : weeksLeft <= BALANCE.contracts.windowWeeks ? 'warning' : 'info',
           title: `${fighterName(f)}'s contract ${weeksLeft <= 0 ? 'expires this week' : `expires in ${weeksLeft} week${weeksLeft === 1 ? '' : 's'}`}`,
-          detail: 'Contract renewals arrive with Phase 2 — the fighter will become a free agent.',
-          link: { kind: 'fighter', id: f.id }, actionLabel: 'View fighter',
+          detail: state.negotiations[f.id] ? 'Renewal talks are open.' : 'Open renewal talks before a rival gets to them.',
+          link: { kind: 'screen', screen: `negotiation/${f.id}` }, actionLabel: 'Negotiate',
         })
       }
     }
     if (f.morale < 40) {
-      items.push({ id: `morale-${f.id}`, severity: 'warning', title: `${fighterName(f)} is unhappy`, detail: `Morale ${Math.round(f.morale)} — low morale hurts development and performance.`, link: { kind: 'fighter', id: f.id }, actionLabel: 'View fighter' })
+      items.push({ id: `morale-${f.id}`, severity: 'warning', title: `${fighterName(f)} is unhappy`, detail: 'Low morale hurts development and negotiating goodwill.', link: { kind: 'fighter', id: f.id }, actionLabel: 'View fighter' })
     }
     if (f.fitness < 60) {
-      items.push({ id: `fit-${f.id}`, severity: 'info', title: `${fighterName(f)} is run down`, detail: `Fitness ${Math.round(f.fitness)}. Consider switching training to Recovery.`, link: { kind: 'fighter', id: f.id }, actionLabel: 'Adjust training' })
+      items.push({ id: `fit-${f.id}`, severity: 'info', title: `${fighterName(f)} is run down`, detail: 'Consider switching training to Recovery.', link: { kind: 'fighter', id: f.id }, actionLabel: 'Adjust training' })
     }
     if (fighterAge(f, state.today) >= 35 && f.status === 'active') {
       items.push({ id: `age-${f.id}`, severity: 'info', title: `${fighterName(f)} is ${fighterAge(f, state.today)}`, detail: 'Retirement risk grows every week.', link: { kind: 'fighter', id: f.id } })
     }
+  }
+
+  for (const n of Object.values(state.negotiations)) {
+    const f = state.fighters[n.fighterId]
+    if (n.status === 'open' && n.lastCounter && f) {
+      items.push({ id: `counter-${f.id}`, severity: 'warning', title: `Counter-offer from ${fighterName(f)}'s camp`, detail: 'They are waiting on your answer.', link: { kind: 'screen', screen: `negotiation/${f.id}` }, actionLabel: 'Review' })
+    }
+  }
+  const done = state.scoutOps.filter((o) => o.status === 'active').length
+  const idle = state.scouts.length > 0 && done === 0
+  if (idle && Object.keys(state.knowledge).length > 0) {
+    items.push({ id: 'scout-idle', severity: 'info', title: 'Your scout is idle', detail: 'Commission a report or a talent search.', link: { kind: 'screen', screen: 'scouting' }, actionLabel: 'Scouting' })
   }
 
   const urgentUnread = state.inbox.filter((m) => !m.read && m.priority === 'urgent').length
@@ -116,9 +131,4 @@ export function attentionItems(state: GameState): AttentionItem[] {
 
 export function weeksSince(state: GameState, day: number | null): number | null {
   return day === null ? null : Math.floor((state.today - day) / DAYS_PER_WEEK)
-}
-
-/** Fighters on the player's roster sorted best first. */
-export function rosterByRating(state: GameState): Fighter[] {
-  return playerRoster(state).sort((a, b) => fighterRating(b) - fighterRating(a))
 }

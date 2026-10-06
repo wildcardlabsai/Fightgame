@@ -11,9 +11,16 @@ finances, promotions, venues, multi-slot save/load/import/export.
 **Known Phase 1 limits (by design):** no income yet, no way to sign/renew fighters, no fights — the promotion can only
 run costs and develop its starting four fighters. Starting contracts are 3 years so nobody is stranded before Phase 2.
 
-## Phase 2 — Scouting & Fighters ⬜
-Scouting (reveal potential/attributes with uncertainty), signing free agents, contract negotiation + renewals,
-releasing fighters, trainers/staff, fighter demands.
+## Phase 2 — Scouting & Fighters ✅
+Player-knowledge layer (priors → Bayesian scouting → ranges), scouts + costed reports (basic/standard/deep) and talent
+searches, discovery, shortlist & compare, free-agent market with tags, personality-driven negotiation (accept / counter /
+reject, patience, lockouts), rich contracts (retainer, purse, win/title bonus, PPV share, min fights, title promise
+obligations), renewal stages, release with consequences, AI strategies and competitive bidding, market dynamics,
+deeper fighter profiles, responsive tables, hidden-information leak audit, v1→v2 save migration.
+
+**Known Phase 2 limits:** no fights, so purses/win bonuses/min-fight clauses and title promises are *recorded but not
+yet enforced*; no income yet; one scout (staff management later); no buyouts of contracted fighters; rival finances are
+abstract; fighters' public reputation/popularity only changes once fights exist (Phase 3).
 
 ## Phase 3 — Fights ⬜
 Matchmaking, opponent selection + negotiation, round-by-round simulation (styles, stamina, damage, knockdowns,

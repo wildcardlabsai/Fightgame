@@ -87,12 +87,19 @@ export interface Fighter {
   stance: Stance
   style: FightingStyle
   personality: Personality
-  /** One-paragraph generated backstory. */
+  /** PUBLIC backstory (origin, career, style). Never contains personality. */
   bio: string
+  /** PRIVATE one-line personality note; only surfaced once the player has insight. */
+  personalityNote: string
 
   attributes: FighterAttributes
-  /** Ceiling the fighter can realistically reach (1–100). Hidden from the player until scouted. */
+  /** Ceiling the fighter can realistically reach (1–100). ENGINE TRUTH — never shown directly. */
   potential: number
+  /** Further ENGINE TRUTH traits (1–100) the player can only estimate through scouting. */
+  discipline: number
+  composure: number
+  /** Higher = more injury prone. Used from Phase 7. */
+  injuryRisk: number
 
   // Condition (0–100)
   fitness: number
@@ -109,9 +116,24 @@ export interface Fighter {
   lastFightDay: Day | null
   contractId: Id | null
   retiredDay: Day | null
+  /** Day the fighter last entered the free-agent market (null while contracted). */
+  availableSince: Day | null
+  /** How each promotion's relationship with this fighter stands (−100…100). */
+  promoRelations: Record<Id, number>
+  /** Career timeline: signings, releases, expiries (newest last, capped). */
+  history: HistoryEntry[]
+}
+
+export interface HistoryEntry {
+  day: Day
+  kind: 'turnedPro' | 'signed' | 'renewed' | 'released' | 'expired' | 'retired'
+  promotionId: Id | null
+  note?: string
 }
 
 // --------------------------------------------------------------- Contracts
+
+export type ContractStatus = 'active' | 'expired' | 'released' | 'renewed' | 'retired'
 
 export interface Contract {
   id: Id
@@ -119,15 +141,81 @@ export interface Contract {
   promotionId: Id
   startDay: Day
   endDay: Day
-  /** Weekly retainer paid by the promotion regardless of activity. */
+  /** Paid weekly regardless of activity. */
   weeklyRetainer: number
-  /** Guaranteed minimum purse per bout. */
-  minPurse: number
+  /** Guaranteed purse per bout (paid from Phase 3). */
+  basePurse: number
+  winBonus: number
+  titleBonus: number
+  /** Fraction (0–0.2) of PPV revenue attributable to the fighter (used from Phase 5). */
+  ppvShare: number
+  /** One-off payment made at signing (already paid; kept for the record). */
+  signingBonus: number
   fightsTotal: number
   fightsRemaining: number
-  /** Expiry warnings already sent to the player (so each fires once). */
-  warned12: boolean
-  warned4: boolean
+  /** Promotion owes at least this many bouts a year (enforced from Phase 3). */
+  minFightsPerYear: number
+  /** Fixed fee to terminate early; null = standard formula (see balance.ts). */
+  releaseFee: number | null
+  /** A title opportunity was promised; tracked as an Obligation. */
+  titlePromise: boolean
+  status: ContractStatus
+  /** Renewal-stage notifications already sent to the player. */
+  notices: { approaching: boolean; window: boolean; expiring: boolean }
+  /** AI bookkeeping: the owning rival has already decided whether to renew. */
+  aiReviewed: boolean
+}
+
+/** Terms put on the table during a negotiation. */
+export interface Offer {
+  years: number
+  fights: number
+  minFightsPerYear: number
+  signingBonus: number
+  weeklyRetainer: number
+  basePurse: number
+  winBonus: number
+  titleBonus: number
+  ppvShare: number
+  titlePromise: boolean
+}
+
+export type NegotiationKind = 'signing' | 'renewal'
+export type Verdict = 'accept' | 'counter' | 'reject'
+export type Mood = 'eager' | 'warm' | 'lukewarm' | 'cold'
+
+export interface NegotiationRound {
+  day: Day
+  offer: Offer
+  verdict: Verdict | 'walkedAway'
+  counter: Offer | null
+  /** Plain-language reasons from the fighter's camp. */
+  reasons: string[]
+  mood: Mood
+}
+
+export interface Negotiation {
+  id: Id
+  fighterId: Id
+  promotionId: Id
+  kind: NegotiationKind
+  openedDay: Day
+  patience: number
+  status: 'open' | 'broken'
+  /** After talks collapse the fighter will not talk again until this day. */
+  lockedUntil: Day | null
+  rounds: NegotiationRound[]
+  lastCounter: Offer | null
+}
+
+export interface Obligation {
+  id: Id
+  fighterId: Id
+  promotionId: Id
+  kind: 'titleShot'
+  createdDay: Day
+  dueDay: Day
+  status: 'open' | 'fulfilled' | 'broken'
 }
 
 // -------------------------------------------------------------- Promotions
@@ -158,6 +246,17 @@ export interface Promotion {
   regionalPopularity: number
   globalPopularity: number
   foundedDay: Day
+  /** Behaviour profile for AI-controlled promotions (null for the player). */
+  ai: AiProfile | null
+}
+
+export type AiStrategy = 'traditional' | 'prospectFactory' | 'money' | 'regional'
+
+export interface AiProfile {
+  strategy: AiStrategy
+  /** Rises after losing fighters; makes the promotion act sooner. */
+  urgency: number
+  cooldownUntil: Day
 }
 
 // ------------------------------------------------------------------ Venues
@@ -178,7 +277,7 @@ export interface Venue {
 
 export type TransactionCategory =
   | 'startingFunds' | 'office' | 'staff' | 'gym' | 'insurance' | 'retainers'
-  | 'purses' | 'tickets' | 'sponsorship' | 'ppv' | 'venue' | 'other'
+  | 'purses' | 'tickets' | 'sponsorship' | 'ppv' | 'venue' | 'scouting' | 'signingBonus' | 'releaseFees' | 'other'
 
 export interface Transaction {
   id: Id
@@ -219,8 +318,71 @@ export interface NewsItem {
   id: Id
   day: Day
   headline: string
-  category: 'prospect' | 'retirement' | 'signing' | 'result' | 'business' | 'world'
+  category: 'prospect' | 'retirement' | 'signing' | 'release' | 'market' | 'result' | 'business' | 'world'
   fighterId?: Id
+}
+
+// ------------------------------------------------------ Player knowledge
+
+/** Traits the player can scout. All except `marketability` are hidden engine truth. */
+export type TraitKey = AttributeKey | 'discipline' | 'composure' | 'potential'
+
+/** A belief about a hidden value: best guess and its uncertainty (standard deviation). */
+export interface Estimate {
+  mean: number
+  sd: number
+}
+
+export type ScoutDepth = 'basic' | 'standard' | 'deep'
+
+export interface ReportLogEntry {
+  day: Day
+  depth: ScoutDepth
+  scoutName: string
+}
+
+/** Everything the PLAYER has learned about one fighter. Existence of an entry = fighter is discovered. */
+export interface FighterKnowledge {
+  fighterId: Id
+  discoveredDay: Day
+  source: 'public' | 'search' | 'roster' | 'tip'
+  /** Posterior beliefs per scouted trait. Traits not present fall back to a public-information prior. */
+  est: Partial<Record<TraitKey, Estimate>>
+  /** 0–100: how well the player understands the fighter's personality. */
+  insight: number
+  reports: ReportLogEntry[]
+  /** Number of weeks / fights of observation folded into the estimates. */
+  observations: number
+}
+
+export interface Scout {
+  id: Id
+  name: string
+  /** 1–100 raw ability. */
+  quality: number
+  /** 0–100; grows with every completed report. */
+  experience: number
+  /** Nations this scout knows well. */
+  regionKnowledge: string[]
+  /** Divisions this scout specialises in (empty = generalist). */
+  divisions: WeightClassId[]
+  weeklyWage: number
+  reputation: number
+  reportsDone: number
+}
+
+export interface ScoutAssignment {
+  id: Id
+  scoutId: Id
+  kind: 'report' | 'search'
+  fighterId?: Id
+  depth?: ScoutDepth
+  search?: { nation: string | null; weightClass: WeightClassId | null; level: 'regional' | 'wide' }
+  startDay: Day
+  completeDay: Day
+  cost: number
+  status: 'active' | 'done'
+  summary?: string
 }
 
 // ------------------------------------------------------------- Game state
@@ -253,7 +415,20 @@ export interface GameState {
   contracts: Record<Id, Contract>
   venues: Record<Id, Venue>
 
+  /** Archived (completed/terminated) contracts, newest first, capped. */
+  contractHistory: Contract[]
+  negotiations: Record<Id, Negotiation>
+  obligations: Obligation[]
+
+  // Player knowledge & scouting (what the PLAYER knows — distinct from engine truth in `fighters`)
+  knowledge: Record<Id, FighterKnowledge>
+  scouts: Scout[]
+  scoutOps: ScoutAssignment[]
+  shortlist: Id[]
+
   ledger: Transaction[]
+  /** Sum of ledger entries that have aged out of `ledger`, so cash always reconciles. */
+  ledgerArchive: number
   financeHistory: FinanceSnapshot[]
   inbox: InboxMessage[]
   news: NewsItem[]
@@ -261,4 +436,4 @@ export interface GameState {
   settings: GameSettings
 }
 
-export const GAME_STATE_VERSION = 1
+export const GAME_STATE_VERSION = 2
