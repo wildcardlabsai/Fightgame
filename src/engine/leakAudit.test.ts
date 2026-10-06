@@ -69,8 +69,8 @@ describe('static scan of the presentation layer', () => {
         const [, isType, names, mod] = m
         const engine = mod.match(/engine\/(.+)$/)?.[1]
         if (!engine) continue
-        const ok = ['view', 'quotes', 'selectors', 'calendar', 'types', 'save', 'worldgen', 'config', 'tick', 'commands', 'scouting']
-        if (['knowledge', 'market', 'negotiation', 'roster', 'rng', 'balance', 'ledger', 'systems/aiMarket', 'systems/world', 'ids', 'messages'].includes(engine)) bad.push(`${f.path} imports ${engine}`)
+        const ok = ['view', 'quotes', 'selectors', 'calendar', 'types', 'save', 'worldgen', 'config', 'tick', 'commands', 'scouting', 'fightViews', 'matchmaking']
+        if (['knowledge', 'market', 'negotiation', 'roster', 'rng', 'balance', 'ledger', 'systems/aiMarket', 'systems/aiFights', 'systems/world', 'ids', 'messages', 'fights', 'fightNegotiation', 'fight/sim', 'fight/profile', 'fight/injuries', 'fight/styles', 'fight/lifecycle'].includes(engine)) bad.push(`${f.path} imports ${engine}`)
         if (!isType && !ok.includes(engine)) {
           const allowed = allowedValues[engine] ?? []
           const used = names.replace(/[{}]/g, '').split(',').map((x) => x.trim()).filter(Boolean)
@@ -202,5 +202,56 @@ describe('runtime: what a FighterView can contain', () => {
       }
     }
     expect(exact / n).toBeLessThan(0.5)
+  })
+})
+
+describe('Phase 3: fight surfaces expose consequences, never causes', () => {
+  const DENY = ['attributes', 'potential', 'discipline', 'composure', 'injuryRisk', 'personalityNote', 'promoRelations', 'aiReviewed', 'est', 'insight', 'sd', 'mean', 'perf', 'pExpA', 'form_', 'endDamage', 'energy', 'momentum']
+  function keys(x: unknown, out = new Set<string>()): Set<string> {
+    if (Array.isArray(x)) x.forEach((i) => keys(i, out))
+    else if (x && typeof x === 'object') for (const [k, v] of Object.entries(x)) { out.add(k); keys(v, out) }
+    return out
+  }
+
+  it('fight views, lists and opponent candidates carry no hidden-value keys', async () => {
+    const { approach, offerFight, runFightNight, schedule } = await import('./commands')
+    const { fightView, fightList } = await import('./fightViews')
+    const { opponentCandidates } = await import('./matchmaking')
+    const { suggestedFightOffer } = await import('./fightNegotiation')
+    const { scheduleOptions } = await import('./fights')
+    let s = createNewGame({ seed: 'p3leak', promotionName: 'L', promoterName: 'T', homeCountry: 'ENG', difficulty: 'standard', logo: { monogram: 'L', color: '#fff', emblem: 'bolt' } }, 1_700_000_000_000)
+    const my = playerRoster(s)[0]
+    const cands = opponentCandidates(s, my.id, {})
+    expect(cands.length).toBeGreaterThan(3)
+    expect(keys(cands.map((c) => ({ ...c, view: undefined, v: c.view })))).not.toContain('attributes')
+    for (const k of DENY.filter((d) => !['momentum'].includes(d))) expect(keys(cands).has(k), `candidate exposes ${k}`).toBe(false)
+    const opp = cands.find((c) => c.canApproach)!.view.id
+    const ap = approach(s, my.id, opp)
+    s = ap.state
+    const fid = ap.fightId!
+    for (let i = 0; i < 6 && s.fights[fid].status === 'negotiating'; i++) {
+      const b = suggestedFightOffer(s, opp)
+      s = offerFight(s, fid, { ...b, purseB: b.purseB * (1.3 + i * 0.5), winBonusB: b.winBonusB * 2 }).state
+    }
+    expect(s.fights[fid].status).toBe('agreed')
+    s = schedule(s, fid, scheduleOptions(s, fid)[0].day).state
+    for (let i = 0; i < 60 && s.fights[fid].status !== 'fightNight' && s.fights[fid].status !== 'cancelled'; i++) s = advanceOneWeek(s)
+    if (s.fights[fid].status === 'fightNight') s = runFightNight(s, fid).state
+    for (let i = 0; i < 30; i++) s = advanceOneWeek(s)
+    const views = [fightView(s, fid), ...fightList(s, 'world-results').map((f) => fightView(s, f.id)), ...fightList(s, 'mine-open'), ...fightList(s, 'mine-results')]
+    const all = keys(views)
+    for (const k of DENY) expect(all.has(k), `fight surface exposes "${k}"`).toBe(false)
+    // every fighter view embedded in a fight is a range-only view
+    const fv = fightView(s, fid)
+    if (fv) for (const side of [fv.a, fv.b]) { expect(side.fighter.grade.hi).toBeGreaterThan(side.fighter.grade.lo); expect(side.fighter.personality.trait === null || side.fighter.personality.reveal === 'revealed').toBe(true) }
+    // result text is generated from outcomes only
+    const text = JSON.stringify(fv?.result ?? {})
+    expect(/chin|stamina rating|power rating|potential/i.test(text)).toBe(false)
+  })
+
+  it('a fight result cannot be used to read the exact hidden values: observation narrows ranges but never to a point', () => {
+    let s = createNewGame({ seed: 'p3obs', promotionName: 'L', promoterName: 'T', homeCountry: 'ENG', difficulty: 'standard', logo: { monogram: 'L', color: '#fff', emblem: 'bolt' } }, 1_700_000_000_000)
+    for (let i = 0; i < 120; i++) s = advanceOneWeek(s)
+    for (const v of viewsOf(s).known()) for (const t of [...v.traits.physical, ...v.traits.technical, ...v.traits.mental]) expect(t.hi - t.lo).toBeGreaterThanOrEqual(4)
   })
 })

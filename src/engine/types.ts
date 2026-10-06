@@ -36,7 +36,8 @@ export interface WeightClassDef {
 export type Stance = 'Orthodox' | 'Southpaw' | 'Switch'
 
 export type FightingStyle =
-  | 'Boxer' | 'Out-Boxer' | 'Slugger' | 'Swarmer' | 'Counter-Puncher' | 'Boxer-Puncher'
+  | 'Pressure Fighter' | 'Boxer' | 'Counter Puncher' | 'Swarmer'
+  | 'Power Puncher' | 'Technical Boxer' | 'Defensive Specialist' | 'Balanced'
 
 export type Personality =
   | 'Professional' | 'Ambitious' | 'Loyal' | 'Volatile' | 'Greedy'
@@ -120,8 +121,28 @@ export interface Fighter {
   availableSince: Day | null
   /** How each promotion's relationship with this fighter stands (−100…100). */
   promoRelations: Record<Id, number>
+  // ---- Phase 3: fighting life ----
+  injury: Injury | null
+  /** Medical suspension (e.g. after a knockout) — cannot fight before this day. */
+  suspendedUntil: Day | null
+  /** Career momentum (−100…100): recent results, decays over time. */
+  momentum: number
+  /** Most recent fight ids (newest last, capped). Full detail lives in `GameState.fights`. */
+  recentFights: Id[]
+  roundsFought: number
+  /** Fight currently being negotiated/scheduled/prepared, if any. */
+  activeFightId: Id | null
   /** Career timeline: signings, releases, expiries (newest last, capped). */
   history: HistoryEntry[]
+}
+
+export type InjurySeverity = 'minor' | 'moderate' | 'serious'
+
+export interface Injury {
+  kind: string
+  severity: InjurySeverity
+  startDay: Day
+  returnDay: Day
 }
 
 export interface HistoryEntry {
@@ -311,7 +332,7 @@ export interface InboxMessage {
   /** De-duplication key: the same key is not posted twice within its cooldown. */
   key?: string
   /** Optional deep link the UI can offer (e.g. open a fighter profile). */
-  link?: { kind: 'fighter'; id: Id } | { kind: 'screen'; screen: string }
+  link?: { kind: 'fighter'; id: Id } | { kind: 'screen'; screen: string } | { kind: 'fight'; id: Id }
 }
 
 export interface NewsItem {
@@ -320,6 +341,9 @@ export interface NewsItem {
   headline: string
   category: 'prospect' | 'retirement' | 'signing' | 'release' | 'market' | 'result' | 'business' | 'world'
   fighterId?: Id
+  fightId?: Id
+  /** 0–100 newsworthiness. */
+  importance?: number
 }
 
 // ------------------------------------------------------ Player knowledge
@@ -385,6 +409,138 @@ export interface ScoutAssignment {
   summary?: string
 }
 
+// ------------------------------------------------------------------ Fights
+
+export type FightStatus =
+  | 'negotiating' | 'agreed' | 'scheduled' | 'training' | 'fightNight'
+  | 'completed' | 'processed' | 'postFight' | 'cancelled'
+
+/** KO = knockout (count out), TKO = referee stoppage, RTD = corner retirement, INJ = injury stoppage. */
+export type FightMethod = 'UD' | 'MD' | 'SD' | 'DRAW' | 'MDRAW' | 'SDRAW' | 'KO' | 'TKO' | 'RTD' | 'INJ'
+
+export type CampIntensity = 'light' | 'normal' | 'intense'
+export type FightPlan = 'balanced' | 'aggressive' | 'cautious'
+
+export interface FightPrep {
+  intensity: CampIntensity
+  plan: FightPlan
+  /** Weeks of camp completed so far. */
+  campWeeks: number
+  /** Missed/struggled with weight (resolved at fight week). */
+  weightIssue: boolean
+  /** Minor camp injury carried into the fight. */
+  nagging: boolean
+}
+
+export interface FightSide {
+  fighterId: Id
+  /** Promotion the fighter is contracted to (null for a free agent on a one-fight deal). */
+  promotionId: Id | null
+  prep: FightPrep
+  /** Public snapshot at the time of the fight. */
+  preRecord: string
+  preRep: number
+  prePop: number
+}
+
+/** Terms agreed with the opponent's camp (side B). Side A's purse comes from their own contract. */
+export interface FightOffer {
+  purseB: number
+  winBonusB: number
+  rematch: boolean
+  venuePref: 'A' | 'B' | 'neutral'
+  fights: 1 | 2
+}
+
+export interface FightTerms extends FightOffer {
+  purseA: number
+  winBonusA: number
+}
+
+export interface FightNegotiationRound {
+  day: Day
+  offer: FightOffer
+  verdict: Verdict
+  counter: FightOffer | null
+  reasons: string[]
+  mood: Mood
+}
+
+export interface FightNegotiation {
+  patience: number
+  rounds: FightNegotiationRound[]
+  lastCounter: FightOffer | null
+  status: 'open' | 'broken'
+}
+
+/**
+ * Compact round record (only kept for fights the player is involved in).
+ * t = [thrownA, landedA, powerThrownA, powerLandedA, thrownB, landedB, powerThrownB, powerLandedB]
+ * k = [knockdowns scored by A, knockdowns scored by B]
+ * s = judge scores [a1,b1,a2,b2,a3,b3]
+ * b = [side who controlled (0=A,1=B,2=even), beat code]
+ */
+export interface RoundRec {
+  t: number[]
+  k: [number, number]
+  s: number[]
+  b: [number, number]
+  /** Punishment taken by [A, B] this round, 0–9 (shown as a qualitative label only). */
+  p: [number, number]
+}
+
+export interface FightResult {
+  /** 0 = side A won, 1 = side B won, null = draw. */
+  winner: 0 | 1 | null
+  method: FightMethod
+  round: number
+  second: number
+  /** Judges' totals [A, B] including deductions (decisions only; empty for stoppages). */
+  cards: [number, number][]
+  /** Knockdowns scored BY A and BY B. */
+  kd: [number, number]
+  /** Totals: [thrownA, landedA, powerThrownA, powerLandedA, thrownB, landedB, powerThrownB, powerLandedB]. */
+  tot: number[]
+  deductions: [number, number]
+  rounds?: RoundRec[]
+  /** Public, consequence-level pre-fight expectation for side A winning (from public standing). */
+  pExpA: number
+  dRep: [number, number]
+  dPop: [number, number]
+  /** Performance 0–1 for [A, B] (output-based). */
+  perf: [number, number]
+  injuries: [Injury | null, Injury | null]
+  /** 0–100: how surprising and big the result was. */
+  importance: number
+  upset: number
+}
+
+export interface Fight {
+  id: Id
+  day: Day
+  status: FightStatus
+  kind: 'player' | 'ai'
+  organiserId: Id
+  sideA: FightSide
+  sideB: FightSide
+  weightClass: WeightClassId
+  scheduledRounds: number
+  terms: FightTerms
+  venueId: Id | null
+  city: string
+  country: string
+  createdDay: Day
+  negotiation?: FightNegotiation
+  result?: FightResult
+  /** Purses/bonuses have been posted (guards against double payment). */
+  paid: boolean
+  processedDay?: Day
+  cancelReason?: string
+  /** Second fight of a two-fight deal. */
+  seriesOf?: Id
+  rematchOf?: Id
+}
+
 // ------------------------------------------------------------- Game state
 
 export type Difficulty = 'forgiving' | 'standard' | 'brutal'
@@ -421,6 +577,10 @@ export interface GameState {
   obligations: Obligation[]
 
   // Player knowledge & scouting (what the PLAYER knows — distinct from engine truth in `fighters`)
+  /** Every fight, historical and current (compact; AI fights drop round detail). */
+  fights: Record<Id, Fight>
+  /** Pair lock after collapsed talks: key `${idA}|${idB}` (sorted) → day until which they will not talk. */
+  fightLocks: Record<string, Day>
   knowledge: Record<Id, FighterKnowledge>
   scouts: Scout[]
   scoutOps: ScoutAssignment[]
@@ -436,4 +596,4 @@ export interface GameState {
   settings: GameSettings
 }
 
-export const GAME_STATE_VERSION = 2
+export const GAME_STATE_VERSION = 3

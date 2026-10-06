@@ -4,6 +4,9 @@ import { driftKnowledge, observeRoster } from './knowledge'
 import { fighterName } from './fighters'
 import { postMessage } from './messages'
 import { processObligations } from './roster'
+import { processInjuries } from './fight/injuries'
+import { processFights, pruneFights, pruneRetired, resolveFight, fightInvolvesPlayer } from './fights'
+import { aiMatchmaking } from './systems/aiFights'
 import { Rng } from './rng'
 import { passiveDiscovery, processScouting } from './scouting'
 import { playerRoster } from './selectors'
@@ -26,6 +29,9 @@ export function advanceOneWeek(input: GameState): GameState {
   const state = structuredClone(input)
   const rng = new Rng(state.rngState)
   const ids = stateIds(state)
+
+  // A player's fight left unresolved is settled before time moves on (the UI normally stops you first).
+  for (const fight of Object.values(state.fights)) if (fight.status === 'fightNight') resolveFight(state, fight)
 
   state.today += DAYS_PER_WEEK
 
@@ -57,19 +63,44 @@ export function advanceOneWeek(input: GameState): GameState {
   //    rivals release and then bid on whoever is free.
   aiRenewals(state, rng, ids)
   processContracts(state)
+  processInjuries(state)
+  processFights(state, rng) // camp, fight night, results, records, reputation, news, knowledge
+  inactivityNudges(state)
   processRetirements(state, rng)
   talentIntake(state, rng, ids)
+  aiMatchmaking(state, rng)
   aiReleases(state, rng)
   aiSigning(state, rng, ids)
   aiFinances(state)
   processObligations(state)
   purgeNegotiations(state)
+  if (Math.floor((state.today - state.startDay) / 7) % 52 === 51) { pruneFights(state); pruneRetired(state) }
 
   // 4. Money.
   processWeeklyFinance(state)
 
   state.rngState = rng.state
   return state
+}
+
+/** Fighters on your roster who have been idle too long start to complain (contract: minimum fights per year). */
+function inactivityNudges(state: GameState): void {
+  for (const c of Object.values(state.contracts)) {
+    if (c.promotionId !== state.playerPromotionId) continue
+    const f = state.fighters[c.fighterId]
+    if (!f || f.activeFightId || f.injury) continue
+    const last = f.lastFightDay ?? c.startDay
+    const idleWeeks = Math.floor((state.today - last) / 7)
+    const allowed = 52 / Math.max(1, c.minFightsPerYear) + 8
+    if (idleWeeks > allowed) {
+      postMessage(state, {
+        from: 'Agent', category: 'fighter', priority: 'important', key: `idle-${f.id}`, cooldownWeeks: 26,
+        subject: `${fighterName(f)} wants a fight`,
+        body: `${fighterName(f)} has not fought for ${idleWeeks} weeks and the contract promises at least ${c.minFightsPerYear} a year. Their camp is getting restless.`,
+        link: { kind: 'fighter', id: f.id },
+      })
+    }
+  }
 }
 
 /** Drop stale negotiations (talks that went quiet, or lockouts that have ended). */
@@ -95,6 +126,7 @@ export function advanceWeeks(input: GameState, weeks: number): TickResult {
     const urgentBefore = state.inbox.filter((m) => !m.read && m.priority === 'urgent').length
     state = advanceOneWeek(state)
     advanced++
+    if (Object.values(state.fights).some((f) => f.status === 'fightNight' && fightInvolvesPlayer(state, f))) { interrupted = true; break }
     const urgentAfter = state.inbox.filter((m) => !m.read && m.priority === 'urgent').length
     if (urgentAfter > urgentBefore && i < weeks - 1) {
       interrupted = true

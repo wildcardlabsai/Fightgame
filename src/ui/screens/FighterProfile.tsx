@@ -6,6 +6,7 @@ import type { TrainingFocus } from '../../engine/types'
 import { useGame } from '../../store/gameStore'
 import { useViews } from '../../store/hooks'
 import { Avatar, Flag, Meter, Section } from '../components/Bits'
+import { FormDots } from '../components/FightBits'
 import { Ring } from '../components/Charts'
 import { RangeText, TraitRow } from '../components/Estimates'
 import { ScoutDialog } from '../components/ScoutDialog'
@@ -54,6 +55,8 @@ export function FighterProfile({ id }: { id: string }) {
             {!mine && <button className="btn ghost" onClick={() => toggleShortlist(v.id)} aria-pressed={v.shortlisted}>{v.shortlisted ? '★ Shortlisted' : '☆ Shortlist'}</button>}
             {!mine && v.market.signable && <button className="btn primary" onClick={() => navigate('negotiation', v.id)}>{v.market.negotiation ? 'Continue negotiation' : 'Make an offer'}</button>}
             {mine && c.kind === 'own' && <button className={`btn${c.stage !== 'healthy' ? ' primary' : ''}`} onClick={() => navigate('negotiation', v.id)}>Renew contract</button>}
+            {mine && <button className="btn primary" onClick={() => navigate('matchmaking', v.id)}>Find an opponent</button>}
+            {v.activeFightId && <button className="btn ghost" onClick={() => navigate('fight', v.activeFightId!)}>Open booked fight</button>}
           </div>
           {!mine && !v.market.signable && v.status === 'active' && <p className="dim" style={{ marginTop: 8, fontSize: 13.5 }}>{v.market.unavailableReason}</p>}
         </div>
@@ -105,6 +108,7 @@ export function FighterProfile({ id }: { id: string }) {
 
           <Section title="Biography">
             <p style={{ lineHeight: 1.6, maxWidth: '62ch' }}>{v.bio}</p>
+            {v.notes.length > 0 && <p style={{ marginTop: 10 }}><span className="caps">Scout notes </span>{v.notes.map((n, i) => <span key={i} className="chip" style={{ marginRight: 6 }}>{n}</span>)}</p>}
           </Section>
         </div>
 
@@ -125,8 +129,10 @@ export function FighterProfile({ id }: { id: string }) {
               <div className="kv"><dt>Record</dt><dd>{v.recordText} <span className="dim">({v.fights} fights)</span></dd></div>
               <div className="kv"><dt>Knockouts</dt><dd>{v.record.koWins} wins · {v.koRate}% · stopped {v.record.koLosses}×</dd></div>
               <div className="kv"><dt>Last fought</dt><dd>{v.lastFightWeeksAgo === null ? 'No bouts on file' : `${v.lastFightWeeksAgo} weeks ago`}</dd></div>
+              <div className="kv"><dt>Recent form</dt><dd><FormDots form={v.form} /> <span className="dim" style={{ marginLeft: 8 }}>{v.momentumLabel}</span></dd></div>
               <div className="kv"><dt>Career stage</dt><dd>{v.stage}</dd></div>
-              <div className="kv"><dt>Ranking</dt><dd className="dim">Unranked — rankings arrive in Phase 6</dd></div>
+              <div className="kv"><dt>Availability</dt><dd className={v.availability.status === 'available' ? 'good' : 'warn'}>{v.availability.label}{v.availability.weeks ? ` · ${v.availability.weeks} weeks` : ''}</dd></div>
+              <div className="kv"><dt>Division standing</dt><dd>{v.standing.rank > 0 ? `#${v.standing.rank} of ${v.standing.of}` : 'Unrated'} <span className="dim">(public form, not an official ranking)</span></dd></div>
               <div className="kv"><dt>Titles</dt><dd className="dim">None on record</dd></div>
             </dl>
           </Section>
@@ -174,11 +180,24 @@ export function FighterProfile({ id }: { id: string }) {
             </Section>
           )}
 
+          <Section title="Fight history">
+            {v.fightHistory.length === 0 ? <p className="empty">No recorded bouts yet in this game. Fights you arrange, and those you hear about, appear here.</p> : (
+              <div className="table-wrap"><table className="table">
+                <tbody>{v.fightHistory.map((h) => (
+                  <tr key={h.fightId} className="row" onClick={() => navigate('fight', h.fightId)}>
+                    <td className="num dim">{formatDay(h.day, true)}</td>
+                    <td><b className={h.result === 'W' ? 'good' : h.result === 'L' ? 'red' : ''}>{h.result}</b> <span className="dim">{h.method}{h.method !== 'UD' && h.method !== 'MD' && h.method !== 'SD' && h.method !== 'Draw' ? ` R${h.round}` : ''}</span></td>
+                    <td>vs {h.opponentName}</td>
+                  </tr>))}</tbody>
+              </table></div>
+            )}
+          </Section>
+
           <Section title="Career history">
             {v.history.length === 0 ? <p className="empty">Nothing on record.</p> : (
               <ul className="history">{v.history.map((h, i) => <li key={i}><span className="caps" style={{ marginRight: 10 }}>{formatDay(h.day, true)}</span>{h.text}</li>)}</ul>
             )}
-            <p className="dim" style={{ fontSize: 13, marginTop: 8 }}>Notable fights and achievements are recorded from Phase 3 onwards.</p>
+            <p className="dim" style={{ fontSize: 13, marginTop: 8 }}>Titles and achievements arrive with championships in a later phase.</p>
           </Section>
         </div>
       </div>

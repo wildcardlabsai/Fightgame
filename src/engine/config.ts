@@ -4,7 +4,7 @@
  */
 export const FEATURES = {
   /** Phase 3: once fights exist, fighter inactivity should hurt morale and popularity. */
-  fightsImplemented: false,
+  fightsImplemented: true,
   /** Phase 6: title-shot promises are tracked now but only enforced once titles exist. */
   titlesImplemented: false,
 }

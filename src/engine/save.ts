@@ -108,6 +108,7 @@ export function migrate(data: unknown): GameState | null {
   if (typeof s.version !== 'number' || !s.promotions || !s.fighters) return null
   if (s.version > GAME_STATE_VERSION) return null // saved by a newer build
   if (s.version < 2) migrateV1toV2(s as never)
+  if (s.version < 3) migrateV2toV3(s as never)
   return s as GameState
 }
 
@@ -163,4 +164,24 @@ function migrateV1toV2(s: any): void {
   s.scouts.push(createStartingScout(s, home))
   initKnowledge(s)
   s.version = 2
+}
+
+const STYLE_V3: Record<string, string> = {
+  'Out-Boxer': 'Technical Boxer', Slugger: 'Power Puncher', 'Counter-Puncher': 'Counter Puncher', 'Boxer-Puncher': 'Balanced',
+}
+
+/** v2 (Phase 2) → v3 (Phase 3): fight entities, injuries, momentum, renamed fighting styles. */
+function migrateV2toV3(s: any): void {
+  for (const f of Object.values<any>(s.fighters)) {
+    f.style = STYLE_V3[f.style] ?? f.style
+    f.injury = null
+    f.suspendedUntil = null
+    f.momentum = 0
+    f.recentFights = []
+    f.roundsFought = (f.record.wins + f.record.losses + f.record.draws) * 5
+    f.activeFightId = null
+  }
+  s.fights = {}
+  s.fightLocks = {}
+  s.version = 3
 }

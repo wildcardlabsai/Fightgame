@@ -16,6 +16,8 @@ const paths: Record<string, ReactNode> = {
   rankings: <><path d="M4 20V10M10 20V4M16 20v-8M22 20H2" /></>,
   titles: <><path d="M7 4h10v6a5 5 0 0 1-10 0z" /><path d="M5 5H3v2a3 3 0 0 0 3 3M19 5h2v2a3 3 0 0 1-3 3M9 21h6M12 15v6" /></>,
   sponsors: <><path d="M12 21s-8-5-8-11a5 5 0 0 1 8-3 5 5 0 0 1 8 3c0 6-8 11-8 11z" /></>,
+  matchmaking: <><circle cx="8" cy="9" r="3.5" /><circle cx="17" cy="15" r="3.5" /><path d="M11 11l3 2" /></>,
+  fights: <><path d="M6 14c0-5 2-9 6-9s6 4 6 9v3H6z" /><path d="M9 20h6" /></>,
   media: <><rect x="3" y="5" width="18" height="12" /><path d="M8 21h8M12 17v4" /></>,
 }
 

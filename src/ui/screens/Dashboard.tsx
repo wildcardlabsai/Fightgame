@@ -1,4 +1,5 @@
 import { formatDay, weekOfYear } from '../../engine/calendar'
+import { fightList } from '../../engine/fightViews'
 import { opViews } from '../../engine/quotes'
 import {
   attentionItems, cashRunwayWeeks, player, unreadCount, weeklyBurn,
@@ -16,10 +17,10 @@ const LOOP: { name: string; status: 'live' | 'partial' | 'locked'; note: string 
   { name: 'Scout', status: 'live', note: 'Reports & searches live' },
   { name: 'Sign', status: 'live', note: 'Negotiation live' },
   { name: 'Develop', status: 'live', note: 'Training live' },
-  { name: 'Arrange fights', status: 'locked', note: 'Phase 3' },
+  { name: 'Arrange fights', status: 'live', note: 'Matchmaking & fights live' },
   { name: 'Build events', status: 'locked', note: 'Phase 4' },
   { name: 'Earn', status: 'partial', note: 'Costs live · income P4–5' },
-  { name: 'Rankings', status: 'locked', note: 'Phase 6' },
+  { name: 'Rankings', status: 'partial', note: 'Form & standing · titles Phase 6' },
 ]
 
 export function Dashboard() {
@@ -32,6 +33,9 @@ export function Dashboard() {
   const roster = views.mine().sort((a, b) => b.grade.mid - a.grade.mid)
   const hot = views.freeAgents().filter((v) => v.status === 'active').sort((a, b) => b.reputation + b.popularity - (a.reputation + a.popularity)).slice(0, 4)
   const ops = opViews(game).filter((o) => o.status === 'active')
+  const myFights = fightList(game, 'mine-open')
+  const night = myFights.find((f) => f.statusKey === 'fightNight')
+  const lastResults = fightList(game, 'mine-results').slice(0, 3)
   const attention = attentionItems(game)
   const runway = cashRunwayWeeks(game)
   const burn = weeklyBurn(game)
@@ -56,6 +60,13 @@ export function Dashboard() {
           <div className="kpi"><div className="caps">Roster</div><div className="v num">{roster.length}</div><div className="s">fighters under contract</div></div>
         </div>
       </div>
+
+      {night && (
+        <div className="night-banner" style={{ marginTop: 18 }}>
+          <div><div className="caps">Fight night</div><div className="display" style={{ fontSize: 28 }}>{night.aName} vs {night.bName}</div></div>
+          <button className="btn primary big" style={{ marginLeft: 'auto' }} onClick={() => navigate('fight', night.id)}>Go to the fight ▸</button>
+        </div>
+      )}
 
       <Section title="The empire pipeline" right={<span className="dim" style={{ fontSize: 13 }}>What’s playable now vs. what’s coming</span>}>
         <div className="pipeline">
@@ -131,6 +142,22 @@ export function Dashboard() {
       </div>
 
       <div className="grid-2">
+        <Section title="Your fights" right={<button className="linkbtn" onClick={() => navigate('fights')}>All fights</button>}>
+          {myFights.length === 0 && lastResults.length === 0 ? <p className="empty">Nothing booked. Open Matchmaking and put one of your fighters in the ring.</p> : (
+            <>
+              {myFights.slice(0, 4).map((f) => (
+                <div key={f.id} className="attn" style={{ cursor: 'pointer' }} onClick={() => navigate(f.statusKey === 'negotiating' ? 'deal' : 'fight', f.id)}>
+                  <div><div className="t">{f.aName} vs {f.bName}</div><div className="d">{f.status}{f.weeksAway ? ` · ${f.weeksAway} weeks` : ''}{f.city ? ` · ${f.city}` : ''}</div></div>
+                </div>
+              ))}
+              {lastResults.map((f) => (
+                <div key={f.id} className="attn info" style={{ cursor: 'pointer' }} onClick={() => navigate('fight', f.id)}>
+                  <div><div className="t">{f.resultText}</div><div className="d">{f.method} · {formatDay(f.day, true)}</div></div>
+                </div>
+              ))}
+            </>
+          )}
+        </Section>
         <Section title="Market watch" right={<button className="linkbtn" onClick={() => navigate('scouting')}>Scouting</button>}>
           {hot.length === 0 ? <p className="empty">Nobody notable is on the market. Send your scout looking.</p> : hot.map((v) => (
             <div key={v.id} className="attn" style={{ cursor: 'pointer' }} onClick={() => navigate('fighter', v.id)}>
@@ -150,7 +177,7 @@ export function Dashboard() {
         {game.news.length === 0 ? <p className="empty">The world is quiet. Advance time and the headlines will follow.</p> : (
           <div style={{ display: 'grid', gap: 0 }}>
             {game.news.slice(0, 8).map((n) => (
-              <div key={n.id} className="attn" style={{ cursor: n.fighterId ? 'pointer' : 'default' }} onClick={() => n.fighterId && navigate('fighter', n.fighterId)}>
+              <div key={n.id} className="attn" style={{ cursor: n.fighterId || n.fightId ? 'pointer' : 'default' }} onClick={() => n.fightId ? navigate('fight', n.fightId) : n.fighterId && navigate('fighter', n.fighterId)}>
                 <span className="caps" style={{ minWidth: 64 }}>{formatDay(n.day, false)}</span>
                 <span>{n.headline}</span>
                 <span className="chip" style={{ marginLeft: 'auto' }}>{n.category}</span>

@@ -84,13 +84,17 @@ export function potentialBand(potential: number): string {
 // ------------------------------------------------------------- Generation
 
 const STYLE_BIAS: Record<FightingStyle, Partial<Record<AttributeKey, number>>> = {
+  'Pressure Fighter': { aggression: 8, stamina: 6, heart: 4, defence: -5, chin: 2 },
   Boxer: { ringIQ: 6, defence: 3, speed: 2, power: -3 },
-  'Out-Boxer': { speed: 8, defence: 5, ringIQ: 3, power: -6, aggression: -6 },
-  Slugger: { power: 9, aggression: 6, chin: 4, speed: -6, defence: -6 },
+  'Counter Puncher': { ringIQ: 8, defence: 6, adaptability: 3, aggression: -8 },
   Swarmer: { aggression: 9, stamina: 8, heart: 4, defence: -4, power: -3 },
-  'Counter-Puncher': { ringIQ: 8, defence: 6, adaptability: 3, aggression: -8 },
-  'Boxer-Puncher': { power: 6, ringIQ: 3, speed: 2 },
+  'Power Puncher': { power: 9, aggression: 3, chin: 3, speed: -5, defence: -4 },
+  'Technical Boxer': { speed: 6, defence: 5, ringIQ: 5, power: -6, aggression: -5 },
+  'Defensive Specialist': { defence: 9, ringIQ: 4, chin: 2, aggression: -9, power: -5 },
+  Balanced: {},
 }
+
+export const ALL_STYLES = Object.keys(STYLE_BIAS) as FightingStyle[]
 
 const PERSONALITY_ODDS: { p: Personality; w: number }[] = [
   { p: 'Professional', w: 4 }, { p: 'Ambitious', w: 3 }, { p: 'Loyal', w: 2.5 }, { p: 'Volatile', w: 2 },
@@ -115,7 +119,7 @@ export function generateFighter(rng: Rng, ids: IdSource, o: FighterGenOptions): 
     o.ageMax === undefined && rng.chance(0.07) ? rng.int(36, 40) : rng.int(o.ageMin ?? 19, o.ageMax ?? 35)
   const birthDay = o.today - age * 365 - rng.int(0, 364)
 
-  const style = rng.pick<FightingStyle>(['Boxer', 'Out-Boxer', 'Slugger', 'Swarmer', 'Counter-Puncher', 'Boxer-Puncher'])
+  const style = rng.pick<FightingStyle>(ALL_STYLES)
   const personality = rng.weighted(PERSONALITY_ODDS, (x) => x.w).p
   const stance: Stance = rng.weighted<Stance>(['Orthodox', 'Southpaw', 'Switch'], (s) => (s === 'Orthodox' ? 70 : s === 'Southpaw' ? 25 : 5))
 
@@ -186,6 +190,7 @@ export function generateFighter(rng: Rng, ids: IdSource, o: FighterGenOptions): 
     availableSince: o.today - rng.int(0, 60),
     promoRelations: {},
     history: [],
+    injury: null, suspendedUntil: null, momentum: 0, recentFights: [], roundsFought: Math.round(fights * rng.float(4, 7)), activeFightId: null,
   }
   fighter.bio = generateBio(rng, fighter, age)
   return fighter
@@ -218,12 +223,14 @@ export const PERSONALITY_LINES: Record<Personality, string> = {
 }
 
 const STYLE_LINES: Record<FightingStyle, string> = {
+  'Pressure Fighter': 'A relentless pressure fighter who walks opponents down and forces exchanges.',
   Boxer: 'A disciplined, fundamentals-first boxer.',
-  'Out-Boxer': 'Slick and mobile, he prefers to pick opponents apart from range.',
-  Slugger: 'A heavy-handed brawler who looks to end things early.',
-  Swarmer: 'A relentless pressure fighter who smothers opponents with volume.',
-  'Counter-Puncher': 'A patient counter-puncher who makes opponents pay for mistakes.',
-  'Boxer-Puncher': 'A well-rounded boxer who carries genuine knockout power.',
+  'Counter Puncher': 'A patient counter puncher who makes opponents pay for mistakes.',
+  Swarmer: 'A swarmer who smothers opponents with non-stop volume.',
+  'Power Puncher': 'A heavy-handed power puncher who looks to end things early.',
+  'Technical Boxer': 'A slick technical boxer who wins rounds with accuracy and angles.',
+  'Defensive Specialist': 'A defensive specialist who is notoriously hard to hit clean.',
+  Balanced: 'A well-rounded boxer with no glaring weakness.',
 }
 
 function generateBio(rng: Rng, f: Fighter, age: number): string {

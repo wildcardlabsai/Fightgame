@@ -104,6 +104,7 @@ export function aiReleases(state: GameState, rng: Rng): void {
     const poor = worst.score < B.ai.targetRating[promo.tier] - 12
     if (!over && !poor) continue
     const f = state.fighters[worst.c.fighterId]
+    if (f.activeFightId) continue // not in the middle of a booking
     archiveContract(state, worst.c, 'released')
     becomeFreeAgent(state, f, 'released', promo.id)
     if (f.reputation >= 45) postNews(state, { headline: `${promo.name} release ${fighterName(f)} (${f.record.wins}-${f.record.losses}-${f.record.draws})`, category: 'release', fighterId: f.id })

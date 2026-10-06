@@ -7,18 +7,19 @@ import {
 import { advanceWeeks } from '../engine/tick'
 import type { GameState, Id, NegotiationKind, Offer, ScoutDepth, TrainingFocus } from '../engine/types'
 import type { SearchSpec } from '../engine/scouting'
+import type { FightOffer, FightPrep } from '../engine/types'
 import { createNewGame, type NewGameOptions } from '../engine/worldgen'
 
 export type ScreenId =
   | 'dashboard' | 'fighters' | 'fighter' | 'calendar' | 'inbox' | 'finances' | 'promotions'
-  | 'venues' | 'settings' | 'scouting' | 'contracts' | 'negotiation'
+  | 'venues' | 'settings' | 'scouting' | 'contracts' | 'negotiation' | 'matchmaking' | 'fights' | 'fight' | 'deal'
 
 export interface Route {
   screen: ScreenId
   param?: string
 }
 
-const SCREENS: ScreenId[] = ['dashboard', 'fighters', 'fighter', 'calendar', 'inbox', 'finances', 'promotions', 'venues', 'settings', 'scouting', 'contracts', 'negotiation']
+const SCREENS: ScreenId[] = ['dashboard', 'fighters', 'fighter', 'calendar', 'inbox', 'finances', 'promotions', 'venues', 'settings', 'scouting', 'contracts', 'negotiation', 'matchmaking', 'fights', 'fight', 'deal']
 
 export function parseHash(hash: string): Route {
   const [, screen, param, extra] = hash.replace(/^#/, '').split('/')
@@ -61,7 +62,17 @@ interface GameStore {
   walkAway: (fighterId: Id) => void
   release: (fighterId: Id) => boolean
   /** Opens a link produced by the engine (fighter profile or screen). */
-  openLink: (link: { kind: 'fighter'; id: string } | { kind: 'screen'; screen: string }) => void
+  openLink: (link: { kind: 'fighter'; id: string } | { kind: 'screen'; screen: string } | { kind: 'fight'; id: string }) => void
+  // ---- Phase 3: fights ----
+  /** Fight whose result was just produced (drives the fight-night reveal). */
+  justRan: string | null
+  approachOpponent: (myId: Id, oppId: Id) => string | null
+  offerFight: (fightId: Id, offer: FightOffer) => 'accept' | 'counter' | 'reject' | 'error'
+  withdrawFight: (fightId: Id) => void
+  scheduleFight: (fightId: Id, day: number) => boolean
+  setPrep: (fightId: Id, side: 0 | 1, patch: Partial<Pick<FightPrep, 'intensity' | 'plan'>>) => void
+  runFightNight: (fightId: Id) => boolean
+  ackFight: () => void
   readMessage: (id: Id, read?: boolean) => void
   readAll: () => void
   removeMessage: (id: Id) => void
@@ -93,6 +104,7 @@ export const useGame = create<GameStore>((set, get) => {
     saves: listSaves(storage),
     notices: [],
     simulating: false,
+    justRan: null,
 
     navigate: (screen, param) => {
       const route = { screen, param }
@@ -148,6 +160,12 @@ export const useGame = create<GameStore>((set, get) => {
     advance: (weeks) => {
       const g = get().game
       if (!g) return
+      const pending = Object.values(g.fights).find((f) => f.status === 'fightNight' && (f.organiserId === g.playerPromotionId || f.sideA.promotionId === g.playerPromotionId || f.sideB.promotionId === g.playerPromotionId))
+      if (pending) {
+        get().notify('Fight night is here — ring the bell before moving on.', 'bad')
+        get().navigate('fight', pending.id)
+        return
+      }
       const before = g.inbox.length
       const result = advanceWeeks(g, weeks)
       set({ game: result.state, simulating: true })
@@ -156,7 +174,11 @@ export const useGame = create<GameStore>((set, get) => {
         try { saveGame(storage, result.state); set({ saves: listSaves(storage) }) } catch { /* ignore */ }
       }
       const newMail = result.state.inbox.length - before
-      if (result.interrupted) {
+      const night = Object.values(result.state.fights).find((f) => f.status === 'fightNight' && (f.organiserId === g.playerPromotionId || f.sideA.promotionId === g.playerPromotionId || f.sideB.promotionId === g.playerPromotionId))
+      if (night) {
+        get().notify('It is fight week!', 'good')
+        get().navigate('fight', night.id)
+      } else if (result.interrupted) {
         get().notify(`Stopped after ${result.weeksAdvanced} week${result.weeksAdvanced === 1 ? '' : 's'} — something urgent needs you.`, 'bad')
       } else if (newMail > 0) {
         get().notify(`${newMail} new message${newMail === 1 ? '' : 's'}.`, 'neutral')
@@ -206,8 +228,60 @@ export const useGame = create<GameStore>((set, get) => {
       get().notify('Fighter released.', 'neutral')
       return true
     },
+    approachOpponent: (myId, oppId) => {
+      const g = get().game
+      if (!g) return null
+      const r = commands.approach(g, myId, oppId)
+      if (!r.ok) { get().notify(r.error ?? 'They will not take that call.', 'bad'); return null }
+      set({ game: r.state })
+      return r.fightId ?? null
+    },
+    offerFight: (fightId, offer) => {
+      const g = get().game
+      if (!g) return 'error'
+      const r = commands.offerFight(g, fightId, offer)
+      if (!r.ok) { get().notify(r.error ?? 'Offer failed.', 'bad'); return 'error' }
+      set({ game: r.state })
+      const v = r.verdict ?? 'reject'
+      get().notify(v === 'accept' ? 'Fight agreed! Now set a date.' : v === 'counter' ? 'They have countered.' : r.state.fights[fightId]?.status === 'cancelled' ? 'Talks collapsed.' : 'Offer rejected.', v === 'accept' ? 'good' : v === 'counter' ? 'neutral' : 'bad')
+      return v
+    },
+    withdrawFight: (fightId) => {
+      const g = get().game
+      if (!g) return
+      const r = commands.withdraw(g, fightId)
+      if (!r.ok) { get().notify(r.error ?? 'Could not withdraw.', 'bad'); return }
+      set({ game: r.state })
+    },
+    scheduleFight: (fightId, day) => {
+      const g = get().game
+      if (!g) return false
+      const r = commands.schedule(g, fightId, day)
+      if (!r.ok) { get().notify(r.error ?? 'Could not schedule.', 'bad'); return false }
+      set({ game: r.state })
+      get().notify('Fight scheduled. Camp opens four weeks out.', 'good')
+      return true
+    },
+    setPrep: (fightId, side, patch) => {
+      const g = get().game
+      if (!g) return
+      const r = commands.prepare(g, fightId, side, patch)
+      if (!r.ok) { get().notify(r.error ?? 'Could not change preparation.', 'bad'); return }
+      set({ game: r.state })
+    },
+    ackFight: () => set({ justRan: null }),
+    runFightNight: (fightId) => {
+      const g = get().game
+      if (!g) return false
+      const r = commands.runFightNight(g, fightId)
+      if (!r.ok) { get().notify(r.error ?? 'Could not start the fight.', 'bad'); return false }
+      set({ game: r.state, justRan: fightId })
+      if (r.state.settings.autosave) { try { saveGame(storage, r.state); set({ saves: listSaves(storage) }) } catch { /* ignore */ } }
+      return true
+    },
     openLink: (link) => {
       if (link.kind === 'fighter') return get().navigate('fighter', link.id)
+      if (link.kind === 'fight') return get().navigate('fight', link.id)
       const [screen, ...rest] = link.screen.split('/')
       get().navigate(screen as ScreenId, rest.length ? rest.join('/') : undefined)
     },

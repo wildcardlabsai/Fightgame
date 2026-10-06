@@ -143,4 +143,66 @@ export const BALANCE = {
       { max: 30, label: 'Poor' }, { max: 50, label: 'Low' }, { max: 70, label: 'Fair' }, { max: 85, label: 'Good' }, { max: 101, label: 'Excellent' },
     ],
   },
+
+  /**
+   * FIGHT SIMULATION (Phase 3). All values here are tuning assumptions — see docs/BALANCE.md.
+   * Scales: attributes are normalised to 0–1 before use; "damage" is in abstract units where a fighter's
+   * chin capacity is roughly 120–290.
+   */
+  sim: {
+    segments: 3,
+    /** Punches thrown per one-minute segment by an average fighter. */
+    baseThrow: 21,
+    nightFormSd: 0.095,
+    landBase: 0.27,
+    landSpread: 0.34,
+    powerLandMult: 0.82,
+    jabLandMult: 1.12,
+    jabDamage: 0.3,
+    powerDamageBase: 0.6,
+    powerDamageScale: 1.45,
+    bigFracBase: 0.04,
+    bigFracScale: 0.12,
+    kd: { intercept: -4.95, dmg: 3.6, power: 2.8, fatigue: 1.1, hurt: 1.3, momentum: 0.5 },
+    kdDamageOfCapacity: 0.16,
+    chinBase: 135,
+    chinScale: 190,
+    damageDecayPerRound: 0.09,
+    drainPerSegment: 0.021,
+    recoverPerRound: 0.03,
+    momentumInertia: 0.55,
+    judgeNoise: 2.5,
+    judgeVolumeBias: 0.18,
+    evenRoundThreshold: 0.9,
+    foulPerRound: 0.012,
+    injuryStoppagePerRound: 0.0016,
+    homeLandBonus: 0.012,
+    homeJudgeBias: 0.55,
+    /** Rounds scheduled by experience / profile. */
+    adaptRate: 0.07,
+  },
+
+  fights: {
+    minNoticeWeeks: 4,
+    maxAheadWeeks: 40,
+    campWeeks: 4,
+    /** Minimum weeks of rest after a bout (plus damage-dependent extra). */
+    restWeeks: 6,
+    negotiationLockWeeks: 8,
+    maxTwoFightGapWeeks: 26,
+    /** Medical suspension (weeks) after stoppages. */
+    suspension: { KO: 8, TKO: 5, RTD: 4, INJ: 4 } as Record<string, number>,
+    injury: {
+      base: 0.03, perDamage: 0.09, perKnockdown: 0.04, perAgeOver30: 0.0025, riskMult: 0.8,
+      severity: { minor: 0.62, moderate: 0.28, serious: 0.1 },
+      weeks: { minor: [1, 3], moderate: [4, 12], serious: [13, 52] } as Record<string, [number, number]>,
+      campWeekly: 0.0035,
+    },
+    keepRoundsForAi: false,
+    /** AI fights older than this (years) are pruned from state if not on any recent list. */
+    pruneYears: 3,
+    ai: { perPromoPerWeek: 0.6, rosterPerAttempt: 8, maxOpenShare: 0.4, minWeeksNotice: 6, maxWeeksNotice: 14, journeymanPurseFactor: 0.5, freeAgentChance: 0.22 },
+    recentListSize: 12,
+    reputationK: 1.0,
+  },
 }

@@ -39,7 +39,8 @@ export function ageGrowthFactor(age: number): number {
   return 0
 }
 
-const PHYSICAL: AttributeKey[] = ['speed', 'stamina', 'power', 'chin']
+/** Age at which each physical trait starts to decline. Mental/craft traits hold up far longer. */
+export const DECLINE_ONSET: Partial<Record<AttributeKey, number>> = { speed: 29, stamina: 30, chin: 31, power: 33 }
 
 export function developFighter(f: Fighter, today: number, rng: Rng): void {
   if (f.status !== 'active') return
@@ -58,7 +59,10 @@ export function developFighter(f: Fighter, today: number, rng: Rng): void {
     else if (focused) mult = focus.includes(k) ? 2.1 : 0.8
     const jitter = rng.float(0.5, 1.5)
     let delta = growth * mult * jitter * moraleFactor * fitnessFactor
-    if (age >= 32 && PHYSICAL.includes(k)) delta -= (age - 31) * 0.012 * rng.float(0.5, 1.5)
+    const onset = DECLINE_ONSET[k]
+    if (onset !== undefined && age >= onset) delta -= Math.min(age - onset + 1, 8) * 0.0065 * rng.float(0.5, 1.5)
+    // Experience: ring craft and heart keep improving a little into the early thirties.
+    if ((k === 'ringIQ' || k === 'heart') && age >= 27 && age <= 34 && f.attributes[k] < f.potential + 4) delta += 0.004 * rng.float(0.5, 1.5)
     // A veteran can still sharpen ring craft slightly; nobody grows past their ceiling.
     f.attributes[k] = clamp(f.attributes[k] + delta, 1, Math.max(f.attributes[k], f.potential + 4))
   }

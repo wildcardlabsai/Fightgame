@@ -23,6 +23,8 @@ import {
   availabilityFor, marketTags, publicAskBand, valueOf, type AskBand,
 } from './market'
 import { contractStage, type ContractStage } from './systems/contracts'
+import { fightAvailability, publicStanding } from './fights'
+import { METHOD_SHORT } from './fight/narrative'
 import type {
   Estimate, Fighter, GameState, Id, Personality, ReportLogEntry, TraitKey, TrainingFocus, WeightClassId,
 } from './types'
@@ -54,6 +56,23 @@ export interface ContractView {
 }
 
 export interface BandView { label: string; value: number }
+
+export interface FightHistoryItem {
+  fightId: Id
+  day: number
+  opponentId: Id
+  opponentName: string
+  result: 'W' | 'L' | 'D'
+  method: string
+  round: number
+  rounds: number
+}
+
+export interface AvailabilityView {
+  status: 'available' | 'booked' | 'injured' | 'suspended' | 'resting' | 'retired'
+  label: string
+  weeks: number | null
+}
 
 export interface NegotiationView {
   status: 'open' | 'broken'
@@ -121,6 +140,16 @@ export interface FighterView {
     availableWeeks: number | null
   }
   history: { day: number; kind: Fighter['history'][number]['kind']; text: string; promotionId: Id | null }[]
+  availability: AvailabilityView
+  /** Last five results, oldest → newest. */
+  form: ('W' | 'L' | 'D')[]
+  fightHistory: FightHistoryItem[]
+  momentumLabel: 'Surging' | 'Rising' | 'Steady' | 'Slipping' | 'Struggling'
+  /** Public standing among active fighters in the division (not an official ranking). */
+  standing: { rank: number; of: number }
+  /** Short scout-style phrases built from beliefs (and public record when unscouted). */
+  notes: string[]
+  activeFightId: Id | null
   /** Only for fighters on the player's roster. */
   own: null | {
     trainingFocus: TrainingFocus
@@ -188,6 +217,69 @@ function historyText(state: GameState, h: Fighter['history'][number]): string {
     case 'expired': return `Contract with ${promo} expired`
     case 'retired': return 'Retired from boxing'
   }
+}
+
+// ----------------------------------------------------------- Fight-related views
+
+const standingCache = new WeakMap<GameState, Map<string, Id[]>>()
+
+function divisionOrder(state: GameState, wc: WeightClassId): Id[] {
+  let m = standingCache.get(state)
+  if (!m) { m = new Map(); standingCache.set(state, m) }
+  let list = m.get(wc)
+  if (!list) {
+    list = Object.values(state.fighters)
+      .filter((f) => f.status === 'active' && f.weightClass === wc && f.record.wins + f.record.losses + f.record.draws > 0)
+      .map((f) => ({ id: f.id, s: publicStanding(publicFacts(f, state.today), f.momentum) }))
+      .sort((a, b) => b.s - a.s)
+      .map((x) => x.id)
+    m.set(wc, list)
+  }
+  return list
+}
+
+function buildHistory(state: GameState, f: Fighter): FightHistoryItem[] {
+  const out: FightHistoryItem[] = []
+  for (const id of f.recentFights.slice().reverse()) {
+    const ft = state.fights[id]
+    if (!ft?.result) continue
+    const isA = ft.sideA.fighterId === f.id
+    const oppId = isA ? ft.sideB.fighterId : ft.sideA.fighterId
+    const opp = state.fighters[oppId]
+    const w = ft.result.winner
+    out.push({
+      fightId: id, day: ft.day, opponentId: oppId, opponentName: opp ? fighterName(opp) : 'Unknown',
+      result: w === null ? 'D' : (w === 0) === isA ? 'W' : 'L', method: METHOD_SHORT[ft.result.method], round: ft.result.round, rounds: ft.scheduledRounds,
+    })
+  }
+  return out
+}
+
+function scoutNotes(traits: FighterView['traits'], scouted: boolean, f: Fighter): string[] {
+  const t = Object.fromEntries([...traits.physical, ...traits.technical, ...traits.mental].map((x) => [x.key, x])) as Record<string, TraitView>
+  const pre = scouted ? '' : 'Reportedly '
+  const phr: [number, string][] = []
+  const add = (key: string, hi: [number, string][], lo: [number, string][]) => {
+    const tv = t[key]
+    if (!tv || (!scouted && !['power', 'chin'].includes(key))) return
+    for (const [th, txt] of hi) if (tv.mid >= th) { phr.push([tv.mid - 50, pre + txt]); return }
+    for (const [th, txt] of lo) if (tv.mid <= th) { phr.push([50 - tv.mid, pre + txt]); return }
+  }
+  add('power', [[72, 'heavy-handed'], [62, 'solid power']], [[40, 'light puncher']])
+  add('chin', [[72, 'excellent durability'], [62, 'good durability']], [[42, 'questionable chin']])
+  add('speed', [[72, 'lightning hands'], [62, 'quick hands']], [[40, 'slow hands']])
+  add('stamina', [[72, 'great engine'], [62, 'good stamina']], [[42, 'tends to fade late']])
+  add('defence', [[70, 'hard to hit'], [60, 'solid defence']], [[42, 'leaky defence']])
+  add('ringIQ', [[72, 'smart ring general'], [62, 'ring-smart']], [[42, 'tactically raw']])
+  add('heart', [[72, 'huge heart']], [[40, 'questionable in the trenches']])
+  phr.sort((a, b) => b[0] - a[0])
+  const notes = phr.slice(0, 4).map(([, x]) => x.charAt(0).toUpperCase() + x.slice(1))
+  const fights = f.record.wins + f.record.losses + f.record.draws
+  const koRate = f.record.wins ? Math.round((f.record.koWins / f.record.wins) * 100) : 0
+  if (koRate >= 60 && f.record.wins >= 6) notes.push(`Known for stoppages (${koRate}% KO rate)`)
+  if (f.record.koLosses >= 3) notes.push('Has been stopped several times')
+  if (f.record.losses === 0 && fights >= 8) notes.push(`Unbeaten in ${fights}`)
+  return notes.slice(0, 5)
 }
 
 // ------------------------------------------------------------------- Builder
@@ -270,11 +362,34 @@ function buildView(state: GameState, f: Fighter): FighterView {
       availableWeeks: f.availableSince === null ? null : weeksBetween(f.availableSince, state.today),
     },
     history: f.history.map((h) => ({ day: h.day, kind: h.kind, text: historyText(state, h), promotionId: h.promotionId })).sort((a, b) => b.day - a.day),
+    availability: availabilityView(state, f),
+    form: f.recentFights.slice(-5).map((id) => state.fights[id]).filter((x) => x?.result).map((x) => {
+      const isA = x.sideA.fighterId === f.id
+      const w = x.result!.winner
+      return w === null ? 'D' : (w === 0) === isA ? 'W' : 'L'
+    }) as ('W' | 'L' | 'D')[],
+    fightHistory: buildHistory(state, f),
+    momentumLabel: f.momentum > 45 ? 'Surging' : f.momentum > 15 ? 'Rising' : f.momentum > -15 ? 'Steady' : f.momentum > -45 ? 'Slipping' : 'Struggling',
+    standing: (() => { const o = divisionOrder(state, f.weightClass); const i = o.indexOf(f.id); return { rank: i < 0 ? 0 : i + 1, of: o.length } })(),
+    notes: scoutNotes({ physical: [power, speed, stamina, chin, defence], technical: [ringIQ, adaptability, technique, counter, pressure], mental: [discipline, heart, aggression, composure] }, !!(entry?.reports.length) || mine, f),
+    activeFightId: f.activeFightId,
     own: mine ? {
       trainingFocus: f.trainingFocus, fitness: band(f.fitness), conditioning: band(f.conditioning), confidence: band(f.confidence), morale: band(f.morale),
       mood: f.morale >= 80 ? 'Fired up' : f.morale >= 62 ? 'Content' : f.morale >= 45 ? 'Restless' : f.morale >= 30 ? 'Unhappy' : 'Miserable',
     } : null,
   }
+}
+
+function availabilityView(state: GameState, f: Fighter): AvailabilityView {
+  if (f.status === 'retired') return { status: 'retired', label: 'Retired', weeks: null }
+  if (f.injury) return { status: 'injured', label: `Injured${f.contractId && state.contracts[f.contractId]?.promotionId === state.playerPromotionId ? ` (${f.injury.kind})` : ''}`, weeks: Math.max(1, weeksBetween(state.today, f.injury.returnDay)) }
+  if (f.suspendedUntil !== null && f.suspendedUntil > state.today) return { status: 'suspended', label: 'Medical suspension', weeks: Math.max(1, weeksBetween(state.today, f.suspendedUntil)) }
+  if (f.activeFightId) return { status: 'booked', label: 'Booked for a fight', weeks: null }
+  const av = fightAvailability(state, f)
+  if (!av.ok) return { status: 'resting', label: 'Resting', weeks: null }
+  const rest = f.lastFightDay === null ? 0 : f.lastFightDay + B.fights.restWeeks * 7
+  if (rest > state.today) return { status: 'resting', label: 'Resting after last fight', weeks: Math.max(1, weeksBetween(state.today, rest)) }
+  return { status: 'available', label: 'Available', weeks: null }
 }
 
 const cache = new WeakMap<GameState, Views>()

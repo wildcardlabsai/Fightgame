@@ -1,5 +1,7 @@
 import { submitOffer, walkAway as walkAwayState, type NegotiationOutcome } from './negotiation'
 import { releaseFromPlayer } from './roster'
+import { approachOpponent, submitFightOffer, withdrawFight } from './fightNegotiation'
+import { fightInvolvesPlayer, resolveFight, scheduleFight, setPrep } from './fights'
 import { orderReport, orderSearch, toggleShortlist as toggleShortlistState, type SearchSpec } from './scouting'
 import { playerRoster } from './selectors'
 import type { GameState, Id, NegotiationKind, Offer, ScoutDepth, TrainingFocus } from './types'
@@ -76,4 +78,22 @@ export function releaseFighter(state: GameState, fighterId: Id): CommandResult {
   const next = structuredClone(state)
   const r = releaseFromPlayer(next, fighterId)
   return r.ok ? { ok: true, state: next } : { ok: false, error: r.error, state }
+}
+
+// ---------------------------------------------------------------- Phase 3
+
+export const approach = approachOpponent
+export const offerFight = submitFightOffer
+export const withdraw = withdrawFight
+export const schedule = scheduleFight
+export const prepare = setPrep
+
+/** Ring the bell on one of your fights. The result is deterministic for this fight and this game state. */
+export function runFightNight(state: GameState, fightId: Id): CommandResult {
+  const f = state.fights[fightId]
+  if (!f || f.status !== 'fightNight') return { ok: false, error: 'This fight is not ready for fight night.', state }
+  if (!fightInvolvesPlayer(state, f)) return { ok: false, error: 'That is not your fight.', state }
+  const next = structuredClone(state)
+  resolveFight(next, next.fights[fightId])
+  return { ok: true, state: next }
 }

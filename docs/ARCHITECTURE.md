@@ -78,3 +78,35 @@ plaintext JSON containing engine truth; this is a single-player game and no obfu
 **regional** (`systems/aiMarket.ts#aiFit`). Rivals appraise fighters with noise that shrinks with tier, decide renewals
 ~8 weeks out, release surplus/declining fighters, and bid weekly; contested fighters go to the most attractive suitor,
 losers become more urgent. Rival finances are abstract (`balance.ai.weeklyIncome`) until Phase 6.
+
+## Fights (Phase 3)
+```
+Matchmaking (player)                         AI matchmaking (weekly tick)
+  opponentCandidates → assess(beliefs)         systems/aiFights.ts (strategy-aware, appraisal noise)
+        │                                              │
+        ▼                                              ▼
+  fightNegotiation.ts  ──────────────►  Fight entity (state.fights, lifecycle.ts)
+  (ask, counter, patience, lock)        negotiating → agreed → scheduled → training → fightNight
+                                          → completed → processed → postFight   (+ cancelled)
+                                                 │
+                              fights.ts#resolveFight  (keyed RNG: seed + fight id)
+                                                 │
+        fight/profile.ts  ──►  fight/sim.ts (pure)  ──►  result (compact)
+        (truth → SimFighter:        3 segments/round, damage/energy/momentum,
+         age, camp, plan, size)      knockdowns, stoppages, 3 judges)
+                                                 │
+        processResult: records · rep/pop · morale/confidence · momentum · injuries · suspension ·
+        development · purses via ledger.post (guarded by fight.paid) · news · knowledge (observeFightPerformance)
+```
+* **Fight is its own entity.** Fighters hold only `activeFightId`, `recentFights` (≤12 ids), `injury`, `suspendedUntil`,
+  `momentum`, `roundsFought`. Full history lives in `state.fights`.
+* **Compact storage.** Totals + cards + a few numbers per fight; round records are kept only for fights you are involved in;
+  AI fights are pruned after 3 years unless on someone's recent list; long-retired unreferenced fighters are pruned.
+* **Determinism.** `resolveFight` uses `keyedRng(seed, 'fight', id)`, so the same fight on the same state gives the same
+  result whenever the bell rings (tested across save/reload). Everything else uses the saved RNG state.
+* **Player fights pause at fight night** (`advanceWeeks` stops; the store blocks advancing; the tick will auto-resolve a fight
+  left pending so state can never get stuck). AI fights resolve inside the tick.
+* **Information boundary unchanged:** matchmaking assessments use `FighterView` beliefs; `FightView` exposes outcomes
+  (stats, cards, round story, injuries, consequences) — never causes. `leakAudit.test.ts` covers the new surfaces.
+* **Extension points for Phase 4+:** `Fight.venueId/city/country` (events), `FightTerms` (PPV/purse splits),
+  `FightResult.importance` (media), `Fight.kind`/`organiserId` (promotion-run cards), `observeFightPerformance` (broadcast).

@@ -46,13 +46,13 @@ export function priorFor(p: PublicFacts, t: TraitKey): Estimate {
   let mean: number
   let sd = B.scouting.priorSd
   switch (t) {
-    case 'power': mean = 45 + (koRate * 100 - 45) * 0.4 + sty(p, { Slugger: 8, 'Boxer-Puncher': 5, 'Out-Boxer': -6 }); break
+    case 'power': mean = 45 + (koRate * 100 - 45) * 0.4 + sty(p, { 'Power Puncher': 8, 'Pressure Fighter': 3, Balanced: 2, 'Technical Boxer': -6, 'Defensive Specialist': -5 }); break
     case 'chin': mean = 58 - koLoss * 60 - (oldAge > 0 ? 4 : 0); break
-    case 'speed': mean = base + sty(p, { 'Out-Boxer': 7, Slugger: -6 }) - oldAge * 1.2; break
-    case 'defence': mean = base + sty(p, { 'Out-Boxer': 6, 'Counter-Puncher': 6, Slugger: -6, Swarmer: -4 }); break
-    case 'stamina': mean = base + sty(p, { Swarmer: 8, Slugger: -5 }) - oldAge; break
-    case 'ringIQ': mean = base + sty(p, { Boxer: 6, 'Counter-Puncher': 8, Slugger: -5 }) + exp * 4; break
-    case 'aggression': mean = { Swarmer: 68, Slugger: 62, 'Boxer-Puncher': 55, Boxer: 48, 'Out-Boxer': 42, 'Counter-Puncher': 38 }[p.style]; sd = 14; break
+    case 'speed': mean = base + sty(p, { 'Technical Boxer': 7, 'Power Puncher': -6 }) - oldAge * 1.2; break
+    case 'defence': mean = base + sty(p, { 'Technical Boxer': 4, 'Defensive Specialist': 8, 'Counter Puncher': 6, 'Power Puncher': -6, Swarmer: -4, 'Pressure Fighter': -4 }); break
+    case 'stamina': mean = base + sty(p, { Swarmer: 8, 'Pressure Fighter': 6, 'Power Puncher': -5 }) - oldAge; break
+    case 'ringIQ': mean = base + sty(p, { Boxer: 6, 'Counter Puncher': 8, 'Technical Boxer': 6, 'Power Puncher': -5 }) + exp * 4; break
+    case 'aggression': mean = { 'Pressure Fighter': 70, Swarmer: 68, 'Power Puncher': 58, Balanced: 52, Boxer: 48, 'Technical Boxer': 42, 'Counter Puncher': 38, 'Defensive Specialist': 34 }[p.style]; sd = 14; break
     case 'heart': mean = 50 + (winPct - 0.5) * 10 + exp * 3; break
     case 'adaptability': mean = base * 0.5 + 25 + exp * 4; break
     case 'discipline': mean = 50 + (p.age > 26 ? 3 : 0); break
@@ -160,18 +160,26 @@ export function observeRoster(state: GameState, f: Fighter): void {
 }
 
 /**
- * Hook for the fight engine (Phase 3): watching a fighter in the ring teaches the player more.
- * `sd` is the measurement noise of that observation (lower = a more revealing performance).
+ * Learning from watching a fighter fight. More rounds seen and a better view (`quality`: 1 = ringside for your own
+ * fighter, ~0.5 = highlights of someone else's bout) give tighter measurements. Mental traits and potential
+ * remain hard to read from one night. The measurement is of the TRUE trait plus noise — what the player gets is a
+ * narrower range, never the value.
  */
-export function observeFight(state: GameState, f: Fighter, sd = 9): void {
-  const entry = entryFor(state, f)
+export function observeFightPerformance(state: GameState, f: Fighter, roundsSeen: number, quality: number, tag: string): void {
+  const entry = entryFor(state, f, 'public')
+  const scale = Math.sqrt(12 / Math.max(2, roundsSeen)) / Math.max(0.2, quality)
   for (const t of SCOUT_TRAITS) {
-    if (t === 'potential') continue
-    const observed = clamp(trueValue(f, t) + keyedNormal(state.seed, 'fightobs', f.id, t, state.today, entry.observations) * sd, 1, 100)
+    const sd = (t === 'potential' ? 28 : traitGroup(t) === 'physical' ? 7.5 : traitGroup(t) === 'technical' ? 9 : 13) * scale
+    const observed = clamp(trueValue(f, t) + keyedNormal(state.seed, 'fightobs', f.id, t, tag) * sd, 1, 100)
     entry.est[t] = combine(beliefOf(state, f, t), observed, sd)
   }
-  entry.insight = Math.min(100, entry.insight + 12)
+  entry.insight = Math.min(100, entry.insight + (quality >= 0.9 ? 8 : 3))
   entry.observations += 1
+}
+
+/** Backwards-compatible hook (Phase 2 API). */
+export function observeFight(state: GameState, f: Fighter, sd = 9): void {
+  observeFightPerformance(state, f, 12, 9 / Math.max(1, sd), `legacy-${state.today}`)
 }
 
 /** Information goes stale: uncertainty creeps back toward the public prior's level. */

@@ -580,7 +580,7 @@ describe('persistence of knowledge, contracts and negotiations', () => {
       c.warned12 = false; c.warned4 = false
     }
     const migrated = migrate(JSON.parse(JSON.stringify(v1)))!
-    expect(migrated.version).toBe(2)
+    expect(migrated.version).toBe(3)
     expect(migrated.scouts.length).toBe(1)
     expect(Object.keys(migrated.knowledge).length).toBeGreaterThan(50)
     expect(Object.values(migrated.fighters).every((f) => !f.bio.includes('easiest fighter in the gym'))).toBe(true)

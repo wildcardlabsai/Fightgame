@@ -11,6 +11,7 @@ import { post } from './ledger'
 import { discover } from './knowledge'
 import { postMessage, postNews } from './messages'
 import { valueOf } from './market'
+import { cancelFight } from './fights'
 import { player } from './selectors'
 import type { Contract, ContractStatus, Fighter, GameState, Id, Offer } from './types'
 
@@ -117,6 +118,8 @@ export function releaseFromPlayer(state: GameState, fighterId: Id): ReleaseResul
   const p = player(state)
   if (!f || !c || c.promotionId !== p.id) return { ok: false, error: 'That fighter is not on your roster.' }
   const fee = releaseCost(state, c)
+  const booked = f.activeFightId ? state.fights[f.activeFightId] : null
+  if (booked) cancelFight(state, booked, `${fighterName(f)} was released`)
   post(state, 'releaseFees', -fee, `Release fee — ${fighterName(f)}`)
   archiveContract(state, c, 'released')
   f.promoRelations[p.id] = (f.promoRelations[p.id] ?? 0) + B.release.relationHit

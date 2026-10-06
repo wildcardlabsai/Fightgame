@@ -33,7 +33,7 @@ describe('eight-year world simulation (player passive)', () => {
     }
     const ms = (performance.now() - t0) / (52 * 8)
     console.log(rows.join('\n') + `\navg ms/week ${ms.toFixed(1)}`)
-    expect(ms).toBeLessThan(40)
+    expect(ms).toBeLessThan(60) // average over eight years incl. fights
     expect(JSON.stringify(s).length).toBeLessThan(3_500_000) // fits comfortably in browser storage
     // Every strategy actually made signings over the years.
     for (const strat of ['traditional', 'prospectFactory', 'money', 'regional'] as const) {

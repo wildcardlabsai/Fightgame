@@ -4,6 +4,10 @@ import { useGame, type ScreenId } from '../store/gameStore'
 import { Icon } from './components/Icons'
 import { PromoLogo } from './components/Bits'
 import { money } from './format'
+import { FightDealScreen } from './screens/FightDealScreen'
+import { FightPage } from './screens/FightPage'
+import { FightsScreen } from './screens/FightsScreen'
+import { MatchmakingScreen } from './screens/MatchmakingScreen'
 import { ContractsScreen } from './screens/ContractsScreen'
 import { NegotiationScreen } from './screens/NegotiationScreen'
 import { ScoutingScreen } from './screens/ScoutingScreen'
@@ -24,6 +28,8 @@ const LIVE_NAV: NavDef[] = [
   { screen: 'fighters', label: 'Fighters', icon: 'fighters' },
   { screen: 'scouting', label: 'Scouting', icon: 'scouting' },
   { screen: 'contracts', label: 'Contracts', icon: 'contracts' },
+  { screen: 'matchmaking', label: 'Matchmaking', icon: 'matchmaking' },
+  { screen: 'fights', label: 'Fights', icon: 'fights' },
   { screen: 'inbox', label: 'Inbox', icon: 'inbox' },
   { screen: 'calendar', label: 'Calendar', icon: 'calendar' },
   { screen: 'finances', label: 'Finances', icon: 'finances' },
@@ -49,7 +55,7 @@ export function Shell() {
   const p = player(game)
   const runway = cashRunwayWeeks(game)
   const unread = unreadCount(game)
-  const activeScreen: ScreenId = route.screen === 'fighter' ? 'fighters' : route.screen === 'negotiation' ? 'contracts' : route.screen
+  const activeScreen: ScreenId = route.screen === 'fighter' ? 'fighters' : route.screen === 'negotiation' ? 'contracts' : route.screen === 'fight' || route.screen === 'deal' ? 'fights' : route.screen
 
   return (
     <div className="app">
@@ -139,6 +145,10 @@ function Screen() {
     case 'settings': return <SettingsScreen />
     case 'scouting': return <ScoutingScreen />
     case 'contracts': return <ContractsScreen />
+    case 'matchmaking': return <MatchmakingScreen fighterId={route.param} />
+    case 'fights': return <FightsScreen />
+    case 'fight': return <FightPage id={route.param ?? ''} />
+    case 'deal': return <FightDealScreen id={route.param ?? ''} />
     case 'negotiation': return <NegotiationScreen id={route.param ?? ''} />
   }
 }

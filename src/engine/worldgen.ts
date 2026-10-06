@@ -177,7 +177,7 @@ export function createNewGame(opts: NewGameOptions, now = Date.now()): GameState
     ],
     ledgerArchive: 0,
     financeHistory: [{ day: today, cash, income: cash, expenses: 0 }],
-    contractHistory: [], negotiations: {}, obligations: [],
+    contractHistory: [], negotiations: {}, obligations: [], fights: {}, fightLocks: {},
     knowledge: {}, scouts: [], scoutOps: [], shortlist: [],
     inbox: [],
     news: [],

@@ -22,9 +22,16 @@ deeper fighter profiles, responsive tables, hidden-information leak audit, v1→
 yet enforced*; no income yet; one scout (staff management later); no buyouts of contracted fighters; rival finances are
 abstract; fighters' public reputation/popularity only changes once fights exist (Phase 3).
 
-## Phase 3 — Fights ⬜
-Matchmaking, opponent selection + negotiation, round-by-round simulation (styles, stamina, damage, knockdowns,
-scorecards, stoppages), records, statistics, post-fight progression. Flip `FEATURES.fightsImplemented`.
+## Phase 3 — Fights ✅
+Matchmaking with belief-based risk/reward, fight negotiation (purse, win bonus, venue, rematch, 1–2 fights), Fight entity
++ strict lifecycle, camp/preparation, a round-by-round simulation (8 styles, damage, momentum, stamina, knockdowns,
+KO/TKO/corner/injury stoppages, 3 judges, all decision types and draws), injuries & suspensions, records, reputation and
+popularity, development and ring wear, knowledge from watching fights, purses through the ledger (no revenue stub),
+news, AI promotions arranging and simulating fights, fight history on profiles, fight-night presentation.
+
+**Known Phase 3 limits:** no events/cards/venue booking (a fight is one bout with a default venue), no gate/TV/PPV income
+(every fight is a cost), no titles or official rankings (only public form/standing), no inbound fight offers from rivals,
+no trainers/camp staff, rematch clauses are recorded but only influence price, two-fight deals are booked one at a time.
 
 ## Phase 4 — Events ⬜
 Event builder, fight cards, venue booking, ticket pricing, attendance, event finances/results.
