@@ -78,7 +78,7 @@ for (const [id, sc] of Object.entries(SCEN)) {
   check('first steps card shows on a new game', (await page.getByText('First steps').count()) > 0)
 
   // booking a large venue when cash is low (venues above the promotion's tier are locked, so use the biggest open one)
-  await page.evaluate(() => { const g = structuredClone(window.__fe.useGame.getState().game); g.promotions[g.playerPromotionId].cash = 60000; window.__fe.useGame.setState({ game: g }) })
+  await page.evaluate(() => { const g = structuredClone(window.__fe.useGame.getState().game); g.promotions[g.playerPromotionId].cash = 22000; window.__fe.useGame.setState({ game: g }) })
   await go(page, '#/events')
   await page.getByRole('button', { name: /Plan a show/ }).click()
   await page.waitForSelector('.modal')
@@ -93,6 +93,7 @@ for (const [id, sc] of Object.entries(SCEN)) {
   check('small venue has no booking warning', (await page.locator('.modal .advice').count()) === 0)
   await page.locator('.modal').getByRole('button', { name: 'Cancel' }).click()
 
+  await page.evaluate(() => { const g = structuredClone(window.__fe.useGame.getState().game); g.promotions[g.playerPromotionId].cash = 300000; window.__fe.useGame.setState({ game: g }) })
   // expensive contract
   await go(page, '#/fighters')
   await page.getByRole('tab', { name: /Free Agents/ }).click()
