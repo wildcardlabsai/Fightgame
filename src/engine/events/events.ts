@@ -18,7 +18,7 @@ import type {
   BoxingEvent, BroadcastKind, Fight, GameState, Id, MarketingLevel, PromoStrategy, SponsorOffer, TicketPrices, Venue,
 } from '../types'
 import {
-  atmosphereEstimate, awarenessFor, broadcastTerms, cardFights, cardQuality, demandFor, eventInterest, fightAppeal, forecastEvent, inventory,
+  hireFor, atmosphereEstimate, awarenessFor, broadcastTerms, cardFights, cardQuality, demandFor, eventInterest, fightAppeal, forecastEvent, inventory,
   officialsCost, ppvBuysFor, ppvRefPrice, productionCost, salesCurve, viewersFor,
 } from './demand'
 import { OPEN_EVENT, eventTransition, isEventOpen, isOnSale } from './lifecycle'
@@ -59,7 +59,7 @@ export function createEventInternal(state: GameState, promotionId: Id, spec: Cre
     settled: false, createdDay: state.today, onSaleDay: null, nextFight: 0, expectedAttendance: 0,
   }
   state.events[ev.id] = ev
-  spend(state, ev, 'venue', v.hireCost, `Venue hire — ${v.name} (${ev.name})`)
+  spend(state, ev, 'venue', hireFor(state, v, promotionId), `Venue hire — ${v.name} (${ev.name})`)
   eventTransition(ev, 'venueBooked')
   return ev
 }
@@ -75,7 +75,7 @@ export function createEvent(input: GameState, spec: CreateEventSpec): EvResult {
   if (weeks > E.maxLeadWeeks) return bad(input, `You cannot book more than ${E.maxLeadWeeks} weeks ahead.`)
   if (venueBookedOn(input, v.id, spec.day)) return bad(input, 'That venue is already booked on that date.')
   if (playerOpenEvents(input).length >= 3) return bad(input, 'You can only run three events at once.')
-  if (!canAfford(input, v.hireCost)) return bad(input, `The venue hire (£${v.hireCost.toLocaleString('en-GB')}) is more than you have in the bank.`)
+  if (!canAfford(input, hireFor(input, v, input.playerPromotionId))) return bad(input, `The venue hire (£${hireFor(input, v, input.playerPromotionId).toLocaleString('en-GB')}) is more than you have in the bank.`)
   if (playerOpenEvents(input).some((e) => Math.abs(e.day - spec.day) < 7)) return bad(input, 'Leave at least a week between your shows.')
   const state = structuredClone(input)
   const ev = createEventInternal(state, state.playerPromotionId, { ...spec, name }, 'player')
@@ -230,7 +230,7 @@ export function generateSponsorOffers(state: GameState, ev: BoxingEvent): Sponso
   const brands = r.shuffle(SPONSOR_BRANDS).slice(0, E.sponsor.maxOffers)
   const mainPop = q.mainFight ? Math.max(state.fighters[q.mainFight.sideA.fighterId].popularity, state.fighters[q.mainFight.sideB.fighterId].popularity) : 20
   return brands.map((brand, i) => {
-    const fee = Math.max(300, Math.round((E.sponsor.baseFactor * gate * (0.6 + 0.8 * (p.reputation / 100)) * (0.7 + 0.6 * r.next()) * (0.8 + 0.4 * (q.score / 100))) / 50) * 50)
+    const fee = Math.max(300, Math.round((E.sponsor.baseFactor * (ev.promotionId === state.playerPromotionId ? B.difficulty[state.settings.difficulty].sponsor : 1) * gate * (0.6 + 0.8 * (p.reputation / 100)) * (0.7 + 0.6 * r.next()) * (0.8 + 0.4 * (q.score / 100))) / 50) * 50)
     const att = Math.round((fc.attendance.lo + fc.attendance.hi) / 2 * 0.85 / 10) * 10
     return {
       id: `${ev.id}-s${i}`, brand, fixedFee: fee,
@@ -291,6 +291,7 @@ export function startSales(state: GameState, ev: BoxingEvent): void {
   ev.onSaleDay = state.today
   const fc = forecastEvent(state, ev)
   ev.expectedAttendance = Math.round((fc.attendance.lo + fc.attendance.hi) / 2)
+  ev.forecast = { att: [Math.round(fc.attendance.lo), Math.round(fc.attendance.hi)], profit: [Math.round(fc.profit.lo), Math.round(fc.profit.hi)] }
   if (!ev.sponsor.accepted && ev.sponsor.offers.length === 0) ev.sponsor.offers = generateSponsorOffers(state, ev)
   if (ev.promotionId === state.playerPromotionId) {
     postMessage(state, { from: 'Events', category: 'world', priority: 'normal', subject: `Tickets on sale: ${ev.name}`, body: `${ev.name} is on sale. Watch sales each week and adjust prices or marketing if it is slow.`, link: { kind: 'event', id: ev.id } })
@@ -488,7 +489,14 @@ export function finishEvent(state: GameState, ev: BoxingEvent): void {
   const viewers = ev.broadcast.kind === 'none' ? 0 : viewersFor(state, ev, 'actual')
   if (ev.broadcast.kind === 'ppv') {
     ppvBuys = ppvBuysFor(state, ev, 'actual')
-    receive(state, ev, 'ppv', ppvBuys * ev.broadcast.ppvPrice * E.ppv.promoterShare, `PPV revenue — ${ev.name} (${ppvBuys.toLocaleString('en-GB')} buys)`)
+    const ppvRev = ppvBuys * ev.broadcast.ppvPrice * E.ppv.promoterShare
+    receive(state, ev, 'ppv', ppvRev, `PPV revenue — ${ev.name} (${ppvBuys.toLocaleString('en-GB')} buys)`)
+    // Headliners on a PPV share deal take their cut of what the promoter receives.
+    const mainF = fights[fights.length - 1]
+    if (mainF) for (const side of [mainF.sideA, mainF.sideB]) {
+      const c = state.fighters[side.fighterId].contractId ? state.contracts[state.fighters[side.fighterId].contractId!] : null
+      if (c && c.promotionId === ev.promotionId && c.ppvShare > 0) spend(state, ev, 'bonuses', ppvRev * c.ppvShare, `PPV share — ${fighterName(state.fighters[side.fighterId])}`)
+    }
   } else if (ev.broadcast.kind !== 'none') {
     const bt = broadcastTerms(state, ev, ev.broadcast.kind, 'actual')
     if (bt.fee > 0) receive(state, ev, 'broadcast', bt.fee, `Broadcast fee — ${ev.name}`)
@@ -523,9 +531,12 @@ export function finishEvent(state: GameState, ev: BoxingEvent): void {
 
   // Reputation and fan growth scale with the size of the stage.
   const size = { local: 0.5, regional: 0.8, national: 1.1, arena: 1.5, stadium: 2 }[v.tier]
-  let repDelta = ((reputation - 50) / 50) * 1.6 * size
-  if (profit < 0 && -profit > 0.3 * costs) repDelta -= 0.4 * size
-  repDelta = clamp(repDelta, -3, 4)
+  // Momentum: one show moves the promotion's recent form by a third of the way; reputation follows form, so a single great
+  // night or a single disaster nudges rather than swings. A genuine disaster (empty building, heavy loss) still bites.
+  p.stats.form = clamp(p.stats.form * 0.65 + reputation * 0.35, 0, 100)
+  let repDelta = ((p.stats.form - 50) / 50) * 1.3 * size
+  if (profit < 0 && fill < 0.35) repDelta -= 0.6 * size
+  repDelta = clamp(repDelta, -2.2, 2.6)
   const prevBest = p.stats.bestAttendance
   p.reputation = clamp(p.reputation + repDelta, 0, 100)
   const fanDelta = Math.round(attendance * (0.2 + reputation / 100) + ppvBuys * 0.15 + viewers * 0.02) - (profit < 0 && fill < 0.35 ? Math.round(p.fanbase * 0.002) : 0)
@@ -588,15 +599,14 @@ function eventNews(state: GameState, ev: BoxingEvent, promoName: string, attenda
 
 export function cancelEvent(state: GameState, ev: BoxingEvent, reason: string): void {
   if (!isEventOpen(ev) || ev.status === 'live') return
-  const v = state.venues[ev.venueId]
-  const mine = ev.promotionId === state.playerPromotionId
+    const mine = ev.promotionId === state.playerPromotionId
   const weeks = weeksBetween(state.today, ev.day)
   eventTransition(ev, 'cancelled')
   ev.cancelReason = reason
   // Ticket-holders are refunded in full.
   const gate = ev.finance.revenue.tickets
   if (gate > 0) receive(state, ev, 'tickets', -gate, `Ticket refunds — ${ev.name}`)
-  const refund = Math.round(v.hireCost * (weeks >= E.cancelEarlyWeeks ? E.cancelRefund.early : E.cancelRefund.late))
+  const refund = Math.round(ev.finance.costs.venue * (weeks >= E.cancelEarlyWeeks ? E.cancelRefund.early : E.cancelRefund.late))
   if (refund > 0 && ev.finance.costs.venue > 0) spend(state, ev, 'venue', -refund, `Venue refund — ${ev.name}`)
   // Fights come off the card: agreed fights return to "agreed", ones in camp are cancelled.
   for (const id of ev.card) {

@@ -10,10 +10,11 @@
 import { BALANCE as B } from '../balance'
 import { transition } from '../fight/lifecycle'
 import { cancelFight, createFight } from '../fights'
-import { keyedRng, type Rng } from '../rng'
+import { keyedFloat, keyedNormal, type Rng } from '../rng'
 import type { BoxingEvent, BroadcastKind, Fight, GameState, Id, MarketingLevel, Promotion, PromoStrategy, Venue, VenueTier } from '../types'
 import { baseMoney, valueOf } from '../market'
 import { bookable, pickOpponent, weeksSince } from '../systems/aiFights'
+import { behaviour } from '../systems/aiFinance'
 import { broadcastTerms, cardFights, cardQuality, demandFor, eventInterest, fightAppeal, ppvRefPrice, refPrices, soldFromDemand } from './demand'
 import { attachFight, createEventInternal, startSales, venueBookedOn } from './events'
 import { isEventOpen } from './lifecycle'
@@ -22,25 +23,48 @@ const E = B.events
 const SAT = 5
 const TIER_ORDER: VenueTier[] = ['local', 'regional', 'national', 'arena', 'stadium']
 const MAX_TIER: Record<string, number> = { Startup: 1, Regional: 2, National: 3, Major: 4, Global: 4 }
-const FIGHTS_RANGE: Record<string, [number, number]> = { Startup: [3, 5], Regional: [4, 7], National: [5, 8], Major: [7, 10], Global: [8, 10] }
-const MAX_OPEN: Record<string, number> = { Startup: 1, Regional: 1, National: 2, Major: 2, Global: 3 }
+const FIGHTS_RANGE: Record<string, [number, number]> = { Startup: [3, 5], Regional: [4, 7], National: [5, 8], Major: [6, 10], Global: [7, 10] }
+const MAX_OPEN: Record<string, number> = { Startup: 1, Regional: 2, National: 3, Major: 4, Global: 5 }
+
+/** Diagnostics for the balance audit (not part of game state). */
+export const aiStats: Record<string, { attempts: number; fewFights: number; noVenue: number; ok: number }> = {}
+const stat = (p: Promotion) => (aiStats[p.name] ??= { attempts: 0, fewFights: 0, noVenue: 0, ok: 0 })
 
 export function aiEvents(state: GameState, rng: Rng): void {
   const promos = rng.shuffle(Object.values(state.promotions).filter((p) => !p.isPlayer && p.ai))
   const playerRoster = new Set(Object.values(state.contracts).filter((c) => c.promotionId === state.playerPromotionId).map((c) => c.fighterId))
   for (const promo of promos) {
+    const ai = promo.ai!
+    if (ai.fin.collapsing || ai.fin.state === 'insolvent') continue
+    const b = behaviour(promo)
     const open = Object.values(state.events).filter((e) => e.promotionId === promo.id && isEventOpen(e))
-    if (open.length >= MAX_OPEN[promo.tier]) continue
-    if (!rng.chance(1 / E.ai.cadenceWeeks[promo.tier])) continue
+    const maxOpen = ai.fin.state === 'struggling' || ai.fin.state === 'critical' ? 1 : MAX_OPEN[promo.tier] + (ai.strategy === 'prospectFactory' ? 1 : 0)
+    if (open.length >= maxOpen) continue
+    const style = ai.strategy === 'prospectFactory' ? 0.7 : ai.strategy === 'money' ? 1.15 : 1
+    const cadence = E.ai.cadenceWeeks[promo.tier] * b.cadence * style
+    if (!rng.chance(1 / cadence)) continue
     planEvent(state, promo, rng, playerRoster)
   }
 }
 
+/** Strategy caps the size of room a promotion will consider; finance state lowers it further. */
+const STRATEGY_TIER_CAP: Record<string, number> = { prospectFactory: 1, regional: 2, traditional: 3, money: 4 }
+
+/** What this promoter *believes* demand will be, relative to the public model: bias and noise by competence. Keyed, so deterministic. */
+function perceptionFactor(state: GameState, promo: Promotion, day: number): number {
+  const c = E.ai.competence[promo.ai!.competence]
+  return Math.exp(c.bias + c.sd * keyedNormal(state.seed, 'aiperc', promo.id, day))
+}
+
 function planEvent(state: GameState, promo: Promotion, rng: Rng, playerRoster: Set<Id>): void {
+  const ai = promo.ai!
+  stat(promo).attempts++
   const [lo, hi] = E.ai.leadWeeks
-  let day = state.today + SAT + 7 * rng.int(lo, hi)
-  const [minN, maxN] = FIGHTS_RANGE[promo.tier]
-  const target = rng.int(minN, maxN)
+  const day = state.today + SAT + 7 * rng.int(lo, hi)
+  // Card size: what a promotion of this scale normally stages, shifted by style (prospect shows are small, money shows are big).
+  const [tLo, tHi] = FIGHTS_RANGE[promo.tier]
+  const shift = ai.strategy === 'prospectFactory' ? -2 : ai.strategy === 'money' ? 1 : 0
+  const target = Math.max(3, Math.min(10, rng.int(tLo, tHi) + shift))
   const contracts = Object.values(state.contracts).filter((c) => c.promotionId === promo.id)
   const needy = contracts
     .map((c) => ({ c, f: state.fighters[c.fighterId] }))
@@ -50,6 +74,7 @@ function planEvent(state: GameState, promo: Promotion, rng: Rng, playerRoster: S
   // Build the fights first (agreed, unscheduled); the venue follows from how good the card is.
   const fights: Fight[] = []
   let committed = 0
+  const cashCover = ai.fin.state === 'healthy' || ai.fin.state === 'established' || ai.fin.state === 'growing' ? 1.4 : 2.4
   for (const { c, f: x } of needy) {
     if (fights.length >= target) break
     if (x.activeFightId || !bookable(state, x, day)) continue
@@ -60,7 +85,7 @@ function planEvent(state: GameState, promo: Promotion, rng: Rng, playerRoster: S
     const purseB = ct ? ct.basePurse : Math.round(fa / 100) * 100
     const winB = ct ? ct.winBonus : Math.round((purseB * 0.1) / 100) * 100
     const cost = c.basePurse + purseB + c.winBonus + winB
-    if (promo.cash < (committed + cost) * 1.4) continue
+    if (promo.cash < (committed + cost) * cashCover) continue
     committed += cost
     const fight = createFight(state, x.id, opp.id, promo.id, 'ai', { purseB, winBonusB: winB })
     transition(fight, 'agreed')
@@ -71,19 +96,20 @@ function planEvent(state: GameState, promo: Promotion, rng: Rng, playerRoster: S
     fights.push(fight)
   }
   const abort = () => { for (const f of fights) if (f.status === 'agreed') cancelFight(state, f, 'the show was never put together') }
-  if (fights.length < 3) return abort()
+  if (fights.length < 3) { stat(promo).fewFights++; return abort() }
 
-  const venue = pickVenue(state, promo, fights, day, committed)
-  if (!venue) return abort()
-  // Never overload a venue; leftover fights fall away.
+  const u = perceptionFactor(state, promo, day)
+  const mktMult = E.ai.competence[ai.competence].mktRange[0] + (E.ai.competence[ai.competence].mktRange[1] - E.ai.competence[ai.competence].mktRange[0]) * keyedFloat(state.seed, 'aimkt', promo.id, day)
+  const venue = pickVenue(state, promo, fights, day, committed, u, mktMult)
+  if (!venue) { stat(promo).noVenue++; return abort() }
   while (fights.length > venue.maxFights) { const f = fights.pop()!; cancelFight(state, f, 'dropped from the card') }
-  day = Math.max(day, state.today + SAT)
 
   const ev = createEventInternal(state, promo.id, { name: eventName(state, promo, venue), day, venueId: venue.id }, 'ai')
   for (const f of fights.sort((a, b) => fightAppeal(state, a) - fightAppeal(state, b))) attachFight(state, ev, f)
-  configure(state, ev, promo, rng)
+  configure(state, ev, promo, rng, u, mktMult)
   startSales(state, ev)
-  ev.sponsor.accepted = ev.sponsor.offers.slice().sort((a, b) => b.fixedFee - a.fixedFee).find((o) => cardQuality(state, ev).main >= 0 && o.minMainPopularity <= maxPop(state, ev) + 5) ?? null
+  stat(promo).ok++
+  ev.sponsor.accepted = ev.sponsor.offers.slice().sort((a, b) => b.fixedFee - a.fixedFee).find((o) => o.minMainPopularity <= maxPop(state, ev) + 5) ?? null
 }
 
 function maxPop(state: GameState, ev: BoxingEvent): number {
@@ -108,70 +134,100 @@ export function draftEvent(state: GameState, promo: Promotion, fights: Fight[], 
   }
 }
 
-/** The biggest building the card can honestly fill (≈80%), within the promotion's means and style. */
-function pickVenue(state: GameState, promo: Promotion, fights: Fight[], day: number, committed: number): Venue | null {
-  const strat = promo.ai!.strategy
-  const cap = Math.min(MAX_TIER[promo.tier], strat === 'prospectFactory' ? 1 : 4)
-  const n = fights.length
-  const budget = Math.max(0, promo.cash - committed * 1.3) * 0.12
-  const options = Object.values(state.venues)
-    .filter((v) => TIER_ORDER.indexOf(v.tier) <= cap && v.minFights <= n && v.hireCost <= budget && !venueBookedOn(state, v.id, day))
-  if (options.length === 0) return null
-  // Promoters misjudge their own draw: each one forecasts with its own error and style-dependent ambition.
-  const want = strat === 'money' ? 0.62 : strat === 'prospectFactory' ? 0.85 : 0.75
-  const err = 1 + (keyedRng(state.seed, 'aiforecast', promo.id, day).next() - 0.45) * 0.9
-  const scored = options.map((v) => {
-    const ev = draftEvent(state, promo, fights, v, day)
-    ev.prices = refPrices(eventInterest(state, ev))
-    const d = demandFor(state, ev, 'public')
-    const fill = (soldFromDemand(d, v).reduce((a, b) => a + b, 0) / v.capacity) * err
-    return { v, fill, home: v.country === promo.homeCountry ? 1 : 0 }
-  })
-  const fits = scored.filter((x) => x.fill >= want)
-  const pool = fits.length ? fits : scored.sort((a, b) => b.fill - a.fill).slice(0, 2)
-  pool.sort((a, b) => b.v.capacity * (1 + 0.15 * b.home) - a.v.capacity * (1 + 0.15 * a.home))
-  return pool[0].v
+function promoStrategy(state: GameState, promo: Promotion, ev: BoxingEvent): PromoStrategy {
+  const stratMap: Record<string, PromoStrategy> = { money: maxPop(state, ev) >= 55 ? 'superstar' : 'aggressive', prospectFactory: 'local', regional: 'local', traditional: 'standard' }
+  return stratMap[promo.ai!.strategy]
 }
 
-/** Prices, marketing, broadcast and sponsor the way this promotion's style would. */
-function configure(state: GameState, ev: BoxingEvent, promo: Promotion, rng: Rng): void {
-  const strat = promo.ai!.strategy
+/** What the promoter plans to spend promoting a show in this building (a share of the gate it hopes for). */
+function planSpend(promo: Promotion, v: Venue, gaRef: number, mktMult: number): number {
+  const ai = promo.ai!
+  const share = E.ai.marketingShare[ai.strategy]
+  return Math.round(share * behaviour(promo).marketing * mktMult * Math.max(8_000, v.capacity * gaRef * 0.6))
+}
+
+/**
+ * Venue choice is a decision under uncertainty, not an optimisation: each promoter judges demand with its own error
+ * (competence), accepts a lower expected fill the bigger its appetite for risk, is capped by its style and by how
+ * healthy its finances are, and the weakest sometimes overreach.
+ */
+function pickVenue(state: GameState, promo: Promotion, fights: Fight[], day: number, committed: number, u: number, mktMult: number): Venue | null {
+  const ai = promo.ai!
+  const b = behaviour(promo)
+  const comp = E.ai.competence[ai.competence]
+  const n = fights.length
+  const capIdx = Math.max(0, Math.min(MAX_TIER[promo.tier], STRATEGY_TIER_CAP[ai.strategy] ?? 3) - b.tierDrop)
+  const budget = Math.max(0, promo.cash - committed * 1.3) * (0.1 + 0.08 * ai.risk)
+  let options = Object.values(state.venues)
+    .filter((v) => TIER_ORDER.indexOf(v.tier) <= capIdx && v.minFights <= n && v.hireCost <= budget && !venueBookedOn(state, v.id, day))
+  if (ai.strategy === 'regional') { const home = options.filter((v) => v.country === promo.homeCountry); if (home.length) options = home }
+  if (options.length === 0) return null
+  const want = 0.95 - 0.45 * ai.risk
+  const scored = options.map((v) => {
+    const ev = draftEvent(state, promo, fights, v, day)
+    ev.marketing.strategy = promoStrategy(state, promo, ev)
+    const ref = refPrices(eventInterest(state, ev))
+    const spend = planSpend(promo, v, ref.ga, mktMult)
+    ev.prices = ref
+    const d = demandFor(state, ev, 'public', ref, spend)
+    const fill = (soldFromDemand(d, v).reduce((a, c) => a + c, 0) / v.capacity) * Math.min(1.6, u)
+    return { v, fill, home: v.country === promo.homeCountry ? 1 : 0 }
+  })
+  scored.sort((a, c) => c.v.capacity * (1 + 0.15 * c.home) - a.v.capacity * (1 + 0.15 * a.home))
+  const fits = scored.filter((x) => x.fill >= want)
+  let choice = fits.length ? fits[0] : scored.slice().sort((a, c) => c.fill - a.fill)[0]
+  // The weakest promoters sometimes reach for a bigger room than the card justifies.
+  const bigger = scored.filter((x) => x.v.capacity > choice.v.capacity)
+  if (bigger.length && keyedFloat(state.seed, 'aiover', promo.id, day) < comp.overreach) choice = bigger[bigger.length - 1 - Math.floor(keyedFloat(state.seed, 'aiover2', promo.id, day) * Math.min(2, bigger.length))] ?? choice
+  return choice.v
+}
+
+/** Prices, marketing, broadcast and sponsor the way this promotion's style and competence would. */
+function configure(state: GameState, ev: BoxingEvent, promo: Promotion, rng: Rng, u: number, mktMult: number): void {
+  const ai = promo.ai!
+  const comp = E.ai.competence[ai.competence]
+  const v0 = state.venues[ev.venueId]
   const interest = eventInterest(state, ev)
   const ref = refPrices(interest)
-  const mult = { money: 1.12, prospectFactory: 0.85, traditional: 1, regional: 0.92 }[strat]
-  const jitter = 0.94 + keyedRng(state.seed, 'aiprice', ev.id).next() * 0.12
-  const v0 = state.venues[ev.venueId]
-  // Price to maximise the gate: raise prices until the building is just about full.
-  let bestM = mult * jitter, bestRev = -1
-  const cap = 0.85 + 0.55 * keyedRng(state.seed, 'aicap', ev.id).next()
-  for (let m = 0.7; m <= cap; m += 0.05) {
-    const f = m * mult * jitter
-    const pr = { ga: Math.max(8, Math.round(ref.ga * f)), premium: Math.round(ref.premium * f), vip: Math.round(ref.vip * f) }
-    const d = demandFor(state, ev, 'public', pr)
-    const sold = soldFromDemand(d, v0)
-    const rev = sold[0] * pr.ga + sold[1] * pr.premium + sold[2] * pr.vip
-    if (rev > bestRev) { bestRev = rev; bestM = f }
+  const stratMult = { money: 1.1, prospectFactory: 0.88, traditional: 1, regional: 0.93 }[ai.strategy]
+  ev.marketing.strategy = promoStrategy(state, promo, ev)
+  const spend = planSpend(promo, v0, ref.ga, mktMult)
+  ev.marketing.budget = Math.round(Math.min(spend, Math.max(0, promo.cash * 0.08)))
+  const priceAt = (f: number) => ({ ga: Math.max(8, Math.round(ref.ga * f)), premium: Math.round(ref.premium * f), vip: Math.round(ref.vip * f) })
+  // Pricing: the skilled push the gate as far as their own read of demand allows while still expecting a well-filled hall
+  // (promoters hate empty seats); the unskilled guess. Nobody prices to the exact clearing point.
+  // Rule of thumb: a card that looks like it will overfill the room deserves dearer tickets, a weak one cheaper; the unskilled
+  // apply it clumsily (keyed noise), the skilled go on to optimise.
+  const dRef = demandFor(state, ev, 'public', ref, ev.marketing.budget)
+  const fillAtRef = (((dRef.ga + dRef.premium + dRef.vip) * Math.min(1.6, u)) / v0.capacity)
+  let f = stratMult * Math.pow(Math.max(0.6, Math.min(3, fillAtRef)), 0.4) * Math.exp(keyedNormal(state.seed, 'aiprice', ev.id) * (0.26 - 0.2 * comp.priceSkill))
+  // Skilled promoters price to a comfortable house (they would rather have a full, loud room than squeeze the last pound);
+  // risk-takers aim tighter. They solve for that on their OWN noisy read of demand, so they still miss.
+  {
+    const skilled = keyedFloat(state.seed, 'aiskill', ev.id) < comp.priceSkill
+    const target = (0.78 + 0.12 * ai.risk) * (skilled ? 1 : Math.exp(keyedNormal(state.seed, 'aitarget', ev.id) * 0.3))
+    let chosen = 0.7
+    for (let m = 0.7; m <= 3; m += 0.05) {
+      const pr = priceAt(m * stratMult)
+      const d = demandFor(state, ev, 'public', pr, ev.marketing.budget)
+      if (((d.ga + d.premium + d.vip) * Math.min(1.6, u)) / v0.capacity >= target) chosen = m; else break
+    }
+    f = skilled ? chosen * stratMult : Math.sqrt(f * chosen * stratMult)
   }
-  ev.prices = { ga: Math.max(8, Math.round(ref.ga * bestM)), premium: Math.round(ref.premium * bestM), vip: Math.round(ref.vip * bestM) }
-  const v = state.venues[ev.venueId]
-  const share = E.ai.marketingShare[strat]
-  const spendTarget = share * Math.max(8_000, v.capacity * ev.prices.ga * 0.6)
-  const level: MarketingLevel = spendTarget >= 8_000 ? 'major' : spendTarget >= 4_000 ? 'heavy' : spendTarget >= 1_500 ? 'standard' : spendTarget >= 400 ? 'low' : 'none'
-  ev.marketing.level = level
-  ev.marketing.budget = level === 'major' ? Math.round(spendTarget) : E.marketing.budgets[level]
-  const stratMap: Record<string, PromoStrategy> = { money: maxPop(state, ev) >= 55 ? 'superstar' : 'aggressive', prospectFactory: 'local', regional: 'local', traditional: 'standard' }
-  ev.marketing.strategy = stratMap[strat]
-  // Marketing never exceeds what the building can use.
-  if (ev.marketing.budget > promo.cash * 0.1) { ev.marketing.budget = Math.round(promo.cash * 0.1); ev.marketing.level = ev.marketing.budget >= 5_000 ? 'heavy' : ev.marketing.budget >= 2_000 ? 'standard' : ev.marketing.budget > 0 ? 'low' : 'none' }
+  ev.prices = priceAt(f)
+  const levelOf = (b: number): MarketingLevel => (b >= 10_000 ? 'major' : b >= 5_000 ? 'heavy' : b >= 2_000 ? 'standard' : b >= 500 ? 'low' : 'none')
+  ev.marketing.level = levelOf(ev.marketing.budget)
 
-  // Broadcast: whichever option nets the most, PPV only for real draws.
+  // Broadcast: whichever option nets the most on its own read; PPV only for promoters willing to gamble on a draw.
   let best: BroadcastKind = 'none', bestNet = 0
   for (const kind of ['localTv', 'nationalTv', 'streaming'] as BroadcastKind[]) {
     const t = broadcastTerms(state, ev, kind, 'public')
-    const net = t.fee - t.production
+    const net = (kind === 'streaming' ? t.fee * u : t.fee) - t.production
     if (t.available && net > bestNet) { best = kind; bestNet = net }
   }
-  if (strat === 'money' && cardQuality(state, ev).main >= 55 && broadcastTerms(state, ev, 'ppv', 'public').available && rng.chance(0.6)) best = 'ppv'
+  const q = cardQuality(state, ev)
+  const ppvBar = 62 - 25 * ai.risk + (comp.sd > 0.3 ? -10 : 0)
+  if (q.main * Math.min(1.3, u) >= ppvBar && broadcastTerms(state, ev, 'ppv', 'public').available && rng.chance(0.3 + 0.5 * ai.risk)) best = 'ppv'
   ev.broadcast.kind = best
   ev.broadcast.ppvPrice = ppvRefPrice(interest)
 }

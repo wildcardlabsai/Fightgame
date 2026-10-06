@@ -1,27 +1,28 @@
 import { formatDay, weekOfYear } from '../engine/calendar'
 import { cashRunwayWeeks, financialHealth, player, unreadCount } from '../engine/selectors'
+import { lazy, Suspense } from 'react'
 import { useGame, type ScreenId } from '../store/gameStore'
 import { Icon } from './components/Icons'
 import { PromoLogo } from './components/Bits'
 import { money } from './format'
-import { FightDealScreen } from './screens/FightDealScreen'
-import { FightPage } from './screens/FightPage'
-import { FightsScreen } from './screens/FightsScreen'
-import { EventsScreen } from './screens/EventsScreen'
-import { EventPage } from './screens/EventPage'
-import { MatchmakingScreen } from './screens/MatchmakingScreen'
-import { ContractsScreen } from './screens/ContractsScreen'
-import { NegotiationScreen } from './screens/NegotiationScreen'
-import { ScoutingScreen } from './screens/ScoutingScreen'
-import { CalendarScreen } from './screens/CalendarScreen'
+const FightDealScreen = lazy(() => import('./screens/FightDealScreen').then((m) => ({ default: m.FightDealScreen })))
+const FightPage = lazy(() => import('./screens/FightPage').then((m) => ({ default: m.FightPage })))
+const FightsScreen = lazy(() => import('./screens/FightsScreen').then((m) => ({ default: m.FightsScreen })))
+const EventsScreen = lazy(() => import('./screens/EventsScreen').then((m) => ({ default: m.EventsScreen })))
+const EventPage = lazy(() => import('./screens/EventPage').then((m) => ({ default: m.EventPage })))
+const MatchmakingScreen = lazy(() => import('./screens/MatchmakingScreen').then((m) => ({ default: m.MatchmakingScreen })))
+const ContractsScreen = lazy(() => import('./screens/ContractsScreen').then((m) => ({ default: m.ContractsScreen })))
+const NegotiationScreen = lazy(() => import('./screens/NegotiationScreen').then((m) => ({ default: m.NegotiationScreen })))
+const ScoutingScreen = lazy(() => import('./screens/ScoutingScreen').then((m) => ({ default: m.ScoutingScreen })))
+const CalendarScreen = lazy(() => import('./screens/CalendarScreen').then((m) => ({ default: m.CalendarScreen })))
 import { Dashboard } from './screens/Dashboard'
-import { FinancesScreen } from './screens/FinancesScreen'
-import { FighterProfile } from './screens/FighterProfile'
-import { FightersScreen } from './screens/FightersScreen'
-import { InboxScreen } from './screens/InboxScreen'
-import { PromotionsScreen } from './screens/PromotionsScreen'
-import { SettingsScreen } from './screens/SettingsScreen'
-import { VenuesScreen } from './screens/VenuesScreen'
+const FinancesScreen = lazy(() => import('./screens/FinancesScreen').then((m) => ({ default: m.FinancesScreen })))
+const FighterProfile = lazy(() => import('./screens/FighterProfile').then((m) => ({ default: m.FighterProfile })))
+const FightersScreen = lazy(() => import('./screens/FightersScreen').then((m) => ({ default: m.FightersScreen })))
+const InboxScreen = lazy(() => import('./screens/InboxScreen').then((m) => ({ default: m.InboxScreen })))
+const PromotionsScreen = lazy(() => import('./screens/PromotionsScreen').then((m) => ({ default: m.PromotionsScreen })))
+const SettingsScreen = lazy(() => import('./screens/SettingsScreen').then((m) => ({ default: m.SettingsScreen })))
+const VenuesScreen = lazy(() => import('./screens/VenuesScreen').then((m) => ({ default: m.VenuesScreen })))
 
 interface NavDef { screen: ScreenId; label: string; icon: string }
 
@@ -130,7 +131,7 @@ export function Shell() {
           </div>
         </header>
         <main className="page fade-in" key={route.screen + (route.param ?? '')}>
-          <Screen />
+          <Suspense fallback={<div className="dim" style={{ padding: 24 }}>Loading…</div>}><Screen /></Suspense>
         </main>
       </div>
       {simulating && <div className="sim-flash" />}

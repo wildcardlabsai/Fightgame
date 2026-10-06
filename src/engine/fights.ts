@@ -518,7 +518,25 @@ function postFight(state: GameState, fight: Fight): void {
   void METHOD_LABEL; void isStoppage; void FEATURES; void visibility
 }
 
+/**
+ * RETENTION POLICY. A fighter's profile shows their last dozen bouts, but only fighters the player has any relationship with
+ * (roster, shortlist, scouted, in talks, or faced by the player) ever get opened in detail. Everyone else keeps their last few
+ * bouts; their record, rating and public standing live on the fighter itself. This keeps the fight table bounded without
+ * touching anything the player can see.
+ */
+function trimUntrackedHistory(state: GameState): void {
+  const keep = B.fights.untrackedRecent
+  for (const f of Object.values(state.fighters)) {
+    if (f.recentFights.length <= keep) continue
+    const own = f.contractId !== null && state.contracts[f.contractId]?.promotionId === state.playerPromotionId
+    const tracked = own || state.shortlist.includes(f.id) || !!state.negotiations[f.id] || (state.knowledge[f.id]?.reports.length ?? 0) > 0
+    if (tracked || f.recentFights.some((id) => state.fights[id] && fightInvolvesPlayer(state, state.fights[id]))) continue
+    f.recentFights = f.recentFights.slice(-keep)
+  }
+}
+
 export function pruneFights(state: GameState): void {
+  trimUntrackedHistory(state)
   const cutoff = state.today - B.fights.pruneYears * 365
   const recent = new Set<Id>()
   for (const f of Object.values(state.fighters)) for (const id of f.recentFights) recent.add(id)

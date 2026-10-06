@@ -276,11 +276,36 @@ export interface Promotion {
 
 export type AiStrategy = 'traditional' | 'prospectFactory' | 'money' | 'regional'
 
+export type AiCompetence = 'poor' | 'average' | 'strong' | 'elite'
+export type PromoFinState = 'healthy' | 'growing' | 'established' | 'struggling' | 'critical' | 'insolvent'
+
+/** A rival's financial life cycle (Phase 4.5). Derived weekly from its own books; drives its decisions. */
+export interface PromoFinance {
+  state: PromoFinState
+  since: Day
+  /** Profit of the last few shows (most recent last). */
+  recent: number[]
+  /** Days of owner bail-outs still counted against it. */
+  bailoutDays: Day[]
+  /** Past recovery: owners have given up — it shrinks until fighters and fans drift away. */
+  collapsing: boolean
+  /** Weeks spent in a distressed state (struggling or worse). */
+  distressWeeks: number
+  /** Cumulative accounting net (revenue − costs − overhead) at the last quarter boundary, and the last few quarterly nets. */
+  snap: number
+  quarters: number[]
+}
+
 export interface AiProfile {
   strategy: AiStrategy
   /** Rises after losing fighters; makes the promotion act sooner. */
   urgency: number
   cooldownUntil: Day
+  /** How good this promoter is at reading the market and controlling costs. Never perfect. */
+  competence: AiCompetence
+  /** 0 (cautious) – 1 (reckless): how much forecast downside it will accept. */
+  risk: number
+  fin: PromoFinance
 }
 
 // ------------------------------------------------------------------ Venues
@@ -396,6 +421,8 @@ export interface BoxingEvent {
   nextFight: number
   /** Pre-event reported attendance forecast midpoint (for the "beat expectations" story). */
   expectedAttendance: number
+  /** Public forecast made when the show went on sale — kept so forecast quality can be audited. */
+  forecast?: { att: [number, number]; profit: [number, number] }
   /** The player has manually ordered the card (new fights then go to the opener slot). */
   manualOrder?: boolean
 }
@@ -408,6 +435,8 @@ export interface PromotionStats {
   lastEventDay: Day
   /** Reported-for-public gross gate of the best show. */
   bestGate: number
+  /** Momentum: smoothed recent event rating (0–100). Reputation follows it, so one show cannot swing it wildly. */
+  form: number
 }
 
 /** AI books: lets us prove rival cash reconciles. */
@@ -417,6 +446,8 @@ export interface AiAccounting {
   costs: number
   overhead: number
   bailouts: number
+  /** Owner distributions of surplus cash. */
+  distributions: number
 }
 
 export type FinancialHealth = 'healthy' | 'concern' | 'critical' | 'insolvent'
@@ -729,4 +760,4 @@ export interface GameState {
   settings: GameSettings
 }
 
-export const GAME_STATE_VERSION = 4
+export const GAME_STATE_VERSION = 5

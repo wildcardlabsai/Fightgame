@@ -3,7 +3,7 @@ import { clamp, fighterRating, hiddenBase, PERSONALITY_LINES } from './fighters'
 import { keyedNormal } from './rng'
 import { createStartingScout } from './scouting'
 import { GAME_STATE_VERSION, type AiStrategy, type GameState } from './types'
-import { emptyStats, initKnowledge } from './worldgen'
+import { aiTraits, emptyStats, freshFinance, initKnowledge } from './worldgen'
 import { VENUE_SEEDS, venueFields } from '../data/venues'
 
 /**
@@ -111,6 +111,7 @@ export function migrate(data: unknown): GameState | null {
   if (s.version < 2) migrateV1toV2(s as never)
   if (s.version < 3) migrateV2toV3(s as never)
   if (s.version < 4) migrateV3toV4(s as never)
+  if (s.version < 5) migrateV4toV5(s as never)
   return s as GameState
 }
 
@@ -208,4 +209,14 @@ function migrateV3toV4(s: any): void {
     p.accounting = p.isPlayer ? null : { startCash: p.cash, revenue: 0, costs: 0, overhead: 0, bailouts: 0 }
   }
   s.version = 4
+}
+
+/** v4 → v5 (Phase 4.5): rival competence/risk, financial life cycle, owner distributions. */
+function migrateV4toV5(s: any): void {
+  for (const p of Object.values<any>(s.promotions)) {
+    if (p.ai) Object.assign(p.ai, aiTraits(s.seed, p.name, p.tier, p.ai.strategy, s.settings?.difficulty ?? 'standard'), { fin: freshFinance(s.today) })
+    if (p.accounting && p.accounting.distributions === undefined) p.accounting.distributions = 0
+    if (p.stats && p.stats.form === undefined) p.stats.form = 50
+  }
+  s.version = 5
 }

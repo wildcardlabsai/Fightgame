@@ -8,6 +8,7 @@
  *               This is what actually happens, so forecasts can miss.
  */
 import { regionOf } from '../../data/nations'
+import { dayToDate } from '../calendar'
 import { BALANCE as B } from '../balance'
 import { clamp } from '../fighters'
 import { publicExpectation } from '../fights'
@@ -39,9 +40,9 @@ export function fightAppeal(state: GameState, fight: Fight): number {
   const a = state.fighters[fight.sideA.fighterId], b = state.fighters[fight.sideB.fighterId]
   if (!a || !b) return 0
   const hi = Math.max(a.popularity, b.popularity), lo = Math.min(a.popularity, b.popularity)
-  const star = 0.62 * hi + 0.38 * lo
+  const star = 0.7 * hi + 0.3 * lo
   const rep = (a.reputation + b.reputation) / 2
-  let v = 0.6 * star + 0.4 * rep
+  let v = 0.68 * star + 0.32 * rep
   const pExp = publicExpectation(state, a, b)
   const competitive = 1 - Math.abs(pExp - 0.5) * 1.2
   v *= 0.85 + 0.3 * competitive
@@ -122,6 +123,13 @@ export function awarenessFor(state: GameState, ev: BoxingEvent, spend: number): 
   return 100 * (1 - Math.exp(-(eff * s.reach) / scale))
 }
 
+/** How much of the country a campaign reaches. Scaled to the promotion's following, not the venue. */
+export function nationalAwareness(state: GameState, ev: BoxingEvent, spend: number): number {
+  const s = E.marketing.strategies[ev.marketing.strategy]
+  const scale = E.ppv.campaignScale + E.ppv.campaignPerFan * state.promotions[ev.promotionId].fanbase
+  return 100 * (1 - Math.exp(-((spend / s.cost) * s.reach) / scale))
+}
+
 // ------------------------------------------------------------------- Demand
 
 export interface Demand {
@@ -132,6 +140,8 @@ export interface Demand {
   interest: number
   /** National-level audience at the reference price (venue independent) — drives TV/PPV. */
   reach: number
+  /** National audience before the venue's local campaign (PPV and TV are not limited by the building). */
+  baseReach: number
   refPrices: TicketPrices
 }
 
@@ -140,12 +150,34 @@ export function refPrices(interest: number): TicketPrices {
   return { ga, premium: Math.round(ga * E.premiumMult), vip: Math.round(ga * E.vipMult) }
 }
 
-/** Hidden factor applied only to ACTUAL outcomes. */
+/** Rival shows on the same night in the same country take part of your audience. */
+function competitionFactor(state: GameState, ev: BoxingEvent): number {
+  let hit = 0
+  for (const o of Object.values(state.events)) {
+    if (o.id === ev.id || o.status === 'cancelled' || Math.abs(o.day - ev.day) > 2) continue
+    if (o.country !== ev.country) continue
+    const oi = o.card.length ? eventInterest(state, o) : 0
+    hit += 0.04 + 0.12 * (oi / 100)
+  }
+  return 1 - Math.min(E.noise.competitionMax, hit)
+}
+
+/** Hidden factor applied only to ACTUAL outcomes: the headliners' true pull plus every source of real-world noise. */
 function hiddenFactor(state: GameState, ev: BoxingEvent): number {
   const fights = cardFights(state, ev)
   const heads = fights.slice(-2).flatMap((f) => [state.fighters[f.sideA.fighterId], state.fighters[f.sideB.fighterId]])
   const mk = heads.length ? heads.reduce((n, f) => n + f.attributes.marketability, 0) / heads.length : 50
-  return Math.exp(keyedNormal(state.seed, 'evdemand', ev.id) * E.actualNoise) * (1 + 0.12 * ((mk - 50) / 50))
+  const N = E.noise
+  const dn = B.difficulty[state.settings.difficulty].demandNoise
+  const v = venueOf(state, ev)
+  const year = Math.floor((ev.day - state.startDay) / 365)
+  const month = dayToDate(ev.day).getUTCMonth()
+  const logNoise =
+    keyedNormal(state.seed, 'evdemand', ev.id) * N.event +
+    keyedNormal(state.seed, 'evlocal', ev.id) * N.local +
+    keyedNormal(state.seed, 'economy', year) * N.economy +
+    keyedNormal(state.seed, 'weather', ev.id) * (N.weather[v.tier] ?? 0.03)
+  return Math.exp(logNoise * dn) * (1 + 0.12 * ((mk - 50) / 50)) * E.season[month] * competitionFactor(state, ev)
 }
 
 export function demandFor(state: GameState, ev: BoxingEvent, mode: 'public' | 'actual', prices: TicketPrices = ev.prices, spend = ev.marketing.spent): Demand {
@@ -161,17 +193,21 @@ export function demandFor(state: GameState, ev: BoxingEvent, mode: 'public' | 'a
   const promoF = 0.8 + 0.7 * Math.pow(p.reputation / 100, 0.8)
   const aw = awarenessFor(state, ev, spend)
   const starBoost = 1 + strat.star * (q.main / 100)
-  const mkt = 1 + E.marketing.maxDemandBoost * (aw / 100) * starBoost
+  const mktLuck = mode === 'actual' ? Math.exp(keyedNormal(state.seed, 'evmkt', ev.id) * E.noise.marketing * B.difficulty[state.settings.difficulty].demandNoise) : 1
+  const mkt = 1 + E.marketing.maxDemandBoost * (aw / 100) * starBoost * mktLuck
   const base = E.demandScale * Math.pow(Math.max(interest, 1) / 10, E.demandExp)
   const hidden = mode === 'actual' ? hiddenFactor(state, ev) : 1
   const reach = base * promoF * mkt * hidden
-  const A0 = reach * v.market * local * foreign * home
+  const stay = E.cannibal[ev.broadcast.kind] ?? 1
+  const A0 = reach * v.market * local * foreign * home * stay
   const ref = refPrices(interest)
   const amax = A0 / (1 / (1 + Math.pow(1 / 1.15, E.priceShape)))
-  const tier = (price: number, refP: number, share: number) => (share * amax) / (1 + Math.pow(price / (1.15 * refP), E.priceShape))
+  // How much this city will really pay differs from the "reference" the player sees (hidden; learned from sales).
+  const wealth = mode === 'actual' ? Math.exp(keyedNormal(state.seed, 'pricesens', v.id) * E.noise.priceSens * B.difficulty[state.settings.difficulty].demandNoise) : 1
+  const tier = (price: number, refP: number, share: number) => (share * amax) / (1 + Math.pow(price / (1.15 * refP * wealth), E.priceShape))
   return {
     ga: tier(prices.ga, ref.ga, 1), premium: tier(prices.premium, ref.premium, E.premiumShare), vip: tier(prices.vip, ref.vip, E.vipShare),
-    interest, reach, refPrices: ref,
+    interest, reach, baseReach: base * promoF * hidden, refPrices: ref,
   }
 }
 
@@ -197,7 +233,7 @@ export function salesCurve(x: number, interest: number): number {
 
 // ----------------------------------------------------------------------- PPV / TV
 
-export function ppvRefPrice(interest: number): number { return Math.round((12 + 0.12 * interest) * 100) / 100 }
+export function ppvRefPrice(interest: number): number { return Math.round((E.ppv.priceBase + E.ppv.priceInterest * interest) * 100) / 100 }
 
 export function ppvBuysFor(state: GameState, ev: BoxingEvent, mode: 'public' | 'actual', price = ev.broadcast.ppvPrice): number {
   const d = demandFor(state, ev, mode)
@@ -206,12 +242,17 @@ export function ppvBuysFor(state: GameState, ev: BoxingEvent, mode: 'public' | '
   const star = Math.pow(Math.max(0.01, cq.main) / conf.ref, conf.exp)
   const ref = ppvRefPrice(d.interest)
   const priceF = (1 + Math.pow(1 / 1.15, conf.priceShape)) / (1 + Math.pow(price / (1.15 * ref), conf.priceShape))
-  return Math.max(0, Math.round(d.reach * conf.scale * star * priceF))
+  // PPV is bought, not walked up to: it lives or dies on a NATIONAL campaign (sized to the promotion's fanbase, not the building).
+  const aw = nationalAwareness(state, ev, mode === 'actual' ? ev.marketing.spent : plannedSpend(ev))
+  const campaign = E.ppv.campaignFloor + (1.35 - E.ppv.campaignFloor) * (aw / 100)
+  const luck = mode === 'actual' ? Math.exp(keyedNormal(state.seed, 'ppvnoise', ev.id) * E.noise.ppv * B.difficulty[state.settings.difficulty].demandNoise) : 1
+  return Math.max(0, Math.round(d.baseReach * conf.scale * star * priceF * luck * campaign))
 }
 
 export function viewersFor(state: GameState, ev: BoxingEvent, mode: 'public' | 'actual'): number {
   const d = demandFor(state, ev, mode)
-  return Math.round(1.6 * d.reach * Math.pow(Math.max(d.interest, 1) / 40, 1.1))
+  const aw = nationalAwareness(state, ev, mode === 'actual' ? ev.marketing.spent : plannedSpend(ev))
+  return Math.round(1.6 * d.baseReach * (0.8 + 0.5 * (aw / 100)) * Math.pow(Math.max(d.interest, 1) / 40, 1.1))
 }
 
 export interface BroadcastOption { kind: BroadcastKind; label: string; available: boolean; reason: string | null; production: number; guaranteed: number; note: string }
@@ -234,12 +275,17 @@ export function broadcastTerms(state: GameState, ev: BoxingEvent, kind: Broadcas
     }
     case 'ppv': {
       const ok = p.reputation >= 12 && q.main >= 25
-      return { fee: 0, production: tv.ppvProduction, available: ok, reason: ok ? null : 'PPV needs a recognisable main event and a known promotion' }
+      return { fee: 0, production: Math.round(tv.ppvProduction.base + tv.ppvProduction.perInterestSq * interest * interest), available: ok, reason: ok ? null : 'PPV needs a recognisable main event and a known promotion' }
     }
   }
 }
 
 // ------------------------------------------------------------------------ Costs
+
+/** Venue rental for this promotion. The player pays the difficulty-adjusted price; rivals pay list. */
+export function hireFor(state: GameState, v: Venue, promotionId: string): number {
+  return Math.round(v.hireCost * (promotionId === state.playerPromotionId ? B.difficulty[state.settings.difficulty].venueCost : 1))
+}
 
 export function productionCost(v: Venue): number {
   return Math.round(E.costs.productionByLevel[v.production - 1] + E.costs.productionPerSeat * v.capacity)
@@ -264,7 +310,8 @@ export function purseCommitments(state: GameState, ev: BoxingEvent): { purses: n
 
 export function forecastError(state: GameState, promotionId: string): number {
   const p = state.promotions[promotionId]
-  return Math.max(E.forecastError.floor, E.forecastError.start - E.forecastError.perEvent * p.stats.events)
+  const dp = B.difficulty[state.settings.difficulty]
+  return dp.forecastError * Math.max(E.forecastError.floor, E.forecastError.start - E.forecastError.perEvent * p.stats.events)
 }
 
 const rng = (c: number, err: number): Range => ({ lo: Math.max(0, c * (1 - err)), hi: c * (1 + err * 1.15) })
@@ -309,25 +356,30 @@ export function forecastEvent(state: GameState, ev: BoxingEvent): Forecast {
   const v = venueOf(state, ev)
   const q = cardQuality(state, ev)
   const d = demandFor(state, ev, 'public', ev.prices, plannedSpend(ev))
-  const sold = soldFromDemand(d, v)
-  const att = sold[0] + sold[1] + sold[2]
-  const gate = sold[0] * ev.prices.ga + sold[1] * ev.prices.premium + sold[2] * ev.prices.vip
+  // Ranges come from the UNCAPPED demand estimate, then are clipped to the building: a card that would fill 1.2× the hall
+  // honestly reads "likely sell-out", while a card near the edge reads "could miss".
+  const inv = inventory(v)
+  const at = (scale: number): [number, number, number] => [Math.min(inv[0], Math.round(d.ga * scale)), Math.min(inv[1], Math.round(d.premium * scale)), Math.min(inv[2], Math.round(d.vip * scale))]
+  const loS = at(1 - err), midS = at(1), hiS = at(1 + err * 1.15)
+  const tot = (a: number[]) => a[0] + a[1] + a[2]
+  const gateOf = (a: number[]) => a[0] * ev.prices.ga + a[1] * ev.prices.premium + a[2] * ev.prices.vip
+  const att = tot(midS)
   const fights = cardFights(state, ev)
   const qScore = Math.round(q.score)
   const qr = { lo: Math.max(0, qScore - 9), hi: Math.min(100, qScore + 9), mid: qScore, label: qualityLabel(qScore) }
-  const attR = { lo: Math.round(att * (1 - err)), hi: Math.min(v.capacity, Math.round(att * (1 + err * 1.15))) }
+  const attR = { lo: tot(loS), hi: tot(hiS) }
   const demandTotal = d.ga + d.premium + d.vip
-  const ticketR = rng(gate, err)
+  const ticketR = { lo: gateOf(loS), hi: gateOf(hiS) }
   const sponsorR = ev.sponsor.accepted ? { lo: sponsorExpected(ev) * 0.5, hi: sponsorExpected(ev) + (ev.sponsor.accepted.attendanceBonus?.amount ?? 0) + (ev.sponsor.accepted.qualityBonus?.amount ?? 0) } : { lo: 0, hi: 0 }
   const bt = broadcastTerms(state, ev, ev.broadcast.kind, 'public')
   const buys = ev.broadcast.kind === 'ppv' ? ppvBuysFor(state, ev, 'public') : 0
-  const ppvR = rng(buys, Math.min(0.6, err * 1.5))
+  const ppvR = rng(buys, Math.min(0.85, err * 2.2))
   const ppvRev = { lo: ppvR.lo * ev.broadcast.ppvPrice * E.ppv.promoterShare, hi: ppvR.hi * ev.broadcast.ppvPrice * E.ppv.promoterShare }
   const viewersR = rng(viewersFor(state, ev, 'public'), err * 1.3)
   const bR: Range = ev.broadcast.kind === 'streaming' ? { lo: viewersR.lo * E.tv.streaming.perViewer, hi: viewersR.hi * E.tv.streaming.perViewer } : ev.broadcast.kind === 'none' || ev.broadcast.kind === 'ppv' ? { lo: 0, hi: 0 } : { lo: bt.fee, hi: bt.fee }
   const revenue = addR(addR(addR(ticketR, sponsorR), bR), ev.broadcast.kind === 'ppv' ? ppvRev : { lo: 0, hi: 0 })
   const c = purseCommitments(state, ev)
-  const fixed = v.hireCost + productionCost(v) + bt.production + officialsCost(fights.length) + c.purses + ev.marketing.budget
+  const fixed = hireFor(state, v, ev.promotionId) + productionCost(v) + bt.production + officialsCost(fights.length) + c.purses + ev.marketing.budget
   const variable = { lo: attR.lo * E.costs.securityPerHead + ticketR.lo * E.costs.sanctionShare + c.bonusesExpected * 0.7, hi: attR.hi * E.costs.securityPerHead + ticketR.hi * E.costs.sanctionShare + c.bonusesMax }
   const costs: Range = { lo: fixed + variable.lo, hi: fixed + variable.hi }
   const profit: Range = { lo: revenue.lo - costs.hi, hi: revenue.hi - costs.lo }

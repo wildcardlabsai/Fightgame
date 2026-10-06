@@ -1,7 +1,6 @@
 import { formatDay, weekOfYear } from '../../engine/calendar'
 import { fightList } from '../../engine/fightViews'
 import { dashboardEvent } from '../../engine/eventViews'
-import { RiskChip } from './EventPage'
 import { opViews } from '../../engine/quotes'
 import {
   attentionItems, cashRunwayWeeks, financialHealth, player, unreadCount, weeklyBurn,
@@ -10,7 +9,7 @@ import { STAGE_LABEL } from '../../engine/systems/contracts'
 import { FOCUS_LABELS } from '../../engine/systems/development'
 import { useGame } from '../../store/gameStore'
 import { useViews } from '../../store/hooks'
-import { Avatar, Meter, Section } from '../components/Bits'
+import { Avatar, Meter, RiskChip, Section } from '../components/Bits'
 import { AreaChart } from '../components/Charts'
 import { RangeText } from '../components/Estimates'
 import { compactNumber, money } from '../format'

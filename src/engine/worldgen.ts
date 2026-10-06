@@ -9,9 +9,9 @@ import { pushHistory } from './roster'
 import { IdGen, type IdSource } from './ids'
 import { postMessage } from './messages'
 import { monogramFor } from './promotions'
-import { Rng } from './rng'
+import { keyedFloat, Rng } from './rng'
 import type {
-  AiStrategy, Contract, Day, Difficulty, Fighter, GameState, Id, Promotion, PromotionTier, Venue,
+  AiCompetence, AiStrategy, Contract, Day, Difficulty, Fighter, GameState, Id, Promotion, PromoFinance, PromotionTier, Venue,
 } from './types'
 import { GAME_STATE_VERSION } from './types'
 
@@ -102,8 +102,8 @@ export function createNewGame(opts: NewGameOptions, now = Date.now()): GameState
       regionalPopularity: Math.min(95, seed.reputation + 5),
       globalPopularity: seed.tier === 'Global' ? 85 : seed.tier === 'Major' ? 55 : seed.tier === 'National' ? 25 : 4,
       foundedDay: today - rng.int(2, 25) * 365,
-      ai: { strategy: seed.strategy, urgency: 0, cooldownUntil: today },
-      stats: emptyStats(today - rng.int(20, 60) * 7), accounting: { startCash: seed.cash, revenue: 0, costs: 0, overhead: 0, bailouts: 0 },
+      ai: { strategy: seed.strategy, urgency: 0, cooldownUntil: today, ...aiTraits(opts.seed, seed.name, seed.tier, seed.strategy, opts.difficulty), fin: freshFinance(today) },
+      stats: emptyStats(today - rng.int(20, 60) * 7), accounting: { startCash: seed.cash, revenue: 0, costs: 0, overhead: 0, bailouts: 0, distributions: 0 },
     }
     for (let i = 0; i < seed.rosterSize; i++) {
       const quality = rng.clampedNormal(seed.quality, 0.14, 0.08, 0.98)
@@ -193,8 +193,26 @@ export function createNewGame(opts: NewGameOptions, now = Date.now()): GameState
 }
 
 /** Who the player already knows about on day one, and the coach's read of the starting roster. */
+export function freshFinance(day: number): PromoFinance {
+  return { state: 'established', since: day, recent: [], bailoutDays: [], collapsing: false, distressWeeks: 0, snap: 0, quarters: [] }
+}
+
+const COMPETENCE_ORDER: AiCompetence[] = ['poor', 'average', 'strong', 'elite']
+const RISK_BASE: Record<AiStrategy, number> = { money: 0.75, traditional: 0.45, regional: 0.35, prospectFactory: 0.25 }
+
+/** Deterministic (keyed) competence and risk appetite: bigger promotions skew better; harder difficulties skew rivals better. */
+export function aiTraits(seed: string, name: string, tier: PromotionTier, strategy: AiStrategy, difficulty: Difficulty): { competence: AiCompetence; risk: number } {
+  const u = keyedFloat(seed, 'aicomp', name)
+  const tierBonus = { Startup: -0.1, Regional: 0, National: 0.08, Major: 0.12, Global: 0.15 }[tier]
+  const diff = difficulty === 'brutal' ? 0.1 : difficulty === 'forgiving' ? -0.1 : 0
+  const x = u + tierBonus + diff
+  const competence = COMPETENCE_ORDER[x < 0.3 ? 0 : x < 0.62 ? 1 : x < 0.88 ? 2 : 3]
+  const risk = Math.max(0.05, Math.min(0.95, RISK_BASE[strategy] + (keyedFloat(seed, 'airisk', name) - 0.5) * 0.3))
+  return { competence, risk }
+}
+
 export function emptyStats(day: number): Promotion['stats'] {
-  return { events: 0, attendance: 0, bestAttendance: 0, profit: 0, lastEventDay: day, bestGate: 0 }
+  return { events: 0, attendance: 0, bestAttendance: 0, profit: 0, lastEventDay: day, bestGate: 0, form: 50 }
 }
 
 export function initKnowledge(state: GameState): void {

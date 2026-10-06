@@ -1,9 +1,9 @@
 import { useMemo, useState } from 'react'
 import { formatDay } from '../../engine/calendar'
-import { eventView, venueFits, type CardSlot, type EventView, type Risk } from '../../engine/eventViews'
+import { eventView, venueFits, type CardSlot, type EventView } from '../../engine/eventViews'
 import type { BroadcastKind, MarketingLevel, PromoStrategy } from '../../engine/types'
 import { useGame } from '../../store/gameStore'
-import { Meter, Section } from '../components/Bits'
+import { Meter, RiskChip, Section } from '../components/Bits'
 import { AreaChart } from '../components/Charts'
 import { Modal, Stepper } from '../components/Overlay'
 import { money } from '../format'
@@ -11,11 +11,6 @@ import { FightPage } from './FightPage'
 
 const rng = (r: { lo: number; hi: number }, f: (n: number) => string = (n) => money(n)) => (Math.round(r.lo) === Math.round(r.hi) ? f(r.lo) : `${f(r.lo)} to ${f(r.hi)}`)
 const num = (n: number) => Math.round(n).toLocaleString('en-GB')
-
-export function RiskChip({ risk }: { risk: Risk }) {
-  const t = { safe: ['SAFE', 'good'], watch: ['WATCH', 'gold'], highRisk: ['HIGH RISK', 'red'] }[risk]
-  return <span className={`chip ${t[1]}`} title="Based on the forecast range for this show's profit">{t[0]}</span>
-}
 
 const LEVELS: { k: MarketingLevel; n: string; d: string }[] = [
   { k: 'none', n: 'None', d: '£0 — word of mouth only' },

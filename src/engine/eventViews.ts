@@ -11,7 +11,7 @@ import { resultHeadline } from './fight/narrative'
 import { fightInvolvesPlayer } from './fights'
 import { totalCosts, totalRevenue } from './eventFinance'
 import {
-  broadcastTerms, cardFights, cardQuality, fightAppeal, forecastEvent, inventory, qualityLabel, ppvRefPrice, eventInterest,
+  broadcastTerms, hireFor, cardFights, cardQuality, fightAppeal, forecastEvent, inventory, qualityLabel, ppvRefPrice, eventInterest,
   type Forecast,
 } from './events/demand'
 import { cardProblems, eventAcceptsFight, isSaturday, playerOpenEvents, venueBookedOn } from './events/events'
@@ -43,7 +43,7 @@ export function venueView(state: GameState, v: Venue, from = state.today): Venue
     if (isSaturday(state, day) && !venueBookedOn(state, v.id, day)) free.push(day)
   }
   return {
-    id: v.id, name: v.name, city: v.city, country: v.country, capacity: v.capacity, hireCost: v.hireCost, tier: v.tier, tierLabel: TIER_LABEL[v.tier],
+    id: v.id, name: v.name, city: v.city, country: v.country, capacity: v.capacity, hireCost: hireFor(state, v, state.playerPromotionId), tier: v.tier, tierLabel: TIER_LABEL[v.tier],
     prestige: v.prestige, production: v.production, market: v.market, minFights: v.minFights, maxFights: v.maxFights,
     productionCost: Math.round(E.costs.productionByLevel[v.production - 1] + E.costs.productionPerSeat * v.capacity), freeDates: free, bookedBy,
   }
@@ -236,7 +236,7 @@ export function venueFits(state: GameState, eventId: Id): VenueFit[] {
     const f = forecastEvent(state, alt)
     const mid = (f.fill.lo + f.fill.hi) / 2
     return {
-      venueId: v.id, name: v.name, city: v.city, tierLabel: TIER_LABEL[v.tier], capacity: v.capacity, hireCost: v.hireCost, fill: f.fill, profit: f.profit,
+      venueId: v.id, name: v.name, city: v.city, tierLabel: TIER_LABEL[v.tier], capacity: v.capacity, hireCost: hireFor(state, v, state.playerPromotionId), fill: f.fill, profit: f.profit,
       verdict: mid > 0.97 ? 'too small' : mid < 0.5 ? 'too big' : f.profit.hi < 0 ? 'loses money' : 'good fit', free: !venueBookedOn(state, v.id, ev.day, ev.id),
     }
   })

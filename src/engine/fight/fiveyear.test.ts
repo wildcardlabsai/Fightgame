@@ -10,10 +10,16 @@ describe('five-year world simulation (player passive)', () => {
     const t0 = performance.now()
     const startAges = new Map(Object.values(s.fighters).map((f) => [f.id, { sp: f.attributes.speed, st: f.attributes.stamina, iq: f.attributes.ringIQ, ch: f.attributes.chin, pw: f.attributes.power, age: fighterAge(f, s.today) }]))
     let maxSave = 0
-    for (let w = 1; w <= 52 * 5; w++) { s = advanceOneWeek(s); if (w % 52 === 0) maxSave = Math.max(maxSave, JSON.stringify(s).length) }
+    // Fights are pruned from state by the retention policy, so completed bouts are collected as they happen.
+    const collected = new Map<string, (typeof s.fights)[string]>()
+    for (let w = 1; w <= 52 * 5; w++) {
+      s = advanceOneWeek(s)
+      for (const f of Object.values(s.fights)) if (f.status === 'postFight' && f.result && !collected.has(f.id)) collected.set(f.id, structuredClone({ ...f, result: { ...f.result, rounds: undefined } }))
+      if (w % 52 === 0) maxSave = Math.max(maxSave, JSON.stringify(s).length)
+    }
     const ms = (performance.now() - t0) / (52 * 5)
 
-    const all = Object.values(s.fights).filter((f) => f.status === 'postFight' && f.result)
+    const all = [...collected.values()]
     const methods: Record<string, number> = {}
     for (const f of all) methods[f.result!.method] = (methods[f.result!.method] ?? 0) + 1
     const n = all.length

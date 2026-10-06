@@ -26,8 +26,12 @@ describe('eight-year world simulation (player passive)', () => {
           if (p.isPlayer) continue
           const n = rosterOf(s, p.id).length
           expect(n).toBeLessThanOrEqual(B.market.rosterCap[p.tier])
-          expect(n).toBeGreaterThanOrEqual(Math.floor(B.ai.rosterTarget[p.tier] * 0.5))
-          expect(Number.isFinite(p.cash) && p.cash >= 0).toBe(true)
+          // Phase 4.5: a rival in financial distress deliberately sheds fighters (see systems/aiFinance.ts), so the "stocked" floor
+          // applies to every rival that is not struggling, critical or insolvent. Negative cash is only possible while distressed.
+          const distressed = ['struggling', 'critical', 'insolvent'].includes(p.ai!.fin.state)
+          if (!distressed) expect(n).toBeGreaterThanOrEqual(Math.floor(B.ai.rosterTarget[p.tier] * 0.5))
+          expect(Number.isFinite(p.cash)).toBe(true)
+          if (p.cash < 0) expect(distressed).toBe(true)
         }
       }
     }

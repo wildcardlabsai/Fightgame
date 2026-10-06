@@ -61,3 +61,9 @@ export function PromoLogo({ p, size = 40 }: { p: Pick<Promotion, 'logo'>; size?:
 export function Stars({ n, max = 5 }: { n: number; max?: number }) {
   return <span className="gold" aria-label={`${n} of ${max}`}>{'★'.repeat(n)}<span style={{ color: 'var(--faint)' }}>{'★'.repeat(max - n)}</span></span>
 }
+
+export function RiskChip({ risk }: { risk: 'safe' | 'watch' | 'highRisk' }) {
+  const t = { safe: ['SAFE', 'good'], watch: ['WATCH', 'gold'], highRisk: ['HIGH RISK', 'red'] }[risk]
+  return <span className={`chip ${t[1]}`} title="Based on the forecast range for this show's profit">{t[0]}</span>
+}
+

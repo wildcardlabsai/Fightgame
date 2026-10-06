@@ -11,7 +11,7 @@ import { aiFit } from './systems/aiMarket'
 import { cashRunwayWeeks, playerRoster, freeAgents, rosterOf, player } from './selectors'
 import { advanceOneWeek } from './tick'
 import { viewsOf } from './view'
-import type { Fighter, GameState, Offer } from './types'
+import { GAME_STATE_VERSION, type Fighter, type GameState, type Offer } from './types'
 import { createNewGame, type NewGameOptions } from './worldgen'
 import { releaseCost } from './roster'
 import { processContracts } from './systems/contracts'
@@ -580,7 +580,7 @@ describe('persistence of knowledge, contracts and negotiations', () => {
       c.warned12 = false; c.warned4 = false
     }
     const migrated = migrate(JSON.parse(JSON.stringify(v1)))!
-    expect(migrated.version).toBe(4)
+    expect(migrated.version).toBe(GAME_STATE_VERSION)
     expect(migrated.scouts.length).toBe(1)
     expect(Object.keys(migrated.knowledge).length).toBeGreaterThan(50)
     expect(Object.values(migrated.fighters).every((f) => !f.bio.includes('easiest fighter in the gym'))).toBe(true)

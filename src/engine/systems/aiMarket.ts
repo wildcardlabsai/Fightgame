@@ -8,6 +8,7 @@
  * contracts, release surplus/declining fighters, and bid against each other and against the player.
  */
 import { BALANCE as B } from '../balance'
+import { behaviour } from './aiFinance'
 import { regionOf } from '../../data/nations'
 import { weeksBetween } from '../calendar'
 import { fighterAge, fighterName } from '../fighters'
@@ -56,30 +57,6 @@ function aiContract(state: GameState, ids: IdSource, f: Fighter, promo: Promotio
   return c
 }
 
-/**
- * Weekly overheads for rivals. Their income now comes only from the events they promote (same engine as yours);
- * here they pay retainers and a tier-scaled overhead. An owner top-up keeps a promotion alive if it runs dry
- * and is recorded in `accounting.bailouts`, so rival books always reconcile.
- */
-export function aiFinances(state: GameState): void {
-  const retainers: Record<string, number> = {}
-  for (const c of Object.values(state.contracts)) retainers[c.promotionId] = (retainers[c.promotionId] ?? 0) + c.weeklyRetainer
-  const X = B.events.ai
-  for (const p of Object.values(state.promotions)) {
-    if (p.isPlayer || !p.accounting) continue
-    const cost = (retainers[p.id] ?? 0)
-    const over = X.overheadPerWeek[p.tier]
-    p.cash -= cost + over
-    p.accounting.costs += cost
-    p.accounting.overhead += over
-    if (p.cash < X.bailoutFloor[p.tier]) {
-      const top = X.bailoutAmount[p.tier]
-      p.cash += top
-      p.accounting.bailouts += top
-    }
-  }
-}
-
 /** Rivals decide, a couple of months out, whether to keep fighters whose contracts are ending. */
 export function aiRenewals(state: GameState, rng: Rng, ids: IdSource): void {
   for (const c of Object.values(state.contracts)) {
@@ -89,7 +66,7 @@ export function aiRenewals(state: GameState, rng: Rng, ids: IdSource): void {
     const f = state.fighters[c.fighterId]
     c.aiReviewed = true
     const { fit, eligible } = aiFit(state, promo, f)
-    const keep = (eligible || fit > B.ai.targetRating[promo.tier]) && rng.chance(B.ai.renewChance)
+    const keep = (eligible || fit > B.ai.targetRating[promo.tier]) && rng.chance(B.ai.renewChance * (behaviour(promo).signing ? 1 : 0.35))
     if (!keep) continue
     const next = aiContract(state, ids, f, promo, 'renewal')
     archiveContract(state, c, 'renewed')
@@ -137,7 +114,7 @@ export function aiSigning(state: GameState, rng: Rng, ids: IdSource): void {
 
   for (const promo of promos) {
     const ai = promo.ai!
-    if (state.today < ai.cooldownUntil || rosterFull(state, promo.id)) continue
+    if (state.today < ai.cooldownUntil || rosterFull(state, promo.id) || !behaviour(promo).signing || ai.fin.collapsing) continue
     const count = Object.values(state.contracts).filter((c) => c.promotionId === promo.id).length
     const needs = count < B.ai.rosterTarget[promo.tier]
     const p = needs ? (ai.urgency > 0 ? B.ai.urgentSignChance : B.ai.signChance) : 0.04

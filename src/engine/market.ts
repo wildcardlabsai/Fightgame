@@ -48,7 +48,7 @@ export function baseMoney(mv: number): BaseMoney {
   const x = mv / 100
   return {
     retainer: round(m.retainer.min + Math.pow(x, m.retainer.exp) * m.retainer.span, 10),
-    purse: round(m.purse.min + Math.pow(x, m.purse.exp) * m.purse.span, 100),
+    purse: round(Math.max(m.purse.min, m.purse.a * Math.exp(m.purse.b * x)), 100),
   }
 }
 
@@ -103,6 +103,7 @@ export function askTerms(state: GameState, f: Fighter, promo: Promotion, kind: '
   if (kind === 'renewal' && f.personality === 'Loyal') mult *= 0.96
   if (f.personality === 'Volatile') mult *= 1 + keyedNormal(state.seed, 'mood', f.id, Math.floor(state.today / 28)) * 0.05
   mult *= 1 + keyedNormal(state.seed, 'agent', f.id) * 0.04 // every agent is a bit different
+  if (promo.isPlayer) mult *= B.difficulty[state.settings.difficulty].fighterAsk
 
   const years = preferredYears(f, age)
   const fpy = preferredFightsPerYear(f)
@@ -188,7 +189,7 @@ export function visibilityOf(f: Fighter, today: number): number {
 
 /** What a rival promotion *thinks* of a fighter: truth plus noise that shrinks with promotion tier. */
 export function appraise(state: GameState, promo: Promotion, f: Fighter): { rating: number; potential: number } {
-  const sd = B.ai.appraisalSd[promo.tier]
+  const sd = B.ai.appraisalSd[promo.tier] * B.events.ai.competence[promo.ai?.competence ?? 'average'].appraisal
   const quarter = Math.floor(state.today / 91)
   const rating = rawRating(f)
   return {

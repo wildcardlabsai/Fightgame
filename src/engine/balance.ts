@@ -55,7 +55,8 @@ export const BALANCE = {
     homeRegionVisibility: 12,
     /** Weekly ask for a fighter of market value 0–100: min + (mv/100)^exp * span. */
     retainer: { min: 70, span: 4_800, exp: 2.2 },
-    purse: { min: 1_500, span: 135_000, exp: 3.0 },
+    /** Per-fight base purse = max(min, a·e^(b·value/100)). Exponential: journeymen earn hundreds, headliners earn a real slice of the gate (docs/ECONOMY.md). */
+    purse: { min: 1_500, a: 290, b: 10 },
     signingBonusOfPurse: 0.3,
     winBonusOfPurse: 0.1,
     /** Width of the public "expectation band" shown while browsing. */
@@ -130,12 +131,19 @@ export const BALANCE = {
     signChance: 0.55,
     urgentSignChance: 0.9,
     /** Max weekly purse a promotion of this tier will agree to. */
-    maxPurse: { Startup: 15_000, Regional: 25_000, National: 70_000, Major: 160_000, Global: 400_000 } as Record<PromotionTier, number>,
+    maxPurse: { Startup: 12_000, Regional: 40_000, National: 150_000, Major: 600_000, Global: 3_000_000 } as Record<PromotionTier, number>,
     renewChance: 0.7,
     releaseChance: 0.04,
     targetRating: { Startup: 35, Regional: 44, National: 54, Major: 64, Global: 72 } as Record<PromotionTier, number>,
     rosterTarget: { Startup: 8, Regional: 18, National: 24, Major: 28, Global: 30 } as Record<PromotionTier, number>,
   },
+
+  /** Difficulty is about the world, not just money: who pays what, how well you can see, how good the rivals are. */
+  difficulty: {
+    forgiving: { sponsor: 1.15, venueCost: 0.9, fighterAsk: 0.92, forecastError: 0.85, demandNoise: 0.85 },
+    standard: { sponsor: 1, venueCost: 1, fighterAsk: 1, forecastError: 1, demandNoise: 1 },
+    brutal: { sponsor: 0.85, venueCost: 1.15, fighterAsk: 1.1, forecastError: 1.25, demandNoise: 1.2 },
+  } as Record<'forgiving' | 'standard' | 'brutal', { sponsor: number; venueCost: number; fighterAsk: number; forecastError: number; demandNoise: number }>,
 
   condition: {
     /** Display bands for own-roster condition (0–100). */
@@ -203,6 +211,8 @@ export const BALANCE = {
     pruneYears: 3,
     ai: { perPromoPerWeek: 0.6, rosterPerAttempt: 8, maxOpenShare: 0.4, minWeeksNotice: 6, maxWeeksNotice: 14, journeymanPurseFactor: 0.5, freeAgentChance: 0.22 },
     recentListSize: 12,
+    /** Bouts kept for fighters the player has no relationship with. */
+    untrackedRecent: 6,
     reputationK: 1.0,
   },
 
@@ -218,8 +228,8 @@ export const BALANCE = {
     cancelEarlyWeeks: 8,
     seatSplit: { ga: 0.78, premium: 0.17, vip: 0.05 },
     /** Demand: attendance at reference price = demandScale * (interest/10)^demandExp (before multipliers). */
-    demandScale: 90,
-    demandExp: 2.1,
+    demandScale: 65,
+    demandExp: 2.3,
     priceShape: 3,
     priceRefBase: 20,
     priceRefPerInterest: 0.48,
@@ -228,7 +238,7 @@ export const BALANCE = {
     premiumShare: 0.22,
     vipShare: 0.06,
     /** Weights for event interest (0–100). */
-    interestWeights: { main: 0.5, coMain: 0.16, depth: 0.14, promo: 0.12, importance: 0.08 },
+    interestWeights: { main: 0.55, coMain: 0.15, depth: 0.12, promo: 0.12, importance: 0.06 },
     marketing: {
       /** Default budgets (£). */
       budgets: { none: 0, low: 500, standard: 2_000, heavy: 5_000, major: 10_000 },
@@ -243,12 +253,16 @@ export const BALANCE = {
       scalePerSeat: 1.6,
       maxDemandBoost: 0.85,
     },
-    ppv: { scale: 0.8, exp: 2.5, ref: 55, priceRef: 17, priceShape: 2.5, promoterShare: 0.55, min: 0 },
+    /** PPV buys ∝ national reach × (main-event appeal / ref)^exp: a real star sells enormously more than a good fighter. Price ref = priceBase + priceInterest·interest. */
+    /** Live-gate demand lost to people watching at home, by broadcast option. */
+    cannibal: { none: 1, localTv: 0.99, nationalTv: 0.97, streaming: 0.95, ppv: 0.9 } as Record<string, number>,
+    ppv: { scale: 0.34, campaignFloor: 0.35, campaignScale: 25_000, campaignPerFan: 0.015, exp: 4.0, ref: 55, priceBase: 14, priceInterest: 0.5, priceShape: 2.5, promoterShare: 0.55, min: 0 },
     tv: {
       local: { base: 1_500, perInterest: 160, minRep: 0, minQuality: 0, production: 3_000 },
       national: { base: 8_000, perInterest: 900, minRep: 30, minQuality: 42, production: 18_000 },
       streaming: { perViewer: 2.2, production: 8_000, minRep: 10 },
-      ppvProduction: 25_000,
+      /** PPV is a full television production: a base plus a bill that grows with the size of the show. */
+      ppvProduction: { base: 40_000, perInterestSq: 45 },
     },
     sponsor: { baseFactor: 0.045, maxOffers: 3 },
     costs: {
@@ -257,16 +271,38 @@ export const BALANCE = {
       sanctionShare: 0.1, officialsBase: 1_200, officialsPerFight: 650, securityPerHead: 1.1, medicalPerFight: 300,
     },
     /** Forecast uncertainty shown to the player (± share). Narrows with experience. */
-    forecastError: { start: 0.3, floor: 0.14, perEvent: 0.012 },
-    /** Hidden actual-demand noise (sd of the log-factor). */
-    actualNoise: 0.2,
+    forecastError: { start: 0.42, floor: 0.24, perEvent: 0.012 },
+    /** Hidden actual-demand noise (sd of the log-factor), by source. All keyed, so reproducible per game seed. */
+    noise: { priceSens: 0.1, event: 0.16, local: 0.09, marketing: 0.22, economy: 0.07, weather: { local: 0.02, regional: 0.03, national: 0.04, arena: 0.05, stadium: 0.09 } as Record<string, number>, ppv: 0.65, competitionMax: 0.22 },
+    /** Seasonal demand by month (Jan..Dec): holidays and summer are soft, autumn/winter strong. */
+    season: [1.0, 1.0, 1.01, 1.02, 1.0, 0.97, 0.94, 0.95, 1.0, 1.04, 1.06, 0.98],
     maxCancelledKept: 20,
     archiveAfterWeeks: 26,
     ai: {
       cadenceWeeks: { Startup: 6, Regional: 4, National: 4, Major: 3, Global: 3 } as Record<PromotionTier, number>,
       leadWeeks: [8, 14] as [number, number],
       marketingShare: { traditional: 0.04, prospectFactory: 0.02, money: 0.07, regional: 0.03 } as Record<string, number>,
-      overheadPerWeek: { Startup: 0, Regional: 3_000, National: 18_000, Major: 70_000, Global: 220_000 } as Record<PromotionTier, number>,
+      overheadPerWeek: { Startup: 0, Regional: 2_000, National: 8_000, Major: 35_000, Global: 90_000 } as Record<PromotionTier, number>,
+      /** Competence: how well a promoter reads demand (forecast sd, optimism bias), prices, and controls marketing spend. */
+      competence: {
+        poor: { sd: 0.38, bias: 0.2, priceSkill: 0, mktRange: [0.3, 2.4], overreach: 0.3, appraisal: 1.4 },
+        average: { sd: 0.24, bias: 0.06, priceSkill: 0.6, mktRange: [0.6, 1.5], overreach: 0.1, appraisal: 1 },
+        strong: { sd: 0.15, bias: 0, priceSkill: 0.9, mktRange: [0.8, 1.25], overreach: 0.03, appraisal: 0.8 },
+        elite: { sd: 0.09, bias: -0.02, priceSkill: 1, mktRange: [0.9, 1.1], overreach: 0, appraisal: 0.6 },
+      } as Record<string, { sd: number; bias: number; priceSkill: number; mktRange: [number, number]; overreach: number; appraisal: number }>,
+      /** Life-cycle behaviour by financial state: how much of its normal ambition a promotion keeps. */
+      behaviour: {
+        growing: { cadence: 0.85, tierDrop: 0, marketing: 1.15, signing: true, release: 0 },
+        healthy: { cadence: 1, tierDrop: 0, marketing: 1, signing: true, release: 0 },
+        established: { cadence: 1, tierDrop: 0, marketing: 1, signing: true, release: 0 },
+        struggling: { cadence: 1.4, tierDrop: 1, marketing: 0.6, signing: false, release: 1 },
+        critical: { cadence: 2.2, tierDrop: 2, marketing: 0.25, signing: false, release: 2 },
+        insolvent: { cadence: 99, tierDrop: 3, marketing: 0, signing: false, release: 3 },
+      } as Record<string, { cadence: number; tierDrop: number; marketing: number; signing: boolean; release: number }>,
+      /** Cash above which owners take a distribution (half the excess, quarterly). */
+      distributionCeiling: { Startup: 400_000, Regional: 2_500_000, National: 10_000_000, Major: 40_000_000, Global: 120_000_000 } as Record<PromotionTier, number>,
+      /** Owner rescue: limited, costly, and not available forever. */
+      rescue: { maxPer5Years: 2, repHit: 8, shedShare: 0.4, collapseReleaseShare: 0.15 },
       /** Owner top-up when an AI promotion runs dry (keeps the world alive; counted in reports). */
       bailoutFloor: { Startup: 0, Regional: 150_000, National: 700_000, Major: 3_000_000, Global: 12_000_000 } as Record<PromotionTier, number>,
       bailoutAmount: { Startup: 0, Regional: 400_000, National: 2_000_000, Major: 8_000_000, Global: 30_000_000 } as Record<PromotionTier, number>,

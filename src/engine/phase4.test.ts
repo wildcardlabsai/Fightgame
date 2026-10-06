@@ -3,7 +3,7 @@ import { IDBFactory } from 'fake-indexeddb'
 import { describe, expect, it } from 'vitest'
 import { approach, createEvent, addFightToEvent, cancelEvent, chooseSponsor, moveFightOnCard, offerFight, putEventOnSale, quickSimEvent, removeFightFromEvent, runEventToEnd, runNextEventFight, setCardSlot, setEventBroadcast, setEventMarketing, setEventPrices } from './commands'
 import { totalCosts, totalRevenue } from './eventFinance'
-import { cardFights, demandFor, forecastEvent } from './events/demand'
+import { cardFights, demandFor, forecastError, forecastEvent } from './events/demand'
 import { eventList, eventView, venueFits, venueViews, dashboardEvent } from './eventViews'
 import { canEventTransition, eventTransition } from './events/lifecycle'
 import { processEvents, venueBookedOn, finishEvent } from './events/events'
@@ -11,6 +11,9 @@ import { suggestedFightOffer } from './fightNegotiation'
 import { opponentCandidates } from './matchmaking'
 import { idbBackend, memoryBackend, SaveVault, gzip, gunzip } from './persistence'
 import { deserialiseGame, memoryStorage as memorySave, serialiseGame } from './save'
+import { BALANCE as B } from './balance'
+import { hireFor } from './events/demand'
+import { GAME_STATE_VERSION } from './types'
 import { financialHealth, player, playerRoster, weeklyBurn } from './selectors'
 import { advanceOneWeek } from './tick'
 import { post } from './ledger'
@@ -99,8 +102,10 @@ describe('creating events', () => {
     expect(r.ok, r.error).toBe(true)
     const ev = r.state.events[r.eventId!]
     expect(ev.status).toBe('venueBooked')
-    expect(player(r.state).cash).toBe(player(s).cash - v.hireCost)
-    expect(ev.finance.costs.venue).toBe(v.hireCost)
+    const hire = hireFor(s, v, s.playerPromotionId)
+    expect(hire).toBe(Math.round(v.hireCost * B.difficulty[s.settings.difficulty].venueCost))
+    expect(player(r.state).cash).toBe(player(s).cash - hire)
+    expect(ev.finance.costs.venue).toBe(hire)
     ledgerBalanced(r.state)
   })
   it('rejects bad dates, short notice, double-booking and too many open shows', () => {
@@ -196,12 +201,14 @@ describe('tickets, marketing and demand (public model)', () => {
   })
   it('gives forecast ranges that widen the less experienced the promoter is', () => {
     const f = forecastEvent(s, ev)
-    expect(f.attendance.hi).toBeGreaterThan(f.attendance.lo)
+    expect(f.attendance.hi).toBeGreaterThanOrEqual(f.attendance.lo) // a 450-seat hall with strong demand pins both ends at capacity
     expect(f.profit.hi).toBeGreaterThan(f.profit.lo)
     const veteran = structuredClone(s)
     veteran.promotions[veteran.playerPromotionId].stats.events = 40
     const f2 = forecastEvent(veteran, veteran.events[eventId])
-    expect(f2.attendance.hi - f2.attendance.lo).toBeLessThan(f.attendance.hi - f.attendance.lo)
+    expect(f2.profit.hi - f2.profit.lo).toBeLessThanOrEqual(f.profit.hi - f.profit.lo)
+    expect(forecastError(veteran, veteran.playerPromotionId)).toBeLessThan(forecastError(s, s.playerPromotionId)) // experience narrows the band
+    expect(forecastError(veteran, veteran.playerPromotionId)).toBeGreaterThanOrEqual(0.2) // …but never to certainty
   })
   it('compares venues by fit', () => {
     const fits = venueFits(s, eventId)
@@ -434,7 +441,7 @@ describe('AI promotions run events', () => {
   it('keep honest books: cash reconciles to revenue, costs, overhead and bailouts', () => {
     for (const p of Object.values(s.promotions).filter((x) => !x.isPlayer)) {
       const a = p.accounting!
-      expect(p.cash).toBe(Math.round(a.startCash + a.revenue - a.costs - a.overhead + a.bailouts) )
+      expect(p.cash).toBe(Math.round(a.startCash + a.revenue - a.costs - a.overhead + a.bailouts - a.distributions))
     }
   })
   it('only let each fighter appear once per card, and keep cards within venue limits', () => {
@@ -491,7 +498,7 @@ describe('persistence vault', () => {
 })
 
 describe('save migration', () => {
-  it('upgrades a v3 save to v4 with venues, events and AI accounting', () => {
+  it('upgrades a v3 save to the current version with venues, events, AI accounting and AI traits', () => {
     const s = fresh('mig') as unknown as Record<string, unknown> & GameState
     const v3 = JSON.parse(JSON.stringify(s)) as Record<string, any>
     v3.version = 3
@@ -499,7 +506,8 @@ describe('save migration', () => {
     for (const v of Object.values<any>(v3.venues)) { delete v.tier; delete v.production; delete v.market; delete v.minFights; delete v.maxFights }
     for (const p of Object.values<any>(v3.promotions)) { delete p.stats; delete p.accounting }
     const m = deserialiseGame(JSON.stringify(v3))!
-    expect(m.version).toBe(4)
+    expect(m.version).toBe(GAME_STATE_VERSION)
+    expect(Object.values(m.promotions).filter((p) => p.ai).every((p) => !!p.ai!.competence && !!p.ai!.fin)).toBe(true)
     expect(m.events).toEqual({})
     expect(Object.values(m.venues).every((v) => v.tier && v.minFights > 0)).toBe(true)
     expect(Object.values(m.promotions).every((p) => !!p.stats)).toBe(true)
