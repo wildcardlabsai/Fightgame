@@ -11,14 +11,14 @@ import { emitGameEvent } from './gameEvents'
 
 export type ScreenId =
   | 'dashboard' | 'fighters' | 'fighter' | 'calendar' | 'inbox' | 'finances' | 'promotions'
-  | 'venues' | 'settings' | 'scouting' | 'contracts' | 'negotiation' | 'matchmaking' | 'fights' | 'fight' | 'deal' | 'events' | 'event'
+  | 'venues' | 'settings' | 'scouting' | 'contracts' | 'negotiation' | 'matchmaking' | 'fights' | 'fight' | 'deal' | 'events' | 'event' | 'sponsors'
 
 export interface Route {
   screen: ScreenId
   param?: string
 }
 
-const SCREENS: ScreenId[] = ['dashboard', 'fighters', 'fighter', 'calendar', 'inbox', 'finances', 'promotions', 'venues', 'settings', 'scouting', 'contracts', 'negotiation', 'matchmaking', 'fights', 'fight', 'deal', 'events', 'event']
+const SCREENS: ScreenId[] = ['dashboard', 'fighters', 'fighter', 'calendar', 'inbox', 'finances', 'promotions', 'venues', 'settings', 'scouting', 'contracts', 'negotiation', 'matchmaking', 'fights', 'fight', 'deal', 'events', 'event', 'sponsors']
 
 export function parseHash(hash: string): Route {
   const [, screen, param, extra] = hash.replace(/^#/, '').split('/')
@@ -64,6 +64,11 @@ interface GameStore {
   release: (fighterId: Id) => boolean
   /** Opens a link produced by the engine (fighter profile or screen). */
   openLink: (link: { kind: 'fighter'; id: string } | { kind: 'screen'; screen: string } | { kind: 'fight'; id: string } | { kind: 'event'; id: string }) => void
+  // ---- Phase 4.6c: promotion tier and standing sponsors ----
+  ackTier: () => void
+  sponsorAccept: (offerId: Id, years: 1 | 2 | 3) => boolean
+  sponsorNegotiate: (offerId: Id) => void
+  sponsorDecline: (offerId: Id) => void
   // ---- Phase 4: events ----
   createEvent: (spec: { name: string; day: number; venueId: Id }) => string | null
   /** Run a named event command against the current game; toasts the engine's error or a short success note. */
@@ -232,6 +237,27 @@ export const useGame = create<GameStore>((set, get) => {
       }
     },
 
+    ackTier: () => update((g) => commands.ackTierNotice(g)),
+    sponsorAccept: (offerId, years) => {
+      const g = get().game
+      if (!g) return false
+      const r = commands.acceptSponsorOffer(g, offerId, years)
+      if (!r.ok) { get().notify(r.error ?? 'Could not sign that sponsor.', 'bad'); return false }
+      set({ game: r.state })
+      get().notify('Sponsor signed. The partnership starts today.', 'good', false)
+      emitGameEvent({ type: 'contract.accepted' })
+      return true
+    },
+    sponsorNegotiate: (offerId) => {
+      const g = get().game
+      if (!g) return
+      const r = commands.negotiateSponsorOffer(g, offerId)
+      if (!r.ok) { get().notify(r.error ?? 'Could not negotiate.', 'bad'); return }
+      set({ game: r.state })
+      const m = r.state.inbox[0]
+      if (m) get().notify(m.subject, 'neutral')
+    },
+    sponsorDecline: (offerId) => update((g) => { const r = commands.declineSponsorOffer(g, offerId); return r.ok ? r.state : g }),
     setTraining: (fighterId, focus) => update((g) => commands.setTrainingFocus(g, fighterId, focus)),
 
     orderReport: (fighterId, depth, scoutId) => {

@@ -7,6 +7,8 @@ import { addFightToEvent, approach, withdraw, chooseSponsor, createEvent, makeOf
 import { suggestedFightOffer } from '../fightNegotiation'
 import { opponentCandidates } from '../matchmaking'
 import { suggestedOffer } from '../negotiation'
+import { acceptSponsorOffer, activeDeals } from '../sponsors'
+import { tierAllowsVenue } from '../tiers'
 import { playerRoster, weeklyBurn } from '../selectors'
 import type { BroadcastKind, FightOffer, GameState, Id, MarketingLevel, PromoStrategy, Venue, VenueTier } from '../types'
 import { viewsOf } from '../view'
@@ -59,8 +61,8 @@ export const STRATEGIES: Record<string, Strategy> = {
 }
 
 export interface ShowRecord { day: number; tier: VenueTier; venue: string; fights: number; attendance: number; capacity: number; revenue: number; costs: number; profit: number; ppv: number; broadcast: BroadcastKind; sponsor: number; tickets: number; purses: number; forecastAtt?: [number, number]; priceGa: number; mainAppeal: number }
-export interface StrategyLog { shows: ShowRecord[]; planned: number; noCard: number; noVenue: number; signed: number; seen: Set<string>; /** The high-risk strategy has placed its bet (reached its stake). */ bet: boolean; betDay: number | null }
-export const newLog = (): StrategyLog => ({ shows: [], planned: 0, noCard: 0, noVenue: 0, signed: 0, seen: new Set(), bet: false, betDay: null })
+export interface StrategyLog { shows: ShowRecord[]; planned: number; noCard: number; noVenue: number; signed: number; seen: Set<string>; /** Planning is skipped until this day after a failed attempt (keeps the audit fast; a human would also wait). */ coolUntil: number; /** The high-risk strategy has placed its bet (reached its stake). */ bet: boolean; betDay: number | null }
+export const newLog = (): StrategyLog => ({ shows: [], planned: 0, noCard: 0, noVenue: 0, signed: 0, seen: new Set(), coolUntil: 0, bet: false, betDay: null })
 
 function agreeOne(s: GameState, myId: Id, taken: Set<Id>, st: Strategy): { state: GameState; fightId: Id } | null {
   let cands = opponentCandidates(s, myId, {}).filter((x) => x.canApproach && !taken.has(x.view.id))
@@ -131,6 +133,20 @@ function manageRoster(input: GameState, st: Strategy, log: StrategyLog): GameSta
   return s
 }
 
+/** Sponsors: every scripted promoter takes the best offer it is allowed (longer deals for the bolder strategies). */
+function handleSponsors(input: GameState, st: Strategy): GameState {
+  let s = input
+  const offers = s.sponsors?.offers ?? []
+  if (offers.length === 0) return s
+  const years: 1 | 2 | 3 = st.name.startsWith('A') || st.name.startsWith('E') ? 2 : 3
+  for (const o of offers.slice().sort((a, b) => b.annual - a.annual)) {
+    if (activeDeals(s).length >= 5) break
+    const r = acceptSponsorOffer(s, o.id, years)
+    if (r.ok) s = r.state
+  }
+  return s
+}
+
 function recordShows(s: GameState, log: StrategyLog): void {
   for (const ev of Object.values(s.events)) {
     if (ev.promotionId !== s.playerPromotionId || !ev.result || log.seen.has(ev.id)) continue
@@ -152,12 +168,13 @@ export function playWeek(input: GameState, st0: Strategy, log: StrategyLog): Gam
   if (st0.investAbove > 0 && !log.bet && input.promotions[input.playerPromotionId].cash >= st0.investAbove) { log.bet = true; log.betDay = input.today }
   const st: Strategy = st0.investAbove > 0 && !log.bet ? { ...STRATEGIES.conservative, name: st0.name } : st0
   let s = manageRoster(input, st, log)
+  s = handleSponsors(s, st)
   for (const ev of Object.values(s.events)) if (ev.promotionId === s.playerPromotionId && (ev.status === 'fightWeek' || ev.status === 'live')) s = runEventToEnd(s, ev.id).state
   recordShows(s, log)
   const open = playerOpenEvents(s)
   const cashNow = s.promotions[s.playerPromotionId].cash
   const cash = Math.max(0, cashNow - weeklyBurn(s).total * 8)
-  if (open.length >= st.maxConcurrent || cashNow < st.cashFloor) return s
+  if (open.length >= st.maxConcurrent || cashNow < st.cashFloor || s.today < log.coolUntil) return s
   const roster = playerRoster(s).filter((f) => !f.activeFightId && !f.injury && f.status === 'active')
   if (roster.length < Math.min(st.cardMin, 3)) return s
 
@@ -170,7 +187,7 @@ export function playWeek(input: GameState, st0: Strategy, log: StrategyLog): Gam
     const a = agreeOne(state, f.id, taken, st)
     if (a) { state = a.state; agreed.push(a.fightId) }
   }
-  if (agreed.length < st.cardMin) { log.noCard++; return s }
+  if (agreed.length < st.cardMin) { log.noCard++; log.coolUntil = s.today + 21; return s }
 
   const day = state.today + 5 + 7 * (st.lead - 1)
   const evaluate = (ids: Id[], relax: boolean) => {
@@ -178,7 +195,7 @@ export function playWeek(input: GameState, st0: Strategy, log: StrategyLog): Gam
     const out: { v: Venue; mid: number; cap: number; fill: number }[] = []
     for (const v of Object.values(state.venues)) {
       const maxTier = relax ? 'regional' : st.maxTier
-      if (TIERS.indexOf(v.tier) > TIERS.indexOf(maxTier) || v.minFights > ids.length || v.maxFights < ids.length || hireFor(state, v, state.playerPromotionId) > cash * (relax ? 0.15 : st.hireShare) || venueBookedOn(state, v.id, day)) continue
+      if (!tierAllowsVenue(state.promotions[state.playerPromotionId].tier, v.tier) || TIERS.indexOf(v.tier) > TIERS.indexOf(maxTier) || v.minFights > ids.length || v.maxFights < ids.length || hireFor(state, v, state.playerPromotionId) > cash * (relax ? 0.15 : st.hireShare) || venueBookedOn(state, v.id, day)) continue
       const ev = draftEvent(state, state.promotions[state.playerPromotionId], fights, v, day)
       ev.kind = 'player'
       ev.prices = refPrices(eventInterest(state, ev))
@@ -207,7 +224,7 @@ export function playWeek(input: GameState, st0: Strategy, log: StrategyLog): Gam
     }
     if (best) break
   }
-  if (!best) { log.noVenue++; return s }
+  if (!best) { log.noVenue++; log.coolUntil = s.today + 14; return s }
   // Release the fights that did not make the card.
   for (const id of agreed.slice(best.n)) { const w = withdraw(state, id); if (w.ok) state = w.state }
   agreed.length = best.n

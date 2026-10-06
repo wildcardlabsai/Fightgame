@@ -4,6 +4,7 @@ import { lazy, Suspense } from 'react'
 import { useGame, type ScreenId } from '../store/gameStore'
 import { Icon } from './components/Icons'
 import { PromoLogo } from './components/Bits'
+import { TierUpNotice } from './components/TierUpNotice'
 import { money } from './format'
 const FightDealScreen = lazy(() => import('./screens/FightDealScreen').then((m) => ({ default: m.FightDealScreen })))
 const FightPage = lazy(() => import('./screens/FightPage').then((m) => ({ default: m.FightPage })))
@@ -22,6 +23,7 @@ const FightersScreen = lazy(() => import('./screens/FightersScreen').then((m) =>
 const InboxScreen = lazy(() => import('./screens/InboxScreen').then((m) => ({ default: m.InboxScreen })))
 const PromotionsScreen = lazy(() => import('./screens/PromotionsScreen').then((m) => ({ default: m.PromotionsScreen })))
 const SettingsScreen = lazy(() => import('./screens/SettingsScreen').then((m) => ({ default: m.SettingsScreen })))
+const SponsorsScreen = lazy(() => import('./screens/SponsorsScreen').then((m) => ({ default: m.SponsorsScreen })))
 const VenuesScreen = lazy(() => import('./screens/VenuesScreen').then((m) => ({ default: m.VenuesScreen })))
 
 interface NavDef { screen: ScreenId; label: string; icon: string }
@@ -39,11 +41,11 @@ const LIVE_NAV: NavDef[] = [
   { screen: 'finances', label: 'Finances', icon: 'finances' },
   { screen: 'promotions', label: 'Promotions', icon: 'promotions' },
   { screen: 'venues', label: 'Venues', icon: 'venues' },
+  { screen: 'sponsors', label: 'Sponsors', icon: 'sponsors' },
 ]
 
 /** Planned areas. Shown disabled and labelled with the phase that delivers them — never faked. */
 const LOCKED_NAV: { label: string; icon: string; phase: number }[] = [
-  { label: 'Sponsors', icon: 'sponsors', phase: 5 },
   { label: 'Rankings', icon: 'rankings', phase: 6 },
   { label: 'Titles', icon: 'titles', phase: 6 },
   { label: 'Media', icon: 'media', phase: 7 },
@@ -136,6 +138,7 @@ export function Shell() {
         </main>
       </div>
       {simulating && <div className="sim-flash" />}
+      <TierUpNotice />
     </div>
   )
 }
@@ -151,6 +154,7 @@ function Screen() {
     case 'finances': return <FinancesScreen />
     case 'promotions': return <PromotionsScreen />
     case 'venues': return <VenuesScreen />
+    case 'sponsors': return <SponsorsScreen />
     case 'settings': return <SettingsScreen />
     case 'scouting': return <ScoutingScreen />
     case 'contracts': return <ContractsScreen />

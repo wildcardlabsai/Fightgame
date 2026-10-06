@@ -14,6 +14,8 @@ import { FOCUS_LABELS } from '../../engine/systems/development'
 import { useGame } from '../../store/gameStore'
 import { useViews } from '../../store/hooks'
 import { AdvicePanel } from '../components/Advice'
+import { TierPanel } from '../components/TierPanel'
+import { sponsorView } from '../../engine/sponsors'
 import { Avatar, Meter, RiskChip, Section } from '../components/Bits'
 import { AreaChart } from '../components/Charts'
 import { RangeText } from '../components/Estimates'
@@ -53,6 +55,7 @@ export function Dashboard() {
   const sc = scenarioById(game.scenario?.id)
   const objectives = objectiveStatuses(game)
   const steps = firstSteps(game)
+  const spons = sponsorView(game)
   const stepsHidden = usePrefs((s) => s.firstStepsHidden)
   const hideSteps = usePrefs((s) => s.hideFirstSteps)
   const showSteps = !stepsHidden && steps.some((s) => !s.done)
@@ -82,6 +85,19 @@ export function Dashboard() {
           <button className="btn primary big" style={{ marginLeft: 'auto' }} onClick={() => navigate('fight', night.id)}>Go to the fight ▸</button>
         </div>
       )}
+
+      <div className="grid-2" style={{ marginTop: 18 }}>
+        <Section title="Promotion"><TierPanel /></Section>
+        <Section title="Sponsors" right={<button className="linkbtn" onClick={() => navigate('sponsors')}>Open</button>}>
+          {spons.deals.length === 0 && spons.offers.length === 0 ? <p className="empty">No standing sponsor yet. They approach as your promotion grows.</p> : (
+            <>
+              {spons.offers.length > 0 && <div className="attn info" style={{ cursor: 'pointer' }} onClick={() => navigate('sponsors')}><div><div className="t">{spons.offers[0].name} is interested</div><div className="d">{spons.offers.length > 1 ? `${spons.offers.length} offers waiting` : 'Offer waiting'} · {money(spons.offers[0].annual, false)} a year</div></div><button className="btn small go">Review</button></div>}
+              {spons.deals.map((d) => <div key={d.id} className="attn"><div><div className="t">{d.name}</div><div className="d">{money(d.annual, false)} a year · {d.eventsThisYear}/{d.minEvents} shows this year · {d.weeksLeft} weeks left</div></div></div>)}
+            </>
+          )}
+          <p className="dim" style={{ fontSize: 13, marginTop: 8 }}>{spons.slots.used} of {spons.slots.max} sponsor slots in use.</p>
+        </Section>
+      </div>
 
       {(sc || showSteps) && (
         <div className="grid-2" style={{ marginTop: 18 }}>

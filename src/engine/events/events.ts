@@ -13,6 +13,8 @@ import { stateIds } from '../ids'
 import { canAfford } from '../ledger'
 import { postMessage, postNews } from '../messages'
 import { keyedRng } from '../rng'
+import { sponsorsOnEvent } from '../sponsors'
+import { tierAllowsVenue, tierDef, tierNeededForVenue } from '../tiers'
 import { receive, spend, emptyFinance, totalCosts, totalRevenue } from '../eventFinance'
 import type {
   BoxingEvent, BroadcastKind, Fight, GameState, Id, MarketingLevel, PromoStrategy, SponsorOffer, TicketPrices, Venue,
@@ -74,6 +76,8 @@ export function createEvent(input: GameState, spec: CreateEventSpec): EvResult {
   if (weeks < E.minLeadWeeks) return bad(input, `Events need at least ${E.minLeadWeeks} weeks' notice.`)
   if (weeks > E.maxLeadWeeks) return bad(input, `You cannot book more than ${E.maxLeadWeeks} weeks ahead.`)
   if (venueBookedOn(input, v.id, spec.day)) return bad(input, 'That venue is already booked on that date.')
+  const ptier = input.promotions[input.playerPromotionId].tier
+  if (!tierAllowsVenue(ptier, v.tier)) return bad(input, `${v.name} is a ${v.tier} venue. It opens up once you are a ${tierDef(tierNeededForVenue(v.tier)).label} promotion.`)
   if (playerOpenEvents(input).length >= 3) return bad(input, 'You can only run three events at once.')
   if (!canAfford(input, hireFor(input, v, input.playerPromotionId))) return bad(input, `The venue hire (£${hireFor(input, v, input.playerPromotionId).toLocaleString('en-GB')}) is more than you have in the bank.`)
   if (playerOpenEvents(input).some((e) => Math.abs(e.day - spec.day) < 7)) return bad(input, 'Leave at least a week between your shows.')
@@ -545,6 +549,7 @@ export function finishEvent(state: GameState, ev: BoxingEvent): void {
   p.stats.events++
   p.stats.attendance += attendance
   p.stats.profit += profit
+  p.stats.revenue = (p.stats.revenue ?? 0) + revenue
   p.stats.lastEventDay = ev.day
   p.stats.bestAttendance = Math.max(prevBest, attendance)
   const gate = ev.finance.revenue.tickets
@@ -574,6 +579,7 @@ export function finishEvent(state: GameState, ev: BoxingEvent): void {
   }
   ev.settled = true
   eventTransition(ev, 'settled')
+  if (mine) sponsorsOnEvent(state, ev)
   eventNews(state, ev, p.name, attendance, ppvBuys, profit, fill)
   if (mine) {
     postMessage(state, {

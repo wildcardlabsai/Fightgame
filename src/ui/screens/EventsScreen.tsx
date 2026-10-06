@@ -37,12 +37,12 @@ function NewEventModal({ onClose }: { onClose: () => void }) {
   const navigate = useGame((s) => s.navigate)
   const venues = useMemo(() => venueViews(game), [game])
   const [name, setName] = useState('')
-  const [venueId, setVenueId] = useState(venues[1]?.id ?? venues[0].id)
+  const [venueId, setVenueId] = useState((venues.find((x) => !x.locked && x.tier === 'regional') ?? venues.find((x) => !x.locked) ?? venues[0]).id)
   const v = venues.find((x) => x.id === venueId)!
   const [day, setDay] = useState<number | null>(null)
   const date = day !== null && v.freeDates.includes(day) ? day : v.freeDates[0]
   const cash = game.promotions[game.playerPromotionId].cash
-  const ok = name.trim().length >= 3 && date !== undefined
+  const ok = name.trim().length >= 3 && date !== undefined && !v.locked
   const bookingAdvice = useMemo(() => { const a = venueBookingAdvice(game, v.hireCost, v.productionCost, v.name); return a ? [a] : [] }, [game, v])
   return (
     <Modal title="Plan a new show" onClose={onClose} wide>
@@ -50,7 +50,7 @@ function NewEventModal({ onClose }: { onClose: () => void }) {
         <input className="input" value={name} placeholder="e.g. Fight Night at the Rialto" onChange={(e) => setName(e.target.value)} maxLength={48} aria-label="Event name" /></label>
       <label className="field"><span className="caps">Venue</span>
         <select className="select" value={venueId} onChange={(e) => setVenueId(e.target.value)} aria-label="Venue">
-          {venues.map((x) => <option key={x.id} value={x.id}>{x.name}, {x.city} — {x.capacity.toLocaleString('en-GB')} seats · hire {money(x.hireCost, false)}</option>)}
+          {venues.map((x) => <option key={x.id} value={x.id} disabled={!!x.locked}>{x.name}, {x.city} — {x.capacity.toLocaleString('en-GB')} seats · hire {money(x.hireCost, false)}{x.locked ? ` · 🔒 ${x.locked}` : ''}</option>)}
         </select></label>
       <div className="kpis" style={{ margin: '10px 0' }}>
         <div className="kpi"><div className="caps">Tier</div><div className="v num" style={{ fontSize: 22 }}>{v.tierLabel}</div></div>

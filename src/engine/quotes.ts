@@ -3,6 +3,7 @@
  * from public information, the player's own state or the player's own offers — never from the
  * fighter's hidden ask, personality or true attributes.
  */
+import { playerRosterCap } from './tiers'
 import { BALANCE as B } from './balance'
 import { weeksBetween } from './calendar'
 import { getCounterFor, offerSummaryOf, suggestedOffer } from './negotiation'
@@ -128,7 +129,7 @@ export function negotiationInfo(state: GameState, fighterId: Id, kind: Negotiati
     status: neg ? neg.status : 'none',
     patience: neg ? (neg.patience >= 3 ? 'Patient' : neg.patience >= 2 ? 'Cooling' : 'Running out of patience') : null,
     suggested: suggestedOffer(state, f, kind), canNegotiate: blockedReason === null,
-    blockedReason, rosterCount, rosterCap: B.market.rosterCap[p.tier], cash: p.cash,
+    blockedReason, rosterCount, rosterCap: playerRosterCap(p.tier), cash: p.cash,
   }
 }
 

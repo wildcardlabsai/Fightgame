@@ -124,6 +124,7 @@ describe('creating events', () => {
   it('refuses a venue you cannot afford', () => {
     const poor = structuredClone(s)
     poor.promotions[poor.playerPromotionId].cash = 100
+    poor.promotions[poor.playerPromotionId].tier = 'National' // arenas are only open to National promotions (Phase 4.6c)
     const big = venueByName(poor, 'Meridian Arena')
     expect(createEvent(poor, { name: 'Dreams', day: satIn(poor, 8), venueId: big.id }).error).toMatch(/bank/)
   })
@@ -377,6 +378,7 @@ describe('PPV and sponsors', () => {
   it('books PPV money through the ledger only at settlement, and sponsors only with a draw', () => {
     let { s, eventId } = buildShow('ppv', 3)
     s.promotions[s.playerPromotionId].reputation = 45
+    s.promotions[s.playerPromotionId].tier = 'National' // PPV is a National-tier product (Phase 4.6c)
     for (const id of s.events[eventId].card) for (const side of [s.fights[id].sideA, s.fights[id].sideB]) { s.fighters[side.fighterId].popularity = 70; s.fighters[side.fighterId].reputation = 60 }
     const ppv = setEventBroadcast(s, eventId, 'ppv', 19.99)
     expect(ppv.ok, ppv.error).toBe(true)

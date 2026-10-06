@@ -7,6 +7,8 @@
  *   'actual'  — the same model times hidden factors (true marketability of the headliners, a keyed noise draw).
  *               This is what actually happens, so forecasts can miss.
  */
+import { marketingBonus } from '../sponsorCatalog'
+import { tierAllowsBroadcast } from '../tiers'
 import { regionOf } from '../../data/nations'
 import { dayToDate } from '../calendar'
 import { BALANCE as B } from '../balance'
@@ -194,7 +196,7 @@ export function demandFor(state: GameState, ev: BoxingEvent, mode: 'public' | 'a
   const aw = awarenessFor(state, ev, spend)
   const starBoost = 1 + strat.star * (q.main / 100)
   const mktLuck = mode === 'actual' ? Math.exp(keyedNormal(state.seed, 'evmkt', ev.id) * E.noise.marketing * B.difficulty[state.settings.difficulty].demandNoise) : 1
-  const mkt = 1 + E.marketing.maxDemandBoost * (aw / 100) * starBoost * mktLuck
+  const mkt = 1 + E.marketing.maxDemandBoost * (aw / 100) * starBoost * mktLuck * (1 + marketingBonus(state, p.isPlayer))
   const base = E.demandScale * Math.pow(Math.max(interest, 1) / 10, E.demandExp)
   const hidden = mode === 'actual' ? hiddenFactor(state, ev) : 1
   const reach = base * promoF * mkt * hidden
@@ -266,16 +268,19 @@ export function broadcastTerms(state: GameState, ev: BoxingEvent, kind: Broadcas
     case 'none': return { fee: 0, production: 0, available: true, reason: null }
     case 'localTv': return { fee: Math.round(tv.local.base + tv.local.perInterest * interest), production: tv.local.production, available: true, reason: null }
     case 'nationalTv': {
-      const ok = p.reputation >= tv.national.minRep && q.score >= tv.national.minQuality
-      return { fee: ok ? Math.round(tv.national.base + tv.national.perInterest * interest) : 0, production: tv.national.production, available: ok, reason: ok ? null : p.reputation < tv.national.minRep ? `Needs promotion reputation ${tv.national.minRep}+` : `Needs a stronger card (quality ${tv.national.minQuality}+)` }
+      const tierOk = !p.isPlayer || tierAllowsBroadcast(p.tier, 'nationalTv')
+      const ok = tierOk && p.reputation >= tv.national.minRep && q.score >= tv.national.minQuality
+      return { fee: ok ? Math.round(tv.national.base + tv.national.perInterest * interest) : 0, production: tv.national.production, available: ok, reason: ok ? null : !tierOk ? 'National TV opens up at Regional promotion level' : p.reputation < tv.national.minRep ? `Needs promotion reputation ${tv.national.minRep}+` : `Needs a stronger card (quality ${tv.national.minQuality}+)` }
     }
     case 'streaming': {
-      const ok = p.reputation >= tv.streaming.minRep
-      return { fee: Math.round(viewersFor(state, ev, mode) * tv.streaming.perViewer), production: tv.streaming.production, available: ok, reason: ok ? null : `Needs promotion reputation ${tv.streaming.minRep}+` }
+      const tierOk = !p.isPlayer || tierAllowsBroadcast(p.tier, 'streaming')
+      const ok = tierOk && p.reputation >= tv.streaming.minRep
+      return { fee: Math.round(viewersFor(state, ev, mode) * tv.streaming.perViewer), production: tv.streaming.production, available: ok, reason: ok ? null : !tierOk ? 'Streaming deals open up at Regional promotion level' : `Needs promotion reputation ${tv.streaming.minRep}+` }
     }
     case 'ppv': {
-      const ok = p.reputation >= 12 && q.main >= 25
-      return { fee: 0, production: Math.round(tv.ppvProduction.base + tv.ppvProduction.perInterestSq * interest * interest), available: ok, reason: ok ? null : 'PPV needs a recognisable main event and a known promotion' }
+      const tierOk = !p.isPlayer || tierAllowsBroadcast(p.tier, 'ppv')
+      const ok = tierOk && p.reputation >= 12 && q.main >= 25
+      return { fee: 0, production: Math.round(tv.ppvProduction.base + tv.ppvProduction.perInterestSq * interest * interest), available: ok, reason: ok ? null : !tierOk ? 'Pay-per-view opens up at National promotion level' : 'PPV needs a recognisable main event and a known promotion' }
     }
   }
 }

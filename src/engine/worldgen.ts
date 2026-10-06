@@ -6,6 +6,8 @@ import { applyReport, discover } from './knowledge'
 import { baseMoney, marketValue } from './market'
 import { createStartingScout } from './scouting'
 import { pushHistory } from './roster'
+import { freshTierProgress } from './tierProgress'
+import { freshSponsorBook } from './sponsors'
 import { scenarioById, type ScenarioId } from './scenarios'
 import { IdGen, type IdSource } from './ids'
 import { postMessage } from './messages'
@@ -210,6 +212,8 @@ export function createNewGame(opts: NewGameOptions, now = Date.now()): GameState
     news: [],
     settings: { difficulty: opts.difficulty, autosave: true },
     ...(sc ? { scenario: { id: sc.id, done: {} } } : {}),
+    promotionProgress: freshTierProgress(),
+    sponsors: freshSponsorBook(),
   }
   state.idCounter = ids.counter
   state.scouts.push(createStartingScout(state, opts.homeCountry))
@@ -238,7 +242,7 @@ export function aiTraits(seed: string, name: string, tier: PromotionTier, strate
 }
 
 export function emptyStats(day: number): Promotion['stats'] {
-  return { events: 0, attendance: 0, bestAttendance: 0, profit: 0, lastEventDay: day, bestGate: 0, form: 50 }
+  return { events: 0, attendance: 0, bestAttendance: 0, profit: 0, lastEventDay: day, bestGate: 0, form: 50, revenue: 0 }
 }
 
 export function initKnowledge(state: GameState): void {

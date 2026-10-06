@@ -12,13 +12,17 @@ import { cardFights, forecastEvent, type Forecast } from './events/demand'
 import { BALANCE } from './balance'
 import type { Assessment } from './matchmaking'
 import { offerSummaryOf } from './negotiation'
+import { hireFor, productionCost } from './events/demand'
+import { sponsorView } from './sponsors'
+import { tierAllowsVenue, TIER_DEFS, tierDef, playerRosterCap } from './tiers'
+import { tierStatus } from './tierProgress'
 import { cashRunwayWeeks, eventCommitments, financialHealth, player, weeklyBurn } from './selectors'
 import type { BoxingEvent, GameState, Id, Offer } from './types'
 import { viewsOf, type FighterView } from './view'
 
 export type AdviceLevel = 'info' | 'tip' | 'caution' | 'highRisk' | 'critical'
 export type AdvisorMode = 'full' | 'standard' | 'minimal' | 'off'
-export type AdviceTopic = 'finance' | 'event' | 'contract' | 'fighter' | 'matchmaking' | 'roster' | 'growth'
+export type AdviceTopic = 'finance' | 'event' | 'contract' | 'fighter' | 'matchmaking' | 'roster' | 'growth' | 'sponsor'
 
 export const LEVEL_RANK: Record<AdviceLevel, number> = { info: 0, tip: 1, caution: 2, highRisk: 3, critical: 4 }
 export const LEVEL_LABEL: Record<AdviceLevel, string> = { info: 'INFO', tip: 'TIP', caution: 'CAUTION', highRisk: 'HIGH RISK', critical: 'CRITICAL' }
@@ -38,7 +42,7 @@ export interface Advice {
   actionLabel?: string
 }
 
-const TOPIC_RANK: Record<AdviceTopic, number> = { finance: 0, event: 1, contract: 2, roster: 3, fighter: 4, matchmaking: 5, growth: 6 }
+const TOPIC_RANK: Record<AdviceTopic, number> = { finance: 0, event: 1, contract: 2, roster: 3, sponsor: 4, fighter: 5, matchmaking: 6, growth: 7 }
 
 /** Most serious first; finance before other topics at the same level; id keeps the order deterministic. */
 export function sortAdvice(list: Advice[]): Advice[] {
@@ -335,12 +339,53 @@ export function financeAdvisor(state: GameState): FinanceAdvisor {
 
 // ---------------------------------------------------------------- Dashboard
 
+// ------------------------------------------------------- Sponsors & promotion tier
+
+const VENUE_RANK = ['local', 'regional', 'national', 'arena', 'stadium']
+
+export function sponsorAdvice(state: GameState): Advice[] {
+  const sv = sponsorView(state)
+  const out: Advice[] = []
+  const link = { kind: 'screen' as const, screen: 'sponsors' }
+  const cash = player(state).cash
+  for (const d of sv.deals) {
+    const id = `sponsor-${d.id}`
+    if (d.weeksLeft <= 17) out.push({ id: `${id}-ending`, level: 'info', topic: 'sponsor', title: 'Sponsor contract', body: `Your sponsor contract with ${d.name} has ${d.weeksLeft <= 4 ? 'under a month' : `${Math.round(d.weeksLeft / 4.33)} months`} remaining.`, link, actionLabel: 'Sponsors' })
+    if (d.needed > 0 && d.weeksLeftInYear > 0) {
+      const pace = d.needed * 5 > d.weeksLeftInYear
+      // What it costs to put on the cheapest qualifying show you may book (hire + staging; purses come on top).
+      const cheapest = Math.min(...Object.values(state.venues).filter((v) => VENUE_RANK.indexOf(v.tier) >= VENUE_RANK.indexOf(d.minVenue) && tierAllowsVenue(player(state).tier, v.tier)).map((v) => hireFor(state, v, state.playerPromotionId) + productionCost(v)), Infinity)
+      if (pace && Number.isFinite(cheapest) && cash < d.needed * cheapest * 1.5) out.push({ id: `${id}-cash`, level: 'highRisk', topic: 'sponsor', title: 'Sponsor commitments', body: `${d.name} needs ${d.needed} more qualifying show${d.needed === 1 ? '' : 's'} this contract year. Your current cash position may make that hard to deliver.`, link, actionLabel: 'Sponsors' })
+      else if (pace) out.push({ id: `${id}-pace`, level: 'caution', topic: 'sponsor', title: 'Sponsor expectations', body: `${d.name} requires ${d.minEvents} qualifying events this contract year and you have promoted ${d.eventsThisYear}.`, link, actionLabel: 'Sponsors' })
+    }
+  }
+  if (sv.offers.length > 0) out.push({ id: 'sponsor-offers', level: 'tip', topic: 'sponsor', title: 'Sponsor interest', body: `${sv.offers[0].name}${sv.offers.length > 1 ? ` and ${sv.offers.length - 1} other${sv.offers.length > 2 ? 's' : ''}` : ''} would like to partner with your promotion.`, link, actionLabel: 'Sponsors' })
+  else if (sv.slots.used < sv.slots.max && sv.catalog.some((c) => c.status === 'available') && sv.deals.every((d) => d.annual < Math.max(...sv.catalog.filter((c) => c.status === 'available').map((c) => c.annual)) * 0.6)) {
+    out.push({ id: 'sponsor-growth', level: 'tip', topic: 'growth', title: 'Bigger sponsors may be interested', body: 'Your promotion has grown enough that higher-tier sponsors may now be interested. Offers tend to arrive within a few weeks.', link, actionLabel: 'Sponsors' })
+  }
+  return out
+}
+
+export function tierAdvice(state: GameState): Advice[] {
+  const out: Advice[] = []
+  const st = tierStatus(state)
+  const roster = Object.values(state.contracts).filter((c) => c.promotionId === state.playerPromotionId).length
+  const cap = playerRosterCap(st.current)
+  if (roster >= cap) out.push({ id: 'tier-roster-cap', level: 'info', topic: 'growth', title: 'Roster full', body: `You have ${roster} of ${cap} roster places${st.next ? `. A ${tierDef(st.next).label} promotion has room for ${TIER_DEFS[st.next].rosterCap}` : ''}.`, link: { kind: 'screen', screen: 'dashboard' } })
+  if (st.next) {
+    const missing = st.rows.filter((r) => !r.met)
+    if (missing.length === 1) out.push({ id: 'tier-close', level: 'tip', topic: 'growth', title: `One step from ${tierDef(st.next).label}`, body: `Your promotion only needs: ${missing[0].label.toLowerCase()}.`, link: { kind: 'screen', screen: 'dashboard' } })
+  }
+  return out
+}
+
 /** Everything the advisor has to say right now (unfiltered, sorted). The desk picks from this. */
 export function allAdvice(state: GameState): Advice[] {
   const out: Advice[] = []
   for (const ev of Object.values(state.events)) out.push(...eventAdvice(state, ev.id))
   const fin = financeAdvisor(state)
   if (fin.level !== 'info' && !out.some((a) => a.topic === 'event' && LEVEL_RANK[a.level] >= LEVEL_RANK[fin.level])) out.push({ id: 'finance-standing', level: fin.level, topic: 'finance', title: fin.standing, body: fin.reasons[0], link: { kind: 'screen', screen: 'finances' }, actionLabel: 'Open finances' })
+  out.push(...sponsorAdvice(state), ...tierAdvice(state))
   // Roster items are rolled up so the desk never lists a fighter at a time.
   const roster = rosterAdvice(state)
   const expiring = roster.filter((a) => a.id.endsWith('-expiry') && a.level === 'caution')

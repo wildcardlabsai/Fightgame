@@ -2,6 +2,8 @@ import { useState } from 'react'
 import { formatDay } from '../../engine/calendar'
 import { WEEKLY_COSTS } from '../../engine/config'
 import { allAdvice, financeAdvisor } from '../../engine/advisor'
+import { tierLabel } from '../../engine/tiers'
+import { sponsorView } from '../../engine/sponsors'
 import { cashRunwayWeeks, financialHealth, overheadCost, player, weeklyBurn } from '../../engine/selectors'
 import { commitments, recentSpend } from '../../engine/quotes'
 import type { GameState, TransactionCategory } from '../../engine/types'
@@ -13,12 +15,13 @@ import { money } from '../format'
 
 const CAT_LABEL: Record<TransactionCategory, string> = {
   startingFunds: 'Capital', office: 'Office', staff: 'Staff', gym: 'Gym', insurance: 'Insurance', retainers: 'Retainers',
-  purses: 'Purses', tickets: 'Tickets', sponsorship: 'Sponsorship', ppv: 'PPV', venue: 'Venue', scouting: 'Scouting', signingBonus: 'Signing bonus', releaseFees: 'Release fee', other: 'Other',
+  purses: 'Purses', tickets: 'Tickets', sponsorship: 'Event sponsorship', standingSponsor: 'Standing sponsors', ppv: 'PPV', venue: 'Venue', scouting: 'Scouting', signingBonus: 'Signing bonus', releaseFees: 'Release fee', other: 'Other',
   broadcast: 'Broadcast', marketing: 'Marketing', officials: 'Officials & medical', production: 'Production', security: 'Security',
 }
 
 export function FinancesScreen() {
   const game = useGame((s) => s.game)!
+  const navigate = useGame((s) => s.navigate)
   const p = player(game)
   const burn = weeklyBurn(game)
   const runway = cashRunwayWeeks(game)
@@ -33,6 +36,10 @@ export function FinancesScreen() {
   const com = commitments(game)
   const health = financialHealth(game)
   const fin = financeAdvisor(game)
+  const sv = sponsorView(game)
+  const yearAgo = game.today - 365
+  const sumCat = (c: TransactionCategory) => game.ledger.filter((t) => t.category === c && t.day > yearAgo).reduce((n, t) => n + t.amount, 0)
+  const eventSpons = sumCat('sponsorship'), standingSpons = sumCat('standingSponsor')
   const finKey = fin.standing.split(' ')[0]
   const spent = game.ledger.filter((t) => t.amount < 0).reduce((s, t) => s - t.amount, 0)
 
@@ -48,6 +55,7 @@ export function FinancesScreen() {
         <div className="kpi"><div className="caps">Cash in bank</div><div className={`v num ${p.cash < 0 ? 'red' : ''}`}>{money(p.cash, false)}</div></div>
         <div className="kpi"><div className="caps">Weekly burn</div><div className="v num">{money(burn.total, false)}</div></div>
         <div className="kpi"><div className="caps">Runway</div><div className={`v num ${runway !== null && runway < 8 ? 'red' : ''}`}>{runway === null ? '—' : `${runway} wks`}</div></div>
+        <div className="kpi"><div className="caps">Promotion tier</div><div className="v num">{tierLabel(p.tier)}</div></div>
         <div className="kpi"><div className="caps">Spent since launch</div><div className="v num">{money(spent)}</div></div>
       </div>
 
@@ -56,6 +64,16 @@ export function FinancesScreen() {
           <ul style={{ margin: '0 0 0 18px', color: 'var(--text)' }}>{fin.reasons.map((r, i) => <li key={i}>{r}</li>)}</ul>
         </div>
         <AdvicePanel list={allAdvice(game).filter((a) => a.topic === 'event' || a.topic === 'contract')} cap={3} compact />
+      </Section>
+
+      <Section title="Sponsorship income" right={<button className="linkbtn" onClick={() => navigate('sponsors')}>Sponsors</button>}>
+        <dl>
+          <div className="kv"><dt>Event sponsorship (last 12 months)</dt><dd className="num good">+{money(eventSpons, false)}</dd></div>
+          <div className="kv"><dt>Standing sponsors (last 12 months)</dt><dd className="num good">+{money(standingSpons, false)}</dd></div>
+          <div className="kv"><dt>Standing sponsor run-rate</dt><dd className="num">{money(sv.annualRun, false)} a year across {sv.deals.length} deal{sv.deals.length === 1 ? '' : 's'}</dd></div>
+          <div className="kv"><dt>Sponsor commitments</dt><dd>{sv.deals.length === 0 ? 'None' : sv.deals.map((d) => `${d.name}: ${d.needed} more qualifying show${d.needed === 1 ? '' : 's'} this contract year`).join(' · ')}</dd></div>
+        </dl>
+        <p className="dim" style={{ fontSize: 13 }}>Standing sponsor money arrives as quarterly instalments and per-show payments, each a line in the ledger below.</p>
       </Section>
 
       <Section title="Financial health" right={<span className={`chip hp ${health.state}`}>{health.label}</span>}>

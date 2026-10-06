@@ -3,6 +3,8 @@ import { clamp, fighterRating, hiddenBase, PERSONALITY_LINES } from './fighters'
 import { keyedNormal } from './rng'
 import { createStartingScout } from './scouting'
 import { GAME_STATE_VERSION, type AiStrategy, type GameState } from './types'
+import { freshSponsorBook } from './sponsors'
+import { freshTierProgress, highestQualifyingTier } from './tierProgress'
 import { aiTraits, emptyStats, freshFinance, initKnowledge } from './worldgen'
 import { VENUE_SEEDS, venueFields } from '../data/venues'
 
@@ -113,6 +115,7 @@ export function migrate(data: unknown): GameState | null {
   if (s.version < 4) migrateV3toV4(s as never)
   if (s.version < 5) migrateV4toV5(s as never)
   if (s.version < 6) migrateV5toV6(s as never)
+  if (s.version < 7) migrateV6toV7(s as never)
   return s as GameState
 }
 
@@ -225,4 +228,22 @@ function migrateV4toV5(s: any): void {
 /** v5 → v6 (Phase 4.7): the optional `scenario` field. Older games simply have no scenario (a classic start). */
 function migrateV5toV6(s: any): void {
   s.version = 6
+}
+
+/**
+ * v6 → v7 (Phase 4.6c): promotion tiers and standing sponsors. Lifetime revenue is rebuilt from the events still on file,
+ * progression bookkeeping and the sponsor book start empty, and the player's tier is set to the highest one the promotion
+ * already qualifies for (older games could never advance), quietly — no tier-up fanfare for a save that is simply catching up.
+ */
+function migrateV6toV7(s: any): void {
+  for (const p of Object.values<any>(s.promotions)) {
+    if (p.stats && p.stats.revenue === undefined) {
+      p.stats.revenue = p.isPlayer ? Object.values<any>(s.events ?? {}).filter((e) => e.promotionId === p.id && e.result).reduce((n, e) => n + (e.result.revenue ?? 0), 0) : 0
+    }
+  }
+  s.promotionProgress = freshTierProgress()
+  s.sponsors = freshSponsorBook()
+  s.version = 7
+  const player = Object.values<any>(s.promotions).find((p) => p.isPlayer)
+  if (player) player.tier = highestQualifyingTier(s)
 }

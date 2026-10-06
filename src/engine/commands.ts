@@ -125,6 +125,8 @@ export const setEventMarketing = ev.setMarketing
 export const setEventBroadcast = ev.setBroadcast
 export const refreshEventSponsors = ev.refreshSponsors
 export const chooseSponsor = ev.acceptSponsor
+export { acceptSponsorOffer, declineSponsorOffer, negotiateSponsorOffer } from './sponsors'
+export { ackTierNotice } from './tierProgress'
 export const putEventOnSale = ev.putOnSale
 export const runNextEventFight = ev.runNextFight
 export const quickSimEvent = ev.quickSimRemaining

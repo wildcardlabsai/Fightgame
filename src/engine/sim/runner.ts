@@ -8,6 +8,7 @@ import { demandFor } from '../events/demand'
 import { deserialiseGame } from '../save'
 import { financialHealth, player } from '../selectors'
 import { advanceOneWeek } from '../tick'
+import type { ScenarioId } from '../scenarios'
 import type { Difficulty, GameState, VenueTier } from '../types'
 import { createNewGame } from '../worldgen'
 import { newLog, playWeek, STRATEGIES, type StrategyLog } from './strategies'
@@ -21,6 +22,7 @@ export interface YearRow {
   /** Career health: mean popularity/reputation of active fighters, share of prospects (≤23) who fought in the last year, mean age of the top-20 by reputation. */
   /** Player cash flow by ledger category this year. */
   flows: Record<string, number>
+  tier: string; sponsorDeals: number; tierHistory: { day: number; to: string }[]
   meanPop: number; meanRep: number; prospectFought: number; top20Age: number; top20Rep: number; vetShareTop20: number; fightsPerActive: number
 }
 
@@ -51,9 +53,9 @@ const parts = (s: GameState): Record<string, number> => {
   return out
 }
 
-export function runWorld(opts: { seed: string; years: number; strategy: string | null; difficulty?: Difficulty; sizeAt?: number[] }): RunResult {
+export function runWorld(opts: { seed: string; years: number; strategy: string | null; difficulty?: Difficulty; sizeAt?: number[]; scenario?: ScenarioId }): RunResult {
   const difficulty = opts.difficulty ?? 'standard'
-  let s = createNewGame({ seed: opts.seed, promotionName: 'Audit Promotions', promoterName: 'T', homeCountry: 'ENG', difficulty, logo: { monogram: 'A', color: '#fff', emblem: 'bolt' } })
+  let s = createNewGame({ seed: opts.seed, promotionName: 'Audit Promotions', promoterName: 'T', homeCountry: 'ENG', difficulty, logo: { monogram: 'A', color: '#fff', emblem: 'bolt' }, scenario: opts.scenario })
   const strat = opts.strategy ? STRATEGIES[opts.strategy] : null
   const log = newLog()
   const rows: YearRow[] = []
@@ -118,7 +120,7 @@ export function runWorld(opts: { seed: string; years: number; strategy: string |
       const rev = mine.reduce((n, e) => n + e.revenue, 0), prof = mine.reduce((n, e) => n + e.profit, 0), att = mine.reduce((n, e) => n + e.att, 0)
       const ai = Object.values(s.promotions).filter((x) => !x.isPlayer)
       rows.push({
-        flows,
+        flows, tier: p.tier, sponsorDeals: (s.sponsors?.deals ?? []).filter((d) => d.status === 'active').length, tierHistory: (s.promotionProgress?.history ?? []).map((h) => ({ day: h.day - s.startDay, to: h.to })),
         year: y, cash: p.cash, roster: Object.values(s.contracts).filter((c) => c.promotionId === p.id).length, reputation: p.reputation, fans: p.fanbase, shows: mine.length - lastShows,
         revenue: rev - lastRev, profit: prof - lastProfit, attendance: att - lastAtt, health: financialHealth(s).state, insolventWeeks, ms: yearAcc.ms / 52,
         fightsYear: yearAcc.fights, retiredYear: yearAcc.retired, newProsYear: yearAcc.newPros, avgAge: active.reduce((n, f) => n + fighterAge(f, s.today), 0) / Math.max(1, active.length),

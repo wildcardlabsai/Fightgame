@@ -3,6 +3,7 @@
  * prices, venue facts) and from results that have actually happened. Forecasts are ranges built by the same public
  * model the player could reason with; the hidden demand factor never appears here.
  */
+import { tierAllowsVenue, tierDef, tierNeededForVenue } from './tiers'
 import { weeksBetween } from './calendar'
 import { BALANCE as B } from './balance'
 import { fighterName } from './fighters'
@@ -28,6 +29,8 @@ export interface VenueView {
   /** Next Saturdays this venue is free. */
   freeDates: number[]
   bookedBy: { day: number; eventName: string; mine: boolean }[]
+  /** Why the player cannot book this venue yet (promotion tier), or null. */
+  locked: string | null
 }
 
 export const TIER_LABEL: Record<Venue['tier'], string> = { local: 'Local hall', regional: 'Regional venue', national: 'National venue', arena: 'Arena', stadium: 'Stadium' }
@@ -46,6 +49,7 @@ export function venueView(state: GameState, v: Venue, from = state.today): Venue
     id: v.id, name: v.name, city: v.city, country: v.country, capacity: v.capacity, hireCost: hireFor(state, v, state.playerPromotionId), tier: v.tier, tierLabel: TIER_LABEL[v.tier],
     prestige: v.prestige, production: v.production, market: v.market, minFights: v.minFights, maxFights: v.maxFights,
     productionCost: Math.round(E.costs.productionByLevel[v.production - 1] + E.costs.productionPerSeat * v.capacity), freeDates: free, bookedBy,
+    locked: tierAllowsVenue(state.promotions[state.playerPromotionId].tier, v.tier) ? null : `Opens at ${tierDef(tierNeededForVenue(v.tier)).label} promotion level`,
   }
 }
 

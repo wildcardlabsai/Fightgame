@@ -2,6 +2,7 @@
  * Roster operations shared by the player's commands and the AI: building contracts, archiving them,
  * and moving fighters between "contracted" and "free agent".
  */
+import { playerRosterCap } from './tiers'
 import { BALANCE as B } from './balance'
 import { weeksBetween } from './calendar'
 import { FEATURES } from './config'
@@ -51,7 +52,7 @@ export function activeContractCount(state: GameState, promotionId: Id): number {
 
 export function rosterFull(state: GameState, promotionId: Id): boolean {
   const promo = state.promotions[promotionId]
-  return activeContractCount(state, promotionId) >= B.market.rosterCap[promo.tier]
+  return activeContractCount(state, promotionId) >= (promo.isPlayer ? playerRosterCap(promo.tier) : B.market.rosterCap[promo.tier])
 }
 
 /** Mark a fighter as newly available and tell the player if it's someone they'd care about. */

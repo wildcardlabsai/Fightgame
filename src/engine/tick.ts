@@ -1,3 +1,5 @@
+import { processTier } from './tierProgress'
+import { processSponsors } from './sponsors'
 import { checkObjectives } from './scenarios'
 import { DAYS_PER_WEEK } from './calendar'
 import { stateIds } from './ids'
@@ -78,6 +80,8 @@ export function advanceOneWeek(input: GameState): GameState {
   aiSigning(state, rng, ids)
   aiFinances(state)
   processObligations(state)
+  processTier(state)
+  processSponsors(state)
   for (const o of checkObjectives(state)) {
     postMessage(state, { from: 'Board', category: 'system', priority: 'important', key: `objective-${o.id}`, cooldownWeeks: 9999, subject: 'Objective complete', body: `${o.label}. Well done — the board is impressed. Keep building.`, link: { kind: 'screen', screen: 'dashboard' } })
   }

@@ -47,7 +47,7 @@ function Row({ v, max, open, toggle }: { v: VenueView; max: number; open: boolea
     <>
       <tr className="row" tabIndex={0} onClick={toggle} onKeyDown={(e) => { if (e.key === 'Enter') toggle() }}>
         <td className="fighter-name">{v.name}<div className="fighter-sub">{v.city}, {v.country === 'KSA' ? 'Saudi Arabia' : (nation(v.country)?.name ?? v.country)}</div></td>
-        <td><span className="chip">{v.tierLabel}</span></td>
+        <td><span className="chip">{v.tierLabel}</span>{v.locked && <div className="fighter-sub warn" title={v.locked}>🔒 {v.locked}</div>}</td>
         <td><Stars n={v.prestige} /></td>
         <td><div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
           <span className="num" style={{ fontSize: 18, minWidth: 64 }}>{v.capacity.toLocaleString('en-GB')}</span>

@@ -437,6 +437,8 @@ export interface PromotionStats {
   bestGate: number
   /** Momentum: smoothed recent event rating (0–100). Reputation follows it, so one show cannot swing it wildly. */
   form: number
+  /** Lifetime event revenue (£). Used for promotion-tier requirements. */
+  revenue: number
 }
 
 /** AI books: lets us prove rival cash reconciles. */
@@ -456,7 +458,7 @@ export type FinancialHealth = 'healthy' | 'concern' | 'critical' | 'insolvent'
 
 export type TransactionCategory =
   | 'startingFunds' | 'office' | 'staff' | 'gym' | 'insurance' | 'retainers'
-  | 'purses' | 'tickets' | 'sponsorship' | 'ppv' | 'venue' | 'marketing' | 'production' | 'broadcast' | 'officials' | 'security' | 'scouting' | 'signingBonus' | 'releaseFees' | 'other'
+  | 'purses' | 'tickets' | 'sponsorship' | 'standingSponsor' | 'ppv' | 'venue' | 'marketing' | 'production' | 'broadcast' | 'officials' | 'security' | 'scouting' | 'signingBonus' | 'releaseFees' | 'other'
 
 export interface Transaction {
   id: Id
@@ -759,7 +761,11 @@ export interface GameState {
 
   settings: GameSettings
   /** Phase 4.7: the career the player chose (undefined for classic starts and pre-4.7 saves). */
+  /** Phase 4.6c: promotion-tier progression bookkeeping (see tierProgress.ts). */
+  promotionProgress?: import('./tierProgress').TierProgress
+  /** Phase 4.6c: standing sponsors (see sponsors.ts). */
+  sponsors?: import('./sponsors').SponsorBook
   scenario?: { id: 'groundUp' | 'regional' | 'national' | 'champion'; done: Record<string, number> }
 }
 
-export const GAME_STATE_VERSION = 6
+export const GAME_STATE_VERSION = 7

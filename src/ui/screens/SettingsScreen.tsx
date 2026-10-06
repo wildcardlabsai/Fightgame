@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react'
 import { ADVISOR_MODES, type AdvisorMode } from '../../engine/advisor'
 import { formatDay } from '../../engine/calendar'
 import { scenarioById } from '../../engine/scenarios'
+import { tierLabel } from '../../engine/tiers'
 import { useGame } from '../../store/gameStore'
 import { useViews } from '../../store/hooks'
 import { usePrefs } from '../../store/prefs'
@@ -104,6 +105,7 @@ export function SettingsScreen() {
             <dl>
               <div className="kv"><dt>World seed</dt><dd className="num" style={{ fontSize: 18 }}>{game.seed}</dd></div>
               <div className="kv"><dt>Difficulty</dt><dd style={{ textTransform: 'capitalize' }}>{game.settings.difficulty}</dd></div>
+              <div className="kv"><dt>Promotion tier</dt><dd>{tierLabel(game.promotions[game.playerPromotionId].tier)}</dd></div>
               {game.scenario && <div className="kv"><dt>Career</dt><dd>{scenarioById(game.scenario.id)?.name}</dd></div>}
               <div className="kv"><dt>Game date</dt><dd>{formatDay(game.today)}</dd></div>
               <div className="kv"><dt>Fighters you know of</dt><dd>{views.known().length}</dd></div>

@@ -4,6 +4,7 @@
  * for young prospects. Asking terms add the fighter's personality and relationship with the
  * promotion — which is exactly what the player has to discover through negotiation.
  */
+import { playerRosterCap } from './tiers'
 import { BALANCE as B } from './balance'
 import { ageOn, weeksBetween } from './calendar'
 import { clamp, fighterAge, publicFacts, visibility, type PublicFacts } from './fighters'
@@ -154,7 +155,8 @@ export function availabilityFor(state: GameState, f: Fighter): Availability {
   }
   const p = player(state)
   const roster = Object.values(state.contracts).filter((c) => c.promotionId === p.id).length
-  if (roster >= B.market.rosterCap[p.tier]) return { signable: false, reason: `Roster full (${roster}/${B.market.rosterCap[p.tier]})` }
+  const cap = playerRosterCap(p.tier)
+  if (roster >= cap) return { signable: false, reason: `Roster full (${roster}/${cap}) — grow your promotion to raise the cap` }
   if ((f.promoRelations[p.id] ?? 0) <= -60) return { signable: false, reason: 'Refuses to deal with you after the way they left' }
   return { signable: true }
 }
