@@ -131,7 +131,7 @@ export function createNewGame(opts: NewGameOptions, now = Date.now()): GameState
       for (let i = 0; i < g.count; i++) {
         const f = generateFighter(rng, ids, { quality: rng.float(g.quality[0], g.quality[1]), today, nationality: biasedNation(rng, opts.homeCountry, 0.85), ageMin: g.ageMin, ageMax: g.ageMax })
         fighters[f.id] = f
-        const c = signContract(rng, ids, f, playerId, today)
+        const c = signContract(rng, ids, f, playerId, today, g.contractDiscount ?? 1)
         c.startDay = today
         c.endDay = today + g.contractYears * 365
         c.fightsTotal = c.fightsRemaining = g.contractYears * c.minFightsPerYear

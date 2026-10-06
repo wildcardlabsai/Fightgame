@@ -43,7 +43,7 @@ export interface RunResult {
   /** Same-fighter repetition: the most-frequent pairing and the most fights by one fighter in any 12 months. */
   maxPairRepeats: number
   pairs: { total: number; ge3: number; ge5: number }
-  log: { planned: number; noCard: number; noVenue: number; signed: number; betDay: number | null }
+  log: { planned: number; noCard: number; noVenue: number; signed: number; betDay: number | null; why?: Record<string, number> }
 }
 
 const mean = (a: number[]) => (a.length ? a.reduce((x, y) => x + y, 0) / a.length : 0)
@@ -155,6 +155,6 @@ export function runWorld(opts: { seed: string; years: number; strategy: string |
     totals: { fights, events: events.length, retired: retired.size, newPros, fightersEver: seenFighter.size }, ai, sizes, msPerWeek: engineMs / (52 * opts.years), totalMs: engineMs,
     maxPairRepeats: Math.max(0, ...pairs.values()),
     pairs: { total: pairs.size, ge3: [...pairs.values()].filter((v) => v >= 3).length, ge5: [...pairs.values()].filter((v) => v >= 5).length },
-    log: { planned: log.planned, noCard: log.noCard, noVenue: log.noVenue, signed: log.signed, betDay: log.betDay },
+    log: { planned: log.planned, noCard: log.noCard, noVenue: log.noVenue, signed: log.signed, betDay: log.betDay, why: log.why },
   }
 }

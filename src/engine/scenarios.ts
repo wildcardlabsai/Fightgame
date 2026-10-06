@@ -24,6 +24,8 @@ export interface RosterGroup {
   ageMin: number
   ageMax: number
   contractYears: number
+  /** Share of the going rate the opening contract was signed at (1 = market). A fighter signed before their breakout is cheaper than they would be today — renewal is the first test. */
+  contractDiscount?: number
 }
 
 export type ObjectiveSpec =
@@ -97,7 +99,7 @@ export const SCENARIOS: Record<ScenarioId, CareerScenario> = {
     description: 'You have one exceptional contender and not much else. Turn them into a champion and build the promotion around them — lose them and you are back to square one.',
     difficultyLabel: 'Expert', difficulty: 'brutal', startingCash: 420_000, tier: 'Startup', reputation: 16, fanbase: 9_000, regionalPopularity: 14, globalPopularity: 1,
     roster: [
-      { label: 'Exceptional contender', count: 1, quality: [0.84, 0.9], ageMin: 23, ageMax: 26, contractYears: 3 },
+      { label: 'Exceptional contender', count: 1, quality: [0.84, 0.9], ageMin: 23, ageMax: 26, contractYears: 3, contractDiscount: 0.45 },
       { label: 'Prospects', count: 4, quality: [0.28, 0.5], ageMin: 19, ageMax: 25, contractYears: 3 },
     ],
     opens: 'Local and regional venues. One name people will pay to see.',

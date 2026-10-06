@@ -49,7 +49,7 @@ export function venueView(state: GameState, v: Venue, from = state.today): Venue
     id: v.id, name: v.name, city: v.city, country: v.country, capacity: v.capacity, hireCost: hireFor(state, v, state.playerPromotionId), tier: v.tier, tierLabel: TIER_LABEL[v.tier],
     prestige: v.prestige, production: v.production, market: v.market, minFights: v.minFights, maxFights: v.maxFights,
     productionCost: Math.round(E.costs.productionByLevel[v.production - 1] + E.costs.productionPerSeat * v.capacity), freeDates: free, bookedBy,
-    locked: tierAllowsVenue(state.promotions[state.playerPromotionId].tier, v.tier) ? null : `Opens at ${tierDef(tierNeededForVenue(v.tier)).label} promotion level`,
+    locked: tierAllowsVenue(state.promotions[state.playerPromotionId].tier, v) ? null : `Opens at ${tierDef(tierNeededForVenue(v)).label} promotion level`,
   }
 }
 

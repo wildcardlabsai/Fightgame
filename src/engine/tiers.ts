@@ -9,7 +9,7 @@
  * This module is pure data + tiny helpers with no engine imports beyond types, so market/roster/quotes can use it
  * without circular imports. Progression logic (which needs finances) lives in `tierProgress.ts`.
  */
-import type { PromotionTier, Promotion, VenueTier } from './types'
+import type { PromotionTier, Promotion } from './types'
 
 export type FinanceGate = 'any' | 'notCritical' | 'healthy'
 
@@ -37,14 +37,16 @@ export interface TierDef {
   rank: number
   blurb: string
   rosterCap: number
-  /** Venue tiers the player may book at this level. */
-  venues: VenueTier[]
+  /** Largest venue (seats) the player may book at this level. */
+  maxCapacity: number
   /** Broadcast kinds that open up at this level (in addition to reputation gates). */
   broadcasts: ('localTv' | 'nationalTv' | 'streaming' | 'ppv')[]
   /** Highest standing-sponsor tier (1–5) that will talk to you. */
   sponsorTier: number
   /** Standing sponsors you can hold at once. */
   sponsorSlots: number
+  /** Fixed running costs (office, staff, gym, insurance) scale with the size of the operation. */
+  overheadMult: number
   /** What reaching this tier unlocks, in words (used by the tier-up notice). */
   unlocks: string[]
   /** What it takes to reach this tier from the previous one (null for the first). */
@@ -54,32 +56,32 @@ export interface TierDef {
 export const TIER_DEFS: Record<PromotionTier, TierDef> = {
   Startup: {
     id: 'Startup', label: 'Local', rank: 0, blurb: 'A small local promotion: club shows, a gym and a handful of fighters.',
-    rosterCap: 10, venues: ['local', 'regional'], broadcasts: ['localTv'], sponsorTier: 1, sponsorSlots: 1,
-    unlocks: ['Local halls and regional venues', 'Local TV', 'Small local sponsors'], requires: null,
+    rosterCap: 10, maxCapacity: 3_500, broadcasts: ['localTv'], sponsorTier: 1, sponsorSlots: 1, overheadMult: 1,
+    unlocks: ['Halls and venues up to 3,500 seats', 'Local TV', 'Small local sponsors'], requires: null,
   },
   Regional: {
     id: 'Regional', label: 'Regional', rank: 1, blurb: 'An established regional promoter with a following and a real roster.',
-    rosterCap: 18, venues: ['local', 'regional', 'national'], broadcasts: ['localTv', 'nationalTv', 'streaming'], sponsorTier: 2, sponsorSlots: 2,
-    unlocks: ['Roster capacity 18', 'National venues (3,500–6,000 seats)', 'National TV and streaming deals', 'Regional sponsors'],
-    requires: { reputation: 16, fanbase: 8_000, events: 5, revenue: 100_000, bestAttendance: 0, established: { count: 0, minReputation: 0 }, finance: 'notCritical', cash: 0 },
+    rosterCap: 18, maxCapacity: 6_000, broadcasts: ['localTv', 'nationalTv', 'streaming'], sponsorTier: 2, sponsorSlots: 2, overheadMult: 1.6,
+    unlocks: ['Roster capacity 18', 'Venues up to 6,000 seats', 'National TV and streaming deals', 'Regional sponsors'],
+    requires: { reputation: 14, fanbase: 6_000, events: 5, revenue: 100_000, bestAttendance: 0, established: { count: 0, minReputation: 0 }, finance: 'notCritical', cash: 0 },
   },
   National: {
     id: 'National', label: 'National', rank: 2, blurb: 'A major domestic promotion: arenas, national television and real sponsorship.',
-    rosterCap: 28, venues: ['local', 'regional', 'national', 'arena'], broadcasts: ['localTv', 'nationalTv', 'streaming', 'ppv'], sponsorTier: 3, sponsorSlots: 3,
-    unlocks: ['Roster capacity 28', 'Arena access (9,000+ seats)', 'Pay-per-view becomes available', 'National sponsors'],
-    requires: { reputation: 36, fanbase: 60_000, events: 20, revenue: 1_500_000, bestAttendance: 2_000, established: { count: 2, minReputation: 40 }, finance: 'notCritical', cash: 0 },
+    rosterCap: 28, maxCapacity: 20_000, broadcasts: ['localTv', 'nationalTv', 'streaming', 'ppv'], sponsorTier: 3, sponsorSlots: 3, overheadMult: 3.5,
+    unlocks: ['Roster capacity 28', 'Arena access (up to 20,000 seats)', 'Pay-per-view becomes available', 'National sponsors'],
+    requires: { reputation: 30, fanbase: 40_000, events: 14, revenue: 1_000_000, bestAttendance: 2_000, established: { count: 2, minReputation: 38 }, finance: 'notCritical', cash: 0 },
   },
   Major: {
     id: 'Major', label: 'International', rank: 3, blurb: 'A major international promotion with overseas reach and elite talent.',
-    rosterCap: 40, venues: ['local', 'regional', 'national', 'arena'], broadcasts: ['localTv', 'nationalTv', 'streaming', 'ppv'], sponsorTier: 4, sponsorSlots: 4,
+    rosterCap: 40, maxCapacity: 20_000, broadcasts: ['localTv', 'nationalTv', 'streaming', 'ppv'], sponsorTier: 4, sponsorSlots: 4, overheadMult: 8,
     unlocks: ['Roster capacity 40', 'International sponsors', 'Elite fighters take your calls'],
-    requires: { reputation: 58, fanbase: 450_000, events: 45, revenue: 12_000_000, bestAttendance: 8_000, established: { count: 4, minReputation: 55 }, finance: 'healthy', cash: 1_500_000 },
+    requires: { reputation: 52, fanbase: 350_000, events: 35, revenue: 9_000_000, bestAttendance: 8_000, established: { count: 4, minReputation: 52 }, finance: 'healthy', cash: 1_500_000 },
   },
   Global: {
     id: 'Global', label: 'Global', rank: 4, blurb: 'The top of the sport: stadium nights, major PPV and a worldwide audience.',
-    rosterCap: 60, venues: ['local', 'regional', 'national', 'arena', 'stadium'], broadcasts: ['localTv', 'nationalTv', 'streaming', 'ppv'], sponsorTier: 5, sponsorSlots: 5,
+    rosterCap: 60, maxCapacity: 1_000_000, broadcasts: ['localTv', 'nationalTv', 'streaming', 'ppv'], sponsorTier: 5, sponsorSlots: 5, overheadMult: 18,
     unlocks: ['Roster capacity 60', 'Stadium events', 'Global sponsorship'],
-    requires: { reputation: 78, fanbase: 2_000_000, events: 90, revenue: 60_000_000, bestAttendance: 18_000, established: { count: 7, minReputation: 65 }, finance: 'healthy', cash: 8_000_000 },
+    requires: { reputation: 72, fanbase: 1_500_000, events: 70, revenue: 45_000_000, bestAttendance: 18_000, established: { count: 7, minReputation: 62 }, finance: 'healthy', cash: 8_000_000 },
   },
 }
 
@@ -95,13 +97,13 @@ export function playerRosterCap(tier: PromotionTier): number {
   return TIER_DEFS[tier].rosterCap
 }
 
-export function tierAllowsVenue(tier: PromotionTier, venue: VenueTier): boolean {
-  return TIER_DEFS[tier].venues.includes(venue)
+export function tierAllowsVenue(tier: PromotionTier, venue: { capacity: number }): boolean {
+  return venue.capacity <= TIER_DEFS[tier].maxCapacity
 }
 
-/** The lowest tier that may book a venue tier (for "needs X promotion" messages). */
-export function tierNeededForVenue(venue: VenueTier): PromotionTier {
-  return TIER_SEQUENCE.find((t) => TIER_DEFS[t].venues.includes(venue)) ?? 'Global'
+/** The lowest tier that may book a venue (for "needs X promotion" messages). */
+export function tierNeededForVenue(venue: { capacity: number }): PromotionTier {
+  return TIER_SEQUENCE.find((t) => venue.capacity <= TIER_DEFS[t].maxCapacity) ?? 'Global'
 }
 
 export function tierAllowsBroadcast(tier: PromotionTier, kind: 'localTv' | 'nationalTv' | 'streaming' | 'ppv'): boolean {

@@ -77,12 +77,13 @@ for (const [id, sc] of Object.entries(SCEN)) {
   await page.waitForSelector('.hero .kpis')
   check('first steps card shows on a new game', (await page.getByText('First steps').count()) > 0)
 
-  // booking a large venue on £300k
+  // booking a large venue when cash is low (venues above the promotion's tier are locked, so use the biggest open one)
+  await page.evaluate(() => { const g = structuredClone(window.__fe.useGame.getState().game); g.promotions[g.playerPromotionId].cash = 60000; window.__fe.useGame.setState({ game: g }) })
   await go(page, '#/events')
   await page.getByRole('button', { name: /Plan a show/ }).click()
   await page.waitForSelector('.modal')
-  const opts = await page.locator('.modal select option').count()
-  await page.locator('.modal select').selectOption({ index: opts - 1 })
+  const biggest = await page.locator('.modal select option:not([disabled])').last().getAttribute('value')
+  await page.locator('.modal select').selectOption(biggest)
   await page.waitForTimeout(200)
   const bookLevel = await page.locator('.modal .advice').first().getAttribute('data-level').catch(() => null)
   check('expensive venue booking gets a serious advisor warning', ['highRisk', 'critical'].includes(bookLevel), String(bookLevel))

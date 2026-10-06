@@ -77,7 +77,7 @@ export function createEvent(input: GameState, spec: CreateEventSpec): EvResult {
   if (weeks > E.maxLeadWeeks) return bad(input, `You cannot book more than ${E.maxLeadWeeks} weeks ahead.`)
   if (venueBookedOn(input, v.id, spec.day)) return bad(input, 'That venue is already booked on that date.')
   const ptier = input.promotions[input.playerPromotionId].tier
-  if (!tierAllowsVenue(ptier, v.tier)) return bad(input, `${v.name} is a ${v.tier} venue. It opens up once you are a ${tierDef(tierNeededForVenue(v.tier)).label} promotion.`)
+  if (!tierAllowsVenue(ptier, v)) return bad(input, `${v.name} seats ${v.capacity.toLocaleString('en-GB')}. A ${tierDef(ptier).label} promotion can book up to ${tierDef(ptier).maxCapacity.toLocaleString('en-GB')}; it opens up once you are a ${tierDef(tierNeededForVenue(v)).label} promotion.`)
   if (playerOpenEvents(input).length >= 3) return bad(input, 'You can only run three events at once.')
   if (!canAfford(input, hireFor(input, v, input.playerPromotionId))) return bad(input, `The venue hire (£${hireFor(input, v, input.playerPromotionId).toLocaleString('en-GB')}) is more than you have in the bank.`)
   if (playerOpenEvents(input).some((e) => Math.abs(e.day - spec.day) < 7)) return bad(input, 'Leave at least a week between your shows.')

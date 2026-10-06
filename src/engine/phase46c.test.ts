@@ -49,13 +49,14 @@ describe('promotion tier data', () => {
     // Never cash alone: every tier above the first needs reputation, fans, events and revenue.
     for (const t of TIER_SEQUENCE.slice(1)) { const r = TIER_DEFS[t].requires!; expect(r.reputation).toBeGreaterThan(0); expect(r.fanbase).toBeGreaterThan(0); expect(r.events).toBeGreaterThan(0); expect(r.revenue).toBeGreaterThan(0) }
   })
-  it('stadiums are Global-only; arenas open at National; PPV opens at National', () => {
-    expect(tierAllowsVenue('Startup', 'arena')).toBe(false)
-    expect(tierAllowsVenue('Regional', 'national')).toBe(true)
-    expect(tierAllowsVenue('Regional', 'arena')).toBe(false)
-    expect(tierAllowsVenue('National', 'arena')).toBe(true)
-    expect(tierAllowsVenue('Major', 'stadium')).toBe(false)
-    expect(tierAllowsVenue('Global', 'stadium')).toBe(true)
+  it('venue size gates by tier: Local ≤3,500 seats, Regional ≤6,000, National arenas ≤20,000, stadiums Global-only; PPV opens at National', () => {
+    expect(tierAllowsVenue('Startup', { capacity: 3_500 })).toBe(true)
+    expect(tierAllowsVenue('Startup', { capacity: 3_501 })).toBe(false)
+    expect(tierAllowsVenue('Regional', { capacity: 6_000 })).toBe(true)
+    expect(tierAllowsVenue('Regional', { capacity: 9_000 })).toBe(false)
+    expect(tierAllowsVenue('National', { capacity: 20_000 })).toBe(true)
+    expect(tierAllowsVenue('Major', { capacity: 48_000 })).toBe(false)
+    expect(tierAllowsVenue('Global', { capacity: 55_000 })).toBe(true)
     expect(tierAllowsBroadcast('Regional', 'ppv')).toBe(false)
     expect(tierAllowsBroadcast('National', 'ppv')).toBe(true)
   })
@@ -75,15 +76,15 @@ describe('scenario starting tiers are coherent', () => {
       expect(s.promotionProgress).toBeTruthy(); expect(s.sponsors).toBeTruthy()
     })
   }
-  it('a ground-up promotion cannot book an arena or a stadium; a national one can book an arena but not a stadium', () => {
+  it('a ground-up promotion cannot book an arena or a big regional venue; a national one can book an arena but not a stadium', () => {
     const g = fresh('g', 'groundUp')
     const arena = venueOfTier(g, 'arena')
-    expect(createEvent(g, { name: 'Big Night', day: satIn(g, 8), venueId: arena.id }).error).toMatch(/Local hall|opens up|National/i)
+    expect(createEvent(g, { name: 'Big Night', day: satIn(g, 8), venueId: arena.id }).error).toMatch(/can book up to 3,500|opens up/i)
     const n = fresh('n', 'national')
     expect(createEvent(n, { name: 'Big Night', day: satIn(n, 8), venueId: venueOfTier(n, 'arena').id }).ok).toBe(true)
     expect(createEvent(n, { name: 'Big Night', day: satIn(n, 8), venueId: venueOfTier(n, 'stadium').id }).ok).toBe(false)
     expect(venueViews(g).filter((v) => v.locked).length).toBeGreaterThan(5)
-    expect(venueViews(n).filter((v) => v.locked).every((v) => v.tier === 'stadium')).toBe(true)
+    expect(venueViews(n).filter((v) => v.locked).every((v) => v.capacity > 20_000)).toBe(true)
   })
 })
 
@@ -446,5 +447,30 @@ describe('advisor: sponsors and tiers', () => {
     const made = createEvent(s, { name: 'Arena Night', day: satIn(s, 8), venueId: venueOfTier(s, 'arena').id })
     expect(made.ok).toBe(true)
     expect(eventView(made.state, made.eventId!)).toBeTruthy()
+  })
+})
+
+// Browser-test fixtures (only when E2E_FIXTURES=<dir>)
+import { mkdirSync, writeFileSync } from 'node:fs'
+describe.skipIf(!process.env.E2E_FIXTURES)('e2e fixtures (4.6c)', () => {
+  it('writes saves', () => {
+    const dir = process.env.E2E_FIXTURES!
+    mkdirSync(dir, { recursive: true })
+    // regional career with two sponsor offers waiting
+    const a = fresh('e2e-sp', 'regional')
+    a.sponsors!.offers.push({ id: 'offer_knockout_f', sponsorId: 'knockout', day: a.today, expiresDay: a.today + 56, annual: 70_000, perEvent: 5_000, kind: 'new', negotiated: false })
+    a.sponsors!.offers.push({ id: 'offer_northlink_f', sponsorId: 'northlink', day: a.today, expiresDay: a.today + 56, annual: 65_000, perEvent: 4_500, kind: 'new', negotiated: false })
+    writeFileSync(`${dir}/sponsor-offers.json`, serialiseGame(a))
+    // ground-up promotion one week from a tier-up
+    const t = fresh('e2e-tier', 'groundUp')
+    meetRegional(t)
+    t.promotionProgress!.qualifiedWeeks = QUALIFY_WEEKS - 1
+    writeFileSync(`${dir}/tier-ready.json`, serialiseGame(t))
+    // sponsor deal that has fallen behind on events, with little cash
+    let d = fresh('e2e-behind', 'regional')
+    d.sponsors!.offers.push({ id: 'o', sponsorId: 'knockout', day: d.today, expiresDay: d.today + 56, annual: 70_000, perEvent: 5_000, kind: 'new', negotiated: false })
+    d = acceptSponsorOffer(d, 'o', 1).state
+    const deal = activeDeals(d)[0]; deal.yearStart = d.today - 7 * 40; deal.eventsThisYear = 1
+    writeFileSync(`${dir}/sponsor-behind.json`, serialiseGame(d))
   })
 })

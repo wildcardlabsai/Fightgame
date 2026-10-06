@@ -8,9 +8,9 @@ import { suggestedFightOffer } from '../fightNegotiation'
 import { opponentCandidates } from '../matchmaking'
 import { suggestedOffer } from '../negotiation'
 import { acceptSponsorOffer, activeDeals } from '../sponsors'
-import { tierAllowsVenue } from '../tiers'
+import { TIER_DEFS, tierAllowsVenue } from '../tiers'
 import { playerRoster, weeklyBurn } from '../selectors'
-import type { BroadcastKind, FightOffer, GameState, Id, MarketingLevel, PromoStrategy, Venue, VenueTier } from '../types'
+import type { PromotionTier, BroadcastKind, FightOffer, GameState, Id, MarketingLevel, PromoStrategy, Venue, VenueTier } from '../types'
 import { viewsOf } from '../view'
 import { draftEvent } from '../events/ai'
 import { broadcastTerms, hireFor, eventInterest, forecastEvent, refPrices, cardQuality } from '../events/demand'
@@ -29,6 +29,8 @@ export interface Strategy {
   marketing: Record<VenueTier, MarketingLevel>
   promo: PromoStrategy
   priceMult: number
+  /** Try higher ticket prices against the public forecast and keep the best (what a good promoter does when a card sells out). */
+  priceSearch?: boolean
   broadcast: BroadcastKind[]
   ppvMinMainAppeal: number
   rosterTarget: number
@@ -48,21 +50,33 @@ export interface Strategy {
   maxLossShare: number
   /** 'stars' strategies only chase big names once they have this much cash (a bet needs a stake). */
   investAbove: number
+  /** …and only once the promotion has grown to this tier: a star cannot pay in a building the promotion is not yet allowed to book. */
+  betTier: PromotionTier
 }
 
 const M = (local: MarketingLevel, reg: MarketingLevel, nat: MarketingLevel, arena: MarketingLevel, stad: MarketingLevel): Record<VenueTier, MarketingLevel> => ({ local, regional: reg, national: nat, arena, stadium: stad })
 
 export const STRATEGIES: Record<string, Strategy> = {
-  conservative: { name: 'A Conservative', maxTier: 'regional', venuePick: 'forecast', minFill: 0, minForecastProfit: 5_000, marketing: M('low', 'low', 'low', 'low', 'low'), promo: 'local', priceMult: 1, broadcast: ['none', 'localTv'], ppvMinMainAppeal: 999, rosterTarget: 5, sign: 'cheap', signShare: 0.1, signCashFloor: 250_000, maxConcurrent: 1, cardMin: 3, cardMax: 5, opponents: 'cheap', lead: 8, cashFloor: 60_000, hireShare: 0.1, maxLossShare: 0.05, investAbove: 0 },
-  balanced: { name: 'B Balanced', maxTier: 'national', venuePick: 'forecast', minFill: 0, minForecastProfit: -10_000, marketing: M('low', 'standard', 'heavy', 'heavy', 'major'), promo: 'standard', priceMult: 1, broadcast: ['none', 'localTv', 'nationalTv', 'streaming'], ppvMinMainAppeal: 999, rosterTarget: 8, sign: 'solid', signShare: 0.15, signCashFloor: 350_000, maxConcurrent: 2, cardMin: 3, cardMax: 7, opponents: 'matched', lead: 9, cashFloor: 80_000, hireShare: 0.2, maxLossShare: 0.1, investAbove: 0 },
-  aggressive: { name: 'C Aggressive', maxTier: 'arena', venuePick: 'ambitious', minFill: 0.5, minForecastProfit: -1e9, marketing: M('standard', 'heavy', 'major', 'major', 'major'), promo: 'aggressive', priceMult: 1.1, broadcast: ['nationalTv', 'streaming', 'ppv', 'localTv'], ppvMinMainAppeal: 50, rosterTarget: 10, sign: 'stars', signShare: 0.25, signCashFloor: 450_000, maxConcurrent: 2, cardMin: 3, cardMax: 10, opponents: 'matched', lead: 10, cashFloor: 40_000, hireShare: 0.2, maxLossShare: 0.25, investAbove: 1_000_000 },
-  superstar: { name: 'D Superstar betting', maxTier: 'stadium', venuePick: 'ambitious', minFill: 0.35, minForecastProfit: -1e9, marketing: M('major', 'major', 'major', 'major', 'major'), promo: 'superstar', priceMult: 1.15, broadcast: ['ppv', 'nationalTv', 'streaming'], ppvMinMainAppeal: 35, rosterTarget: 6, sign: 'stars', signShare: 0.45, signCashFloor: 900_000, maxConcurrent: 1, cardMin: 3, cardMax: 10, opponents: 'cheap', lead: 12, cashFloor: 30_000, hireShare: 0.3, maxLossShare: 0.4, investAbove: 1_500_000 },
-  prospects: { name: 'E Prospect factory', maxTier: 'regional', venuePick: 'forecast', minFill: 0, minForecastProfit: -5_000, marketing: M('low', 'standard', 'standard', 'standard', 'standard'), promo: 'local', priceMult: 0.95, broadcast: ['none', 'localTv'], ppvMinMainAppeal: 999, rosterTarget: 9, sign: 'prospects', signShare: 0.08, signCashFloor: 200_000, maxConcurrent: 2, cardMin: 3, cardMax: 6, opponents: 'cheap', lead: 8, cashFloor: 50_000, hireShare: 0.1, maxLossShare: 0.05, investAbove: 0 },
+  conservative: { name: 'A Conservative', maxTier: 'regional', venuePick: 'forecast', minFill: 0, minForecastProfit: 5_000, marketing: M('low', 'low', 'low', 'low', 'low'), promo: 'local', priceMult: 1, broadcast: ['none', 'localTv'], ppvMinMainAppeal: 999, rosterTarget: 5, sign: 'cheap', signShare: 0.1, signCashFloor: 250_000, maxConcurrent: 1, cardMin: 3, cardMax: 5, opponents: 'cheap', lead: 8, cashFloor: 60_000, hireShare: 0.1, maxLossShare: 0.05, investAbove: 0, betTier: 'Startup' },
+  balanced: { name: 'B Balanced', maxTier: 'national', venuePick: 'forecast', minFill: 0, minForecastProfit: -10_000, marketing: M('low', 'standard', 'heavy', 'heavy', 'major'), promo: 'standard', priceMult: 1, priceSearch: true, broadcast: ['none', 'localTv', 'nationalTv', 'streaming'], ppvMinMainAppeal: 999, rosterTarget: 8, sign: 'solid', signShare: 0.15, signCashFloor: 350_000, maxConcurrent: 2, cardMin: 3, cardMax: 7, opponents: 'matched', lead: 9, cashFloor: 80_000, hireShare: 0.2, maxLossShare: 0.1, investAbove: 0, betTier: 'Startup' },
+  aggressive: { name: 'C Aggressive', maxTier: 'arena', venuePick: 'ambitious', minFill: 0.5, minForecastProfit: -1e9, marketing: M('standard', 'heavy', 'major', 'major', 'major'), promo: 'aggressive', priceMult: 1.1, priceSearch: true, broadcast: ['nationalTv', 'streaming', 'ppv', 'localTv'], ppvMinMainAppeal: 50, rosterTarget: 10, sign: 'stars', signShare: 0.25, signCashFloor: 450_000, maxConcurrent: 2, cardMin: 3, cardMax: 10, opponents: 'matched', lead: 10, cashFloor: 40_000, hireShare: 0.2, maxLossShare: 0.25, investAbove: 1_000_000, betTier: 'Regional' },
+  superstar: { name: 'D Superstar betting', maxTier: 'stadium', venuePick: 'ambitious', minFill: 0.35, minForecastProfit: -1e9, marketing: M('major', 'major', 'major', 'major', 'major'), promo: 'superstar', priceMult: 1.15, priceSearch: true, broadcast: ['ppv', 'nationalTv', 'streaming'], ppvMinMainAppeal: 35, rosterTarget: 6, sign: 'stars', signShare: 0.45, signCashFloor: 900_000, maxConcurrent: 1, cardMin: 3, cardMax: 10, opponents: 'cheap', lead: 12, cashFloor: 30_000, hireShare: 0.3, maxLossShare: 0.4, investAbove: 1_500_000, betTier: 'National' },
+  prospects: { name: 'E Prospect factory', maxTier: 'regional', venuePick: 'forecast', minFill: 0, minForecastProfit: -5_000, marketing: M('low', 'standard', 'standard', 'standard', 'standard'), promo: 'local', priceMult: 0.95, broadcast: ['none', 'localTv'], ppvMinMainAppeal: 999, rosterTarget: 9, sign: 'prospects', signShare: 0.08, signCashFloor: 200_000, maxConcurrent: 2, cardMin: 3, cardMax: 6, opponents: 'cheap', lead: 8, cashFloor: 50_000, hireShare: 0.1, maxLossShare: 0.05, investAbove: 0, betTier: 'Startup' },
 }
 
 export interface ShowRecord { day: number; tier: VenueTier; venue: string; fights: number; attendance: number; capacity: number; revenue: number; costs: number; profit: number; ppv: number; broadcast: BroadcastKind; sponsor: number; tickets: number; purses: number; forecastAtt?: [number, number]; priceGa: number; mainAppeal: number }
-export interface StrategyLog { shows: ShowRecord[]; planned: number; noCard: number; noVenue: number; signed: number; seen: Set<string>; /** Planning is skipped until this day after a failed attempt (keeps the audit fast; a human would also wait). */ coolUntil: number; /** The high-risk strategy has placed its bet (reached its stake). */ bet: boolean; betDay: number | null }
-export const newLog = (): StrategyLog => ({ shows: [], planned: 0, noCard: 0, noVenue: 0, signed: 0, seen: new Set(), coolUntil: 0, bet: false, betDay: null })
+export interface StrategyLog { shows: ShowRecord[]; planned: number; noCard: number; noVenue: number; signed: number; seen: Set<string>; /** Planning is skipped until this day after a failed attempt (keeps the audit fast; a human would also wait). */ why: Record<string, number>; coolUntil: number; /** Downshifted to conservative play after a failed attempt or a cash scare (a human would too); cleared once cash has recovered. */ recover: boolean; /** The high-risk strategy has placed its bet (reached its stake). */ bet: boolean; betDay: number | null }
+export const newLog = (): StrategyLog => ({ shows: [], planned: 0, noCard: 0, noVenue: 0, signed: 0, seen: new Set(), why: {}, coolUntil: 0, recover: false, bet: false, betDay: null })
+
+/**
+ * What one fighter's purse may cost for a promotion of this size: roughly £11 per seat of the biggest building it may book
+ * (a headliner above this cannot be paid back by the gate of any show the promotion is allowed to stage). Bold strategies stretch it.
+ */
+function purseCap(s: GameState, st: Strategy): number {
+  const cap = TIER_DEFS[s.promotions[s.playerPromotionId].tier].maxCapacity
+  const stretch = st.sign === 'stars' ? 2.2 : st.sign === 'solid' ? 1.1 : 1
+  return Math.min(cap, 60_000) * 11 * stretch
+}
 
 function agreeOne(s: GameState, myId: Id, taken: Set<Id>, st: Strategy): { state: GameState; fightId: Id } | null {
   let cands = opponentCandidates(s, myId, {}).filter((x) => x.canApproach && !taken.has(x.view.id))
@@ -102,6 +116,7 @@ function manageRoster(input: GameState, st: Strategy, log: StrategyLog): GameSta
     if (!c || c.endDay - s.today > 26 * 7 || f.reputation < 10) continue
     const base = suggestedOffer(s, f, 'renewal')
     if (base.signingBonus + base.basePurse * 2 > free() * 0.3 && st.sign !== 'stars') continue
+    if (base.basePurse > purseCap(s, st)) continue // a smart promoter lets a fighter walk rather than pay more than the gate can bear
     for (const k of [1, 1.15, 1.35, 1.6]) {
       const out = makeOffer(s, f.id, { ...base, basePurse: base.basePurse * k, weeklyRetainer: base.weeklyRetainer * k, signingBonus: base.signingBonus * k }, 'renewal')
       if (!out.ok) break
@@ -121,6 +136,7 @@ function manageRoster(input: GameState, st: Strategy, log: StrategyLog): GameSta
   for (const v of pool) {
     const f = s.fighters[v.id]
     const base = suggestedOffer(s, f, 'signing')
+    if (base.basePurse > purseCap(s, st)) continue
     const outlay = base.signingBonus + base.basePurse * 2
     if (desperate ? outlay > cash() * 0.3 : outlay + base.weeklyRetainer * 52 > free() * st.signShare * 2) continue
     for (const k of [1, 1.2, 1.5]) {
@@ -165,8 +181,11 @@ function recordShows(s: GameState, log: StrategyLog): void {
 /** One week of management. Returns the new state (call advanceOneWeek afterwards). */
 export function playWeek(input: GameState, st0: Strategy, log: StrategyLog): GameState {
   // Betting strategies build a stake first (they play like the conservative promoter), then commit.
-  if (st0.investAbove > 0 && !log.bet && input.promotions[input.playerPromotionId].cash >= st0.investAbove) { log.bet = true; log.betDay = input.today }
-  const st: Strategy = st0.investAbove > 0 && !log.bet ? { ...STRATEGIES.conservative, name: st0.name } : st0
+  if (st0.investAbove > 0 && !log.bet && input.promotions[input.playerPromotionId].cash >= st0.investAbove && TIER_DEFS[input.promotions[input.playerPromotionId].tier].rank >= TIER_DEFS[st0.betTier].rank) { log.bet = true; log.betDay = input.today }
+  const cash0 = input.promotions[input.playerPromotionId].cash
+  if (log.recover && cash0 >= Math.max(3 * st0.cashFloor, 250_000)) log.recover = false
+  if (!log.recover && cash0 < st0.cashFloor * 1.5) log.recover = true
+  const st: Strategy = log.recover || (st0.investAbove > 0 && !log.bet) ? { ...STRATEGIES.conservative, name: st0.name, cashFloor: 15_000, signCashFloor: st0.signCashFloor } : st0
   let s = manageRoster(input, st, log)
   s = handleSponsors(s, st)
   for (const ev of Object.values(s.events)) if (ev.promotionId === s.playerPromotionId && (ev.status === 'fightWeek' || ev.status === 'live')) s = runEventToEnd(s, ev.id).state
@@ -187,22 +206,33 @@ export function playWeek(input: GameState, st0: Strategy, log: StrategyLog): Gam
     const a = agreeOne(state, f.id, taken, st)
     if (a) { state = a.state; agreed.push(a.fightId) }
   }
-  if (agreed.length < st.cardMin) { log.noCard++; log.coolUntil = s.today + 21; return s }
+  if (agreed.length < st.cardMin) { log.noCard++; log.coolUntil = s.today + 21; log.recover = true; return s }
 
   const day = state.today + 5 + 7 * (st.lead - 1)
   const evaluate = (ids: Id[], relax: boolean) => {
     const fights = ids.map((id) => state.fights[id])
-    const out: { v: Venue; mid: number; cap: number; fill: number }[] = []
+    const out: { v: Venue; mid: number; cap: number; fill: number; pm: number }[] = []
     for (const v of Object.values(state.venues)) {
       const maxTier = relax ? 'regional' : st.maxTier
-      if (!tierAllowsVenue(state.promotions[state.playerPromotionId].tier, v.tier) || TIERS.indexOf(v.tier) > TIERS.indexOf(maxTier) || v.minFights > ids.length || v.maxFights < ids.length || hireFor(state, v, state.playerPromotionId) > cash * (relax ? 0.15 : st.hireShare) || venueBookedOn(state, v.id, day)) continue
+      const rej = (k: string) => { log.why[k] = (log.why[k] ?? 0) + 1 }
+      if (!tierAllowsVenue(state.promotions[state.playerPromotionId].tier, v)) { rej('tier'); continue }
+      if (TIERS.indexOf(v.tier) > TIERS.indexOf(maxTier)) { rej('maxTier'); continue }
+      if (v.minFights > ids.length || v.maxFights < ids.length) { rej('cardSize'); continue }
+      if (hireFor(state, v, state.playerPromotionId) > cash * (relax ? 0.15 : st.hireShare)) { rej('hire'); continue }
+      if (venueBookedOn(state, v.id, day)) { rej('booked'); continue }
       const ev = draftEvent(state, state.promotions[state.playerPromotionId], fights, v, day)
       ev.kind = 'player'
-      ev.prices = refPrices(eventInterest(state, ev))
+      const ref = refPrices(eventInterest(state, ev))
       ev.marketing = { level: st.marketing[v.tier], strategy: st.promo, budget: 2_000, spent: 0 }
-      const f = forecastEvent(state, ev)
-      if (!relax && f.profit.lo < -st.maxLossShare * cashNow) continue
-      out.push({ v, mid: (f.profit.lo + f.profit.hi) / 2, cap: v.capacity, fill: (f.fill.lo + f.fill.hi) / 2 })
+      let bestPm = st.priceMult, bestF: ReturnType<typeof forecastEvent> | null = null
+      for (const m of st.priceSearch ? [1, 1.25, 1.5, 1.8, 2.2] : [st.priceMult]) {
+        ev.prices = { ga: Math.max(8, Math.round(ref.ga * m)), premium: Math.round(ref.premium * m), vip: Math.round(ref.vip * m) }
+        const fm = forecastEvent(state, ev)
+        if (!bestF || fm.profit.lo + fm.profit.hi > bestF.profit.lo + bestF.profit.hi) { bestF = fm; bestPm = m }
+      }
+      const f = bestF!
+      if (!relax && f.profit.lo < -st.maxLossShare * cashNow) { rej('loss'); continue }
+      out.push({ v, mid: (f.profit.lo + f.profit.hi) / 2, cap: v.capacity, fill: (f.fill.lo + f.fill.hi) / 2, pm: bestPm })
     }
     return out
   }
@@ -224,7 +254,7 @@ export function playWeek(input: GameState, st0: Strategy, log: StrategyLog): Gam
     }
     if (best) break
   }
-  if (!best) { log.noVenue++; log.coolUntil = s.today + 14; return s }
+  if (!best) { log.noVenue++; log.coolUntil = s.today + 14; log.recover = true; return s }
   // Release the fights that did not make the card.
   for (const id of agreed.slice(best.n)) { const w = withdraw(state, id); if (w.ok) state = w.state }
   agreed.length = best.n
@@ -238,7 +268,8 @@ export function playWeek(input: GameState, st0: Strategy, log: StrategyLog): Gam
   for (const id of agreed) state = addFightToEvent(state, eid, id).state
   log.planned++
   const base = refPrices(eventInterest(state, state.events[eid]))
-  state = setEventPrices(state, eid, { ga: Math.max(8, Math.round(base.ga * st.priceMult)), premium: Math.round(base.premium * st.priceMult), vip: Math.round(base.vip * st.priceMult) }).state
+  const pm = pick.pm
+  state = setEventPrices(state, eid, { ga: Math.max(8, Math.round(base.ga * pm)), premium: Math.round(base.premium * pm), vip: Math.round(base.vip * pm) }).state
   state = setEventMarketing(state, eid, { level: st.marketing[tierOf], strategy: st.promo }).state
   // Broadcast: best guaranteed net among allowed, PPV when the main event is a real draw.
   const q = cardQuality(state, state.events[eid])

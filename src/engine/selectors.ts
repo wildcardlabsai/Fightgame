@@ -1,3 +1,4 @@
+import { TIER_DEFS } from './tiers'
 import { DAYS_PER_WEEK, weeksBetween } from './calendar'
 import { WEEKLY_COSTS } from './config'
 import { BALANCE } from './balance'
@@ -45,7 +46,7 @@ export function weeklyBurn(state: GameState): { overheads: number; scouting: num
 
 export function overheadCost(state: GameState): number {
   const mult = state.settings.difficulty === 'brutal' ? 1.2 : state.settings.difficulty === 'forgiving' ? 0.85 : 1
-  return Math.round((WEEKLY_COSTS.office + WEEKLY_COSTS.staff + WEEKLY_COSTS.gym + WEEKLY_COSTS.insurance) * mult)
+  return Math.round((WEEKLY_COSTS.office + WEEKLY_COSTS.staff + WEEKLY_COSTS.gym + WEEKLY_COSTS.insurance) * mult * TIER_DEFS[player(state).tier].overheadMult)
 }
 
 export function cashRunwayWeeks(state: GameState): number | null {

@@ -354,13 +354,13 @@ export function sponsorAdvice(state: GameState): Advice[] {
     if (d.needed > 0 && d.weeksLeftInYear > 0) {
       const pace = d.needed * 5 > d.weeksLeftInYear
       // What it costs to put on the cheapest qualifying show you may book (hire + staging; purses come on top).
-      const cheapest = Math.min(...Object.values(state.venues).filter((v) => VENUE_RANK.indexOf(v.tier) >= VENUE_RANK.indexOf(d.minVenue) && tierAllowsVenue(player(state).tier, v.tier)).map((v) => hireFor(state, v, state.playerPromotionId) + productionCost(v)), Infinity)
+      const cheapest = Math.min(...Object.values(state.venues).filter((v) => VENUE_RANK.indexOf(v.tier) >= VENUE_RANK.indexOf(d.minVenue) && tierAllowsVenue(player(state).tier, v)).map((v) => hireFor(state, v, state.playerPromotionId) + productionCost(v)), Infinity)
       if (pace && Number.isFinite(cheapest) && cash < d.needed * cheapest * 1.5) out.push({ id: `${id}-cash`, level: 'highRisk', topic: 'sponsor', title: 'Sponsor commitments', body: `${d.name} needs ${d.needed} more qualifying show${d.needed === 1 ? '' : 's'} this contract year. Your current cash position may make that hard to deliver.`, link, actionLabel: 'Sponsors' })
       else if (pace) out.push({ id: `${id}-pace`, level: 'caution', topic: 'sponsor', title: 'Sponsor expectations', body: `${d.name} requires ${d.minEvents} qualifying events this contract year and you have promoted ${d.eventsThisYear}.`, link, actionLabel: 'Sponsors' })
     }
   }
   if (sv.offers.length > 0) out.push({ id: 'sponsor-offers', level: 'tip', topic: 'sponsor', title: 'Sponsor interest', body: `${sv.offers[0].name}${sv.offers.length > 1 ? ` and ${sv.offers.length - 1} other${sv.offers.length > 2 ? 's' : ''}` : ''} would like to partner with your promotion.`, link, actionLabel: 'Sponsors' })
-  else if (sv.slots.used < sv.slots.max && sv.catalog.some((c) => c.status === 'available') && sv.deals.every((d) => d.annual < Math.max(...sv.catalog.filter((c) => c.status === 'available').map((c) => c.annual)) * 0.6)) {
+  else if (sv.deals.length > 0 && sv.slots.used < sv.slots.max && sv.catalog.some((c) => c.status === 'available') && sv.deals.every((d) => d.annual < Math.max(...sv.catalog.filter((c) => c.status === 'available').map((c) => c.annual)) * 0.6)) {
     out.push({ id: 'sponsor-growth', level: 'tip', topic: 'growth', title: 'Bigger sponsors may be interested', body: 'Your promotion has grown enough that higher-tier sponsors may now be interested. Offers tend to arrive within a few weeks.', link, actionLabel: 'Sponsors' })
   }
   return out
