@@ -453,6 +453,9 @@ a { color: inherit; text-decoration: none; }
   .trait-row { grid-template-columns: 96px minmax(60px, 1fr) 88px; gap: 8px; }
   .filters .input, .filters .select { flex: 1 1 140px; }
   .modal { padding: 18px 16px; }
+  /* On phones dialogs start at the top of the screen (not centred) so their first field is never pushed out of view. */
+  .modal-back { align-items: flex-start; align-items: safe flex-start; padding: 10px; }
+  .modal { margin: 0; max-height: calc(100dvh - 20px); }
   .compare-row { grid-template-columns: 110px repeat(var(--cols), minmax(130px, 1fr)); }
 }
 
