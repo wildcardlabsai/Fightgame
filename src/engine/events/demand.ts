@@ -15,6 +15,7 @@ import { BALANCE as B } from '../balance'
 import { clamp } from '../fighters'
 import { publicExpectation } from '../fights'
 import { keyedNormal } from '../rng'
+import { mediaAppeal, mediaHype } from '../media/effects'
 import type { BoxingEvent, BroadcastKind, Fight, Fighter, GameState, Promotion, TicketPrices, Venue, WeightClassId } from '../types'
 
 const E = B.events
@@ -52,6 +53,7 @@ export function fightAppeal(state: GameState, fight: Fight): number {
   if (a.record.losses === 0 && b.record.losses === 0 && fa >= 8 && fb >= 8) v += 6
   v += ((a.momentum + b.momentum) / 200) * 4
   v += Math.min(10, rivalryHeat(state, a, b) * 4)
+  v += mediaAppeal(state, a.id, b.id)
   v *= 0.9 + 0.2 * (DIVISION_IMPORTANCE[fight.weightClass] ?? 0.8)
   return clamp(v, 0, 100)
 }
@@ -96,7 +98,7 @@ export function eventInterest(state: GameState, ev: BoxingEvent): number {
   const p = state.promotions[ev.promotionId]
   const v = venueOf(state, ev)
   const w = E.interestWeights
-  return clamp(w.main * q.main + w.coMain * q.coMain + w.depth * q.depth + w.promo * promoStrength(p) + w.importance * v.prestige * 18, 0, 100)
+  return clamp(w.main * q.main + w.coMain * q.coMain + w.depth * q.depth + w.promo * promoStrength(p) + w.importance * v.prestige * 18 + mediaHype(state, ev.id), 0, 100)
 }
 
 /** Share of the card drawn from the venue's home turf. 0–1. */

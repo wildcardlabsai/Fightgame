@@ -72,7 +72,7 @@ const cuesPlayed = (page) => page.evaluate(() => window.__audio.log.map((l) => l
     check(`desktop: ${g} ▸ ${it} opens ${hash}`, h === hash && body > 40, `${h} ${body}`)
   }
   check('desktop: Boxing World shows world results', true && (await (async () => { await page.getByTestId('nav-world').click(); await page.getByTestId('nav-item-boxing-world').click(); await page.waitForTimeout(300); return (await page.locator('.tab.active', { hasText: 'World Results' }).count()) === 1 })()))
-  check('desktop: rankings/titles are visible but locked (Phase 5 slot)', await (async () => { await page.getByTestId('nav-world').click(); const r = page.getByTestId('nav-item-rankings'); const ok = await r.isDisabled(); await page.keyboard.press('Escape'); return ok })())
+  check('desktop: media, rankings and titles are real, enabled destinations (Phase 5)', await (async () => { await page.getByTestId('nav-world').click(); const ok = (await page.getByTestId('nav-item-rankings').isEnabled()) && (await page.getByTestId('nav-item-titles').isEnabled()) && (await page.getByTestId('nav-item-media').isEnabled()); await page.keyboard.press('Escape'); return ok })())
   await page.getByTestId('nav-more').click(); await page.getByTestId('nav-item-saves').click(); await page.waitForTimeout(500)
   check('desktop: Save / Load lands on the save slots', await page.locator('#save-slots').isVisible())
   await page.getByTestId('nav-roster').click(); await page.keyboard.press('Escape')

@@ -25,6 +25,7 @@ import {
 import { contractStage, type ContractStage } from './systems/contracts'
 import { fightAvailability, publicStanding } from './fights'
 import { METHOD_SHORT } from './fight/narrative'
+import { headlineRank } from './media/views'
 import type {
   Estimate, Fighter, GameState, Id, Personality, ReportLogEntry, TraitKey, TrainingFocus, WeightClassId,
 } from './types'
@@ -147,6 +148,8 @@ export interface FighterView {
   momentumLabel: 'Surging' | 'Rising' | 'Steady' | 'Slipping' | 'Struggling'
   /** Public standing among active fighters in the division (not an official ranking). */
   standing: { rank: number; of: number }
+  /** Phase 5: the headline media ranking ("#4", "C" for a champion) with its explanation, or empty text if unranked. */
+  mediaRank: { text: string; title: string; rank: number | null }
   /** Short scout-style phrases built from beliefs (and public record when unscouted). */
   notes: string[]
   activeFightId: Id | null
@@ -371,6 +374,7 @@ function buildView(state: GameState, f: Fighter): FighterView {
     fightHistory: buildHistory(state, f),
     momentumLabel: f.momentum > 45 ? 'Surging' : f.momentum > 15 ? 'Rising' : f.momentum > -15 ? 'Steady' : f.momentum > -45 ? 'Slipping' : 'Struggling',
     standing: (() => { const o = divisionOrder(state, f.weightClass); const i = o.indexOf(f.id); return { rank: i < 0 ? 0 : i + 1, of: o.length } })(),
+    mediaRank: headlineRank(state, f),
     notes: scoutNotes({ physical: [power, speed, stamina, chin, defence], technical: [ringIQ, adaptability, technique, counter, pressure], mental: [discipline, heart, aggression, composure] }, !!(entry?.reports.length) || mine, f),
     activeFightId: f.activeFightId,
     own: mine ? {

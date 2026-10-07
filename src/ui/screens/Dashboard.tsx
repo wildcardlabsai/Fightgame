@@ -12,6 +12,8 @@ import { attentionItems, cashRunwayWeeks, financialHealth, player, weeklyBurn } 
 import { useGame } from '../../store/gameStore'
 import { useViews } from '../../store/hooks'
 import { AdvicePanel } from '../components/Advice'
+import { mediaTeaser } from '../../engine/media/views'
+import { StoryCard, useOpenStory } from '../media/MediaBits'
 import { TierPanel } from '../components/TierPanel'
 import { sponsorView } from '../../engine/sponsors'
 import { Meter, RiskChip, Section } from '../components/Bits'
@@ -61,6 +63,8 @@ export function Dashboard() {
   const showSteps = !stepsHidden && steps.some((s) => !s.done)
   const mail = useMemo(() => [...game.inbox].filter((m) => !m.read).sort((a, b) => (PRIO[a.priority] ?? 2) - (PRIO[b.priority] ?? 2) || b.day - a.day).slice(0, 4), [game.inbox])
   const unread = game.inbox.filter((m) => !m.read).length
+  const teaser = useMemo(() => mediaTeaser(game), [game])
+  const openStory = useOpenStory()
 
   const nContenders = roster.filter((v) => v.stage === 'Contender').length
   const nProspects = roster.filter((v) => v.stage === 'Prospect' || v.stage === 'Debutant' || v.stage === 'Rising').length
@@ -186,6 +190,12 @@ export function Dashboard() {
           {!nextFight && <button className="btn small" onClick={() => navigate('matchmaking')}>Make a fight ▸</button>}
         </section>
       </div>
+
+      {/* ---------------------------------------------------------------- RINGSIDE REPORT */}
+      <section className="desk-media" aria-label="Ringside report" data-testid="desk-media">
+        <div className="sec-head"><h2 className="display">Ringside report</h2><button className="linkbtn" onClick={() => navigate('media')}>{teaser.waiting > 0 ? `${teaser.waiting} waiting on you` : 'Newsroom'}</button></div>
+        {teaser.headline ? <StoryCard s={teaser.headline} variant="compact" onOpen={() => openStory(teaser.headline!)} /> : <p className="empty">The press are waiting for something to write about.</p>}
+      </section>
 
       {/* ---------------------------------------------------------------- INBOX / DESK */}
       <div className="desk-pair">

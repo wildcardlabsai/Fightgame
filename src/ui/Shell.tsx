@@ -7,6 +7,8 @@ import { PromoMark } from './visual/PromoMark'
 import { AudioToggle } from './components/AudioStatus'
 import { TierUpNotice } from './components/TierUpNotice'
 import { money } from './format'
+const MediaScreen = lazy(() => import('./screens/MediaScreen').then((m) => ({ default: m.MediaScreen })))
+const RankingsScreen = lazy(() => import('./screens/RankingsScreen').then((m) => ({ default: m.RankingsScreen })))
 const FightDealScreen = lazy(() => import('./screens/FightDealScreen').then((m) => ({ default: m.FightDealScreen })))
 const FightPage = lazy(() => import('./screens/FightPage').then((m) => ({ default: m.FightPage })))
 const FightsScreen = lazy(() => import('./screens/FightsScreen').then((m) => ({ default: m.FightsScreen })))
@@ -98,6 +100,9 @@ function Screen() {
     case 'sponsors': return <SponsorsScreen />
     case 'news': return <NewsScreen />
     case 'advisor': return <AdvisorScreen />
+    case 'media': return <MediaScreen tab={route.param} />
+    case 'rankings': return <RankingsScreen mode="rankings" param={route.param} />
+    case 'titles': return <RankingsScreen mode="titles" param={route.param} />
     case 'settings': return <SettingsScreen />
     case 'scouting': return <ScoutingScreen />
     case 'contracts': return <ContractsScreen />

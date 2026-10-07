@@ -779,7 +779,9 @@ export interface GameState {
   promotionProgress?: import('./tierProgress').TierProgress
   /** Phase 4.6c: standing sponsors (see sponsors.ts). */
   sponsors?: import('./sponsors').SponsorBook
+  /** Phase 5: the living media world (see engine/media). Optional so pre-Phase-5 saves load; migration creates it. */
+  media?: import('./media/types').MediaState
   scenario?: { id: 'groundUp' | 'regional' | 'national' | 'champion'; done: Record<string, number> }
 }
 
-export const GAME_STATE_VERSION = 7
+export const GAME_STATE_VERSION = 8

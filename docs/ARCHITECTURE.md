@@ -158,3 +158,8 @@ UI (EventsScreen, EventPage)  →  store.eventDo(name,…) / runNextEventFight  
 
 - `tiers.ts` (pure data: caps, venue size limits, unlocks, requirements, overhead), `tierProgress.ts` (weekly progression, hysteresis, migration placement), `sponsorCatalog.ts` + `sponsors.ts` (standing sponsors; every payment via `ledger.post`, category `standingSponsor`; keyed randomness, never the world RNG). All allow-listed for the UI and static-scanned for hidden-field access.
 - `GAME_STATE_VERSION` 7: `promotionProgress`, `sponsors`, `PromotionStats.revenue`; v6→v7 migration places the player on the tier already earned.
+
+## Phase 5 — the living media world
+`GameState.media` (save version 8) holds outlets, stories, storylines, rankings, titles, offers and history; `engine/media/` is a consequence layer
+that reads the engine and feeds back through three bounded channels only (see `docs/MEDIA_WORLD.md`). UI reads `engine/media/views.ts`; the store writes via
+`engine/media/commands.ts`. The weekly tick copies state with `engine/clone.ts` (`cloneState`, ~3× faster than `structuredClone` for plain JSON).

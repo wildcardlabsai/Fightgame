@@ -221,16 +221,17 @@ describe('navigation structure', () => {
     const items = (id: string) => NAV.find((g) => g.id === id)!.items.map((i) => i.label)
     expect(items('roster')).toEqual(['Fighters', 'Free Agents', 'Scouting', 'Contracts'])
     expect(items('events')).toEqual(['Calendar', 'Events', 'Fights', 'Matchmaking', 'Venues'])
-    expect(items('world').slice(0, 3)).toEqual(['Promotions', 'News', 'Boxing World'])
+    expect(items('world')).toEqual(['Media', 'News', 'Rankings', 'Titles', 'Promotions', 'Boxing World'])
     expect(items('finances')).toEqual(['Finances', 'Sponsors', 'Payroll & contracts'])
     expect(items('more').slice(0, 3)).toEqual(['Advisor', 'Settings', 'Save / Load'])
     const reachable = new Set(NAV.flatMap((g) => g.items.filter((i) => !i.locked).map((i) => i.screen)))
-    for (const s of ['dashboard', 'inbox', 'fighters', 'scouting', 'contracts', 'calendar', 'events', 'fights', 'matchmaking', 'venues', 'promotions', 'news', 'finances', 'sponsors', 'advisor', 'settings'] as const) expect(reachable.has(s), s).toBe(true)
+    for (const s of ['dashboard', 'inbox', 'fighters', 'scouting', 'contracts', 'calendar', 'events', 'fights', 'matchmaking', 'venues', 'promotions', 'news', 'media', 'rankings', 'titles', 'finances', 'sponsors', 'advisor', 'settings'] as const) expect(reachable.has(s), s).toBe(true)
   })
 
-  it('Phase 5 slots (rankings, titles) are present but locked, not implemented', () => {
+  it('Phase 5 screens (media, rankings, titles) are real, reachable destinations — nothing in the World menu is a placeholder', () => {
     const w = NAV.find((g) => g.id === 'world')!.items
-    for (const id of ['rankings', 'titles']) expect(w.find((i) => i.id === id)!.locked).toBeTruthy()
+    for (const id of ['media', 'rankings', 'titles']) expect(w.find((i) => i.id === id)!.locked).toBeFalsy()
+    expect(NAV.flatMap((g) => g.items).filter((i) => i.locked)).toEqual([])
   })
 
   it('detail routes highlight the section that opened them', () => {

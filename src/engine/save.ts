@@ -5,6 +5,7 @@ import { createStartingScout } from './scouting'
 import { GAME_STATE_VERSION, type AiStrategy, type GameState } from './types'
 import { freshSponsorBook } from './sponsors'
 import { freshTierProgress, highestQualifyingTier } from './tierProgress'
+import { initMediaWorld } from './media/process'
 import { aiTraits, emptyStats, freshFinance, initKnowledge } from './worldgen'
 import { VENUE_SEEDS, venueFields } from '../data/venues'
 
@@ -116,6 +117,7 @@ export function migrate(data: unknown): GameState | null {
   if (s.version < 5) migrateV4toV5(s as never)
   if (s.version < 6) migrateV5toV6(s as never)
   if (s.version < 7) migrateV6toV7(s as never)
+  if (s.version < 8) migrateV7toV8(s as never)
   return s as GameState
 }
 
@@ -246,4 +248,13 @@ function migrateV6toV7(s: any): void {
   s.version = 7
   const player = Object.values<any>(s.promotions).find((p) => p.isPlayer)
   if (player) player.tier = highestQualifyingTier(s)
+}
+
+/**
+ * v7 → v8 (Phase 5): the living media world. Older games receive a fresh media block built from their CURRENT state: rankings,
+ * inaugural champions and fighter profiles. Nothing in the existing career is changed or reset, and the RNG is untouched.
+ */
+function migrateV7toV8(s: any): void {
+  s.version = 8
+  if (!s.media) initMediaWorld(s)
 }

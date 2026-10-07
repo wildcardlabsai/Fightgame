@@ -14,6 +14,7 @@ import { RangeText, TraitRow } from '../components/Estimates'
 import { ScoutDialog } from '../components/ScoutDialog'
 import { money } from '../format'
 import { FighterPortrait } from '../visual/FighterPortrait'
+import { FighterMediaPanel } from '../media/FighterMediaPanel'
 
 export function FighterProfile({ id }: { id: string }) {
   const navigate = useGame((s) => s.navigate)
@@ -67,10 +68,11 @@ export function FighterProfile({ id }: { id: string }) {
           <div className="ds-rec"><div className="caps">Professional record</div><div className="num" data-testid="ds-record">{v.recordText}</div><div className="dim">{v.record.koWins} KOs · {v.koRate}% KO rate{v.record.koLosses ? ` · stopped ${v.record.koLosses}×` : ''}</div></div>
           <div className="ds-grade"><div className="caps">{scouted ? 'Scout grade' : 'Rough guess'}</div><div className="num"><RangeText r={v.grade} scouted={scouted} /></div><div className="dim">{v.knowledge.level} knowledge</div></div>
           <div className="ds-form"><div className="caps">Recent form</div><FormDots form={v.form} /><div className="dim">{v.momentumLabel}</div></div>
-          <div className="ds-rank"><div className="caps">Division standing</div><div className="num">{v.standing.rank > 0 ? `#${v.standing.rank}` : '—'}</div><div className="dim">public form, not an official ranking</div></div>
+          <div className="ds-rank"><div className="caps">{v.mediaRank.rank !== null ? 'Media ranking' : 'Division standing'}</div><div className="num" title={v.mediaRank.title}>{v.mediaRank.rank !== null ? v.mediaRank.text : v.standing.rank > 0 ? `~#${v.standing.rank}` : '—'}</div><div className="dim">public form, not an official ranking</div></div>
         </div>
       </header>
       <AdvicePanel list={fighterAdvice(v)} cap={2} />
+      <FighterMediaPanel id={v.id} revealPersona={v.personality.trait !== null} />
 
       <div className="grid-2" style={{ marginTop: 6 }}>
         <div>
@@ -132,7 +134,6 @@ export function FighterProfile({ id }: { id: string }) {
             {v.history.length === 0 ? <p className="empty">Nothing on record.</p> : (
               <ul className="history">{v.history.map((h, i) => <li key={i}><span className="caps" style={{ marginRight: 10 }}>{formatDay(h.day, true)}</span>{h.text}</li>)}</ul>
             )}
-            <p className="dim" style={{ fontSize: 13, marginTop: 8 }}>Titles and achievements arrive with championships in a later phase.</p>
           </Section>
         </div>
 

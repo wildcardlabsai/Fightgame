@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { formatDay } from '../../engine/calendar'
 import { TIER_ORDER } from '../../engine/promotions'
-import type { AiStrategy } from '../../engine/types'
+import { promotionMediaView } from '../../engine/media/views'
 import { useGame } from '../../store/gameStore'
 import { useViews } from '../../store/hooks'
 import { Section } from '../components/Bits'
@@ -11,13 +11,6 @@ import { tierLabel } from '../../engine/tiers'
 import { FighterTable } from '../components/FighterTable'
 import { sortRows } from '../fighterFilters'
 import { compactNumber } from '../format'
-
-const STRATEGY: Record<AiStrategy, { label: string; blurb: string }> = {
-  traditional: { label: 'Traditional', blurb: 'Signs proven, established fighters in their prime.' },
-  prospectFactory: { label: 'Prospect factory', blurb: 'Hunts young fighters with big futures.' },
-  money: { label: 'Big-money', blurb: 'Chases popular, marketable names.' },
-  regional: { label: 'Regional', blurb: 'Builds around fighters from its home region.' },
-}
 
 export function PromotionsScreen() {
   const game = useGame((s) => s.game)!
@@ -38,13 +31,13 @@ export function PromotionsScreen() {
       <div className="page-head">
         <div>
           <h1 className="display">Promotions</h1>
-          <p className="sub">The competition. Each rival has its own habits — they scout, bid, re-sign and release, and they will go after the same fighters you do.</p>
+          <p className="sub">The competition. Rivals scout, bid, re-sign and release, and they will go after the same fighters you do. What they are known for is earned from what they actually promote.</p>
         </div>
       </div>
       <Section title="Your promotion"><TierPanel /></Section>
       <div className="table-wrap">
         <table className="table stack">
-          <thead><tr><th>Promotion</th><th>Tier</th><th>Known for</th><th className="r">Reputation</th><th className="r">Fanbase</th><th className="r">Roster</th><th className="r">Avg rep.</th><th className="r">Avg age</th></tr></thead>
+          <thead><tr><th>Promotion</th><th>Tier</th><th>Public image</th><th className="r">Reputation</th><th className="r">Fanbase</th><th className="r">Roster</th><th className="r">Avg rep.</th><th className="r">Avg age</th></tr></thead>
           <tbody>
             {promos.map(({ p, roster, avgRep, avgAge }) => (
               <tr key={p.id} className={`row${p.isPlayer ? ' mine' : ''}`} onClick={() => setSel(p.id === sel ? null : p.id)}>
@@ -52,7 +45,7 @@ export function PromotionsScreen() {
                   <div><div className="fighter-name">{p.name}{p.isPlayer && <span className="chip gold" style={{ marginLeft: 8 }}>You</span>}</div>
                     <div className="fighter-sub">{p.promoterName} · est. {formatDay(p.foundedDay, true).split(' ').pop()}</div></div></div></td>
                 <td data-label="Tier">{tierLabel(p.tier)}</td>
-                <td data-label="Known for" className="dim" style={{ fontSize: 13.5 }}>{p.ai ? <><b style={{ color: 'var(--text)' }}>{STRATEGY[p.ai.strategy].label}</b> — {STRATEGY[p.ai.strategy].blurb}</> : '—'}</td>
+                <td data-label="Public image" className="dim" style={{ fontSize: 13.5 }}>{(() => { const pm = promotionMediaView(game, p.id); return pm && pm.tags.length ? <span className="pi-tags">{pm.tags.map((t) => <span key={t} className="chip">{t}</span>)}</span> : <span title="Reputation tags are earned from what a promotion actually does">Still making its name</span> })()}</td>
                 <td className="r num" data-label="Reputation" style={{ fontSize: 20 }}>{Math.round(p.reputation)}</td>
                 <td className="r num" data-label="Fanbase">{compactNumber(p.fanbase)}</td>
                 <td className="r num" data-label="Roster">{roster.length}</td>

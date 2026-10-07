@@ -23,12 +23,12 @@ export const NAV: NavGroup[] = [
     { id: 'venues', label: 'Venues', screen: 'venues', icon: 'venues' },
   ] },
   { id: 'world', label: 'World', icon: 'world', items: [
-    { id: 'promotions', label: 'Promotions', screen: 'promotions', icon: 'promotions' },
+    { id: 'media', label: 'Media', screen: 'media', icon: 'media' },
     { id: 'news', label: 'News', screen: 'news', icon: 'news' },
+    { id: 'rankings', label: 'Rankings', screen: 'rankings', icon: 'rankings' },
+    { id: 'titles', label: 'Titles', screen: 'titles', icon: 'titles' },
+    { id: 'promotions', label: 'Promotions', screen: 'promotions', icon: 'promotions' },
     { id: 'boxing-world', label: 'Boxing World', screen: 'fights', param: 'world', icon: 'world' },
-    // Phase 5 will put rankings and titles here; shown as locked so the structure is already in place.
-    { id: 'rankings', label: 'Rankings', screen: 'dashboard', icon: 'rankings', locked: 'Arrives with the rankings phase' },
-    { id: 'titles', label: 'Titles', screen: 'dashboard', icon: 'titles', locked: 'Arrives with the rankings phase' },
   ] },
   { id: 'finances', label: 'Finances', icon: 'finances', items: [
     { id: 'finances', label: 'Finances', screen: 'finances', icon: 'finances' },

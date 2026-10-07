@@ -3,6 +3,7 @@ import { releaseFromPlayer } from './roster'
 import { approachOpponent, submitFightOffer, withdrawFight } from './fightNegotiation'
 import { fightInvolvesPlayer, resolveFight, setPrep } from './fights'
 import * as ev from './events/events'
+import { processMedia } from './media/process'
 import { orderReport, orderSearch, toggleShortlist as toggleShortlistState, type SearchSpec } from './scouting'
 import { financialHealth, playerRoster } from './selectors'
 import type { GameState, Id, NegotiationKind, Offer, ScoutDepth, TrainingFocus } from './types'
@@ -103,10 +104,12 @@ export function runFightNight(state: GameState, fightId: Id): CommandResult {
     if (!e || !['fightWeek', 'live'].includes(e.status)) return { ok: false, error: 'The show has not reached fight night yet.', state }
     let guard = 0
     while (next.fights[fightId].status === 'fightNight' && guard++ < 20) { if (!ev.runNextFightInternal(next, e)) break }
+    processMedia(next)
     return { ok: true, state: next }
   }
   const next = structuredClone(state)
   resolveFight(next, next.fights[fightId])
+  processMedia(next)
   return { ok: true, state: next }
 }
 
@@ -128,13 +131,16 @@ export const chooseSponsor = ev.acceptSponsor
 export { acceptSponsorOffer, declineSponsorOffer, negotiateSponsorOffer } from './sponsors'
 export { ackTierNotice } from './tierProgress'
 export const putEventOnSale = ev.putOnSale
-export const runNextEventFight = ev.runNextFight
-export const quickSimEvent = ev.quickSimRemaining
+/** Results are reported straight away: the media world reads each fight and show the moment it is on the books. */
+const withMedia = <R extends { ok: boolean; state: GameState }>(r: R): R => { if (r.ok && r.state.media) processMedia(r.state); return r }
+export const runNextEventFight: typeof ev.runNextFight = (state, id) => withMedia(ev.runNextFight(state, id))
+export const quickSimEvent: typeof ev.quickSimRemaining = (state, id) => withMedia(ev.quickSimRemaining(state, id))
 export const cancelEvent = ev.cancelEventCommand
 export function runEventToEnd(state: GameState, eventId: Id): ev.EvResult {
   const e = state.events[eventId]
   if (!e || !['fightWeek', 'live'].includes(e.status)) return { ok: false, error: 'This event is not ready to run.', state }
   const next = structuredClone(state)
   ev.runWholeEvent(next, next.events[eventId])
+  processMedia(next)
   return { ok: true, state: next, eventId }
 }

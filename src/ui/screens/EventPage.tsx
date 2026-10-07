@@ -14,6 +14,7 @@ import { FightPage } from './FightPage'
 import { eventPosterView } from '../../engine/eventPoster'
 import { CountUp } from '../visual/CountUp'
 import { EventPoster } from '../visual/EventPoster'
+import { EventMediaPanel } from '../media/EventMediaPanel'
 import { FighterCard, type CardFighter } from '../visual/FighterCard'
 
 const rng = (r: { lo: number; hi: number }, f: (n: number) => string = (n) => money(n)) => (Math.round(r.lo) === Math.round(r.hi) ? f(r.lo) : `${f(r.lo)} to ${f(r.hi)}`)
@@ -92,6 +93,7 @@ export function EventPage({ id }: { id: string }) {
       {v.statusKey === 'cancelled' && <p className="attn critical">This show was cancelled: {v.cancelReason}.</p>}
 
       {v.mine && v.open && v.statusKey !== 'cancelled' && <BuildSteps v={v} />}
+      {v.statusKey !== 'cancelled' && <EventMediaPanel eventId={v.id} mine={v.mine} open={v.open} />}
       <AdvicePanel list={advice} cap={3} title="Promoter’s desk" />
 
       {v.can.run && <NightPanel v={v} runNext={runNext} nightFight={nightFight} />}

@@ -14,6 +14,7 @@ import { weightCompatible } from '../fight/profile'
 import { transition } from '../fight/lifecycle'
 import { chooseVenue, createFight, fightAvailability, lockKey, restUntil } from '../fights'
 import { appraise, baseMoney, valueOf } from '../market'
+import { titleBonus, titlePartners } from '../media/titles'
 import type { Rng } from '../rng'
 import type { Contract, Fighter, GameState, Id, Promotion } from '../types'
 
@@ -87,6 +88,8 @@ export function pickOpponent(state: GameState, promo: Promotion, x: Fighter, day
     !(state.fightLocks[lockKey(x.id, o.id)] > state.today))
   if (pool.length === 0) return null
   const sample = rng.shuffle(pool).slice(0, 60)
+  // A body's champion, mandatory challenger or the top two for a vacant belt are always worth a look (no extra randomness used).
+  for (const id of titlePartners(state, x.id, x.weightClass)) { const o = state.fighters[id]; if (o && pool.includes(o) && !sample.includes(o)) sample.push(o) }
   let best: { o: Fighter; score: number } | null = null
   for (const o of sample) {
     const aO = appraise(state, promo, o).rating
@@ -96,6 +99,7 @@ export function pickOpponent(state: GameState, promo: Promotion, x: Fighter, day
     let score = -Math.abs(diff - target)
     if (weightCompatible(x.weightClass, o.weightClass) === 'catchweight') score -= 6
     if (strat === 'money') score += o.popularity * 0.12
+    score += titleBonus(state, x.id, o.id, x.weightClass)
     if (strat === 'regional' && regionOf(o.nationality) === regionOf(promo.homeCountry)) score += 6
     if (recent.has(o.id)) score -= 14
     // The public tires of the same two fighters: every prior meeting in recent memory costs, and three is a trilogy — enough.

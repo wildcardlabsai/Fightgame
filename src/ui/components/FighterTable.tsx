@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
 import type { FighterView } from '../../engine/view'
 import { useGame } from '../../store/gameStore'
-import { money } from '../format'
+import { money, standingLabel } from '../format'
 import { Avatar, Flag, Meter } from './Bits'
 import { fighterFallback } from '../../assets/registry'
 import { KnowledgePips, RangeText } from './Estimates'
@@ -58,7 +58,11 @@ function cell(v: FighterView, c: ColKey, actions?: (v: FighterView) => ReactNode
     case 'identity': return <FighterIdentity v={v} />
     case 'recordBig': return <div className="fx-rec"><span className="num">{v.recordText}</span><small>{v.record.koWins} KO{v.record.koWins === 1 ? '' : 's'}{v.fights ? ` · ${v.koRate}%` : ''}</small></div>
     case 'style': return <span className="fx-style">{v.style}</span>
-    case 'rank': return <span className="dim fx-rank" title="Rankings arrive with the next phase">Unranked</span>
+    case 'rank': {
+      if (v.mediaRank.rank !== null) return <span className={`fx-rank num${v.mediaRank.rank === 0 ? ' champ' : ''}`} title={v.mediaRank.title}>{v.mediaRank.text}</span>
+      const st = standingLabel(v.standing)
+      return <span className={`fx-rank${v.standing.rank > 0 ? ' num dim' : ' dim'}`} title={st.title}>{v.standing.rank > 0 ? `~${st.text}` : st.text}</span>
+    }
     case 'division': return <span className="fx-div" style={{ ['--hue' as string]: fighterFallback(v).hue }}>{v.division}</span>
     case 'fighter': return <FighterCell v={v} />
     case 'age': return <span className="num">{v.age}</span>

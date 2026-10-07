@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import * as commands from '../engine/commands'
+import * as mediaCommands from '../engine/media/commands'
 import { browserStorage, deserialiseGame, serialiseGame } from '../engine/save'
 import { openBestBackend, SaveVault, type SlotMeta } from '../engine/persistence'
 import { advanceWeeks } from '../engine/tick'
@@ -11,14 +12,14 @@ import { emitGameEvent } from './gameEvents'
 
 export type ScreenId =
   | 'dashboard' | 'fighters' | 'fighter' | 'calendar' | 'inbox' | 'finances' | 'promotions'
-  | 'venues' | 'settings' | 'scouting' | 'contracts' | 'negotiation' | 'matchmaking' | 'fights' | 'fight' | 'deal' | 'events' | 'event' | 'sponsors' | 'news' | 'advisor' | 'assets'
+  | 'venues' | 'settings' | 'scouting' | 'contracts' | 'negotiation' | 'matchmaking' | 'fights' | 'fight' | 'deal' | 'events' | 'event' | 'sponsors' | 'news' | 'advisor' | 'media' | 'rankings' | 'titles' | 'assets'
 
 export interface Route {
   screen: ScreenId
   param?: string
 }
 
-const SCREENS: ScreenId[] = ['dashboard', 'fighters', 'fighter', 'calendar', 'inbox', 'finances', 'promotions', 'venues', 'settings', 'scouting', 'contracts', 'negotiation', 'matchmaking', 'fights', 'fight', 'deal', 'events', 'event', 'sponsors', 'news', 'advisor', ...(import.meta.env.DEV ? (['assets'] as ScreenId[]) : [])]
+const SCREENS: ScreenId[] = ['dashboard', 'fighters', 'fighter', 'calendar', 'inbox', 'finances', 'promotions', 'venues', 'settings', 'scouting', 'contracts', 'negotiation', 'matchmaking', 'fights', 'fight', 'deal', 'events', 'event', 'sponsors', 'news', 'advisor', 'media', 'rankings', 'titles', ...(import.meta.env.DEV ? (['assets'] as ScreenId[]) : [])]
 
 export function parseHash(hash: string): Route {
   const [, screen, param, extra] = hash.replace(/^#/, '').split('/')
@@ -69,6 +70,9 @@ interface GameStore {
   sponsorAccept: (offerId: Id, years: 1 | 2 | 3) => boolean
   sponsorNegotiate: (offerId: Id) => void
   sponsorDecline: (offerId: Id) => void
+  // ---- Phase 5: the media world ----
+  /** Run a media decision (answer a request, hold a press conference, accept a broadcast offer...). Toasts the outcome. */
+  mediaDo: <K extends MediaCmd>(name: K, ...args: Parameters<(typeof MEDIA_COMMANDS)[K]> extends [GameState, ...infer R] ? R : never) => boolean
   // ---- Phase 4: events ----
   createEvent: (spec: { name: string; day: number; venueId: Id }) => string | null
   /** Run a named event command against the current game; toasts the engine's error or a short success note. */
@@ -108,6 +112,12 @@ function announceFinish(before: GameState, after: GameState, eventId: string): v
   const done = (s: GameState) => ['completed', 'settled', 'archived'].includes(s.events[eventId]?.status ?? '')
   if (!done(before) && done(after)) { emitGameEvent({ type: 'event.completed', eventId }); emitGameEvent({ type: 'event.profit', eventId, profit: after.events[eventId]?.result?.profit ?? 0 }) }
 }
+
+const MEDIA_COMMANDS = {
+  respond: mediaCommands.respondToMediaRequest, press: mediaCommands.holdPressConference, acceptOffer: mediaCommands.acceptBroadcastOffer,
+  declineOffer: mediaCommands.declineBroadcastOffer, releaseDeal: mediaCommands.releaseBroadcastDeal,
+} as const
+export type MediaCmd = keyof typeof MEDIA_COMMANDS
 
 const EVENT_COMMANDS = {
   addFight: commands.addFightToEvent, removeFight: commands.removeFightFromEvent, moveFight: commands.moveFightOnCard, setSlot: commands.setCardSlot,
@@ -372,6 +382,16 @@ export const useGame = create<GameStore>((set, get) => {
       set({ game: r.state })
       if (name === 'quickSim' || name === 'runToEnd') announceFinish(g, r.state, args[0] as string)
       if (EVENT_OK[name]) get().notify(EVENT_OK[name]!, 'good')
+      return true
+    },
+    mediaDo: (name, ...args) => {
+      const g = get().game
+      if (!g) return false
+      const fn = MEDIA_COMMANDS[name] as unknown as (g: GameState, ...a: unknown[]) => { ok: boolean; message: string; state: GameState }
+      const r = fn(g, ...args)
+      if (!r.ok) { get().notify(r.message, 'bad'); return false }
+      set({ game: r.state })
+      get().notify(r.message, 'good')
       return true
     },
     runNextEventFight: (eventId) => {

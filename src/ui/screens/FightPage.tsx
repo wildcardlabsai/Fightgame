@@ -9,6 +9,7 @@ import { RangeText } from '../components/Estimates'
 import { Corner, FormDots, StarRating, StatBar, VerdictChip } from '../components/FightBits'
 import { Modal } from '../components/Overlay'
 import { TaleOfTape } from '../components/TaleOfTape'
+import { FightMediaPanel } from '../media/FightMediaPanel'
 import { LiveFight } from '../visual/LiveFight'
 import { money } from '../format'
 
@@ -185,6 +186,7 @@ function FightPageInner({ id }: { id: string }) {
       <Hero fv={fv} after={fv.result?.after} showWinner={revealed} hideMatchup={!!fv.result?.rounds || (!fv.result && !['cancelled', 'negotiating'].includes(fv.statusKey))} />
       {!fv.result && !['cancelled', 'negotiating'].includes(fv.statusKey) && <TaleOfTape a={fv.a.fighter} b={fv.b.fighter} rounds={fv.rounds} division={fv.division} onBell={fv.statusKey === 'fightNight' && fv.canRunNight ? () => (fv.eventId ? navigate('event', fv.eventId!) : run(id)) : undefined} bellLabel={fv.eventId ? 'Ring the bell · go to the show' : 'Ring the bell'} />}
       {fv.result?.rounds && <LiveFight fv={fv} r={fv.result} live={animate} onDone={onDone} />}
+      <FightMediaPanel fightId={id} />
       {fv.eventId && <p className="dim" style={{ marginTop: 8 }}>Part of <button className="linkbtn" onClick={() => navigate('event', fv.eventId!)}>{fv.eventName}</button></p>}
 
       {fv.statusKey === 'negotiating' && <p className="empty">Talks are ongoing. <button className="linkbtn" onClick={() => navigate('deal', id)}>Open the negotiation</button></p>}

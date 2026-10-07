@@ -1,3 +1,4 @@
+import { initMediaWorld } from './media/process'
 import { VENUE_SEEDS, venueFields } from '../data/venues'
 import { dayFromIso } from './calendar'
 import { generateFighter, publicFacts, visibility } from './fighters'
@@ -219,6 +220,7 @@ export function createNewGame(opts: NewGameOptions, now = Date.now()): GameState
   state.scouts.push(createStartingScout(state, opts.homeCountry))
   initKnowledge(state)
   postWelcomeMessages(state)
+  initMediaWorld(state)
   return state
 }
 

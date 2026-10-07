@@ -1,3 +1,4 @@
+import { cloneState } from './clone'
 import { processTier } from './tierProgress'
 import { processSponsors } from './sponsors'
 import { checkObjectives } from './scenarios'
@@ -20,6 +21,7 @@ import { processContracts } from './systems/contracts'
 import { birthdayMessages, developFighter, updateCondition } from './systems/development'
 import { processWeeklyFinance } from './systems/finance'
 import { processRetirements, talentIntake } from './systems/world'
+import { PASS_EVERY, processMedia } from './media/process'
 import type { GameState } from './types'
 
 export interface TickResult {
@@ -30,8 +32,8 @@ export interface TickResult {
 }
 
 /** Advance the world by exactly one week. Pure: returns a new state, never mutates the input. */
-export function advanceOneWeek(input: GameState): GameState {
-  const state = structuredClone(input)
+export function advanceOneWeek(input: GameState, opts: { media?: boolean } = {}): GameState {
+  const state = cloneState(input)
   const rng = new Rng(state.rngState)
   const ids = stateIds(state)
 
@@ -85,6 +87,7 @@ export function advanceOneWeek(input: GameState): GameState {
   for (const o of checkObjectives(state)) {
     postMessage(state, { from: 'Board', category: 'system', priority: 'important', key: `objective-${o.id}`, cooldownWeeks: 9999, subject: 'Objective complete', body: `${o.label}. Well done — the board is impressed. Keep building.`, link: { kind: 'screen', screen: 'dashboard' } })
   }
+  if (opts.media !== false && Math.floor((state.today - state.startDay) / 7) % PASS_EVERY === 0) processMedia(state) // the living media world reads this week's results (it never changes them)
   purgeNegotiations(state)
   if (Math.floor((state.today - state.startDay) / 7) % 52 === 51) { pruneFights(state); pruneRetired(state); pruneEvents(state) }
 

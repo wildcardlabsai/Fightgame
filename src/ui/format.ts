@@ -21,3 +21,9 @@ export function compactNumber(n: number): string {
 export function cap(s: string): string {
   return s.charAt(0).toUpperCase() + s.slice(1)
 }
+
+/** Public division standing for a fighter list. `rank` 0 means the fighter has no recorded fights (genuinely unranked). */
+export function standingLabel(s: { rank: number; of: number }): { text: string; title: string } {
+  if (s.rank <= 0) return { text: 'UNRANKED', title: 'No professional fights yet, so no public standing.' }
+  return { text: `#${s.rank}`, title: `Public standing: ${s.rank} of ${s.of} active fighters in the division (not an official ranking).` }
+}

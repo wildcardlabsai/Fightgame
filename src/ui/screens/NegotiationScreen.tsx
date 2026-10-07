@@ -190,7 +190,7 @@ export function NegotiationScreen({ id }: { id: string }) {
                 </div>
                 <label className={`toggle${offer.titlePromise ? ' on' : ''}`} style={{ marginTop: 12 }}>
                   <input type="checkbox" checked={offer.titlePromise} onChange={(e) => set('titlePromise', e.target.checked)} />
-                  <span><b>Promise a title opportunity</b><br /><small className="dim">Ambitious fighters value this. It becomes an obligation: break it and they will remember. Titles arrive in a later phase, so it is tracked now and enforced then.</small></span>
+                  <span><b>Promise a title opportunity</b><br /><small className="dim">Ambitious fighters value this. It becomes an obligation: break it and they will remember.</small></span>
                 </label>
                 <button className="btn primary big" style={{ marginTop: 14, width: '100%' }} data-testid="neg-send" onClick={submit} disabled={!canSend}>{info.counter ? 'Send revised offer' : 'Make offer'} ▸</button>
               </div>

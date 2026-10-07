@@ -2,6 +2,7 @@
  * EVENT OPERATIONS: create, build the card, price, promote, sell, run the night, settle, cancel.
  * Money moves only through eventFinance.receive/spend (→ ledger.post for the player).
  */
+import { dealFor, settleDeal, voidBroadcast } from '../media/broadcast'
 import { weightClassLabel } from '../../data/weightClasses'
 import { SPONSOR_BRANDS } from '../../data/sponsors'
 import { BALANCE as B } from '../balance'
@@ -213,6 +214,7 @@ export function setMarketing(input: GameState, eventId: Id, patch: { level?: Mar
 export function setBroadcast(input: GameState, eventId: Id, kind: BroadcastKind, ppvPrice?: number): EvResult {
   const ev0 = input.events[eventId]
   if (!ev0 || !['venueBooked', 'cardBuilding', 'onSale', 'promoting'].includes(ev0.status)) return bad(input, 'Broadcast can no longer be changed.')
+  if (dealFor(input, ev0) && dealFor(input, ev0)!.kind !== kind) return bad(input, 'This show is under a broadcast deal. Release the deal in the Media screen before changing the broadcast option.')
   const t = broadcastTerms(input, ev0, kind, 'public')
   if (!t.available) return bad(input, t.reason ?? 'Not available.')
   const state = structuredClone(input)
@@ -494,8 +496,10 @@ export function finishEvent(state: GameState, ev: BoxingEvent): void {
   const viewers = ev.broadcast.kind === 'none' ? 0 : viewersFor(state, ev, 'actual')
   if (ev.broadcast.kind === 'ppv') {
     ppvBuys = ppvBuysFor(state, ev, 'actual')
-    const ppvRev = ppvBuys * ev.broadcast.ppvPrice * E.ppv.promoterShare
-    receive(state, ev, 'ppv', ppvRev, `PPV revenue — ${ev.name} (${ppvBuys.toLocaleString('en-GB')} buys)`)
+    const deal = dealFor(state, ev)
+    const dealPay = deal && deal.kind === 'ppv' ? settleDeal(deal, viewers, ppvBuys, ev.broadcast.ppvPrice) : null
+    const ppvRev = dealPay ? dealPay.revenue : ppvBuys * ev.broadcast.ppvPrice * E.ppv.promoterShare
+    receive(state, ev, 'ppv', ppvRev, dealPay ? `${dealPay.label} — ${ev.name}` : `PPV revenue — ${ev.name} (${ppvBuys.toLocaleString('en-GB')} buys)`)
     // Headliners on a PPV share deal take their cut of what the promoter receives.
     const mainF = fights[fights.length - 1]
     if (mainF) for (const side of [mainF.sideA, mainF.sideB]) {
@@ -503,8 +507,14 @@ export function finishEvent(state: GameState, ev: BoxingEvent): void {
       if (c && c.promotionId === ev.promotionId && c.ppvShare > 0) spend(state, ev, 'bonuses', ppvRev * c.ppvShare, `PPV share — ${fighterName(state.fighters[side.fighterId])}`)
     }
   } else if (ev.broadcast.kind !== 'none') {
-    const bt = broadcastTerms(state, ev, ev.broadcast.kind, 'actual')
-    if (bt.fee > 0) receive(state, ev, 'broadcast', bt.fee, `Broadcast fee — ${ev.name}`)
+    const deal = dealFor(state, ev)
+    if (deal && deal.kind === ev.broadcast.kind) {
+      const pay = settleDeal(deal, viewers, 0, 0)
+      if (pay.revenue > 0) receive(state, ev, 'broadcast', pay.revenue, `${pay.label} — ${ev.name}`)
+    } else {
+      const bt = broadcastTerms(state, ev, ev.broadcast.kind, 'actual')
+      if (bt.fee > 0) receive(state, ev, 'broadcast', bt.fee, `Broadcast fee — ${ev.name}`)
+    }
   }
 
   // Event quality as it actually played out (outcomes only).
@@ -610,6 +620,7 @@ export function cancelEvent(state: GameState, ev: BoxingEvent, reason: string): 
   const weeks = weeksBetween(state.today, ev.day)
   eventTransition(ev, 'cancelled')
   ev.cancelReason = reason
+  voidBroadcast(state, ev.id)
   // Ticket-holders are refunded in full.
   const gate = ev.finance.revenue.tickets
   if (gate > 0) receive(state, ev, 'tickets', -gate, `Ticket refunds — ${ev.name}`)
