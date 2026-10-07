@@ -8,7 +8,7 @@
  */
 import { BALANCE as B } from '../balance'
 import type { Rng } from '../rng'
-import type { FightMethod, RoundRec } from '../types'
+import type { FightMethod, KnockdownRec, RoundRec } from '../types'
 import type { SimFighter } from './profile'
 import { STYLES } from './styles'
 
@@ -73,6 +73,8 @@ export function simulateFight(a: SimFighter, b: SimFighter, rounds: number, rng:
     let hurtThisRound = [0, 0]
     let kdInRound = [0, 0]
     const momStart = mom
+    const eStart = [st[0].energy, st[1].energy]
+    const kdEvents: KnockdownRec[] = []
 
     for (let seg = 0; seg < S.segments && !ended; seg++) {
       const vols = fighters.map((f, i) => {
@@ -147,8 +149,12 @@ export function simulateFight(a: SimFighter, b: SimFighter, rounds: number, rng:
           const r2 = dSt.dmg / cap
           const pRise = clamp(0.94 - 0.55 * r2 - 0.1 * (dSt.kdSuffered - 1) - 0.12 * (kdInRound[j] - 1) + 0.18 * (def.hrt - 0.5) + 0.12 * (def.com * (0.85 + 0.3 * dSt.conf) - 0.5), 0.04, 0.97)
           const secs = seg * 60 + rng.int(8, 55)
+          // The recorded referee count uses no RNG draw (outcomes and the random stream are untouched): the harder the
+          // fighter is hurt the later they rise; a fighter who does not rise is counted out (10).
+          let stays = false
           if (kdInRound[j] >= 3) ended = { winner: i as 0 | 1, method: 'TKO', round: r, second: secs }
-          else if (rng.next() > pRise) ended = { winner: i as 0 | 1, method: 'KO', round: r, second: secs }
+          else if (rng.next() > pRise) { ended = { winner: i as 0 | 1, method: 'KO', round: r, second: secs }; stays = true }
+          kdEvents.push({ s: j as 0 | 1, g: seg, n: stays ? 10 : clamp(Math.round(2 + 7 * (1 - pRise)), 2, 9), u: stays ? 0 : 1 })
         } else if (bigs[i] > 0 && rng.next() < 0.5) {
           dSt.hurt = Math.max(dSt.hurt, clamp(0.35 + 0.4 * ratio, 0, 0.9))
         }
@@ -177,6 +183,9 @@ export function simulateFight(a: SimFighter, b: SimFighter, rounds: number, rng:
 
     // ----- end of round -----
     const rec = scoreRound(rd, fighters, st, mom, momStart, judgeBias, rng, opts.homeSide ?? null, kdInRound, hurtThisRound)
+    rec.e = [eStart[0], st[0].energy, eStart[1], st[1].energy].map((x) => Math.round(x * 100)) as [number, number, number, number]
+    rec.m = [Math.round(momStart * 100), Math.round(mom * 100)]
+    if (kdEvents.length) rec.c = kdEvents
     // fouls
     for (let i = 0; i < 2; i++) {
       if (rng.next() < S.foulPerRound * (1.3 - fighters[i].dis) * (0.5 + fighters[i].agg)) {

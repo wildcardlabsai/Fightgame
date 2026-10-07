@@ -5,18 +5,20 @@
  */
 import manifestJson from '../../public/assets/manifest.json'
 
-export type AssetKind = 'fighter.profile' | 'fighter.action' | 'fighter.celebration' | 'promotion.logo' | 'promotion.banner' | 'venue' | 'eventTemplate' | 'news' | 'ui'
+export type AssetKind = 'fighter.profile' | 'fighter.action' | 'fighter.celebration' | 'promotion.logo' | 'promotion.mark' | 'venue' | 'eventTemplate' | 'news' | 'ui'
 export type AssetState = 'real' | 'fallback'
 
 export interface ManifestEntry { id: string; type: string; entityId: string; path: string; width: number; height: number; format: string; status: string }
-interface ClassDef { dir: string; file: string; width: number; height: number; thumb?: { width: number; height: number; file: string }; format: string; status: string; ids: string[] }
-interface Manifest { version: number; shipped: ManifestEntry[]; classes: Record<string, ClassDef> }
+interface ClassDef { dir: string; file: string; width: number; height: number; format: string; status: string; ids: string[] }
+interface Manifest { version: number; shipped: ManifestEntry[]; artWorld: { seed: string | null }; classes: Record<string, ClassDef> }
 export const MANIFEST = manifestJson as unknown as Manifest
 
 /** Where static assets are served from. Not bundled into JS: they are plain files under /assets. */
-export function assetUrl(path: string): string {
-  const base = (import.meta as unknown as { env?: { BASE_URL?: string } }).env?.BASE_URL ?? '/'
-  return `${base.endsWith('/') ? base : base + '/'}assets/${path}`
+export function assetUrl(path: string, base: string = (import.meta as unknown as { env?: { BASE_URL?: string } }).env?.BASE_URL ?? '/'): string {
+  // '/' (dev, production at the site root), './' or '' (relative builds such as the hosted preview, whose files are published
+  // next to the page as `assets/...`). Never produces a leading './' so a relative page resolves it as a sibling path.
+  const b = base === './' || base === '.' || base === '' ? '' : base.endsWith('/') ? base : base + '/'
+  return `${b}assets/${path}`
 }
 
 export interface ResolvedAsset {
@@ -44,28 +46,46 @@ function shipped(type: string, entityId: string, kind: AssetKind): ResolvedAsset
   return { assetId: e.id, kind, entityId, state: 'real', url, thumbUrl: url, width: e.width, height: e.height, fallbackKey: entityId }
 }
 
+// ------------------------------------------------------------------------------------------------ art index
+/** Entities that currently have a generated file, per asset class (from the manifest; tests/dev can register more). */
+const artIds = new Map<string, Set<string>>()
+const thumbIds = new Set<string>()
+function idsOf(cls: string): Set<string> {
+  let s = artIds.get(cls)
+  if (!s) { s = new Set(MANIFEST.classes[cls]?.ids ?? []); artIds.set(cls, s) }
+  return s
+}
+for (const t of (MANIFEST.classes['fighter.profile'] as ClassDef & { thumbIds?: string[] }).thumbIds ?? []) thumbIds.add(t)
+let activeWorld: string | null = null
+/** Fighter artwork belongs to one generated world: it only appears in a game created with that world seed. */
+export function setArtWorld(seed: string | null): void { activeWorld = seed }
+export const artWorldSeed = (): string | null => MANIFEST.artWorld?.seed ?? null
+/** True if any generated fighter art exists (the title screen then offers the illustrated world). */
+export const hasFighterArt = (): boolean => !!artWorldSeed() && ['fighter.profile', 'fighter.action', 'fighter.celebration'].some((c) => idsOf(c).size > 0)
+const worldMatches = () => !artWorldSeed() || activeWorld === artWorldSeed()
+/** Test/dev hook: register art for entities of a class (e.g. 'fighter.profile', 'venue'). */
+export function registerArt(cls: string, ids: string[]): void { for (const id of ids) idsOf(cls).add(id) }
+export function clearArt(): void { for (const c of Object.keys(MANIFEST.classes)) idsOf(c).clear(); thumbIds.clear() }
+function classUrl(cls: string, id: string, suffix = ''): string {
+  const def = MANIFEST.classes[cls]
+  return assetUrl(`${def.dir}/${def.file.replace('{id}', id).replace(/\.webp$/, `${suffix}.webp`)}`)
+}
+
 // ------------------------------------------------------------------------------------------------ fighters
 export type FighterVariant = 'profile' | 'action' | 'celebration'
 export interface FighterRef { id: string; firstName: string; lastName: string; division?: string }
 
-const fighterIds: Record<FighterVariant, Set<string>> = {
-  profile: new Set(MANIFEST.classes['fighter.profile'].ids),
-  action: new Set(MANIFEST.classes['fighter.action'].ids),
-  celebration: new Set(MANIFEST.classes['fighter.celebration'].ids),
-}
-
-/** Test/dev hook: register art for fighters (e.g. an asset pack loaded at start-up). */
-export function registerFighterArt(variant: FighterVariant, ids: string[]): void { for (const id of ids) fighterIds[variant].add(id) }
-export function clearFighterArt(): void { for (const s of Object.values(fighterIds)) s.clear() }
+export function registerFighterArt(variant: FighterVariant, ids: string[]): void { registerArt(`fighter.${variant}`, ids) }
+export function clearFighterArt(): void { for (const v of ['profile', 'action', 'celebration']) idsOf(`fighter.${v}`).clear(); thumbIds.clear() }
+export function registerFighterThumbs(ids: string[]): void { for (const i of ids) thumbIds.add(i) }
 
 export function resolveFighterImage(f: FighterRef, variant: FighterVariant = 'profile'): ResolvedAsset {
   const cls = MANIFEST.classes[`fighter.${variant}`]
   const kind = `fighter.${variant}` as AssetKind
-  const has = fighterIds[variant].has(f.id)
   const fallbackKey = fighterFallback(f).key
-  if (!has) return { assetId: `fighter.${variant}.${f.id}`, kind, entityId: f.id, state: 'fallback', url: null, thumbUrl: null, width: cls.width, height: cls.height, fallbackKey }
-  const url = assetUrl(`${cls.dir}/${cls.file.replace('{id}', f.id)}`)
-  const thumbUrl = cls.thumb ? assetUrl(`${cls.dir}/${cls.thumb.file.replace('{id}', f.id)}`) : url
+  if (!worldMatches() || !idsOf(`fighter.${variant}`).has(f.id)) return { assetId: `fighter.${variant}.${f.id}`, kind, entityId: f.id, state: 'fallback', url: null, thumbUrl: null, width: cls.width, height: cls.height, fallbackKey }
+  const url = classUrl(`fighter.${variant}`, f.id)
+  const thumbUrl = variant === 'profile' && thumbIds.has(f.id) ? classUrl('fighter.profile', f.id, '_thumb') : url
   return { assetId: `fighter.${variant}.${f.id}`, kind, entityId: f.id, state: 'real', url, thumbUrl, width: cls.width, height: cls.height, fallbackKey }
 }
 
@@ -82,41 +102,51 @@ export function fighterFallback(f: FighterRef): FighterFallback {
 }
 
 // ------------------------------------------------------------------------------------------------ venues
-export const VENUE_KINDS = ['local-hall', 'sports-centre', 'theatre', 'regional-arena', 'national-arena', 'major-arena', 'stadium', 'outdoor-stadium', 'international'] as const
+export const VENUE_KINDS = ['local-hall', 'sports-centre', 'theatre', 'regional-arena', 'national-arena', 'major-arena', 'stadium', 'outdoor-stadium', 'international', 'vegas-arena', 'uk-arena'] as const
 export type VenueKind = (typeof VENUE_KINDS)[number]
 export const VENUE_KIND_LABEL: Record<VenueKind, string> = {
   'local-hall': 'Local hall', 'sports-centre': 'Sports centre', theatre: 'Theatre', 'regional-arena': 'Regional arena', 'national-arena': 'National arena',
-  'major-arena': 'Major arena', stadium: 'Stadium', 'outdoor-stadium': 'Outdoor stadium', international: 'International venue',
+  'major-arena': 'Major arena', stadium: 'Stadium', 'outdoor-stadium': 'Outdoor stadium', international: 'International venue', 'vegas-arena': 'Las Vegas-style arena', 'uk-arena': 'UK arena',
 }
-export interface VenueRef { id?: string; name: string; tier: 'local' | 'regional' | 'national' | 'arena' | 'stadium'; capacity: number }
+export interface VenueRef { id?: string; name: string; tier: 'local' | 'regional' | 'national' | 'arena' | 'stadium'; capacity: number; city?: string; country?: string }
 
+const UK = new Set(['ENG', 'WAL', 'SCO', 'NIR', 'GBR'])
 /** Public venue facts (tier, capacity, name) → one of the nine venue looks. */
 export function venueKind(v: VenueRef): VenueKind {
   const n = v.name.toLowerCase()
   if (/international|world|global/.test(n)) return 'international'
   if (/theatre|theater|ballroom/.test(n)) return 'theatre'
+  if ((v.tier === 'national' || v.tier === 'arena') && (v.city === 'Las Vegas' || /casino|resort/.test(n))) return 'vegas-arena'
   if (/sports centre|sports center|leisure|gym/.test(n)) return 'sports-centre'
   switch (v.tier) {
     case 'local': return 'local-hall'
     case 'regional': return v.capacity < 2000 ? 'sports-centre' : 'regional-arena'
-    case 'national': return 'national-arena'
-    case 'arena': return v.capacity >= 15000 ? 'major-arena' : 'national-arena'
+    case 'national': return v.country && UK.has(v.country) && v.capacity >= 4000 ? 'uk-arena' : 'national-arena'
+    case 'arena': return v.capacity >= 15000 ? 'major-arena' : v.country && UK.has(v.country) ? 'uk-arena' : 'national-arena'
     case 'stadium': return v.capacity >= 50000 ? 'outdoor-stadium' : 'stadium'
   }
 }
-export function resolveVenueImage(v: VenueRef): ResolvedAsset { return { ...shipped('venue', venueKind(v), 'venue'), entityId: v.id ?? venueKind(v) } }
+/** A generated image for this exact venue entity if one exists, otherwise the reusable look for its kind, otherwise the tier backdrop. */
+export function resolveVenueImage(v: VenueRef): ResolvedAsset {
+  if (v.id && idsOf('venue').has(v.id)) {
+    const def = MANIFEST.classes.venue
+    const url = classUrl('venue', v.id)
+    return { assetId: `venue.${v.id}`, kind: 'venue', entityId: v.id, state: 'real', url, thumbUrl: url, width: def.width, height: def.height, fallbackKey: venueKind(v) }
+  }
+  return { ...shipped('venue', venueKind(v), 'venue'), entityId: v.id ?? venueKind(v) }
+}
 
 export function resolveVenueKind(k: VenueKind): ResolvedAsset { return shipped('venue', k, 'venue') }
 
 // ------------------------------------------------------------------------------------------------ promotions
-const promoIds = { logo: new Set(MANIFEST.classes['promotion.logo'].ids), banner: new Set(MANIFEST.classes['promotion.banner'].ids) }
-export function registerPromotionArt(variant: 'logo' | 'banner', ids: string[]): void { for (const id of ids) promoIds[variant].add(id) }
-export function clearPromotionArt(): void { promoIds.logo.clear(); promoIds.banner.clear() }
-export function resolvePromotionImage(promotionId: string, variant: 'logo' | 'banner' = 'logo'): ResolvedAsset {
+export function registerPromotionArt(variant: 'logo' | 'mark', ids: string[]): void { registerArt(`promotion.${variant}`, ids) }
+export function clearPromotionArt(): void { idsOf('promotion.logo').clear(); idsOf('promotion.mark').clear() }
+/** Logo (large) or compact mark. Promotion ids are stable across worlds, so no world check. Falls back to the generated monogram. */
+export function resolvePromotionImage(promotionId: string, variant: 'logo' | 'mark' = 'logo'): ResolvedAsset {
   const cls = MANIFEST.classes[`promotion.${variant}`]
   const kind = `promotion.${variant}` as AssetKind
-  if (!promoIds[variant].has(promotionId)) return { assetId: `promotion.${variant}.${promotionId}`, kind, entityId: promotionId, state: 'fallback', url: null, thumbUrl: null, width: cls.width, height: cls.height, fallbackKey: 'monogram' }
-  const url = assetUrl(`${cls.dir}/${cls.file.replace('{id}', promotionId)}`)
+  if (!idsOf(`promotion.${variant}`).has(promotionId)) return { assetId: `promotion.${variant}.${promotionId}`, kind, entityId: promotionId, state: 'fallback', url: null, thumbUrl: null, width: cls.width, height: cls.height, fallbackKey: 'monogram' }
+  const url = classUrl(`promotion.${variant}`, promotionId)
   return { assetId: `promotion.${variant}.${promotionId}`, kind, entityId: promotionId, state: 'real', url, thumbUrl: url, width: cls.width, height: cls.height, fallbackKey: 'monogram' }
 }
 
@@ -126,7 +156,10 @@ export type PosterTemplateId = (typeof POSTER_TEMPLATES)[number]
 export const POSTER_LABEL: Record<PosterTemplateId, string> = {
   'fight-night': 'Fight Night', championship: 'Championship', rivalry: 'Rivalry', 'main-event': 'Main Event', ppv: 'Pay-per-view', international: 'International', 'next-generation': 'Next Generation', 'big-event': 'Big Event',
 }
-export function resolveEventTemplate(id: PosterTemplateId): ResolvedAsset { return shipped('eventTemplate', id, 'eventTemplate') }
+export function resolveEventTemplate(id: PosterTemplateId): ResolvedAsset {
+  if (idsOf('eventTemplate').has(id)) { const def = MANIFEST.classes.eventTemplate; const url = classUrl('eventTemplate', id); return { assetId: `eventTemplate.${id}`, kind: 'eventTemplate', entityId: id, state: 'real', url, thumbUrl: url, width: def.width, height: def.height, fallbackKey: id } }
+  return shipped('eventTemplate', id, 'eventTemplate')
+}
 
 // ------------------------------------------------------------------------------------------------ news
 export const NEWS_KINDS = ['signing', 'knockout', 'championship', 'retirement', 'comeback', 'injury', 'upset', 'rivalry', 'press', 'sold-out', 'contract', 'media', 'training', 'milestone', 'business', 'world'] as const
@@ -159,8 +192,11 @@ export function newsKind(n: NewsRef): NewsKind {
     default: return 'world'
   }
 }
-export function resolveNewsImage(n: NewsRef): ResolvedAsset { const k = newsKind(n); return shipped('news', k, 'news') }
-export function resolveNewsKind(k: NewsKind): ResolvedAsset { return shipped('news', k, 'news') }
+export function resolveNewsImage(n: NewsRef): ResolvedAsset { return resolveNewsKind(newsKind(n)) }
+export function resolveNewsKind(k: NewsKind): ResolvedAsset {
+  if (idsOf('news').has(k)) { const def = MANIFEST.classes.news; const url = classUrl('news', k); return { assetId: `news.${k}`, kind: 'news', entityId: k, state: 'real', url, thumbUrl: url, width: def.width, height: def.height, fallbackKey: k } }
+  return shipped('news', k, 'news')
+}
 
 // ------------------------------------------------------------------------------------------------ gallery (dev)
 export interface GalleryEntry { assetId: string; kind: AssetKind; entityId: string; type: string; file: string; width: number; height: number; state: AssetState }

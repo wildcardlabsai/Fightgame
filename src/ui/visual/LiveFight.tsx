@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { FightView, ResultView } from '../../engine/fightViews'
-import { control, finishCard, hasKnockdown, PLAY_MODES, planRounds, roundCommentary, roundsWon, totalsThrough, type CommentaryLine, type PlayMode } from '../../presentation/fightPlayback'
+import { control, finishCard, hasKnockdown, knockdownSteps, PLAY_MODES, planRounds, roundCommentary, roundsWon, stamina, totalsThrough, type CommentaryLine, type PlayMode } from '../../presentation/fightPlayback'
 import { emitGameEvent } from '../../store/gameEvents'
 import { usePrefs } from '../../store/prefs'
 import { CountUp } from './CountUp'
@@ -48,6 +48,10 @@ export function LiveFight({ fv, r, live, onDone }: { fv: FightView; r: ResultVie
   const [feed, setFeed] = useState<CommentaryLine[]>(() => (live ? [] : rounds.flatMap((rd) => roundCommentary(rd, names, total))))
   const emitted = useRef(new Set<string>())
   const doneCalled = useRef(false)
+  const momentTimers = useRef<ReturnType<typeof setTimeout>[]>([])
+  const momentsStarted = useRef(new Set<string>())
+  const clearMoments = useCallback(() => { momentTimers.current.forEach(clearTimeout); momentTimers.current = []; setMoment(null) }, [])
+  useEffect(() => () => { momentTimers.current.forEach(clearTimeout) }, [])
   const doneRef = useRef(onDone)
   doneRef.current = onDone
   const stops = useMemo(() => planRounds(r, mode), [r, mode])
@@ -60,14 +64,14 @@ export function LiveFight({ fv, r, live, onDone }: { fv: FightView; r: ResultVie
   }, [])
 
   const finishNow = useCallback((animateCards: boolean) => {
-    setShown(total); setBell(null); setMoment(null)
+    setShown(total); setBell(null); clearMoments()
     setFeed(rounds.flatMap((rd) => roundCommentary(rd, names, total)))
     emit(`fin:${run}`, { type: 'fight.finish', fightId: fv.id, ko: r.stoppage })
     setFinished(true)
     if (!animateCards || r.stoppage || r.cards.length === 0) setCardsShown(r.cards.length)
     if (r.stoppage || r.cards.length === 0 || !animateCards) { if (!doneCalled.current) { doneCalled.current = true; setTimeout(() => doneRef.current(), animateCards ? 900 : 0) } }
     setPlaying(false)
-  }, [total, rounds, names, emit, run, fv.id, r.stoppage, r.cards.length])
+  }, [total, rounds, names, emit, run, fv.id, r.stoppage, r.cards.length, clearMoments])
 
   // Quick sim: straight to the result (the same recorded numbers every other mode ends on).
   useEffect(() => { if (active && playing && mode === 'quick' && !finished) finishNow(false) }, [active, playing, mode, finished, finishNow])
@@ -90,10 +94,18 @@ export function LiveFight({ fv, r, live, onDone }: { fv: FightView; r: ResultVie
       setShown(cursor.i + 1)
       setFeed((f) => { const ids = new Set(f.map((x) => x.id)); return [...f, ...roundCommentary(rd, names, total).filter((x) => !ids.has(x.id))] })
       if (hasKnockdown(rd)) {
-        const down = rd.kd[0] > 0 ? names.b : names.a
-        setMoment({ id: `kd-${run}-${cursor.i}`, text: 'KNOCKDOWN!', sub: `${down} is down in round ${rd.n}` })
+        const mk = `${run}:${cursor.i}`
+        if (!momentsStarted.current.has(mk)) {
+          momentsStarted.current.add(mk)
+          let at = 0
+          knockdownSteps(rd, names, reduced).forEach((stp, k) => {
+            const sid = `kd-${mk}-${k}`
+            momentTimers.current.push(setTimeout(() => setMoment({ id: sid, text: stp.text, sub: stp.sub }), at))
+            at += stp.ms
+          })
+          momentTimers.current.push(setTimeout(() => setMoment(null), at))
+        }
         emit(`kd:${run}:${cursor.i}`, { type: 'fight.knockdown', fightId: fv.id, round: rd.n })
-        setTimeout(() => setMoment((m) => (m && m.id === `kd-${run}-${cursor.i}` ? null : m)), 1500)
       }
       const last = cursor.i + 1 >= total
       t = setTimeout(() => { if (last) finishNow(true); else setCursor({ i: cursor.i + 1, stage: 0 }) }, Math.max(250, stop.ms - bellMs))
@@ -112,8 +124,8 @@ export function LiveFight({ fv, r, live, onDone }: { fv: FightView; r: ResultVie
   }, [finished, active, cardsShown, r.cards.length, r.stoppage])
 
   const replay = () => {
-    emitted.current = new Set(); doneCalled.current = true
-    setRun((n) => n + 1); setShown(0); setFeed([]); setCardsShown(0); setFinished(false); setCursor({ i: 0, stage: 0 }); setPaused(false); setMoment(null); setPlaying(true); setTab('stats')
+    emitted.current = new Set(); doneCalled.current = true; momentsStarted.current = new Set(); clearMoments()
+    setRun((n) => n + 1); setShown(0); setFeed([]); setCardsShown(0); setFinished(false); setCursor({ i: 0, stage: 0 }); setPaused(false); setPlaying(true); setTab('stats')
   }
   const isLive = playing
   const skip = () => finishNow(false)
@@ -121,17 +133,19 @@ export function LiveFight({ fv, r, live, onDone }: { fv: FightView; r: ResultVie
   const cur = Math.min(total, Math.max(1, bell ?? shown))
   const [ta, tb] = totalsThrough(rounds, shown)
   const ctrl = control(rounds, shown)
+  const sta = stamina(rounds, shown)
   const won = roundsWon(rounds, shown)
   const last = shown > 0 ? rounds[shown - 1] : null
   const fin = finished ? finishCard(r, names) : null
   const heavy = (side: 0 | 1) => rounds.slice(0, shown).filter((rd) => rd.punish[side] === 'Heavy punishment').length
-  const edge = shown === 0 ? 'Waiting for the bell' : ctrl >= 58 ? `${names.a} edging the round` : ctrl <= 42 ? `${names.b} edging the round` : 'Round even'
+  const edge = ctrl === null ? 'Not recorded for this fight' : shown === 0 ? 'Waiting for the bell' : ctrl >= 58 ? `${names.a} on top` : ctrl <= 42 ? `${names.b} on top` : 'Even'
 
   return (
     <section className={`lf${moment && !reduced ? ' shake' : ''}${isLive ? ' is-live' : ''}${finished ? ' is-done' : ''}`} aria-label="Fight night" data-live={isLive ? 'true' : 'false'} data-mode={mode} data-finished={finished ? 'true' : 'false'}>
       <div className="lf-bar">
         <span className="lf-live"><i aria-hidden />FIGHT EMPIRE • {isLive ? 'LIVE' : 'FIGHT NIGHT'}</span>
         <span className="lf-round" aria-live="polite" data-testid="lf-round">{finished && r.stoppage ? `ENDED R${r.round}` : `ROUND ${cur} / ${total}`}</span>
+        {fv.title && <span className="lf-title" data-testid="lf-title">{fv.title.label} · {fv.title.titleName}</span>}
         <span className="lf-div dim">{fv.division}{fv.eventName ? ` · ${fv.eventName}` : ''}</span>
       </div>
 
@@ -143,9 +157,9 @@ export function LiveFight({ fv, r, live, onDone }: { fv: FightView; r: ResultVie
 
       <div className="lf-momentum" role="img" aria-label={`Round control: ${edge}`} data-testid="lf-momentum">
         <span className="n">{names.a}</span>
-        <div className="bar"><i className="a" style={{ width: `${ctrl}%` }} /><i className="b" style={{ width: `${100 - ctrl}%` }} /><b style={{ left: `${ctrl}%` }} /></div>
+        <div className="bar">{ctrl !== null ? <><i className="a" style={{ width: `${ctrl}%` }} /><i className="b" style={{ width: `${100 - ctrl}%` }} /><b style={{ left: `${ctrl}%` }} /></> : <i style={{ width: '100%', background: '#2a2a33' }} />}</div>
         <span className="n">{names.b}</span>
-        <div className="cap dim">Round control · {edge}</div>
+        <div className="cap dim">Control · {edge}</div>
       </div>
 
       {bell !== null && !finished && (
@@ -191,6 +205,7 @@ export function LiveFight({ fv, r, live, onDone }: { fv: FightView; r: ResultVie
           <LiveStat id="acc" label="Accuracy" a={ta.accuracy} b={tb.accuracy} fmt={(n) => `${n}%`} />
           <LiveStat id="power" label="Power punches landed" a={ta.power} b={tb.power} />
           <LiveStat id="kd" label="Knockdowns" a={ta.knockdowns} b={tb.knockdowns} />
+          {sta ? <LiveStat id="stamina" label="Stamina (energy %)" a={sta.a} b={sta.b} fmt={(n) => `${n}%`} /> : <p className="dim lf-note">Stamina was not recorded for this fight.</p>}
           <div className="lf-dmg">
             <div className="caps">Damage this round</div>
             <div className="row"><span>{names.a}: <b>{last ? last.punish[0] : '—'}</b></span><span>{names.b}: <b>{last ? last.punish[1] : '—'}</b></span></div>
@@ -201,7 +216,7 @@ export function LiveFight({ fv, r, live, onDone }: { fv: FightView; r: ResultVie
         <div className={`lf-panel${tab === 'rounds' ? ' active' : ''}`} id="lf-panel-rounds" role="tabpanel" aria-labelledby="lf-tab-rounds">
           <h3 className="lf-h">Round by round</h3>
           <div className="table-wrap"><table className="table lf-table" data-testid="lf-history">
-            <thead><tr><th>Rd</th><th>{names.a}</th><th>{names.b}</th><th>KD</th><th>Cards</th></tr></thead>
+            <thead><tr><th>Rd</th><th>{names.a}</th><th>{names.b}</th><th>KD</th><th>Energy</th><th>Cards</th></tr></thead>
             <tbody>
               {rounds.slice(0, shown).map((rd) => (
                 <tr key={`${run}-${rd.n}`} className={`lf-row${hasKnockdown(rd) ? ' kd' : ''}${rd.winner === 0 ? ' wa' : rd.winner === 1 ? ' wb' : ''}`}>
@@ -209,10 +224,11 @@ export function LiveFight({ fv, r, live, onDone }: { fv: FightView; r: ResultVie
                   <td className="num">{rd.a.landed}/{rd.a.thrown}</td>
                   <td className="num">{rd.b.landed}/{rd.b.thrown}</td>
                   <td>{rd.kd[0] > 0 ? `⬇ ${names.b}${rd.kd[0] > 1 ? ' ×' + rd.kd[0] : ''}` : ''}{rd.kd[1] > 0 ? `⬇ ${names.a}${rd.kd[1] > 1 ? ' ×' + rd.kd[1] : ''}` : ''}</td>
+                  <td className="num">{rd.stamina ? `${rd.stamina.a[1]}/${rd.stamina.b[1]}` : '—'}</td>
                   <td className="num sc">{rd.cards.join(' · ')}</td>
                 </tr>
               ))}
-              {shown === 0 && <tr><td colSpan={5} className="dim">Rounds appear here as they finish.</td></tr>}
+              {shown === 0 && <tr><td colSpan={6} className="dim">Rounds appear here as they finish.</td></tr>}
             </tbody>
           </table></div>
           <div className="timeline" style={{ marginTop: 12 }}>

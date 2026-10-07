@@ -93,6 +93,26 @@
    "status": "real"
   },
   {
+   "id": "venue.vegas-arena",
+   "type": "venue",
+   "entityId": "vegas-arena",
+   "path": "venues/vegas-arena.svg",
+   "width": 800,
+   "height": 450,
+   "format": "svg",
+   "status": "real"
+  },
+  {
+   "id": "venue.uk-arena",
+   "type": "venue",
+   "entityId": "uk-arena",
+   "path": "venues/uk-arena.svg",
+   "width": 800,
+   "height": 450,
+   "format": "svg",
+   "status": "real"
+  },
+  {
    "id": "poster.fight-night",
    "type": "eventTemplate",
    "entityId": "fight-night",
@@ -343,53 +363,78 @@
    "status": "real"
   }
  ],
+ "artWorld": {
+  "seed": null
+ },
  "classes": {
   "fighter.profile": {
    "dir": "fighters/profile",
-   "file": "{id}.webp",
-   "width": 480,
-   "height": 600,
-   "thumb": {
-    "width": 96,
-    "height": 120,
-    "file": "{id}@thumb.webp"
-   },
+   "file": "fighter_{id}_profile.webp",
+   "width": 960,
+   "height": 1200,
    "format": "webp",
    "status": "fallback",
    "ids": []
   },
   "fighter.action": {
    "dir": "fighters/action",
-   "file": "{id}.webp",
-   "width": 960,
-   "height": 540,
+   "file": "fighter_{id}_action.webp",
+   "width": 1600,
+   "height": 900,
    "format": "webp",
    "status": "fallback",
    "ids": []
   },
   "fighter.celebration": {
    "dir": "fighters/celebration",
-   "file": "{id}.webp",
-   "width": 960,
-   "height": 540,
+   "file": "fighter_{id}_celebration.webp",
+   "width": 1600,
+   "height": 900,
    "format": "webp",
    "status": "fallback",
    "ids": []
   },
   "promotion.logo": {
    "dir": "promotions/logos",
-   "file": "{id}.svg",
-   "width": 256,
-   "height": 256,
-   "format": "svg",
+   "file": "promotion_{id}_logo.webp",
+   "width": 1024,
+   "height": 1024,
+   "format": "webp",
    "status": "fallback",
    "ids": []
   },
-  "promotion.banner": {
-   "dir": "promotions/banners",
-   "file": "{id}.webp",
-   "width": 1200,
-   "height": 300,
+  "promotion.mark": {
+   "dir": "promotions/logos",
+   "file": "promotion_{id}_mark.webp",
+   "width": 512,
+   "height": 512,
+   "format": "webp",
+   "status": "fallback",
+   "ids": []
+  },
+  "venue": {
+   "dir": "venues",
+   "file": "venue_{id}.webp",
+   "width": 1600,
+   "height": 900,
+   "format": "webp",
+   "status": "fallback",
+   "ids": []
+  },
+  "news": {
+   "dir": "news",
+   "file": "news_{id}.webp",
+   "width": 1280,
+   "height": 720,
+   "format": "webp",
+   "status": "fallback",
+   "ids": []
+  },
+  "eventTemplate": {
+   "dir": "events/templates",
+   "file": "poster_{id}.webp",
+   "width": 1600,
+   "height": 2000,
    "format": "webp",
    "status": "fallback",
    "ids": []

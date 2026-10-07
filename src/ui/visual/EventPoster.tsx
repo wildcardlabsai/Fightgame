@@ -32,12 +32,12 @@ export function EventPoster({ v, size = 'card', onClick }: { v: EventPosterView;
       aria-label={`${v.name}${v.main ? `: ${v.main.a.name} versus ${v.main.b.name}` : ''}, ${formatDay(v.day, false)}, ${v.venue.name}`}
     >
       <span className="v-poster-bg" aria-hidden><Img src={tpl.url} alt="" fallback={null} /></span>
-      <span className="v-poster-venue" aria-hidden><VenueImage venue={{ name: v.venue.name, tier: v.venue.tier, capacity: v.venue.capacity }} /></span>
+      <span className="v-poster-venue" aria-hidden><VenueImage venue={v.venue} /></span>
       <span className="v-poster-top">
         <PromoMark p={{ id: v.promotion.id, logo: v.promotion.logo, name: v.promotion.name }} size={size === 'mini' ? 26 : 38} />
         <span className="v-poster-promo"><b>{v.promotion.name}</b><i>{v.templateLabel}</i></span>
         <span className="v-poster-badges">
-          {v.championship && <em className="gold">TITLE FIGHT</em>}
+          {v.title && <em className="gold" data-testid="poster-title">{v.title.label}</em>}
           {v.ppv && <em className="ppv">PPV</em>}
           {!v.ppv && v.broadcastLabel && size !== 'mini' && <em>{v.broadcastLabel}</em>}
           {v.soldOut && <em className="good">SOLD OUT</em>}

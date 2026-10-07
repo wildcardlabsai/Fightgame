@@ -6,6 +6,7 @@ import { choosePosterTemplate } from '../assets/poster'
 import { POSTER_LABEL, venueKind, type PosterTemplateId, type VenueKind } from '../assets/registry'
 import { cardSlots, TIER_LABEL } from './eventViews'
 import { cardFights } from './events/demand'
+import { titleView, type TitleView } from './fightViews'
 import { viewsOf } from './view'
 import type { GameState, Id, PromotionLogo, Venue } from './types'
 
@@ -21,7 +22,7 @@ export interface EventPosterView {
   templateId: PosterTemplateId
   templateLabel: string
   promotion: { id: Id; name: string; logo: PromotionLogo }
-  venue: { id: Id; name: string; tier: Venue['tier']; tierLabel: string; capacity: number; kind: VenueKind }
+  venue: { id: Id; name: string; city: string; country: string; tier: Venue['tier']; tierLabel: string; capacity: number; kind: VenueKind }
   main: { a: PosterFighter; b: PosterFighter; rounds: number; division: string } | null
   coMain: { a: PosterFighter; b: PosterFighter } | null
   fights: number
@@ -29,6 +30,8 @@ export interface EventPosterView {
   broadcastLabel: string | null
   ppv: boolean
   championship: boolean
+  /** Title metadata of the main event, only when that fight explicitly carries a title. */
+  title: TitleView | null
   rivalry: boolean
   /** Sold / capacity, only once tickets are on sale. */
   soldPct: number | null
@@ -60,19 +63,20 @@ export function eventPosterView(state: GameState, eventId: Id): EventPosterView 
   const international = v.country !== promo.homeCountry
   const sold = ev.sales.sold[0] + ev.sales.sold[1] + ev.sales.sold[2]
   const onSale = ['onSale', 'promoting', 'fightWeek', 'live', 'complete'].includes(ev.status) && sold > 0
+  const title = titleView(mainFight?.title)
   const templateId = choosePosterTemplate({
-    hasMain: !!mA && !!mB, championship: false, ppv: ev.broadcast.kind === 'ppv', international, rivalry, nextGen,
+    hasMain: !!mA && !!mB, championship: !!title, ppv: ev.broadcast.kind === 'ppv', international, rivalry, nextGen,
     bigVenue: v.tier === 'arena' || v.tier === 'stadium', fights: slots.length,
   })
   return {
     id: ev.id, name: ev.name, day: ev.day, city: ev.city, country: ev.country ?? v.country, statusKey: ev.status, mine: ev.promotionId === state.playerPromotionId,
     templateId, templateLabel: POSTER_LABEL[templateId],
     promotion: { id: promo.id, name: promo.name, logo: promo.logo },
-    venue: { id: v.id, name: v.name, tier: v.tier, tierLabel: TIER_LABEL[v.tier], capacity: v.capacity, kind: venueKind({ name: v.name, tier: v.tier, capacity: v.capacity }) },
+    venue: { id: v.id, name: v.name, city: v.city, country: v.country, tier: v.tier, tierLabel: TIER_LABEL[v.tier], capacity: v.capacity, kind: venueKind({ name: v.name, tier: v.tier, capacity: v.capacity, city: v.city, country: v.country }) },
     main: mA && mB ? { a: mA, b: mB, rounds: mainSlot.rounds, division: mainSlot.division } : null,
     coMain: cA && cB ? { a: cA, b: cB } : null,
     fights: slots.length, broadcastKind: ev.broadcast.kind, broadcastLabel: BCAST[ev.broadcast.kind] ?? null, ppv: ev.broadcast.kind === 'ppv',
-    championship: false, rivalry,
+    championship: !!title, title, rivalry,
     soldPct: onSale ? Math.min(100, Math.round((100 * sold) / v.capacity)) : null, soldOut: sold >= v.capacity,
   }
 }

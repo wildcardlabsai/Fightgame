@@ -102,11 +102,22 @@ let koSnap
   check('round transition card appears', true)
   await page.waitForSelector('.lf-moment', { timeout: 40000 })
   check('knockdown moment is announced', (await page.locator('.lf-moment').innerText()).includes('KNOCKDOWN'))
+  // the referee count is animated from the RECORDED count: COUNT 1 … then BACK UP or 10 COUNT
+  const seen = new Set()
+  const t0 = Date.now()
+  while (Date.now() - t0 < 14000) { const t = await page.locator('.lf-moment .display').first().innerText().catch(() => ''); if (t) seen.add(t.trim()); if (seen.has('BACK UP') || seen.has('10 COUNT')) break; await page.waitForTimeout(120) }
+  check('referee count is shown from the recorded count (COUNT 1 → … → BACK UP / 10 COUNT)', seen.has('COUNT 1') && (seen.has('BACK UP') || seen.has('10 COUNT')), [...seen].join('|'))
+  check('stamina row is shown from recorded energy', (await page.locator('[data-stat="stamina"]').count()) === 1)
   await page.screenshot({ path: `${shots}/p48-knockdown.png` })
   await page.waitForSelector('[data-testid="lf-finish"]', { timeout: 60000 })
   koSnap = await snapshot(page)
   check('KO result card names round, clock and method', /ROUND \d+ — \d:\d\d/.test(koSnap.finish) && /WINS BY (KO|TKO)/.test(koSnap.finish), koSnap.finish)
   check('round counter ends at the stoppage round', koSnap.round.includes('ENDED') || koSnap.round.includes(`${meta.ko.round}`), koSnap.round)
+  const recorded = await page.evaluate((id) => { const g = window.__fe.useGame.getState().game; const r = g.fights[id].result.rounds; const last = r[r.length - 1]; return { a: last.e[1], b: last.e[3], m: Math.round((last.m[1] + 100) / 2) } }, meta.ko.fightId)
+  const staText = await page.locator('[data-stat="stamina"]').innerText()
+  check('final stamina on screen equals the recorded end-of-fight energy', staText.includes(`${recorded.a}%`) && staText.includes(`${recorded.b}%`), `${staText} vs ${JSON.stringify(recorded)}`)
+  const ctl = await page.getByTestId('lf-momentum').getAttribute('aria-label')
+  check('round control comes from the recorded momentum (not a placeholder)', ctl.startsWith('Round control') && !ctl.includes('Not recorded'), ctl)
   check('every round is in the history table', koSnap.rows.length === meta.ko.rounds, String(koSnap.rows.length))
   await page.waitForTimeout(1500)
   const cuesPlayed = await page.evaluate(() => window.__audio.log.map((l) => l.cue))
@@ -200,10 +211,23 @@ let koSnap
   await page.waitForSelector('.lf-moment', { timeout: 40000 })
   check('reduced motion: no shake class, moment still shown as a static state', (await page.locator('.lf.shake').count()) === 0 && (await page.locator('.lf-moment').count()) === 1)
   const anim = await page.evaluate(() => getComputedStyle(document.querySelector('.lf-moment')).animationName)
+  check('reduced motion: the count is one static state', (await page.locator('.lf-moment').innerText()).includes('count reached'), await page.locator('.lf-moment').innerText())
   check('reduced motion: animations are off', anim === 'none', anim)
   await page.waitForSelector('[data-testid="lf-finish"]', { timeout: 60000 })
   const rm = await snapshot(page)
   check('reduced motion: same final result', rm.finish === koSnap.finish && JSON.stringify(rm.stats) === JSON.stringify(koSnap.stats))
+  await ctx.close()
+}
+
+// ------------------------------------------------------------------ G. title contract (explicit data only)
+{
+  const { ctx, page } = await newPage()
+  await load(page, 'night-dec')
+  await go(page, `#/event/${meta.dec.eventId}`)
+  check('no title badge unless the fight data says so', (await page.getByTestId('poster-title').count()) === 0)
+  await page.evaluate((id) => { const st = window.__fe.useGame; const g = structuredClone(st.getState().game); const ev = g.events[id]; g.fights[ev.card[ev.card.length - 1]].title = { name: 'World Welterweight', tier: 'world' }; st.setState({ game: g }) }, meta.dec.eventId)
+  await page.waitForTimeout(300)
+  check('an explicit title fight shows the WORLD TITLE badge on the poster', (await page.getByTestId('poster-title').first().innerText()).includes('WORLD TITLE'))
   await ctx.close()
 }
 

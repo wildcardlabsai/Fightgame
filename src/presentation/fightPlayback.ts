@@ -30,12 +30,21 @@ export function totalsThrough(rounds: RoundView[], upTo: number): [SideTotals, S
   return [a, b]
 }
 
-/** Share of punches landed in the latest revealed round, 0–100 for side A (50 = even). Display only: no new model. */
-export function control(rounds: RoundView[], upTo: number): number {
+/**
+ * Round control for side A (0–100, 50 = even) at the end of the latest revealed round — the simulation's own recorded
+ * momentum. Returns null when the fight predates recording (nothing is invented).
+ */
+export function control(rounds: RoundView[], upTo: number): number | null {
+  if (upTo <= 0) return rounds[0]?.control ? rounds[0].control[0] : null
   const rd = rounds[upTo - 1]
-  if (!rd) return 50
-  const tot = rd.a.landed + rd.b.landed
-  return tot ? Math.round((100 * rd.a.landed) / tot) : 50
+  return rd?.control ? rd.control[1] : null
+}
+
+/** Recorded energy (0–100) per fighter after `upTo` rounds (0 = the opening bell). null when not recorded. */
+export function stamina(rounds: RoundView[], upTo: number): { a: number; b: number } | null {
+  if (upTo <= 0) { const r0 = rounds[0]?.stamina; return r0 ? { a: r0.a[0], b: r0.b[0] } : null }
+  const r = rounds[upTo - 1]?.stamina
+  return r ? { a: r.a[1], b: r.b[1] } : null
 }
 
 /** Rounds won on the judges' scoring so far: [A, B, even]. Uses the recorded per-round winner, not a new calculation. */
@@ -44,6 +53,29 @@ export function roundsWon(rounds: RoundView[], upTo: number): [number, number, n
   for (const rd of rounds.slice(0, Math.max(0, upTo))) w[rd.winner === 0 ? 0 : rd.winner === 1 ? 1 : 2]++
   return w
 }
+
+export interface MomentStep { text: string; sub: string; ms: number }
+
+/**
+ * The on-screen sequence for a round's knockdowns, built ONLY from recorded events: KNOCKDOWN → COUNT 1…n → BACK UP (or the
+ * 10 count). A round recorded before counts existed gets a plain KNOCKDOWN banner — no count is ever invented.
+ */
+export function knockdownSteps(rd: RoundView, names: Names, reduced: boolean): MomentStep[] {
+  const nameOf = (d: 0 | 1) => (d === 0 ? names.a : names.b)
+  if (rd.counts.length === 0) return hasKnockdown(rd) ? [{ text: 'KNOCKDOWN!', sub: `${rd.kd[0] > 0 ? names.b : names.a} is down in round ${rd.n}`, ms: 1500 }] : []
+  const out: MomentStep[] = []
+  rd.counts.forEach((c, idx) => {
+    const who = nameOf(c.down)
+    const last = idx === rd.counts.length - 1
+    const threeKd = rd.counts.length >= 3 && last && c.rose
+    if (reduced) { out.push({ text: 'KNOCKDOWN', sub: `${who} down — count reached ${c.count}${c.rose ? ', back up' : ': counted out'}`, ms: 1800 }); return }
+    out.push({ text: 'KNOCKDOWN!', sub: `${who} is down in round ${rd.n}`, ms: 900 })
+    for (let k = 1; k <= c.count; k++) out.push({ text: `COUNT ${k}`, sub: who, ms: 380 })
+    out.push(c.rose ? { text: 'BACK UP', sub: threeKd ? `${who} rises — but that is a third knockdown` : `${who} beats the count`, ms: 800 } : { text: c.count >= 10 ? '10 COUNT' : 'OUT', sub: `${who} is counted out`, ms: 1100 })
+  })
+  return out
+}
+export const knockdownDuration = (rd: RoundView, reduced: boolean) => knockdownSteps(rd, { a: '', b: '' }, reduced).reduce((n, s) => n + s.ms, 0)
 
 export const hasKnockdown = (rd: RoundView) => rd.kd[0] + rd.kd[1] > 0
 /** A round is a "key moment" if it had a knockdown, or it is the final round shown. */
@@ -57,7 +89,8 @@ export function planRounds(r: ResultView, mode: PlayMode): Stop[] {
   const rounds = r.rounds ?? []
   return rounds.map((_, i) => {
     const key = isKeyRound(rounds, i)
-    return { index: i, key, ms: key ? TIMING[mode].key : TIMING[mode].round }
+    const base = key ? TIMING[mode].key : TIMING[mode].round
+    return { index: i, key, ms: base === 0 ? 0 : base + (rounds[i].counts.length ? knockdownDuration(rounds[i], false) : 0) }
   })
 }
 export const planDuration = (r: ResultView, mode: PlayMode) => planRounds(r, mode).reduce((n, s) => n + s.ms, 0)
@@ -74,9 +107,14 @@ export function roundCommentary(rd: RoundView, names: Names, totalRounds: number
   const accA = rd.a.thrown ? Math.round((100 * rd.a.landed) / rd.a.thrown) : 0
   const accB = rd.b.thrown ? Math.round((100 * rd.b.landed) / rd.b.thrown) : 0
   out.push({ id: id('landed'), round: rd.n, tone: 'info', text: `${names.a} landed ${rd.a.landed} of ${rd.a.thrown} (${accA}%); ${names.b} landed ${rd.b.landed} of ${rd.b.thrown} (${accB}%).` })
+  if (rd.stamina) out.push({ id: id('sta'), round: rd.n, tone: 'info', text: `Energy at the bell: ${names.a} ${rd.stamina.a[1]}% (${rd.stamina.a[1] - rd.stamina.a[0]}), ${names.b} ${rd.stamina.b[1]}% (${rd.stamina.b[1] - rd.stamina.b[0]}).` })
   if (rd.a.power + rd.b.power > 0) out.push({ id: id('power'), round: rd.n, tone: 'info', text: `Power punches landed: ${names.a} ${rd.a.power}, ${names.b} ${rd.b.power}.` })
-  if (rd.kd[0] > 0) out.push({ id: id('kd0'), round: rd.n, tone: 'big', text: `KNOCKDOWN — ${names.b} is down${rd.kd[0] > 1 ? ` (${rd.kd[0]} times this round)` : ''}.` })
-  if (rd.kd[1] > 0) out.push({ id: id('kd1'), round: rd.n, tone: 'big', text: `KNOCKDOWN — ${names.a} is down${rd.kd[1] > 1 ? ` (${rd.kd[1]} times this round)` : ''}.` })
+  for (const [ci, c] of rd.counts.entries()) {
+    const who = c.down === 0 ? names.a : names.b
+    out.push({ id: id(`cnt${ci}`), round: rd.n, tone: 'big', text: `KNOCKDOWN — ${who} is down; the referee's count reaches ${c.count}${c.rose ? ' and they are back up.' : ' and the fight is over.'}` })
+  }
+  if (rd.counts.length === 0 && rd.kd[0] > 0) out.push({ id: id('kd0'), round: rd.n, tone: 'big', text: `KNOCKDOWN — ${names.b} is down${rd.kd[0] > 1 ? ` (${rd.kd[0]} times this round)` : ''}.` })
+  if (rd.counts.length === 0 && rd.kd[1] > 0) out.push({ id: id('kd1'), round: rd.n, tone: 'big', text: `KNOCKDOWN — ${names.a} is down${rd.kd[1] > 1 ? ` (${rd.kd[1]} times this round)` : ''}.` })
   if (rd.punish[0] === 'Heavy punishment') out.push({ id: id('p0'), round: rd.n, tone: 'info', text: `${names.a} absorbed heavy punishment in round ${rd.n}.` })
   if (rd.punish[1] === 'Heavy punishment') out.push({ id: id('p1'), round: rd.n, tone: 'info', text: `${names.b} absorbed heavy punishment in round ${rd.n}.` })
   const who = rd.winner === 0 ? names.a : rd.winner === 1 ? names.b : null

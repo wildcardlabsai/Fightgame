@@ -25,7 +25,7 @@ function Row({ e }: { e: EventListItem }) {
       <td data-label="Date" className="num">{formatDay(e.day, true)}</td>
       <td className="primary" data-label="Show">
         <div className="ev-thumb">
-          {pv && <VenueImage venue={{ name: pv.venue.name, tier: pv.venue.tier, capacity: pv.venue.capacity }} />}
+          {pv && <VenueImage venue={pv.venue} />}
           {pv?.main && <span className="ev-fighters"><FighterPortrait f={pv.main.a} size="thumb" /><FighterPortrait f={pv.main.b} size="thumb" /></span>}
           <div>
             <div className="fighter-name">{e.name}</div>

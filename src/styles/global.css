@@ -846,3 +846,7 @@ button.v-poster { cursor: pointer; } button.v-poster:hover { border-color: var(-
 .v-portrait.card .v-portrait-fb, .v-portrait.thumb .v-portrait-fb { height: 100%; }
 .v-poster .v-portrait svg.v-portrait-fb { width: 100% !important; height: 100% !important; aspect-ratio: auto; }
 .v-poster { gap: 14px; }
+.lf-title { font-family: var(--display); font-weight: 800; letter-spacing: .12em; color: #1a1205; background: var(--gold); padding: 2px 10px; font-size: 14px; } .lf-note { font-size: 13px; padding: 6px 0; }
+.v-gal.is-missing { border: 2px dashed var(--red); } .v-gal.is-missing .v-gal-img { display: grid; place-items: center; background: repeating-linear-gradient(45deg, #1a0a0c 0 8px, #12080a 8px 16px); }
+.v-gal-miss { font-family: var(--display); letter-spacing: .2em; color: var(--red-hot); font-weight: 800; }
+.v-gal.st-complete { border-color: var(--good); } .v-gal.st-failed { border-color: var(--red); } .v-gal.st-pending_review { border-color: var(--gold); }

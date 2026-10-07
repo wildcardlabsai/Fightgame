@@ -6,6 +6,7 @@ import { audio } from './audio/audioManager'
 import { WebAudioBackend } from './audio/synth'
 import { initAudio } from './audio/bindings'
 import './store/prefs'
+import './store/artWorld'
 
 audio.setBackend(new WebAudioBackend())
 initAudio()

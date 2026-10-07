@@ -648,7 +648,16 @@ export interface RoundRec {
   b: [number, number]
   /** Punishment taken by [A, B] this round, 0–9 (shown as a qualitative label only). */
   p: [number, number]
+  /** Phase 4.9 recording (absent on fights saved earlier). Energy 0–100 as [A start, A end, B start, B end] of the round. */
+  e?: [number, number, number, number]
+  /** Momentum −100…100 (positive = A on top) at the [start, end] of the round — the sim's own momentum state. */
+  m?: [number, number]
+  /** Knockdowns this round, in order, with the referee's count. */
+  c?: KnockdownRec[]
 }
+
+/** One recorded knockdown. `n` is the count reached (10 = counted out); `u` is 1 if the fighter got up. */
+export interface KnockdownRec { /** fighter knocked down: 0 = A, 1 = B */ s: 0 | 1; /** one-minute segment 0–2 */ g: number; n: number; u: 0 | 1 }
 
 export interface FightResult {
   /** 0 = side A won, 1 = side B won, null = draw. */
@@ -676,8 +685,13 @@ export interface FightResult {
   upset: number
 }
 
+/** Title metadata. Nothing sets this before the rankings phase; the presentation only reads it. */
+export interface FightTitle { name: string; tier: 'regional' | 'national' | 'international' | 'world' }
+
 export interface Fight {
   id: Id
+  /** Present only when the fight explicitly carries a title (rankings phase). Never inferred. */
+  title?: FightTitle
   day: Day
   status: FightStatus
   kind: 'player' | 'ai'

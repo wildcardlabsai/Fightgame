@@ -39,6 +39,29 @@ export interface RoundView {
   cards: string[]
   winner: 0 | 1 | 2
   punish: [string, string]
+  /** Recorded energy 0–100: [start, end] of the round per fighter. null on fights saved before recording existed. */
+  stamina: { a: [number, number]; b: [number, number] } | null
+  /** Recorded control 0–100 for side A (50 = even) at [start, end] of the round, from the sim's momentum. null on older saves. */
+  control: [number, number] | null
+  /** Recorded knockdowns this round with the referee's count. Empty if none (or not recorded). */
+  counts: KnockdownView[]
+}
+
+export interface KnockdownView {
+  /** Fighter knocked down: 0 = A, 1 = B. */
+  down: 0 | 1
+  segment: number
+  /** Count reached (10 = counted out). */
+  count: number
+  /** True if the fighter got up. */
+  rose: boolean
+}
+
+/** Title metadata for presentation. Only ever populated from a fight that explicitly carries a title. */
+export interface TitleView { isTitleFight: true; titleName: string; titleTier: 'regional' | 'national' | 'international' | 'world'; label: string }
+export const TITLE_TIER_LABEL: Record<TitleView['titleTier'], string> = { regional: 'REGIONAL TITLE', national: 'NATIONAL TITLE', international: 'INTERNATIONAL TITLE', world: 'WORLD TITLE' }
+export function titleView(t: { name: string; tier: TitleView['titleTier'] } | undefined | null): TitleView | null {
+  return t ? { isTitleFight: true, titleName: t.name, titleTier: t.tier, label: TITLE_TIER_LABEL[t.tier] } : null
 }
 
 export interface ResultView {
@@ -110,6 +133,7 @@ export interface FightView {
   result: ResultView | null
   headline: string
   seriesNote: string | null
+  title: TitleView | null
 }
 
 const label = (n: number) => `${n}`
@@ -190,6 +214,7 @@ export function fightView(state: GameState, id: Id): FightView | null {
     scheduleOptions: fight.status === 'agreed' ? scheduleOptions(state, id) : [],
     stakes, matchup, previousMeetings: prev, canRunNight: fight.status === 'fightNight' && mine, eventId: fight.eventId ?? null, eventName: fight.eventId ? state.events[fight.eventId]?.name ?? null : null, cancelReason: fight.cancelReason ?? null, result: res,
     headline: r ? resultHeadline(fight, nA, nB) : `${nA} vs ${nB}`,
+    title: titleView(fight.title),
     seriesNote: fight.seriesOf ? 'Second fight of a two-fight deal' : Object.values(state.fights).some((x) => x.seriesOf === id) ? 'First fight of a two-fight deal' : null,
   }
 }
@@ -207,6 +232,9 @@ function buildResult(fight: NonNullable<GameState['fights'][string]>, nA: string
       return {
         n: i + 1, line: roundLine(rd, i, sA, sB), a: { thrown: rd.t[0], landed: rd.t[1], power: rd.t[3] }, b: { thrown: rd.t[4], landed: rd.t[5], power: rd.t[7] },
         kd: [rd.k[0], rd.k[1]] as [number, number], cards, winner: rd.b[0] as 0 | 1 | 2, punish: [punishmentLabel(rd.p[0]), punishmentLabel(rd.p[1])] as [string, string],
+        stamina: rd.e ? { a: [rd.e[0], rd.e[1]], b: [rd.e[2], rd.e[3]] } : null,
+        control: rd.m ? [Math.round((rd.m[0] + 100) / 2), Math.round((rd.m[1] + 100) / 2)] : null,
+        counts: (rd.c ?? []).map((c) => ({ down: c.s, segment: c.g, count: c.n, rose: c.u === 1 })),
       }
     })
     : null

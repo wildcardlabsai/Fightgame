@@ -12,65 +12,15 @@ import {
 } from '../assets/registry'
 import { choosePosterTemplate } from '../assets/poster'
 import { control, finishCard, hasKnockdown, planDuration, planRounds, resultFingerprint, roundCommentary, roundsWon, totalsThrough, PLAY_MODES, type PlayMode } from '../presentation/fightPlayback'
-import { addFightToEvent, approach, createEvent, offerFight, runEventToEnd, runNextEventFight } from './commands'
+import { runEventToEnd, runNextEventFight } from './commands'
 import { eventPosterView } from './eventPoster'
 import { fightView } from './fightViews'
-import { opponentCandidates } from './matchmaking'
-import { playerRoster } from './selectors'
-import { advanceOneWeek } from './tick'
-import { suggestedFightOffer } from './fightNegotiation'
-import { createNewGame } from './worldgen'
 import { defaultPreferences, parsePreferences } from './preferences'
 import { cuesFor } from '../audio/bindings'
 import { CUES } from '../audio/cues'
-import type { FightOffer, GameState, Id } from './types'
 
-const logo = { monogram: 'P', color: '#fff', emblem: 'bolt' as const }
-const fresh = (seed: string) => createNewGame({ seed, promotionName: 'P48', promoterName: 'T', homeCountry: 'ENG', difficulty: 'standard', logo }, 1_700_000_000_000)
-const SAT = 5
-const satIn = (s: GameState, weeks: number) => s.today + SAT + 7 * (weeks - 1)
-
-function agree(s: GameState, myId: Id, taken: Set<Id>): { state: GameState; fightId: Id } | null {
-  for (const c of opponentCandidates(s, myId, {}).filter((x) => x.canApproach && !taken.has(x.view.id) && x.view.reputation < 50).slice(0, 8)) {
-    const ap = approach(s, myId, c.view.id)
-    if (!ap.ok) continue
-    let st = ap.state
-    for (let i = 0; i < 6; i++) {
-      const base = suggestedFightOffer(st, c.view.id)
-      const out = offerFight(st, ap.fightId!, { ...base, purseB: base.purseB * (1.2 + i * 0.4), winBonusB: base.winBonusB * 1.5 } as FightOffer)
-      if (!out.ok) break
-      st = out.state
-      if (st.fights[ap.fightId!].status === 'agreed') { taken.add(c.view.id); return { state: st, fightId: ap.fightId! } }
-      if (st.fights[ap.fightId!].status === 'cancelled') break
-    }
-  }
-  return null
-}
-
-/** A finished show with recorded round-by-round data. */
-function playedShow(seed: string): { before: GameState; after: GameState; eventId: Id; fightIds: Id[] } {
-  let s = fresh(seed)
-  const venue = Object.values(s.venues).find((v) => v.name === 'Ironworks Social Club')!
-  const r = createEvent(s, { name: 'Presentation Night', day: satIn(s, 8), venueId: venue.id })
-  expect(r.ok, r.error).toBe(true)
-  s = r.state
-  const eventId = r.eventId!
-  const taken = new Set<Id>()
-  for (const f of playerRoster(s).slice(0, 3)) {
-    const a = agree(s, f.id, taken)
-    if (!a) continue
-    const add = addFightToEvent(a.state, eventId, a.fightId)
-    expect(add.ok, add.error).toBe(true)
-    s = add.state
-  }
-  for (let i = 0; i < 20 && s.events[eventId].status !== 'fightWeek'; i++) s = advanceOneWeek(s)
-  const before = s
-  const run = runNextEventFight(s, eventId)
-  expect(run.ok, run.error).toBe(true)
-  const done = runEventToEnd(run.state, eventId)
-  expect(done.ok, done.error).toBe(true)
-  return { before, after: done.state, eventId, fightIds: s.events[eventId].card }
-}
+import { fresh, playedShow, satIn } from './testShow'
+void satIn
 
 describe('asset registry', () => {
   beforeEach(() => { clearFighterArt(); clearPromotionArt() })
@@ -92,12 +42,14 @@ describe('asset registry', () => {
     }
   })
 
-  it('has nine venue looks and each tier maps to one', () => {
-    expect(VENUE_KINDS).toHaveLength(9)
+  it('has eleven venue looks and each tier maps to one', () => {
+    expect(VENUE_KINDS).toHaveLength(11)
     expect(venueKind({ name: 'Ironworks Social Club', tier: 'local', capacity: 450 })).toBe('local-hall')
     expect(venueKind({ name: 'Valleys Sports Centre', tier: 'local', capacity: 1100 })).toBe('sports-centre')
     expect(venueKind({ name: 'Silver State Theatre', tier: 'regional', capacity: 2500 })).toBe('theatre')
-    expect(venueKind({ name: 'Hallam Arena', tier: 'national', capacity: 4800 })).toBe('national-arena')
+    expect(venueKind({ name: 'Hallam Arena', tier: 'national', capacity: 4800, country: 'ENG' })).toBe('uk-arena')
+    expect(venueKind({ name: 'Brooklyn Armory Hall', tier: 'national', capacity: 4200, country: 'USA' })).toBe('national-arena')
+    expect(venueKind({ name: 'Desert Palms Casino Arena', tier: 'arena', capacity: 10000, city: 'Las Vegas', country: 'USA' })).toBe('vegas-arena')
     expect(venueKind({ name: 'Big Arena', tier: 'arena', capacity: 20000 })).toBe('major-arena')
     expect(venueKind({ name: 'City Stadium', tier: 'stadium', capacity: 40000 })).toBe('stadium')
     expect(venueKind({ name: 'Megabowl', tier: 'stadium', capacity: 80000 })).toBe('outdoor-stadium')
@@ -120,7 +72,7 @@ describe('asset registry', () => {
     expect(fighterFallback(f).hue).not.toBe(fighterFallback(g).hue)
     registerFighterArt('profile', [f.id])
     const real = resolveFighterImage(f), other = resolveFighterImage(g)
-    expect(real.state).toBe('real'); expect(real.url).toContain('f_abc'); expect(real.thumbUrl).toContain('f_abc@thumb')
+    expect(real.state).toBe('real'); expect(real.url).toContain('fighter_f_abc_profile.webp'); expect(real.thumbUrl).toBe(real.url)
     expect(other.state).toBe('fallback')
     expect(resolveFighterImage(f, 'action').state).toBe('fallback') // partial sets are fine
   })
@@ -128,9 +80,9 @@ describe('asset registry', () => {
   it('promotions fall back to the monogram and use real logos when registered', () => {
     expect(resolvePromotionImage('p1').state).toBe('fallback')
     registerPromotionArt('logo', ['p1'])
-    expect(resolvePromotionImage('p1').url).toContain('promotions/logos/p1')
+    expect(resolvePromotionImage('p1').url).toContain('promotions/logos/promotion_p1_logo.webp')
     expect(resolvePromotionImage('p2').state).toBe('fallback')
-    expect(resolvePromotionImage('p1', 'banner').state).toBe('fallback')
+    expect(resolvePromotionImage('p1', 'mark').state).toBe('fallback')
   })
 
   it('news items map to a category image', () => {
@@ -148,9 +100,9 @@ describe('asset registry', () => {
     expect(POSTER_TEMPLATES.length).toBeGreaterThanOrEqual(8)
     for (const t of POSTER_TEMPLATES) expect(resolveEventTemplate(t).state).toBe('real')
     const g = galleryEntries()
-    expect(g.filter((e) => e.kind === 'venue')).toHaveLength(9)
-    expect(g.filter((e) => e.kind === 'eventTemplate')).toHaveLength(POSTER_TEMPLATES.length)
-    expect(g.filter((e) => e.kind === 'news')).toHaveLength(16)
+    expect(g.filter((e) => e.kind === 'venue' && (VENUE_KINDS as readonly string[]).includes(e.entityId))).toHaveLength(11)
+    expect(g.filter((e) => e.kind === 'eventTemplate' && (POSTER_TEMPLATES as readonly string[]).includes(e.entityId))).toHaveLength(POSTER_TEMPLATES.length)
+    expect(g.filter((e) => e.kind === 'news' && (NEWS_KINDS as readonly string[]).includes(e.entityId))).toHaveLength(16)
   })
 
   it('the gallery is a development route only', () => {
@@ -233,8 +185,7 @@ describe('live fight presentation', () => {
 
   it('control, rounds-won and the round history are read straight from the recorded rounds', () => {
     const r = played[0].fv.result!
-    expect(control(r.rounds!, 0)).toBe(50)
-    for (let i = 1; i <= r.rounds!.length; i++) expect(control(r.rounds!, i)).toBeGreaterThanOrEqual(0)
+    for (let i = 0; i <= r.rounds!.length; i++) { const c = control(r.rounds!, i); expect(c).not.toBeNull(); expect(c!).toBeGreaterThanOrEqual(0); expect(c!).toBeLessThanOrEqual(100) }
     const w = roundsWon(r.rounds!, r.rounds!.length)
     expect(w[0] + w[1] + w[2]).toBe(r.rounds!.length)
     expect(w[0]).toBe(r.rounds!.filter((x) => x.winner === 0).length)

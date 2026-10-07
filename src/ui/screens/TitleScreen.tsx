@@ -6,6 +6,7 @@ import type { Promotion } from '../../engine/types'
 import { useGame } from '../../store/gameStore'
 import { EmblemGlyph } from '../components/Icons'
 import { PromoLogo } from '../components/Bits'
+import { artWorldSeed, hasFighterArt } from '../../assets/registry'
 
 const money = (n: number) => (n >= 1_000_000 ? `£${(n / 1_000_000).toFixed(n % 1_000_000 === 0 ? 0 : 1)}m` : `£${Math.round(n / 1000)}k`)
 const DIFF_TONE: Record<CareerScenario['difficultyLabel'], string> = { Easy: 'good', Normal: '', Hard: 'gold', Expert: 'red' }
@@ -133,6 +134,7 @@ export function TitleScreen() {
                 <div style={{ display: 'flex', gap: 8 }}>
                   <input id="sd" className="input" value={seed} maxLength={24} onChange={(e) => setSeed(e.target.value)} />
                   <button type="button" className="btn ghost small" onClick={() => setSeed(randomSeed())}>Randomise</button>
+                  {hasFighterArt() && <button type="button" className="btn ghost small" data-testid="illustrated-world" onClick={() => setSeed(artWorldSeed()!)}>Illustrated world</button>}
                 </div>
                 <span className="dim" style={{ fontSize: 13 }}>The same seed always generates the same boxing world.</span></div>
               <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
