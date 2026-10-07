@@ -45,9 +45,9 @@ Purse curve, retainers, demand model, forecast noise, PPV/broadcast economics an
 |---|---|---|---|---|---|
 | Local (`Startup`) | 10 | 3,500 seats | 1 | ×1 | — |
 | Regional | 18 | 6,000 | 2 | ×1.25 | rep 14 · 6k fans · 5 events · £100k revenue · not in financial trouble |
-| National | 28 | 20,000 (arenas) | 3 | ×2 | rep 30 · 40k fans · 14 events · £1.0m revenue · 2,000 crowd · 2 fighters rated 38+ |
-| International (`Major`) | 40 | 20,000 | 4 | ×4.5 | rep 52 · 350k fans · 35 events · £9m revenue · 8,000 crowd · 4 fighters 52+ · healthy · £1.5m cash |
-| Global | 60 | stadiums | 5 | ×10 | rep 72 · 1.5m fans · 70 events · £45m revenue · 18,000 crowd · 7 fighters 62+ · healthy · £8m cash |
+| National | 28 | 20,000 (arenas) | 3 | ×2 | rep 42 · 120k fans · 30 events · £3.5m revenue · 4,000 crowd · 3 fighters rated 42+ · not in financial trouble |
+| International (`Major`) | 40 | 20,000 | 4 | ×4.5 | rep 58 · 450k fans · 50 events · £14m revenue · 8,000 crowd · 4 fighters 55+ · healthy · £1.5m cash |
+| Global | 60 | stadiums | 5 | ×10 | rep 78 · 2m fans · 90 events · £55m revenue · 18,000 crowd · 7 fighters 65+ · healthy · £8m cash |
 
 Rules: qualify four weeks in a row to be promoted; demotion needs a full year below 70% of the tier's reputation and 50% of its fanbase. PPV opens at National; national TV/streaming at Regional. Cash alone never promotes (tested). Old saves are placed on the tier they already earned, quietly.
 Earlier iterations and why they were changed: venue gating by venue *tier* (Local could book 4,800-seat halls → no local stage) → by *capacity*; Local cap 2,500 → 3,500 (only four venues were profitable and AI shows booked them: conservative players stalled, 67% survival); reputations for Regional/National lowered (16→14, 36→30) so a Balanced promoter reaches Regional in ~3–5 years and National in ~8–9.
@@ -161,7 +161,7 @@ regional | superstar | 8 | 13% | 88% | National | -603k | 1.97m | 116k | -233k |
 ```
 (`evt profit/loss med` = median profitable / loss-making show; `worst`/`best` = largest single loss/profit; `spons stand/yr` = standing sponsors, `spons evt/yr` = per-event sponsors.)
 
-### Tier progression (Balanced promoter, median years to reach)
+### Tier progression before 4.6.1 (Balanced promoter, median years to reach; superseded by §10.1)
 | Scenario | Local→Regional | Regional→National | National→International |
 |---|---|---|---|
 | From the Ground Up | 3.3 | 7.8 | 16.1 (20-year world) |
@@ -196,3 +196,37 @@ node scripts/audit/matrix.mjs <outdir> 3,5,10      # survival, cash, revenue, ev
 node scripts/audit/diagnose.mjs <outdir> 5         # cash-flow decomposition
 node scripts/audit/compare.mjs <before> <after> 5  # side-by-side
 ```
+
+
+## 10. Phase 4.6.1 — final cleanup
+
+### 10.1 Regional → National was too fast — retimed
+**Problem.** The Regional Promoter reached National in ~1.7 years. **Evidence.** It starts at reputation 24 and gains ~5 a year; the old National bar (rep 30, 14 events, £1.0m revenue) was met in year 2 (`tiercal`, 4 worlds: median 2.0 years). Reputation was the only slow dimension.
+**Change.** National now asks for more of what a promotion *builds* rather than cash: reputation 30→**42**, fanbase 40k→**120k**, completed events 14→**30**, lifetime revenue £1.0m→**£3.5m**, biggest crowd 2,000→**4,000** (quality and scale of shows), established fighters 2 rated 38+→**3 rated 42+**; financial health still "not in trouble", no cash requirement. To keep the ladder coherent International (rep 52→58, 350k→450k fans, 35→50 events, £9m→£14m, 4 fighters 52+→55+) and Global (rep 72→78, 1.5m→2m fans, 70→90 events, £45m→£55m, 7 fighters 62+→65+) were raised in step; every dimension still rises with every step.
+**Result (25 worlds each).**
+
+| Scenario | Strategy | Worlds | Horizon | Survive | Years to National (median, reached) | Years to International | Median cash | Median revenue/yr | Shows/yr | Median tier |
+|---|---|---|---|---|---|---|---|---|---|---|
+| groundUp | aggressive | 25 | 8y | 92% | — | — | 1.8m | 2.6m | 7.9 | Regional |
+| groundUp | balanced | 25 | 8y | 88% | — | — | 2.9m | 2.9m | 9.1 | Regional |
+| regional | aggressive | 25 | 8y | 100% | 4.8 (25/25) | — | 11.5m | 8.1m | 8.6 | National |
+| regional | balanced | 25 | 8y | 92% | 4.4 (21/25) | — | 16.2m | 5.8m | 10.4 | National |
+| national | aggressive | 25 | 6y | 92% | start | 4.5 (15/25) | 40.0m | 28.9m | 11.0 | International |
+| national | balanced | 25 | 6y | 100% | start | 4.1 (19/25) | 44.2m | 17.6m | 12.3 | International |
+
+- **Regional Promoter → National: median 4.4 (Balanced, 21/25 reached within 8 years) and 4.8 years (Aggressive, 25/25)** — inside the 3–5+ (strong) / 4–8 (average) target; weaker worlds take longer or have not arrived by year 8.
+- **From the Ground Up:** Regional at ~3.6 years (as before); National not reached within 8 years in any world — roughly 3.6 + ~4.5 ≈ 8–9 years in total for a good run. Slow, not grindy: every year a promotion is Regional it still grows (Balanced 88%/Aggressive 92% survive, £1.8–2.9m cash).
+- **National Powerhouse is not penalised:** it still starts National with the same cash/roster/venues, survives 92–100%, and keeps its £40–44m six-year cash. Only its *next* step moved: International now takes ~4.1–4.5 years (was 2.9).
+- Regional-start survival: Balanced 92%, Aggressive 100% at 8 years (they were 96%/84% at 5 years with the old bar — the later step does not hurt solvency).
+
+### 10.2 National Powerhouse money — checked for bugs, documented as a design opportunity
+The very large balances (£40m+ after 6 years) are **not** caused by duplicated or invisible money. `moneyIntegrity.test.ts` runs two years of a busy National Powerhouse (balanced promoter, arenas, broadcast, per-event and standing sponsors) and proves: cash = starting funds + every ledger line ever posted; ledger ids are never reused or re-posted; each show's ledger revenue equals the revenue the show reports; each sponsor pays each show once and each quarter once, and the sponsor book's "earned" equals its ledger lines. (Building the test, one apparent mismatch of exactly the £18k broadcast production bill turned out to be a cost line filed under the broadcast category — the test now separates costs from revenue.)
+It is simply a profitable business with few sinks: 12 arena-scale shows a year at a median £460–520k profit, 20–25% margins, and nothing yet to spend on. **Known future design opportunity** (not tuned here, deliberately): elite-fighter contracts, staff, facilities, international expansion, major marketing, broadcast relationships, larger productions, sanctioning costs, stadium events and other high-tier expenses should absorb it. Conservative play from the same start ends near £5m, so decisions still matter.
+
+### 10.3 Final tier sanity check (all five tiers)
+Tests added (`phase46c.test.ts › tier ladder sanity`): every requirement dimension rises with every step; the biggest crowd each tier asks for fits a venue the previous tier may already book (no circular dependency); a single monster night (20,000 crowd, £50m revenue) cannot promote a promotion that lacks events or reputation; the Regional Promoter starts short of National on events, revenue, crowd and reputation; National Powerhouse stays National for 60 weeks with no tier change; promotion needs four consecutive qualifying weeks; demotion needs a full year below the retention floor (70% of the tier's reputation and 50% of its fans); tier and progress survive save/load and old saves migrate. Each tier unlocks something real: Local (≤3,500 seats), Regional (≤6,000 seats, national TV and streaming, 18 fighters, 2 sponsors), National (arenas to 20,000, PPV, 28 fighters, 3 sponsors), International (40 fighters, 4 sponsors, elite fighters), Global (stadiums, 60 fighters, 5 sponsors).
+
+### 10.4 Performance guard
+**Problem.** `longrun` asserted ≤ 60 ms/week wall time and `perf` ≤ 40 ms; both failed intermittently when the whole suite ran in parallel (62 ms), and would also fail on a slower machine without any regression.
+**Fix.** The guards now measure *relative* cost: each timed segment (a quarter for `perf`, a year for `longrun`) is divided by the cost of a fixed reference workload (cloning a fixed world) measured immediately before and after it on the same host, and the median over segments is compared with a limit (`benchTime.ts`). Limits sit ~40% above what the code does today (week tick ≈ 6.9–7.2× the reference, limit 10; eight-year world ≈ 12.3–12.7×, limit 17.5), so a genuine slowdown of that size fails while host load does not. The full suite passed twice in a row under default parallelism. (Not "a bigger threshold": the old limits were wall-clock numbers; these are ratios.)
+**Observation (unchanged from before this phase).** A week tick costs ~27 ms in year 1 and ~55–75 ms by year 8 on this host (state grows with history) — identical to the Phase 4.7 commit (26/36/51/62 vs 27/34/46/61 ms by year). Worth a look before Phase 5 adds more per-week work.

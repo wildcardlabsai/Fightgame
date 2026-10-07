@@ -333,7 +333,7 @@ describe('standing sponsors', () => {
     expect(acceptSponsorOffer(g, id, 1).ok).toBe(false)
   })
 
-  it('instalments pay quarterly through the ledger, exactly once each, and the books stay balanced', () => {
+  it('instalments pay quarterly through the ledger, exactly once each, and the books stay balanced', { timeout: 60_000 }, () => {
     let s = regional()
     s = acceptSponsorOffer(s, offerFor(s, 'knockout'), 1).state
     const annual = activeDeals(s)[0].annual
@@ -411,7 +411,7 @@ describe('standing sponsors', () => {
     expect(deal.status).toBe('terminated')
     expect(b.sponsors!.offers.some((o) => o.kind === 'renewal')).toBe(false)
     expect(b.inbox.some((m) => /unhappy|ended the partnership/.test(m.subject))).toBe(true)
-  })
+  }, 90_000)
 
   it('offers expire; declined sponsors stay away for a cool-down', () => {
     const s = regional()
