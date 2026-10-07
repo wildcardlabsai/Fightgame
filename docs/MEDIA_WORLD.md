@@ -156,3 +156,23 @@ Real organisations can be introduced **only after formal permission**. The archi
 Social feeds as a feature (followers/engagement are numbers on the profile; no feed UI), RUMOUR stories, SCANDAL / PROMOTER_RIVALRY /
 INJURY_COMEBACK storylines, return from retirement, contract-dispute and weigh-in *negotiation* stories, merchandise, sanctioning fees,
 purse bids, interim and unification mandates, eliminators, media-driven fatigue/time cost for interviews, and licensed content.
+
+## Phase 5.1 — integration and integrity audit
+An audit of the whole chain (fight → world event → story → ranking → title → narrative → career → award) with long simulations
+(1–20 years, five strategies, several seeds, media on and off). Fixed:
+
+* **Lists stay truthful between updates.** A belt that changed hands or fell vacant, and any retirement, now reseats every affected list at
+  once (`reseatLists`): the sanctioned champion is rank 0, retired fighters drop out. Before, the old champion stayed "C" for up to 8 weeks.
+* **Rivalries count real meetings.** A fight used to count as its own "previous meeting", so single fights opened rivalries and said "N fights".
+* **Draws never name a winner**, and a drawn title defence is told from the champion's side and recorded on his career.
+* **Invented reactions removed** ("fans left fuming", "a champion at last", "no defence from either man"); weigh-in headlines no longer speak of a fight that is over.
+* **Storyline lifecycle.** One title hunt per division, never for a fighter who already holds a belt there; prospect storylines end on a title or after 18 fights; the storyline cap is 90 and the weakest storyline (not the oldest) is retired, with its outcome on the record.
+* **Fight of the Year** belongs to both fighters. List movements are covered by one outlet (two for a title race) and do not lead the newsroom.
+
+Observed, not tuned (media on versus off with the same seed): fighter popularity drifts down in the median (≈30 → 17 over 10 years, P90 ≈ 78, a few at 100)
+with media off as well, so it is the engine, not the media layer. Media coupling does not change economic outcomes systematically
+(8-year paired runs: better on two seeds, worse on one, level on one). Tick cost with media on is about +25–35% over a long run
+(+80% in the first year while lists and storylines are built); save size +14%.
+
+Known limits: career lines are a capped milestone timeline (28 per fighter, low-importance lines evicted first), not a bout-by-bout ledger;
+the engine itself prunes old fights after the retention horizon. `tests: src/engine/phase51.test.ts`.

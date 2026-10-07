@@ -405,6 +405,8 @@ export function promotionMediaView(state: GameState, id: Id): PromotionMediaView
 
 // --------------------------------------------------------------- the newsroom
 
+/** What leads the newsroom: a result or a belt before a list movement of the same weight. */
+const leadScore = (s: StoryView): number => s.importance - (s.kind === 'RANKING_CHANGE' ? 30 : 0)
 export interface MediaHome {
   lead: StoryView | null; breaking: StoryView[]; latest: StoryView[]; videos: VideoView[]; trending: TrendingView[]; narratives: NarrativeView[]; rivalries: RivalryView[]
   awards: AwardView[]; interviews: StoryView[]; requests: RequestView[]; pressers: PressView[]; offers: OfferView[]; orgs: OrgView[]; reigns: ReturnType<typeof reignsList>; history: { week: number; headline: string; kind: string }[]
@@ -415,7 +417,7 @@ export function mediaHome(state: GameState): MediaHome {
   const media = state.media
   const all = storiesList(state, { limit: 40 })
   const breaking = all.filter((s) => s.breaking).slice(0, 3)
-  const lead = breaking[0] ?? all.slice().sort((a, b) => a.weeksAgo - b.weeksAgo || b.importance - a.importance)[0] ?? null
+  const lead = breaking[0] ?? all.slice().sort((a, b) => a.weeksAgo - b.weeksAgo || leadScore(b) - leadScore(a))[0] ?? null
   const rest = all.filter((s) => s.id !== lead?.id)
   const reqs = requestsList(state)
   const week = media ? Math.floor((state.today - state.startDay) / 7) : 0

@@ -70,7 +70,8 @@ export function coverEvent(state: GameState, media: MediaState, ev: WorldEvent, 
   }).filter((x): x is NonNullable<typeof x> => !!x && x.score >= x.b.threshold && (perOrg.get(x.id) ?? 0) < x.b.weeklyCap)
     .sort((a, b) => b.score - a.score || (a.id < b.id ? -1 : 1))
 
-  const maxOutlets = Math.max(1, Math.min(6, Math.ceil(ev.sig / 22)))
+  // A list movement is one fact: the sport does not need three outlets repeating it (a title-race move earns two).
+  const maxOutlets = Math.max(1, Math.min(ev.kind === 'RANKING_CHANGE' ? (ev.sig >= 55 ? 2 : 1) : 6, Math.ceil(ev.sig / 22)))
   const chosen = cands.slice(0, maxOutlets)
   const out: StoredStory[] = []
   chosen.forEach((c, idx) => {
