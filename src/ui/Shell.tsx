@@ -1,10 +1,10 @@
 import { formatDay, weekOfYear } from '../engine/calendar'
 import { cashRunwayWeeks, financialHealth, player, unreadCount } from '../engine/selectors'
-import { lazy, Suspense } from 'react'
+import { lazy, Suspense, useLayoutEffect } from 'react'
 import { useGame } from '../store/gameStore'
 import { BottomNav, SectionBar, TopNav } from './Navigation'
 import { PromoMark } from './visual/PromoMark'
-import { AudioStatus } from './components/AudioStatus'
+import { AudioToggle } from './components/AudioStatus'
 import { TierUpNotice } from './components/TierUpNotice'
 import { money } from './format'
 const FightDealScreen = lazy(() => import('./screens/FightDealScreen').then((m) => ({ default: m.FightDealScreen })))
@@ -42,6 +42,15 @@ export function Shell() {
   const health = financialHealth(game)
 
 
+  // Every navigation lands on the relevant part of the new screen: the top of it, or the section the link named.
+  useLayoutEffect(() => {
+    const target = route.screen === 'settings' && route.param === 'saves' ? 'save-slots' : route.screen === 'contracts' && route.param === 'payroll' ? 'payroll' : null
+    window.scrollTo(0, 0)
+    if (!target) return
+    const t = requestAnimationFrame(() => document.getElementById(target)?.scrollIntoView?.({ block: 'start' }))
+    return () => cancelAnimationFrame(t)
+  }, [route.screen, route.param])
+
   return (
     <div className="app">
       <TopNav unread={unread} />
@@ -61,9 +70,8 @@ export function Shell() {
         <div className="hud-stat hide-sm"><span className="caps">Finances</span><span className={`v num hp ${health.state}`} title={health.reason}>{health.label}</span></div>
         <div className="hud-spacer" />
         <div className="hud-actions mobile-only">
-          <AudioStatus compact />
-          <button className="btn primary small" onClick={() => advance(1)}>Advance ▸</button>
-          <button className="btn ghost small" onClick={() => advance(4)} aria-label="Advance four weeks">+4</button>
+          <AudioToggle compact />
+          <button className="btn primary small hud-advance" onClick={() => advance(1)} aria-label="Advance one week">Week ▸</button>
         </div>
       </header>
       <main className="page fade-in" key={route.screen + (route.param ?? '')}>

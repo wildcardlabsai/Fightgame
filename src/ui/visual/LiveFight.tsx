@@ -5,9 +5,11 @@ import { control, finishCard, PLAY_MODES, roundCommentary, roundsWon, stamina, t
 import { advance, buildTimeline, clockNow, finish, keyEvents, nextEvent, previousEvent, restartEvent, shownRounds, SPEEDS, startPlayback, stepAt, type Playback, type Speed, type TlEvent } from '../../presentation/timeline'
 import { emitGameEvent } from '../../store/gameEvents'
 import { useGame } from '../../store/gameStore'
+import { AudioToggle } from '../components/AudioStatus'
 import { usePrefs } from '../../store/prefs'
 import { CountUp } from './CountUp'
 import { cardFighter, FighterCard } from './FighterCard'
+import { FighterPortrait } from './FighterPortrait'
 import { useReducedMotion } from './motion'
 
 type Tab = 'stats' | 'rounds' | 'commentary'
@@ -25,6 +27,7 @@ function LiveStat({ label, a, b, fmt, id }: { label: string; a: number; b: numbe
   )
 }
 
+const ownerTag = (mine: boolean) => <span className={`fn-owner ${mine ? 'mine' : 'opp'}`} data-owner={mine ? 'mine' : 'opponent'}>{mine ? 'YOUR FIGHTER' : 'OPPONENT'}</span>
 const mmss = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`
 
 /**
@@ -114,16 +117,19 @@ export function LiveFight({ fv, r, live, onDone }: { fv: FightView; r: ResultVie
     if (overlay) emitFinish()
     if (live && !doneCalled.current) { doneCalled.current = true; doneRef.current() }
   }, [finished, overlay, live, emitFinish])
+  // The fight is over: the crowd bed ends with it (it comes back if the fight is replayed)
+  useEffect(() => { if (finished && overlay) emitGameEvent({ type: 'fightnight.leave' }) }, [finished, overlay])
   // Quick sim straight to the result
   useEffect(() => { if (quick && overlay && stage === 'result') emitFinish() }, [quick, overlay, stage, emitFinish])
 
   // ---- actions (none of them touches the engine)
-  const begin = (s: Stage) => { emitted.current = new Set(); setRun((n) => n + 1); setStage(s); setQuick(false); setPaused(false); setPb(startPlayback(s === 'key' ? keyTl : fullTl)); setOverlay(true) }
+  const begin = (s: Stage) => { emitGameEvent({ type: 'fightnight.enter' }); emitted.current = new Set(); setRun((n) => n + 1); setStage(s); setQuick(false); setPaused(false); setPb(startPlayback(s === 'key' ? keyTl : fullTl)); setOverlay(true) }
   const chooseMode = (m: PlayMode) => { setPrefMode(m); if (m === 'quick') { setStage('result'); setQuick(true); setPb(finish(fullTl)); emitted.current = new Set(); setRun((n) => n + 1); setOverlay(true) } else begin(m) }
   const skip = () => { setPb(finish(tl)) }
   const replay = () => begin(stage === 'key' ? 'key' : stage === 'result' ? (prefMode === 'key' ? 'key' : 'watch') : 'watch')
   const exit = () => { setOverlay(false); if (fv.eventId) navigate('event', fv.eventId); else navigate('fights') }
   const exitLabel = fv.eventId ? 'Return to event' : 'Return to fights'
+  const eventDone = useGame((st) => (fv.eventId ? ['completed', 'settled', 'archived'].includes(st.game?.events[fv.eventId]?.status ?? '') : false))
 
   // ---- derived presentation state (all from the recorded result)
   const shown = finished ? total : shownRounds(cur, pb.acc, total)
@@ -146,10 +152,10 @@ export function LiveFight({ fv, r, live, onDone }: { fv: FightView; r: ResultVie
   // ================================================================== pieces
   const fighters = (
     <div className="lf-fighters">
-      <div className="fn-fighter"><FighterCard f={{ ...cardFighter(a), record: finished ? r.after[0] : fv.a.preRecord }} size="large" side="a" eager />
+      <div className={`fn-fighter${finished && r.winner === 0 ? ' won' : ''}${finished && r.winner === 1 ? ' lost' : ''}`}><FighterCard f={{ ...cardFighter(a), record: finished ? r.after[0] : fv.a.preRecord }} size="large" side="a" eager meta={ownerTag(fv.a.mine)} badge={finished && r.winner === 0 ? <span className="fn-win-tag">WINNER</span> : undefined} />
         {sta && <div className="fn-energy" aria-label={`${names.a} stamina ${sta.a}%`}><i style={{ width: `${sta.a}%` }} /><span>{sta.a}%</span></div>}</div>
       <div className="lf-vs"><span className="display">VS</span><span className="lf-score num" aria-label={`Rounds won ${names.a} ${won[0]}, ${names.b} ${won[1]}`}>{won[0]} – {won[1]}{won[2] > 0 ? ` (${won[2]})` : ''}</span></div>
-      <div className="fn-fighter"><FighterCard f={{ ...cardFighter(b), record: finished ? r.after[1] : fv.b.preRecord }} size="large" side="b" eager />
+      <div className={`fn-fighter${finished && r.winner === 1 ? ' won' : ''}${finished && r.winner === 0 ? ' lost' : ''}`}><FighterCard f={{ ...cardFighter(b), record: finished ? r.after[1] : fv.b.preRecord }} size="large" side="b" eager meta={ownerTag(fv.b.mine)} badge={finished && r.winner === 1 ? <span className="fn-win-tag">WINNER</span> : undefined} />
         {sta && <div className="fn-energy b" aria-label={`${names.b} stamina ${sta.b}%`}><i style={{ width: `${sta.b}%` }} /><span>{sta.b}%</span></div>}</div>
     </div>
   )
@@ -159,6 +165,21 @@ export function LiveFight({ fv, r, live, onDone }: { fv: FightView; r: ResultVie
       <div className="caps">{fin.kind === 'draw' ? 'Final verdict' : 'Fight over'}</div>
       <div className="display t">{fin.kind === 'draw' ? fin.title : fin.kind === 'ko' ? fin.title : `${fin.winnerName} WINS`}</div>
       <div className="display s">{fin.kind === 'ko' ? fin.subtitle : fin.kind === 'draw' ? fin.subtitle : fin.method.toUpperCase()}</div>
+      <div className="fn-duo" data-testid="result-duo">
+        {([r.winner ?? 0, r.winner === null ? 1 : 1 - r.winner] as (0 | 1)[]).map((i, k) => {
+          const f = i === 0 ? fv.a : fv.b
+          const role = r.winner === null ? 'draw' : k === 0 ? 'winner' : 'loser'
+          return (
+            <div key={i} className={`fn-fcard ${role}`} data-testid={`result-${role}`} data-owner={f.mine ? 'mine' : 'opponent'}>
+              <div className="fn-role display">{role === 'winner' ? 'WINNER' : role === 'loser' ? 'DEFEATED' : 'DRAW'}</div>
+              <FighterPortrait f={f.fighter} size={role === 'winner' ? 'large' : 'card'} eager />
+              <div className="display fn-nm">{f.fighter.firstName} <b>{f.fighter.lastName}</b></div>
+              <div className="fn-newrec"><span className="caps">New record</span><b className="num" data-testid={`record-${role}`}>{r.after[i]}</b><small className="dim">was {f.preRecord}</small></div>
+              {ownerTag(f.mine)}
+            </div>
+          )
+        })}
+      </div>
       <div className="fn-result-grid">
         <div><span className="caps">Winner</span><b>{fin.winnerName ?? '—'}</b></div>
         <div><span className="caps">Loser</span><b>{fin.loserName ?? '—'}</b></div>
@@ -283,6 +304,7 @@ export function LiveFight({ fv, r, live, onDone }: { fv: FightView; r: ResultVie
         {stage === 'key' && !finished && <button type="button" className="btn small ghost" data-testid="key-next" onClick={() => setPb((p) => nextEvent(keyTl, p))}>Next ▸▸</button>}
         {!finished && <button type="button" className="btn small ghost" data-testid="lf-skip" onClick={skip}>Skip to result</button>}
         <button type="button" className="btn small ghost" data-testid="lf-replay" onClick={replay}>Replay</button>
+        {finished && eventDone && <button type="button" className="btn small primary" data-testid="lf-end-event" onClick={exit}>End event ▸</button>}
         {finished && <button type="button" className="btn small ghost" data-testid="lf-full" onClick={() => begin('watch')}>View full fight</button>}
         {finished && <button type="button" className="btn small ghost" data-testid="lf-keys" onClick={() => begin('key')}>View key events</button>}
         {finished && <button type="button" className="btn small" data-testid="lf-details" onClick={() => setOverlay(false)}>Fight details</button>}
@@ -311,6 +333,7 @@ export function LiveFight({ fv, r, live, onDone }: { fv: FightView; r: ResultVie
     <div className={`fn-stage${inMoment && step.step && !reduced && cur?.type === 'knockdown' ? ' shake' : ''}`} role="dialog" aria-modal="true" aria-label="Fight Night" data-testid="fight-night" data-stage={stage} data-live={!finished ? 'true' : 'false'} data-finished={finished ? 'true' : 'false'} data-mode={quick ? 'quick' : stage} data-speed={speed} data-paused={paused ? 'true' : 'false'} data-elapsed={elapsed} data-pos={pb.pos} data-events={tl.length}>
       <header className="fn-top">
         <button type="button" className="btn ghost small" data-testid="fn-exit" onClick={exit}>◂ {exitLabel}</button>
+        <AudioToggle compact />
         <span className="fn-brand display">FIGHT EMPIRE</span>
         <span className="fn-ev">{fv.eventName ?? 'Fight Night'}</span>
       </header>

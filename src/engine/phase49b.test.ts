@@ -334,7 +334,7 @@ describe('audio: initialisation, mute, volume, fight cues, crowd ambience', () =
   })
 
   it('maps every required cue: UI, fight night and event cues all exist', () => {
-    for (const c of ['click', 'navigate', 'tab', 'notification', 'success', 'warning', 'fightIntro', 'bell', 'roundEnd', 'punch', 'knockdown', 'count', 'getUp', 'stoppage', 'ko', 'decision', 'resultAnnounce', 'titleAnnounce', 'eventStarted', 'eventCompleted', 'majorResult', 'revenue']) expect(CUE_IDS, c).toContain(c)
+    for (const c of ['click', 'navigate', 'tab', 'notification', 'success', 'warning', 'fightIntro', 'bell', 'roundEnd', 'punch', 'knockdown', 'count', 'getUp', 'stoppage', 'ko', 'decision', 'finalBell', 'resultAnnounce', 'titleAnnounce', 'eventStarted', 'eventCompleted', 'majorResult', 'revenue']) expect(CUE_IDS, c).toContain(c)
     for (const id of CUE_IDS) { expect(CUES[id].gain).toBeLessThanOrEqual(1); expect(CUES[id].gap).toBeGreaterThanOrEqual(0) }
   })
 
@@ -347,9 +347,9 @@ describe('audio: initialisation, mute, volume, fight cues, crowd ambience', () =
     expect(names({ type: 'fight.knockdown', fightId: 'f', round: 3 })).toEqual(['knockdown'])
     expect(names({ type: 'fight.count', fightId: 'f', round: 3, n: 4 })).toEqual(['count'])
     expect(names({ type: 'fight.getup', fightId: 'f', round: 3 })).toEqual(['getUp'])
-    expect(names({ type: 'fight.finish', fightId: 'f', ko: true })).toEqual(['ko', 'resultAnnounce'])
-    expect(names({ type: 'fight.finish', fightId: 'f', ko: false, stoppage: true })).toEqual(['stoppage', 'resultAnnounce'])
-    expect(names({ type: 'fight.finish', fightId: 'f', ko: false })).toEqual(['decision', 'resultAnnounce'])
+    expect(names({ type: 'fight.finish', fightId: 'f', ko: true })).toEqual(['finalBell', 'ko', 'resultAnnounce'])
+    expect(names({ type: 'fight.finish', fightId: 'f', ko: false, stoppage: true })).toEqual(['finalBell', 'stoppage', 'resultAnnounce'])
+    expect(names({ type: 'fight.finish', fightId: 'f', ko: false })).toEqual(['finalBell', 'decision', 'resultAnnounce'])
     expect(names({ type: 'fight.finish', fightId: 'f', ko: false, upset: true })).toContain('majorResult')
     expect(names({ type: 'event.profit', eventId: 'e', profit: 5000 })).toEqual(['revenue'])
     expect(names({ type: 'event.profit', eventId: 'e', profit: -5 })).toEqual([])

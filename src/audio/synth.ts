@@ -14,7 +14,7 @@ const AMB_PEAK = 0.9
 const BOOST: Partial<Record<CueId, number>> = {
   click: 3.6, navigate: 3.6, tab: 3.6, dropdown: 3.6, toggle: 3.6, modalOpen: 3.4, modalClose: 3.4, save: 3, notification: 3, warning: 2.6, success: 2.8, error: 2.6,
   contractAccepted: 2.4, contractRejected: 2.4, fightScheduled: 2.6, eventIntro: 2.2, eventStarted: 2, mainEvent: 1.8, fightTransition: 2.4, resultAnnounce: 2.2, eventCompleted: 2.2,
-  crowdAmbience: 5, bell: 1.9, roundEnd: 1.7, crowd: 4.5, knockdown: 1.7, ko: 1.6, decision: 2.2, fightIntro: 2, punch: 2.6, count: 3, getUp: 2.4, stoppage: 1.8, titleAnnounce: 2.2, revenue: 2.6, majorResult: 2.2,
+  crowdAmbience: 5, bell: 1.9, roundEnd: 1.7, crowd: 4.5, knockdown: 1.7, ko: 1.6, decision: 2.2, fightIntro: 2, punch: 2.6, count: 3, getUp: 2.4, stoppage: 1.8, titleAnnounce: 2.2, revenue: 2.6, majorResult: 2.2, finalBell: 2.0,
 }
 
 export class WebAudioBackend implements AudioBackend {
@@ -171,13 +171,14 @@ export class WebAudioBackend implements AudioBackend {
       case 'roundEnd': for (let i = 0; i < 3; i++) this.bell(g * 0.9, i * 0.45); break
       case 'crowd': this.noise(0, 1.6, g * 0.22, 900, 0.5, 'bandpass', true); break
       case 'knockdown': this.tone(95, 0, 0.35, g * 0.45, 'sine', 45); this.noise(0, 0.25, g * 0.3, 260, 0.9, 'lowpass'); this.noise(0.1, 1.2, g * 0.16, 1000, 0.5, 'bandpass', true); break
-      case 'ko': this.tone(90, 0, 0.5, g * 0.5, 'sine', 40); this.noise(0, 0.3, g * 0.35, 240, 0.9, 'lowpass'); this.noise(0.15, 2.2, g * 0.22, 1000, 0.5, 'bandpass', true); this.bell(g * 0.8, 0.9); this.bell(g * 0.8, 1.35); this.bell(g * 0.8, 1.8); break
+      case 'ko': this.tone(90, 0, 0.5, g * 0.5, 'sine', 40); this.noise(0, 0.3, g * 0.35, 240, 0.9, 'lowpass'); this.noise(0.15, 2.2, g * 0.22, 1000, 0.5, 'bandpass', true); break
       case 'fightIntro': this.tone(120, 0, 0.22, g * 0.4, 'sine', 48); this.tone(120, 0.4, 0.22, g * 0.4, 'sine', 48); this.tone(120, 0.8, 0.3, g * 0.45, 'sine', 44); this.tone(98, 0.1, 1.5, g * 0.16, 'sawtooth', 196); this.noise(0, 1.8, g * 0.2, 900, 0.5, 'bandpass', true); break
       case 'punch': this.tone(150, 0, 0.12, g * 0.4, 'sine', 62); this.noise(0, 0.07, g * 0.3, 380, 0.8, 'lowpass'); this.noise(0.02, 0.18, g * 0.1, 1400, 0.6); break
       case 'count': this.tone(760, 0, 0.05, g * 0.3, 'square'); this.noise(0, 0.04, g * 0.18, 2200, 1.4); break
       case 'getUp': this.tone(300, 0, 0.28, g * 0.2, 'triangle', 540); this.noise(0.05, 1, g * 0.2, 900, 0.5, 'bandpass', true); break
       case 'stoppage': for (let i = 0; i < 3; i++) this.bell(g * 0.7, i * 0.22); this.tone(110, 0.2, 0.9, g * 0.2, 'sawtooth', 70); this.noise(0.1, 1.8, g * 0.2, 500, 0.5, 'lowpass', true); break
       case 'titleAnnounce': this.tone(392, 0, 0.25, g * 0.22, 'sawtooth'); this.tone(494, 0.2, 0.25, g * 0.22, 'sawtooth'); this.tone(587, 0.4, 0.25, g * 0.22, 'sawtooth'); this.tone(784, 0.6, 0.7, g * 0.26, 'sawtooth'); this.noise(0.5, 1.4, g * 0.12, 1000, 0.5, 'bandpass', true); break
+      case 'finalBell': for (let i = 0; i < 3; i++) this.bell(g * 0.85, i * 0.5); this.noise(0.1, 1.6, g * 0.1, 900, 0.5, 'bandpass', true); break
       case 'majorResult': this.tone(330, 0, 0.18, g * 0.22, 'triangle'); this.tone(494, 0.18, 0.18, g * 0.22, 'triangle'); this.tone(660, 0.36, 0.5, g * 0.24, 'triangle'); this.noise(0.3, 1.5, g * 0.16, 900, 0.5, 'bandpass', true); break
       case 'revenue': this.tone(1568, 0, 0.07, g * 0.2, 'triangle'); this.tone(2093, 0.07, 0.07, g * 0.2, 'triangle'); this.tone(2637, 0.14, 0.3, g * 0.22, 'triangle'); break
       case 'decision': this.tone(440, 0, 0.18, g * 0.2, 'triangle'); this.tone(554, 0.2, 0.18, g * 0.2, 'triangle'); this.tone(659, 0.4, 0.5, g * 0.22, 'triangle'); this.noise(0.4, 1.4, g * 0.14, 900, 0.5, 'bandpass', true); break

@@ -173,7 +173,7 @@ const results = {}
   await page.waitForSelector(`${FN}[data-finished="true"]`, { timeout: 60000 })
   results.watch = await resultText(page)
   const statsWatch = await page.locator('[data-stat]').allInnerTexts()
-  await page.waitForTimeout(1500)
+  await page.waitForTimeout(3800)
   const kdSeen = await cuesPlayed(page)
   check('audio: fight cues played in order (fightIntro, bell, knockdown, count, ko, resultAnnounce)', ['fightIntro', 'bell', 'knockdown', 'count', 'ko', 'resultAnnounce'].every((c) => kdSeen.includes(c)), kdSeen.join(','))
   check('result: KO card names method, round and time', /ROUND \d+ — \d:\d\d/.test(results.watch) && /WINS BY (KO|TKO)/.test(results.watch), results.watch)
@@ -196,7 +196,7 @@ const results = {}
   results.skip = await resultText(page)
   check('skip: same result as watching the whole fight', results.skip === results.watch)
   // key events
-  await page.locator('[data-mode="key"]').click(); await page.getByTestId('lf-pause').click(); await page.waitForTimeout(300)
+  await page.locator('button[data-mode="key"]').click(); await page.getByTestId('lf-pause').click(); await page.waitForTimeout(300)
   check('key events: a highlight view with NO statistics dashboard', (await page.getByTestId('key-view').count()) === 1 && (await page.locator('.lf-stat').count()) === 0 && (await page.getByTestId('lf-stats').count()) === 0 && (await page.getByTestId('lf-history').count()) === 0)
   const types = []
   for (let i = 0; i < 12 && (await attr(page, 'data-finished')) !== 'true'; i++) {
@@ -220,7 +220,7 @@ const results = {}
   check('key events: skip returns the full result', (await attr(page, 'data-finished')) === 'true')
   await page.screenshot({ path: `${shots}/p49b-fight-key-result.png` })
   // quick sim
-  await page.locator('[data-mode="quick"]').click()
+  await page.locator('button[data-mode="quick"]').click()
   const t0 = Date.now(); await page.getByTestId('lf-finish').waitFor({ timeout: 1500 })
   check('quick sim: resolves immediately (no round-by-round playback)', Date.now() - t0 < 1200 && (await attr(page, 'data-mode')) === 'quick')
   check('quick sim: result card shows winner, loser, method, round/time, knockdowns, headline stats and key moments', await (async () => { const t = await resultText(page); return /Winner/i.test(t) && /Loser/i.test(t) && /Method/i.test(t) && /Round/i.test(t) && /Knockdowns/i.test(t) && /Punches landed/i.test(t) && /Important moments/i.test(t) })())
@@ -240,6 +240,98 @@ const results = {}
   check('audio: leaving Fight Night stops the crowd ambience', !left.ambience && !left.ambienceWanted && !(await page.evaluate(() => document.body.classList.contains('fight-night'))), JSON.stringify(left))
   check('fight night: returning shows the event page with navigation back', (await page.getByTestId('topnav').isVisible()) && (await page.evaluate(() => location.hash)).startsWith('#/event/'))
   check('fight night: no horizontal overflow on return', (await overflow(page)) <= 0)
+  await ctx.close()
+}
+
+// ================================================================== 3b. USER-REPORTED FIXES (mobile header, scroll, final bell, crowd, winner, end event)
+{
+  const { ctx, page } = await newPage({ mobile: true })
+  await load(page, 'night-ko'); await go(page, '#/dashboard')
+  // header audio button is reachable: it is the element that receives a tap at its own centre
+  const hit = await page.evaluate(() => { const b = document.querySelector('.hud [data-testid^="audio-"]'); if (!b) return null; const r = b.getBoundingClientRect(); const el = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2); return { ok: b === el || b.contains(el), w: Math.round(r.width), h: Math.round(r.height), top: Math.round(r.top), right: Math.round(r.right) } })
+  check('mobile header: the sound button is visible, ≥ 44px and receives taps (nothing covers it)', hit && hit.ok && hit.w >= 44 && hit.h >= 44 && hit.right <= 390, JSON.stringify(hit))
+  const overlap = await page.evaluate(() => { const els = [...document.querySelectorAll('.hud > *, .hud .hud-actions > *')].filter((e) => e.getBoundingClientRect().width > 0 && getComputedStyle(e).display !== 'none'); const rs = els.map((e) => e.getBoundingClientRect()); for (let i = 0; i < rs.length; i++) for (let j = i + 1; j < rs.length; j++) { if (els[i].contains(els[j]) || els[j].contains(els[i])) continue; const a = rs[i], b = rs[j]; if (a.left < b.right - 1 && b.left < a.right - 1 && a.top < b.bottom - 1 && b.top < a.bottom - 1) return [els[i].className, els[j].className] } return null })
+  check('mobile header: no controls overlap each other', overlap === null, JSON.stringify(overlap))
+  await page.locator('.hud [data-testid^="audio-"]').tap()
+  await page.waitForFunction(() => window.__audio.status() === 'ready', null, { timeout: 5000 })
+  await page.waitForTimeout(600)
+  await page.locator('.hud [data-testid="audio-toggle"]').tap(); await page.waitForTimeout(250)
+  check('mobile header: tapping it mutes, tapping again turns sound back on', (await page.evaluate(() => window.__audio.status())) === 'off')
+  await page.locator('.hud [data-testid="audio-toggle"]').tap(); await page.waitForTimeout(250)
+  check('mobile header: sound on again', (await page.evaluate(() => window.__audio.status())) === 'ready')
+  // horizontal fit on every screen
+  const st = await page.evaluate(() => { const g = window.__fe.useGame.getState().game; const mine = Object.values(g.contracts).find((c) => c.promotionId === g.playerPromotionId); return { fighter: mine.fighterId, fight: Object.keys(g.fights)[0] } })
+  const routes = ['dashboard', 'inbox', 'fighters', 'fighters/free', 'scouting', 'contracts', 'contracts/payroll', 'calendar', 'events', 'fights', 'fights/world', 'matchmaking', 'venues', 'promotions', 'news', 'finances', 'sponsors', 'advisor', 'settings', `fighter/${st.fighter}`, `negotiation/${st.fighter}`]
+  const bad = []
+  for (const r of routes) { await go(page, '#/' + r); const o = await page.evaluate(() => ({ d: document.documentElement.scrollWidth - document.documentElement.clientWidth, b: document.body.scrollWidth - document.body.clientWidth })); if (o.d > 0 || o.b > 0) bad.push(`${r}:${JSON.stringify(o)}`) }
+  check('mobile: every screen fits 100% width (no horizontal scroll)', bad.length === 0, bad.join(' '))
+  check('mobile: the page cannot be panned sideways (touch-action pan-y)', (await page.evaluate(() => getComputedStyle(document.body).touchAction)).includes('pan-y') && (await page.evaluate(() => getComputedStyle(document.documentElement).overflowX)) !== 'visible')
+  // navigation lands on the relevant part of the new screen
+  await go(page, '#/fighters'); await page.evaluate(() => window.scrollTo(0, 1200)); await page.waitForTimeout(150)
+  const before = await page.evaluate(() => scrollY)
+  await go(page, `#/negotiation/${st.fighter}`)
+  check('navigating from a scrolled page opens the new screen at its top', before > 300 && (await page.evaluate(() => scrollY)) === 0, String(before))
+  await page.evaluate(() => window.scrollTo(0, 900)); await go(page, '#/settings/saves'); await page.waitForTimeout(400)
+  const saves = await page.evaluate(() => { const r = document.getElementById('save-slots').getBoundingClientRect(); const hud = document.querySelector('.hud').getBoundingClientRect(); return { top: Math.round(r.top), hudBottom: Math.round(hud.bottom) } })
+  check('Save / Load scrolls to the save slots and they are not hidden under the header', saves.top >= saves.hudBottom - 2 && saves.top < 800, JSON.stringify(saves))
+  await go(page, '#/dashboard')
+  await page.getByTestId('bn-fighters').tap(); await page.waitForTimeout(200)
+  check('tapping a bottom tab from a scrolled page lands at the top', (await page.evaluate(() => scrollY)) === 0)
+  // toasts do not sit on top of the bottom bar
+  const t = await page.evaluate(() => { const ts = document.querySelector('.toasts'); const nav = document.querySelector('.bottomnav'); return ts ? ts.getBoundingClientRect().bottom <= nav.getBoundingClientRect().top + 1 : true })
+  check('notifications sit above the bottom bar', t)
+  await ctx.close()
+}
+{
+  const { ctx, page } = await newPage()
+  await startFight(page, 'ko')
+  check('fight night: the sound button is available in the broadcast bar', (await page.locator('.fn-top [data-testid^="audio-"]').count()) === 1)
+  await page.locator('.fn-top [data-testid="audio-toggle"]').click(); await page.locator('.fn-top [data-testid="audio-toggle"]').click(); await page.waitForTimeout(150)
+  check('fight night: the sound button mutes and unmutes', (await page.evaluate(() => window.__audio.status())) === 'ready')
+  await page.evaluate(() => window.__audio.resetHistory())
+  await setSpeed(page, 8)
+  await page.waitForSelector(`${FN}[data-finished="true"]`, { timeout: 60000 })
+  await page.waitForTimeout(3400)
+  const cues = await cuesPlayed(page)
+  check('end of fight: the final bell rings', cues.includes('finalBell'), cues.join(','))
+  const d = await page.evaluate(() => window.__audio.diagnostics())
+  check('end of fight: the crowd bed has stopped (not still playing under the result)', !d.ambience && !d.ambienceWanted, JSON.stringify(d))
+  const rec = await page.evaluate((id) => { const g = window.__fe.useGame.getState().game; const f = g.fights[id]; const r = f.result; const [w, l, dr] = [0, 0, 0]; void w; void l; void dr; const pre = (s) => s.preRecord.split('-').map(Number); const after = (side) => { const [a, b, c] = pre(f['side' + (side ? 'B' : 'A')]); return `${a + (r.winner === side ? 1 : 0)}-${b + (r.winner === 1 - side ? 1 : 0)}-${c + (r.winner === null ? 1 : 0)}` }; return { winner: r.winner, after: [after(0), after(1)], mine: [f.sideA.promotionId === g.playerPromotionId, f.sideB.promotionId === g.playerPromotionId] } }, meta.ko.fightId)
+  const wCard = page.getByTestId('result-winner'), lCard = page.getByTestId('result-loser')
+  check('result: the winner is unmistakable — a large WINNER card with portrait', (await wCard.count()) === 1 && /WINNER/.test(await wCard.innerText()) && (await wCard.boundingBox()).height > 200)
+  check('result: the winner card is bigger than the defeated card', (await wCard.boundingBox()).height >= (await lCard.boundingBox()).height)
+  check('result: shows each fighter’s NEW record', (await page.getByTestId('record-winner').innerText()) === rec.after[rec.winner] && (await page.getByTestId('record-loser').innerText()) === rec.after[1 - rec.winner], JSON.stringify(rec))
+  const wOwner = await wCard.getAttribute('data-owner'), lOwner = await lCard.getAttribute('data-owner')
+  check('result: says whether each fighter is YOUR FIGHTER or the OPPONENT', wOwner === (rec.mine[rec.winner] ? 'mine' : 'opponent') && lOwner === (rec.mine[1 - rec.winner] ? 'mine' : 'opponent') && (await wCard.innerText()).includes(rec.mine[rec.winner] ? 'YOUR FIGHTER' : 'OPPONENT'), `${wOwner} ${lOwner}`)
+  check('fight header also tags winner and ownership', (await page.locator('.fn-win-tag').count()) === 1 && (await page.locator('.fn-fighter .fn-owner').count()) === 2)
+  await page.screenshot({ path: `${shots}/p49c-winner.png` })
+  // replay brings the crowd back
+  await setSpeed(page, 1); await page.getByTestId('lf-replay').click(); await page.waitForTimeout(600)
+  check('replay restarts the crowd bed', (await page.evaluate(() => window.__audio.diagnostics().ambience)))
+  await page.getByTestId('lf-skip').click(); await page.waitForTimeout(300)
+  check('skipping ends the crowd bed again', !(await page.evaluate(() => window.__audio.diagnostics().ambience)))
+  await ctx.close()
+}
+{
+  // run the whole show: the last fight offers End event, and the event wrap-up has an End event button
+  const { ctx, page } = await newPage()
+  await startFight(page, 'ko')
+  let sawEnd = false
+  for (let i = 0; i < 4; i++) {
+    await page.locator('button[data-mode="quick"]').click(); await page.getByTestId('lf-finish').waitFor()
+    if (await page.getByTestId('lf-end-event').count()) { sawEnd = true; await page.screenshot({ path: `${shots}/p49c-end-event.png` }); await page.getByTestId('lf-end-event').click(); break }
+    await page.getByTestId('fn-exit').click(); await page.waitForTimeout(500)
+    const next = page.getByRole('button', { name: /Run:|Ring the bell/ }).first()
+    if (!(await next.count())) break
+    await next.click(); await page.waitForSelector(FN)
+  }
+  check('after the final fight the result screen offers an End event button', sawEnd)
+  await page.waitForTimeout(900)
+  check('End event opens the event wrap-up, scrolled into view', (await page.getByTestId('event-complete').count()) === 1 && await page.getByTestId('event-complete').isVisible())
+  const endBtn = page.getByTestId('end-event')
+  check('the wrap-up has a prominent End event button', (await endBtn.count()) === 1 && /end event/i.test(await endBtn.innerText()))
+  await endBtn.click(); await page.waitForTimeout(400)
+  check('End event returns to the events list', (await page.evaluate(() => location.hash)) === '#/events')
   await ctx.close()
 }
 
@@ -284,7 +376,7 @@ const results = {}
   const tabs = await page.locator('.lf-tabs [role="tab"]').count()
   check('mobile fight: tabs for stats / rounds / commentary', tabs === 3)
   await page.screenshot({ path: `${shots}/p49b-mobile-fight.png` })
-  await page.locator('[data-mode="key"]').tap(); await page.waitForTimeout(500)
+  await page.locator('button[data-mode="key"]').tap(); await page.waitForTimeout(500)
   const kb = await page.locator('.fn-controls button').evaluateAll((els) => els.map((e) => { const r = e.getBoundingClientRect(); return r.left >= -1 && r.right <= 391 }))
   check('mobile key events: controls (prev / replay event / next / skip) remain usable and inside the screen', kb.every(Boolean) && (await page.getByTestId('key-next').isVisible()) && (await page.getByTestId('key-prev').isVisible()), JSON.stringify(kb))
   await page.getByTestId('key-next').tap(); await page.waitForTimeout(200)
@@ -309,6 +401,7 @@ const results = {}
   check('reduced motion: animations are off', (await page.evaluate(() => getComputedStyle(document.querySelector('.lf-moment')).animationName)) === 'none')
   await page.waitForSelector(`${FN}[data-finished="true"]`, { timeout: 60000 })
   check('reduced motion: same final result', (await resultText(page)) === results.watch)
+  await page.waitForTimeout(3500)
   const cues = await cuesPlayed(page)
   check('reduced motion: sound is preserved', cues.includes('bell') && cues.includes('ko'), cues.join(','))
   await ctx.close()

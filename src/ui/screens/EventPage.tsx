@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { formatDay } from '../../engine/calendar'
 import { eventView, venueFits, type CardSlot, type EventView } from '../../engine/eventViews'
 import { eventAdvice, needsConfirmation, visibleAdvice } from '../../engine/advisor'
@@ -230,9 +230,9 @@ function SlotRow({ s, n, editable, eventId }: { s: CardSlot; n: number; editable
       <div className="slot-tag caps">{s.slot}</div>
       <div style={{ flex: 1, cursor: 'pointer' }} onClick={() => navigate('fight', s.fightId)}>
         <div className="slot-cards">
-          <FighterCard f={slotFighter(s.aId, s.aName, s.aRecord, s.division)} size="compact" badge={s.winner === 0 ? <span className="chip gold">W</span> : undefined} />
+          <FighterCard f={slotFighter(s.aId, s.aName, s.aRecord, s.division)} size="compact" badge={s.winner === 0 ? <span className="chip gold">WINNER</span> : undefined} />
           <span className="dim">vs</span>
-          <FighterCard f={slotFighter(s.bId, s.bName, s.bRecord, s.division)} size="compact" badge={s.winner === 1 ? <span className="chip gold">W</span> : undefined} />
+          <FighterCard f={slotFighter(s.bId, s.bName, s.bRecord, s.division)} size="compact" badge={s.winner === 1 ? <span className="chip gold">WINNER</span> : undefined} />
         </div>
         <div className="fighter-sub">{s.aRecord} / {s.bRecord} · {s.division} · {s.rounds} rds · {s.appealLabel}</div>
         {s.result && <div className="fighter-sub">{s.result}</div>}
@@ -365,11 +365,14 @@ function NightPanel({ v, runNext, nightFight }: { v: EventView; runNext: (id: st
 }
 
 function CompletePanel({ v }: { v: EventView }) {
+  const ref = useRef<HTMLDivElement>(null)
+  // arriving here (from Fight Night, or by opening a finished show) puts the wrap-up on screen
+  useEffect(() => { const t = setTimeout(() => ref.current?.scrollIntoView?.({ block: 'start' }), 80); return () => clearTimeout(t) }, [])
   const r = v.result!
   const navigate = useGame((s) => s.navigate)
   const main = v.card[v.card.length - 1]
   return (
-    <div className="complete">
+    <div className="complete" ref={ref} data-testid="event-complete">
       <div className="caps" style={{ color: 'var(--gold)' }}>Event complete</div>
       <h2 className="display" style={{ fontSize: 44, margin: '4px 0 12px' }}>{v.name}</h2>
       <div className="kpis">
@@ -386,7 +389,7 @@ function CompletePanel({ v }: { v: EventView }) {
         {v.riserNames.length > 0 && <div className="kv"><dt>Biggest popularity moves</dt><dd>{v.riserNames.map((x) => `${x.name} ${x.delta >= 0 ? '+' : ''}${x.delta}`).join(' · ')}</dd></div>}
       </dl>
       {r.notable.length > 0 && <ul className="notable">{r.notable.map((n) => <li key={n}>{n}</li>)}</ul>}
-      <div style={{ marginTop: 10 }}><button className="btn" onClick={() => navigate('events')}>Back to events</button></div>
+      <div style={{ marginTop: 14 }}><button className="btn primary big" data-testid="end-event" onClick={() => navigate('events')}>End event ▸</button></div>
     </div>
   )
 }

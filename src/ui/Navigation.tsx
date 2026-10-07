@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useGame } from '../store/gameStore'
-import { AudioStatus } from './components/AudioStatus'
+import { AudioToggle } from './components/AudioStatus'
 import { Icon } from './components/Icons'
 import { activeGroup, activeItem, BOTTOM, bottomActive, itemActive, NAV, type NavGroup, type NavItem } from './nav'
 
@@ -56,7 +56,7 @@ export function TopNav({ unread }: { unread: number }) {
         })}
       </ul>
       <div className="tn-right">
-        <AudioStatus />
+        <AudioToggle />
         <button className="btn ghost small" onClick={() => advance(4)} title="Advance four weeks (stops early if something urgent happens)">+4 Weeks</button>
         <button className="btn primary" onClick={() => advance(1)}>Advance Week ▸</button>
       </div>
@@ -107,6 +107,7 @@ export function BottomNav({ unread }: { unread: number }) {
 }
 
 function MoreSheet({ onClose }: { onClose: () => void }) {
+  const advance = useGame((s) => s.advance)
   const route = useGame((s) => s.route)
   const navigate = useGame((s) => s.navigate)
   const first = useRef<HTMLButtonElement>(null)
@@ -126,6 +127,7 @@ function MoreSheet({ onClose }: { onClose: () => void }) {
     <div className="sheet-back" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose() }} data-testid="more-sheet">
       <div className="sheet" role="dialog" aria-modal="true" aria-label="More">
         <div className="sheet-head"><span className="display">More</span><button type="button" className="linkbtn" onClick={onClose}>Close</button></div>
+        <button type="button" className="sheet-item" data-testid="more-plus4" onClick={() => { advance(4); onClose() }}><span>Advance four weeks</span></button>
         {sections.map(({ group, items }, gi) => (
           <div className="sheet-group" key={group.id}>
             <div className="caps">{group.label}</div>

@@ -69,8 +69,6 @@ function AudioSettings() {
 }
 
 export function SettingsScreen() {
-  const param = useGame((x) => x.route.param)
-  useEffect(() => { if (param === 'saves') document.getElementById('save-slots')?.scrollIntoView?.({ block: 'start' }) }, [param])
   const game = useGame((s) => s.game)!
   const saves = useGame((s) => s.saves)
   const storageKind = useGame((s) => s.storageKind)

@@ -24,9 +24,14 @@ export function cuesFor(e: GameEvent): { cue: CueId; atMs: number; once?: string
     case 'fight.round': return e.round === 1 ? [{ cue: 'bell', atMs: 0, once: `lf:${e.fightId}:r1` }, { cue: 'crowd', atMs: 400, once: `lf:${e.fightId}:crowd` }] : [{ cue: 'bell', atMs: 0, once: `lf:${e.fightId}:r${e.round}` }]
     case 'fight.knockdown': return [{ cue: 'knockdown', atMs: 0, once: `lf:${e.fightId}:kd${e.round}` }]
     case 'fight.finish': {
-      const fin: { cue: CueId; atMs: number; once: string }[] = e.ko ? [{ cue: 'ko', atMs: 0, once: `lf:${e.fightId}:fin` }] : e.stoppage ? [{ cue: 'stoppage', atMs: 0, once: `lf:${e.fightId}:fin` }] : [{ cue: 'decision', atMs: 0, once: `lf:${e.fightId}:fin` }]
-      fin.push({ cue: 'resultAnnounce', atMs: e.ko || e.stoppage ? 1100 : 900, once: `lf:${e.fightId}:ann` })
-      if (e.upset) fin.push({ cue: 'majorResult', atMs: 1900, once: `lf:${e.fightId}:upset` })
+      // The final bell always rings first, then how it ended, then the announcement.
+      const main: CueId = e.ko ? 'ko' : e.stoppage ? 'stoppage' : 'decision'
+      const fin: { cue: CueId; atMs: number; once: string }[] = [
+        { cue: 'finalBell', atMs: 0, once: `lf:${e.fightId}:final` },
+        { cue: main, atMs: 1700, once: `lf:${e.fightId}:fin` },
+        { cue: 'resultAnnounce', atMs: 2900, once: `lf:${e.fightId}:ann` },
+      ]
+      if (e.upset) fin.push({ cue: 'majorResult', atMs: 3800, once: `lf:${e.fightId}:upset` })
       return fin
     }
     case 'fight.intro': return [{ cue: 'fightIntro', atMs: 0, once: `lf:${e.fightId}:intro` }, ...(e.title ? [{ cue: 'titleAnnounce' as CueId, atMs: 1500, once: `lf:${e.fightId}:title` }] : [])]

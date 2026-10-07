@@ -112,7 +112,14 @@ export class AudioManager {
     return (this.settings.master / 100) * (this.settings[bus] / 100) * def.gain
   }
 
-  unlock(): void { this.backend?.unlock(); this.emitStatus() }
+  /** When a gesture last had to unlock a still-locked device (ms, clock time). The sound button uses it so the tap that unlocks never also mutes. */
+  unlockedByGestureAt = -1e9
+  unlock(): void {
+    if (this.backend && !this.backend.ready) this.unlockedByGestureAt = this.clock.now()
+    this.backend?.unlock(); this.emitStatus()
+  }
+  /** True if the device was locked until a moment ago, i.e. the current tap is the one that unlocked it. */
+  justUnlocked(withinMs = 450): boolean { return this.clock.now() - this.unlockedByGestureAt < withinMs }
   /** Diagnostics for the browser checks and the settings screen: is a context running, and how loud is the output right now. */
   diagnostics(): { state: string; peak: number; ambience: boolean; ambienceWanted: boolean } { return { state: this.backend?.state ?? 'none', peak: this.backend?.peak?.() ?? 0, ambience: this.backend?.ambienceRunning ?? false, ambienceWanted: this.ambience } }
 

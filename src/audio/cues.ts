@@ -41,6 +41,7 @@ export const CUES = {
   stoppage: { bus: 'fight', gain: 0.85, gap: 1000 },
   titleAnnounce: { bus: 'sfx', gain: 0.8, gap: 3000 },
   revenue: { bus: 'sfx', gain: 0.65, gap: 800 },
+  finalBell: { bus: 'fight', gain: 0.9, gap: 1500 },
   majorResult: { bus: 'sfx', gain: 0.75, gap: 2000 },
 } as const satisfies Record<string, { bus: Bus; gain: number; gap: number }>
 
