@@ -1,4 +1,5 @@
 import { useEffect, type ReactNode } from 'react'
+import { createPortal } from 'react-dom'
 import { emitGameEvent } from '../../store/gameEvents'
 
 export function Modal({ title, onClose, children, wide }: { title: string; onClose: () => void; children: ReactNode; wide?: boolean }) {
@@ -9,7 +10,9 @@ export function Modal({ title, onClose, children, wide }: { title: string; onClo
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [onClose])
-  return (
+  // Rendered into <body>: inside the page, an animated ancestor made `position: fixed` relative to the page and put the dialog
+  // underneath the sticky header (so on small screens its first fields could not be reached or scrolled to).
+  return createPortal(
     <div className="modal-back" onClick={close} role="presentation">
       <div className={`modal${wide ? ' wide' : ''}`} role="dialog" aria-modal="true" aria-label={title} onClick={(e) => e.stopPropagation()}>
         <div className="modal-head">
@@ -18,7 +21,8 @@ export function Modal({ title, onClose, children, wide }: { title: string; onClo
         </div>
         {children}
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }
 

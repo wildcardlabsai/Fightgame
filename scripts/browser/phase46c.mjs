@@ -4,7 +4,7 @@ import { createRequire } from 'node:module'
 import { readFileSync, mkdirSync } from 'node:fs'
 const require = createRequire(import.meta.url)
 let chromium
-try { ({ chromium } = require('playwright')) } catch { ({ chromium } = require('/node-tools/node_modules/playwright')) }
+try { ({ chromium } = require('playwright')) } catch { ({ chromium } = require('/opt/node-tools/node_modules/playwright')) }
 const [base = 'http://localhost:4173', fx = '/tmp/e2e', shots = '/tmp/e2e-shots'] = process.argv.slice(2)
 mkdirSync(shots, { recursive: true })
 const fixture = (n) => readFileSync(`${fx}/${n}.json`, 'utf8')
@@ -147,6 +147,36 @@ for (const [id, [label, cap]] of Object.entries(START)) {
   const box = await page.locator('.tierup').boundingBox()
   check('mobile: tier-up notice fits the screen', box.width <= 390 && box.height <= 844 && (await fits(page)))
   await page.screenshot({ path: `${shots}/tierup-mobile.png` })
+  await ctx.close()
+}
+
+// ---- regression: dialogs reachable on small screens, nav stays usable (reported bug)
+for (const [name, vp] of [['phone', { width: 390, height: 700 }], ['landscape-phone', { width: 740, height: 360 }], ['short-laptop', { width: 1280, height: 600 }]]) {
+  const ctx = await browser.newContext({ viewport: vp, hasTouch: name !== 'short-laptop', isMobile: name !== 'short-laptop' })
+  const page = await ctx.newPage()
+  page.on('console', (m) => { if (m.type() === 'error') errors.push(`[console] ${m.text()}`) })
+  await page.goto(`${base}/?e2e`)
+  await start(page, 'groundUp')
+  await go(page, '#/events')
+  await page.getByRole('button', { name: /Plan a show/ }).click()
+  await page.waitForSelector('.modal')
+  const box = await page.locator('.modal').boundingBox()
+  check(`${name}: plan-a-show dialog sits fully on screen`, box.y >= 0 && box.y + box.height <= vp.height + 1, JSON.stringify(box))
+  check(`${name}: dialog is above the sticky header and nav`, await page.evaluate(() => { const m = document.querySelector('.modal'); const r = m.getBoundingClientRect(); const top = document.elementFromPoint(r.left + r.width / 2, r.top + 12); return !!top && m.contains(top) || top === document.querySelector('.modal-head') || !!top?.closest('.modal') }))
+  await page.getByLabel('Event name').fill('Scroll Test Night')
+  await page.locator('.modal').evaluate((e) => { e.scrollTop = e.scrollHeight })
+  const submit = page.getByRole('button', { name: /Book venue/ })
+  check(`${name}: can scroll to and press the submit button`, await submit.isVisible() && (await submit.isEnabled()))
+  await submit.click()
+  await page.waitForTimeout(400)
+  check(`${name}: show is booked`, (await page.evaluate(() => location.hash)).startsWith('#/event/'))
+  if (name !== 'short-laptop') {
+    await page.evaluate(() => window.scrollTo(0, 800)); await page.waitForTimeout(150)
+    check(`${name}: nav strip stays pinned while scrolling`, (await page.evaluate(() => Math.round(document.querySelector('.rail').getBoundingClientRect().top))) === 0)
+    await page.locator('.rail .nav-item', { hasText: 'Sponsors' }).tap(); await page.waitForTimeout(400)
+    check(`${name}: nav works and shows the active section`, (await page.evaluate(() => location.hash)) === '#/sponsors' && await page.evaluate(() => { const r = document.querySelector('.rail .nav-item.active').getBoundingClientRect(); return r.left >= 0 && r.right <= innerWidth + 1 }))
+    check(`${name}: no horizontal overflow`, await fits(page))
+  }
   await ctx.close()
 }
 

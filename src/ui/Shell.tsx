@@ -1,6 +1,6 @@
 import { formatDay, weekOfYear } from '../engine/calendar'
 import { cashRunwayWeeks, financialHealth, player, unreadCount } from '../engine/selectors'
-import { lazy, Suspense } from 'react'
+import { lazy, Suspense, useEffect } from 'react'
 import { useGame, type ScreenId } from '../store/gameStore'
 import { Icon } from './components/Icons'
 import { PromoLogo } from './components/Bits'
@@ -63,6 +63,9 @@ export function Shell() {
   const health = financialHealth(game)
   const activeScreen: ScreenId = route.screen === 'fighter' ? 'fighters' : route.screen === 'negotiation' ? 'contracts' : route.screen === 'fight' || route.screen === 'deal' ? 'fights' : route.screen === 'event' ? 'events' : route.screen
 
+  // On phones the nav is a sideways strip: keep the current section in view when the route changes.
+  useEffect(() => { document.querySelector('.rail .nav-item.active')?.scrollIntoView?.({ inline: 'center', block: 'nearest' }) }, [route.screen])
+
   return (
     <div className="app">
       <nav className="rail" aria-label="Main">
@@ -81,7 +84,7 @@ export function Shell() {
           ))}
           <button data-sfx="navigate" className={`nav-item nav-settings-mobile${activeScreen === 'settings' ? ' active' : ''}`} onClick={() => navigate('settings')} aria-current={activeScreen === 'settings' ? 'page' : undefined}>Settings</button>
         </div>
-        <div className="nav-group">
+        <div className="nav-group nav-locked-group">
           <div className="nav-label caps">Coming soon</div>
           {LOCKED_NAV.map((n) => (
             <button key={n.label} className="nav-item locked" disabled title={`${n.label} arrives in Phase ${n.phase}`}>

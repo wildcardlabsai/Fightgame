@@ -4,7 +4,7 @@ import { createRequire } from 'node:module'
 import { readFileSync, mkdirSync } from 'node:fs'
 const require = createRequire(import.meta.url)
 let chromium
-try { ({ chromium } = require('playwright')) } catch { ({ chromium } = require('/node-tools/node_modules/playwright')) }
+try { ({ chromium } = require('playwright')) } catch { ({ chromium } = require('/opt/node-tools/node_modules/playwright')) }
 const [base = 'http://localhost:4173', fx = '/tmp/e2e', shots = '/tmp/e2e-shots'] = process.argv.slice(2)
 mkdirSync(shots, { recursive: true })
 const meta = JSON.parse(readFileSync(`${fx}/meta.json`, 'utf8'))
