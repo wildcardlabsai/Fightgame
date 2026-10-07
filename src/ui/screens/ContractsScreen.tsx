@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { formatDay } from '../../engine/calendar'
 import { commitments, ownContractHistory, releaseQuote } from '../../engine/quotes'
 import { STAGE_LABEL } from '../../engine/systems/contracts'
+import { weeklyBurn } from '../../engine/selectors'
 import { useGame } from '../../store/gameStore'
 import { useViews } from '../../store/hooks'
 import { Section } from '../components/Bits'
@@ -17,6 +18,8 @@ export function ContractsScreen() {
   const [confirm, setConfirm] = useState<string | null>(null)
   const mine = views.mine().filter((v) => v.contract.kind === 'own').sort((a, b) => (a.contract.kind === 'own' ? a.contract.weeksLeft : 0) - (b.contract.kind === 'own' ? b.contract.weeksLeft : 0))
   const c = commitments(game)
+  const burn = weeklyBurn(game)
+  const routeParam = useGame((x) => x.route.param)
   const history = ownContractHistory(game).slice(0, 12)
   const quote = confirm ? releaseQuote(game, confirm) : null
   const target = confirm ? views.fighter(confirm) : null
@@ -28,6 +31,12 @@ export function ContractsScreen() {
           <h1 className="display">Contracts</h1>
           <p className="sub">Every fighter you employ, what you owe them, and when it ends. Renew early, or lose them to the market.</p>
         </div>
+      <div className="kpis" style={{ margin: '0 0 14px' }} data-testid="payroll-strip" id="payroll">
+        <div className="kpi"><div className="caps">Weekly retainers</div><div className="v num" style={{ fontSize: 28 }}>{money(burn.retainers, false)}</div></div>
+        <div className="kpi"><div className="caps">Overheads</div><div className="v num" style={{ fontSize: 28 }}>{money(burn.overheads, false)}</div></div>
+        <div className="kpi"><div className="caps">Scouts</div><div className="v num" style={{ fontSize: 28 }}>{money(burn.scouting, false)}</div></div>
+        <div className="kpi"><div className="caps">Total weekly burn</div><div className={`v num ${routeParam === 'payroll' ? 'gold' : ''}`} style={{ fontSize: 28 }}>{money(burn.total, false)}</div><div className="s"><button className="linkbtn" onClick={() => navigate('finances')}>Finances</button></div></div>
+      </div>
       </div>
       <div className="kpis" style={{ marginTop: 0 }}>
         <div className="kpi"><div className="caps">Contracts</div><div className="v num">{c.count}</div></div>

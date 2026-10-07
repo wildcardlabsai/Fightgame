@@ -34,6 +34,14 @@ export const CUES = {
   knockdown: { bus: 'fight', gain: 0.85, gap: 400 },
   ko: { bus: 'fight', gain: 0.9, gap: 1000 },
   decision: { bus: 'fight', gain: 0.7, gap: 1000 },
+  fightIntro: { bus: 'fight', gain: 0.8, gap: 3000 },
+  punch: { bus: 'fight', gain: 0.6, gap: 220 },
+  count: { bus: 'fight', gain: 0.55, gap: 120 },
+  getUp: { bus: 'fight', gain: 0.6, gap: 500 },
+  stoppage: { bus: 'fight', gain: 0.85, gap: 1000 },
+  titleAnnounce: { bus: 'sfx', gain: 0.8, gap: 3000 },
+  revenue: { bus: 'sfx', gain: 0.65, gap: 800 },
+  majorResult: { bus: 'sfx', gain: 0.75, gap: 2000 },
 } as const satisfies Record<string, { bus: Bus; gain: number; gap: number }>
 
 export type CueId = keyof typeof CUES

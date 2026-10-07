@@ -172,9 +172,9 @@ for (const [name, vp] of [['phone', { width: 390, height: 700 }], ['landscape-ph
   check(`${name}: show is booked`, (await page.evaluate(() => location.hash)).startsWith('#/event/'))
   if (name !== 'short-laptop') {
     await page.evaluate(() => window.scrollTo(0, 800)); await page.waitForTimeout(150)
-    check(`${name}: nav strip stays pinned while scrolling`, (await page.evaluate(() => Math.round(document.querySelector('.rail').getBoundingClientRect().top))) === 0)
-    await page.locator('.rail .nav-item', { hasText: 'Sponsors' }).tap(); await page.waitForTimeout(400)
-    check(`${name}: nav works and shows the active section`, (await page.evaluate(() => location.hash)) === '#/sponsors' && await page.evaluate(() => { const r = document.querySelector('.rail .nav-item.active').getBoundingClientRect(); return r.left >= 0 && r.right <= innerWidth + 1 }))
+    check(`${name}: header stays pinned while scrolling`, (await page.evaluate(() => Math.round(document.querySelector('.hud').getBoundingClientRect().top))) === 0)
+    await page.getByTestId('bn-more').tap(); await page.getByTestId('more-sponsors').tap(); await page.waitForTimeout(400)
+    check(`${name}: nav works and shows the active section`, (await page.evaluate(() => location.hash)) === '#/sponsors' && await page.evaluate(() => { const r = document.querySelector('.bn-item.active').getBoundingClientRect(); return r.left >= 0 && r.right <= innerWidth + 1 }))
     check(`${name}: no horizontal overflow`, await fits(page))
   }
   await ctx.close()

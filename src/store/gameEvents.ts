@@ -17,7 +17,14 @@ export type GameEvent =
   | { type: 'fight.result'; fightId: string; method: string; knockdowns: number; presented?: boolean }
   | { type: 'fight.round'; fightId: string; round: number }
   | { type: 'fight.knockdown'; fightId: string; round: number }
-  | { type: 'fight.finish'; fightId: string; ko: boolean }
+  | { type: 'fight.finish'; fightId: string; ko: boolean; /** ended by referee/corner/doctor rather than a count or the cards */ stoppage?: boolean; upset?: boolean }
+  | { type: 'fight.intro'; fightId: string; title?: boolean }
+  | { type: 'fight.action'; fightId: string; round: number }
+  | { type: 'fight.count'; fightId: string; round: number; n: number }
+  | { type: 'fight.getup'; fightId: string; round: number }
+  | { type: 'fightnight.enter' }
+  | { type: 'fightnight.leave' }
+  | { type: 'event.profit'; eventId: string; profit: number }
   | { type: 'modal.open' }
   | { type: 'modal.close' }
   | { type: 'advice'; id: string; level: 'info' | 'tip' | 'caution' | 'highRisk' | 'critical' }

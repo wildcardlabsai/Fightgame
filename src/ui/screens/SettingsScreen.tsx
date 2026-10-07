@@ -6,6 +6,7 @@ import { tierLabel } from '../../engine/tiers'
 import { useGame } from '../../store/gameStore'
 import { useViews } from '../../store/hooks'
 import { usePrefs } from '../../store/prefs'
+import { useAudioStatus } from '../components/AudioStatus'
 import { Section } from '../components/Bits'
 
 const ADVISOR_BLURB: Record<AdvisorMode, string> = {
@@ -14,7 +15,7 @@ const ADVISOR_BLURB: Record<AdvisorMode, string> = {
   minimal: 'Only serious financial and career warnings.',
   off: 'No advisor. You are on your own.',
 }
-const SLIDERS = [['master', 'Master'], ['music', 'Music'], ['ui', 'UI'], ['sfx', 'Sound effects'], ['fight', 'Fight']] as const
+const SLIDERS = [['master', 'Master'], ['music', 'Music (no tracks yet)'], ['ui', 'UI'], ['sfx', 'Sound effects'], ['fight', 'Fight & crowd']] as const
 
 function AdvisorSettings() {
   const mode = usePrefs((s) => s.advisor)
@@ -39,6 +40,7 @@ function AudioSettings() {
   const a = usePrefs((s) => s.audio)
   const setAudio = usePrefs((s) => s.setAudio)
   const reset = usePrefs((s) => s.resetAudio)
+  const st = useAudioStatus()
   return (
     <Section title="Audio">
       <label style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 6 }}>
@@ -50,22 +52,25 @@ function AudioSettings() {
       {SLIDERS.map(([k, label]) => (
         <div className="vol-row" key={k}>
           <label htmlFor={`vol-${k}`}>{label}</label>
-          <input id={`vol-${k}`} type="range" min={0} max={100} step={1} value={a[k]} disabled={!a.enabled} onChange={(e) => setAudio({ [k]: Number(e.target.value) })} aria-valuetext={`${a[k]} percent`} />
+          <input id={`vol-${k}`} type="range" min={0} max={100} step={1} value={a[k]} disabled={!a.enabled || k === 'music'} onChange={(e) => setAudio({ [k]: Number(e.target.value) })} aria-valuetext={`${a[k]} percent`} />
           <span className="num">{a[k]}</span>
         </div>
       ))}
+      <p className="dim" style={{ fontSize: 13, margin: '6px 0' }} data-testid="audio-state">Audio device: {st === 'ready' ? 'running' : st === 'locked' ? 'waiting for your first click or tap' : st === 'off' ? 'switched off' : 'not supported in this browser'}.</p>
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 10 }}>
         <button className="btn small ghost" data-sfx="click">Test UI</button>
         <button className="btn small ghost" data-sfx="notification">Test effects</button>
         <button className="btn small ghost" data-sfx="bell">Test fight bell</button>
         <button className="btn small ghost" data-sfx="none" onClick={reset}>Reset</button>
       </div>
-      <p className="dim" style={{ fontSize: 13, marginTop: 10 }}>Every sound is paired with something you can see — nothing is conveyed by audio alone. Sound only starts after you click or tap something, and music has no tracks yet.</p>
+      <p className="dim" style={{ fontSize: 13, marginTop: 10 }}>Every sound is paired with something you can see — nothing is conveyed by audio alone. Sound only starts after you click or tap something. There is no music yet, so the music slider is disabled; the crowd bed on Fight Night follows the Fight & crowd slider.</p>
     </Section>
   )
 }
 
 export function SettingsScreen() {
+  const param = useGame((x) => x.route.param)
+  useEffect(() => { if (param === 'saves') document.getElementById('save-slots')?.scrollIntoView?.({ block: 'start' }) }, [param])
   const game = useGame((s) => s.game)!
   const saves = useGame((s) => s.saves)
   const storageKind = useGame((s) => s.storageKind)
@@ -133,7 +138,7 @@ export function SettingsScreen() {
           </Section>
         </div>
         <div>
-          <Section title="Save slots">
+          <div id="save-slots"><Section title="Save slots">
             {saves.length === 0 ? <p className="empty">No saves yet.</p> : (
               <div style={{ display: 'grid', gap: 8 }}>
                 {saves.map((m) => (
@@ -148,7 +153,7 @@ export function SettingsScreen() {
                 ))}
               </div>
             )}
-          </Section>
+          </Section></div>
         </div>
       </div>
     </>

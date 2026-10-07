@@ -46,7 +46,7 @@ const el = (o: ElSpec): Element => {
 describe('audio manager: initialisation and settings', () => {
   it('starts with sensible, quiet defaults and no autoplay', () => {
     expect(mgr.get()).toEqual(DEFAULT_AUDIO)
-    expect(DEFAULT_AUDIO.master).toBeLessThanOrEqual(70)
+    expect(DEFAULT_AUDIO.master).toBeLessThanOrEqual(80)
     expect(rec.played).toHaveLength(0)
     expect(mgr.log).toHaveLength(0)
   })

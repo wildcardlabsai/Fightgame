@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { formatDay } from '../../engine/calendar'
 import { fightList, type FightListItem } from '../../engine/fightViews'
 import { useGame } from '../../store/gameStore'
@@ -25,7 +25,9 @@ function Row({ f }: { f: FightListItem }) {
 export function FightsScreen() {
   const game = useGame((s) => s.game)!
   const navigate = useGame((s) => s.navigate)
-  const [tab, setTab] = useState<Tab>('open')
+  const routeParam = useGame((s) => s.route.param)
+  const [tab, setTab] = useState<Tab>(routeParam === 'world' || routeParam === 'mine' ? routeParam : 'open')
+  useEffect(() => { if (routeParam === 'world' || routeParam === 'mine' || routeParam === 'open') setTab(routeParam) }, [routeParam])
   const lists = { open: fightList(game, 'mine-open'), mine: fightList(game, 'mine-results'), world: fightList(game, 'world-results', 40) }
   const rows = lists[tab]
   return (

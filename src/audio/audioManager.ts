@@ -23,7 +23,7 @@ export interface AudioSettings {
 }
 
 /** Sensible, quiet defaults. Nothing plays until the player does something, and music has no tracks yet. */
-export const DEFAULT_AUDIO: AudioSettings = { enabled: true, muted: false, master: 60, music: 40, ui: 55, sfx: 65, fight: 70 }
+export const DEFAULT_AUDIO: AudioSettings = { enabled: true, muted: false, master: 75, music: 40, ui: 70, sfx: 75, fight: 80 }
 
 export interface AudioBackend {
   /** Called from a user gesture so the browser allows playback. */
@@ -31,9 +31,19 @@ export interface AudioBackend {
   readonly ready: boolean
   play(cue: CueId, gain: number): void
   stopAll(): void
+  /** Optional diagnostics: peak level (0–1) at the output, and the context state. */
+  peak?(): number
+  readonly state?: string
+  readonly ambienceRunning?: boolean
+  /** Optional: looping crowd/arena bed on the fight bus. */
+  startAmbience?(gain: number): void
+  setAmbienceGain?(gain: number): void
+  stopAmbience?(): void
+  /** Optional: notify when the underlying context changes state (e.g. suspended → running after a gesture). */
+  onState?(cb: () => void): void
 }
 
-export interface PlayRecord { cue: CueId; gain: number; t: number }
+export interface PlayRecord { cue: CueId; gain: number; t: number; /** false when the cue was allowed but the audio device was not running (nothing could be heard) */ delivered: boolean }
 
 export interface Clock { now(): number; later(fn: () => void, ms: number): unknown }
 const realClock: Clock = { now: () => (typeof performance !== 'undefined' ? performance.now() : Date.now()), later: (fn, ms) => setTimeout(fn, ms) }
@@ -56,7 +66,26 @@ export class AudioManager {
     this.clock = clock
   }
 
-  setBackend(b: AudioBackend | null): void { this.backend = b }
+  private statusListeners = new Set<() => void>()
+  private ambience = false
+  setBackend(b: AudioBackend | null): void { this.backend = b; b?.onState?.(() => this.emitStatus()) }
+  private emitStatus() { for (const l of this.statusListeners) l() }
+  /** `locked`: audio is enabled but the browser has not yet allowed sound (no click/tap yet). */
+  status(): 'ready' | 'locked' | 'off' | 'unsupported' {
+    if (!this.settings.enabled || this.settings.muted) return 'off'
+    if (!this.backend) return 'unsupported'
+    return this.backend.ready ? 'ready' : 'locked'
+  }
+  subscribeStatus(fn: () => void): () => void { this.statusListeners.add(fn); return () => this.statusListeners.delete(fn) }
+
+  /** Start the looping arena bed (Fight Night). Safe to call repeatedly. */
+  startAmbience(): void {
+    this.ambience = true
+    if (this.audible() && this.ambienceGain() > 0.001) this.backend?.startAmbience?.(this.ambienceGain())
+  }
+  stopAmbience(): void { this.ambience = false; this.backend?.stopAmbience?.() }
+  get ambienceOn(): boolean { return this.ambience }
+  private ambienceGain(): number { return (this.settings.master / 100) * (this.settings.fight / 100) * 0.55 }
   setClock(c: Clock): void { this.clock = c }
 
   // ---- settings ----
@@ -67,6 +96,9 @@ export class AudioManager {
     s.enabled = !!s.enabled; s.muted = !!s.muted
     this.settings = s
     if (!this.audible()) this.backend?.stopAll()
+    if (!this.audible() || this.ambienceGain() <= 0.001) this.backend?.stopAmbience?.()
+    else if (this.ambience) this.backend?.startAmbience?.(this.ambienceGain())
+    this.emitStatus()
     for (const l of this.listeners) l(this.get())
     return this.get()
   }
@@ -80,7 +112,9 @@ export class AudioManager {
     return (this.settings.master / 100) * (this.settings[bus] / 100) * def.gain
   }
 
-  unlock(): void { this.backend?.unlock() }
+  unlock(): void { this.backend?.unlock(); this.emitStatus() }
+  /** Diagnostics for the browser checks and the settings screen: is a context running, and how loud is the output right now. */
+  diagnostics(): { state: string; peak: number; ambience: boolean; ambienceWanted: boolean } { return { state: this.backend?.state ?? 'none', peak: this.backend?.peak?.() ?? 0, ambience: this.backend?.ambienceRunning ?? false, ambienceWanted: this.ambience } }
 
   // ---- playback ----
   /** Play a cue now. Returns false if it was suppressed (muted, silent bus, or too soon after the same cue). */
@@ -92,7 +126,7 @@ export class AudioManager {
     const last = this.lastPlayed.get(cue)
     if (last !== undefined && t - last < CUES[cue].gap) { this.suppressed++; return false }
     this.lastPlayed.set(cue, t)
-    this.log.push({ cue, gain, t })
+    this.log.push({ cue, gain, t, delivered: !!this.backend?.ready })
     if (this.log.length > 300) this.log.splice(0, this.log.length - 300)
     this.backend?.play(cue, gain)
     return true

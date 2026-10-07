@@ -18,6 +18,10 @@ const paths: Record<string, ReactNode> = {
   sponsors: <><path d="M12 21s-8-5-8-11a5 5 0 0 1 8-3 5 5 0 0 1 8 3c0 6-8 11-8 11z" /></>,
   matchmaking: <><circle cx="8" cy="9" r="3.5" /><circle cx="17" cy="15" r="3.5" /><path d="M11 11l3 2" /></>,
   fights: <><path d="M6 14c0-5 2-9 6-9s6 4 6 9v3H6z" /><path d="M9 20h6" /></>,
+  news: <><path d="M4 5h13v14H6a2 2 0 0 1-2-2z" /><path d="M17 9h3v8a2 2 0 0 1-2 2M7 9h7M7 13h7" /></>,
+  advisor: <><path d="M9 18h6M10 21h4" /><path d="M12 3a6 6 0 0 0-3 11c.6.5 1 1.2 1 2h4c0-.8.4-1.5 1-2a6 6 0 0 0-3-11z" /></>,
+  more: <><circle cx="5" cy="12" r="1.6" /><circle cx="12" cy="12" r="1.6" /><circle cx="19" cy="12" r="1.6" /></>,
+  world: <><circle cx="12" cy="12" r="9" /><path d="M3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18" /></>,
   media: <><rect x="3" y="5" width="18" height="12" /><path d="M8 21h8M12 17v4" /></>,
 }
 

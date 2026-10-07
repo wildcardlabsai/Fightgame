@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { rosterAdvice } from '../../engine/advisor'
 import type { FighterView } from '../../engine/view'
 import { useGame } from '../../store/gameStore'
@@ -20,7 +20,9 @@ export function FightersScreen() {
   const game = useGame((s) => s.game)!
   const navigate = useGame((s) => s.navigate)
   const views = useViews()
-  const [tab, setTab] = useState<Tab>('roster')
+  const routeParam = useGame((s) => s.route.param)
+  const [tab, setTab] = useState<Tab>(() => (TABS.some((t) => t.key === routeParam) ? (routeParam as Tab) : 'roster'))
+  useEffect(() => { if (routeParam && TABS.some((t) => t.key === routeParam)) setTab(routeParam as Tab) }, [routeParam])
   const [filter, setFilter] = useState<FighterFilter>(EMPTY_FILTER)
   const [sort, setSort] = useState<SortKey>('grade')
   const [dir, setDir] = useState<1 | -1>(-1)

@@ -11,14 +11,14 @@ import { emitGameEvent } from './gameEvents'
 
 export type ScreenId =
   | 'dashboard' | 'fighters' | 'fighter' | 'calendar' | 'inbox' | 'finances' | 'promotions'
-  | 'venues' | 'settings' | 'scouting' | 'contracts' | 'negotiation' | 'matchmaking' | 'fights' | 'fight' | 'deal' | 'events' | 'event' | 'sponsors' | 'assets'
+  | 'venues' | 'settings' | 'scouting' | 'contracts' | 'negotiation' | 'matchmaking' | 'fights' | 'fight' | 'deal' | 'events' | 'event' | 'sponsors' | 'news' | 'advisor' | 'assets'
 
 export interface Route {
   screen: ScreenId
   param?: string
 }
 
-const SCREENS: ScreenId[] = ['dashboard', 'fighters', 'fighter', 'calendar', 'inbox', 'finances', 'promotions', 'venues', 'settings', 'scouting', 'contracts', 'negotiation', 'matchmaking', 'fights', 'fight', 'deal', 'events', 'event', 'sponsors', ...(import.meta.env.DEV ? (['assets'] as ScreenId[]) : [])]
+const SCREENS: ScreenId[] = ['dashboard', 'fighters', 'fighter', 'calendar', 'inbox', 'finances', 'promotions', 'venues', 'settings', 'scouting', 'contracts', 'negotiation', 'matchmaking', 'fights', 'fight', 'deal', 'events', 'event', 'sponsors', 'news', 'advisor', ...(import.meta.env.DEV ? (['assets'] as ScreenId[]) : [])]
 
 export function parseHash(hash: string): Route {
   const [, screen, param, extra] = hash.replace(/^#/, '').split('/')
@@ -106,7 +106,7 @@ function announceFight(g: GameState, fightId: string): void {
 }
 function announceFinish(before: GameState, after: GameState, eventId: string): void {
   const done = (s: GameState) => ['completed', 'settled', 'archived'].includes(s.events[eventId]?.status ?? '')
-  if (!done(before) && done(after)) emitGameEvent({ type: 'event.completed', eventId })
+  if (!done(before) && done(after)) { emitGameEvent({ type: 'event.completed', eventId }); emitGameEvent({ type: 'event.profit', eventId, profit: after.events[eventId]?.result?.profit ?? 0 }) }
 }
 
 const EVENT_COMMANDS = {

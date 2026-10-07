@@ -23,9 +23,18 @@ export function cuesFor(e: GameEvent): { cue: CueId; atMs: number; once?: string
     case 'event.completed': return [{ cue: 'eventCompleted', atMs: 0, once: `done:${e.eventId}` }]
     case 'fight.round': return e.round === 1 ? [{ cue: 'bell', atMs: 0, once: `lf:${e.fightId}:r1` }, { cue: 'crowd', atMs: 400, once: `lf:${e.fightId}:crowd` }] : [{ cue: 'bell', atMs: 0, once: `lf:${e.fightId}:r${e.round}` }]
     case 'fight.knockdown': return [{ cue: 'knockdown', atMs: 0, once: `lf:${e.fightId}:kd${e.round}` }]
-    case 'fight.finish': return e.ko
-      ? [{ cue: 'ko', atMs: 0, once: `lf:${e.fightId}:fin` }, { cue: 'resultAnnounce', atMs: 1100, once: `lf:${e.fightId}:ann` }]
-      : [{ cue: 'decision', atMs: 0, once: `lf:${e.fightId}:fin` }, { cue: 'resultAnnounce', atMs: 900, once: `lf:${e.fightId}:ann` }]
+    case 'fight.finish': {
+      const fin: { cue: CueId; atMs: number; once: string }[] = e.ko ? [{ cue: 'ko', atMs: 0, once: `lf:${e.fightId}:fin` }] : e.stoppage ? [{ cue: 'stoppage', atMs: 0, once: `lf:${e.fightId}:fin` }] : [{ cue: 'decision', atMs: 0, once: `lf:${e.fightId}:fin` }]
+      fin.push({ cue: 'resultAnnounce', atMs: e.ko || e.stoppage ? 1100 : 900, once: `lf:${e.fightId}:ann` })
+      if (e.upset) fin.push({ cue: 'majorResult', atMs: 1900, once: `lf:${e.fightId}:upset` })
+      return fin
+    }
+    case 'fight.intro': return [{ cue: 'fightIntro', atMs: 0, once: `lf:${e.fightId}:intro` }, ...(e.title ? [{ cue: 'titleAnnounce' as CueId, atMs: 1500, once: `lf:${e.fightId}:title` }] : [])]
+    case 'fight.action': return [{ cue: 'punch', atMs: 0, once: `lf:${e.fightId}:act${e.round}` }]
+    case 'fight.count': return [{ cue: 'count', atMs: 0, once: `lf:${e.fightId}:cnt${e.round}:${e.n}` }]
+    case 'fight.getup': return [{ cue: 'getUp', atMs: 0, once: `lf:${e.fightId}:up${e.round}` }]
+    case 'fightnight.enter': case 'fightnight.leave': return []
+    case 'event.profit': return e.profit > 0 ? [{ cue: 'revenue', atMs: 900, once: `rev:${e.eventId}` }] : []
     case 'fight.result': {
       if (e.presented) return []
       const ko = KO_METHODS.has(e.method)
@@ -44,6 +53,8 @@ export function cuesFor(e: GameEvent): { cue: CueId; atMs: number; once?: string
 }
 
 export function handleGameEvent(e: GameEvent, mgr: AudioManager = audio): void {
+  if (e.type === 'fightnight.enter') { mgr.startAmbience(); return }
+  if (e.type === 'fightnight.leave') { mgr.stopAmbience(); return }
   const steps = cuesFor(e)
   // `once` steps are keyed per fight/event so a re-render or a repeated emit can never replay them.
   const timed = steps.filter((s) => s.atMs > 0)
