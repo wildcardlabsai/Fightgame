@@ -4,6 +4,7 @@ import { ATTRIBUTE_KEYS, clamp, fighterAge, fighterRating, totalFights } from '.
 import { postMessage } from '../messages'
 import type { Rng } from '../rng'
 import type { AttributeKey, Fighter, GameState, TrainingFocus } from '../types'
+import { BALANCE as B } from '../balance'
 
 const FOCUS_ATTRS: Record<TrainingFocus, AttributeKey[]> = {
   balanced: [],
@@ -92,6 +93,10 @@ export function updateCondition(f: Fighter, today: number): void {
   const w = totalFights(f) ? f.record.wins / totalFights(f) : 0.5
   const confTarget = 35 + w * 40 + (f.personality === 'Arrogant' ? 12 : f.personality === 'Fragile' ? -8 : 0)
   f.confidence = clamp(f.confidence + (confTarget - f.confidence) * 0.04, 1, 100)
+
+  const cool = B.fights.popularityCool
+  const excess = f.popularity - (cool.slope * f.reputation + cool.base)
+  if (excess > 0) f.popularity = clamp(f.popularity - excess * cool.rate, Math.round(f.reputation * 0.4), 100)
 
   if (FEATURES.fightsImplemented && f.lastFightDay !== null && (today - f.lastFightDay) / 7 > 26) {
     f.popularity = clamp(f.popularity - 0.04, Math.round(f.reputation * 0.4), 100)

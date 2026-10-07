@@ -1132,3 +1132,9 @@ button.m-story { cursor: pointer; } button.m-story:hover { background: rgba(255,
 @media (max-width: 1024px) { .m-room, .m-two, .fm-cols { grid-template-columns: 1fr; gap: 14px; } .rk-row { grid-template-columns: 50px minmax(0, 1fr) 56px; } .rk-why { grid-column: 2 / -1; } }
 @media (max-width: 640px) { .m-stat b { font-size: 26px; } .m-stat { padding: 8px 10px; } .m-org { grid-template-columns: auto 1fr; } .m-rel { grid-column: 1 / -1; } .m-riv { grid-template-columns: auto auto auto 1fr; } .m-riv .m-bar { grid-column: 1 / -1; } .m-story.lead .m-head { font-size: clamp(28px, 9vw, 40px); } .m-req-t { font-size: 22px; } .fm, .em { padding: 12px; } }
 .m-approach .btn { white-space: normal; line-height: 1.15; } .m-approach .btn b { font-size: 16px; letter-spacing: .08em; text-transform: uppercase; }
+
+/* Touch: inline link-buttons and champion names are small on the page but must be easy to hit. The hit area grows without moving anything. */
+@media (pointer: coarse) {
+  .linkbtn, .tt-champ { position: relative; }
+  .linkbtn::after, .tt-champ::after { content: ''; position: absolute; inset: -13px -8px; }
+}

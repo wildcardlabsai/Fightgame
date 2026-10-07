@@ -230,7 +230,10 @@ describe('narratives, rivalries, popularity and viral moments', () => {
 
 describe('requests, press conferences and broadcast offers', () => {
   let playedState: GameState
-  beforeAll(() => { let g = fresh('p5-played', 'regional'); const log = newLog(); for (let w = 0; w < 110; w++) { g = playWeek(g, STRATEGIES.balanced, log); g = advanceOneWeek(g) } playedState = g }, 240_000)
+  beforeAll(() => { let g = fresh('p5-played', 'regional'); const log = newLog(); for (let w = 0; w < 110; w++) { g = playWeek(g, STRATEGIES.balanced, log); g = advanceOneWeek(g) }
+    // The press-conference tests need a show inside its build-up window: play on (at most a season) until one is open.
+    for (let w = 0; w < 26 && !g.media!.pressers.some((x) => x.status === 'open'); w++) { g = playWeek(g, STRATEGIES.balanced, log); g = advanceOneWeek(g) }
+    playedState = g }, 300_000)
   const played = () => playedState
   it('media requests appear in the inbox and have deterministic, relationship-changing answers', () => {
     const s = clone(played())

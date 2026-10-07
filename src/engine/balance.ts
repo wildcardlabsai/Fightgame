@@ -219,6 +219,13 @@ export const BALANCE = {
     retiredPruneYears: 4,
     /** Fame is hard to win and easy to lose; without this multiplier the whole world slowly cools as stars retire and prospects start at the bottom. */
     popularityGainK: 1.2,
+    /**
+     * Cooling of fame that outruns what the results justify. Wins add fame far faster than losses remove it (that asymmetry is
+     * deliberate: it offsets the intake of unknown prospects), so without a counterweight every fighter who stays active ratchets
+     * upward whatever their record. Fame above `slope × reputation + base` fades by `rate` of the excess each week (≈ 27% a year);
+     * it never pulls a fighter below that line, and never below the old floor of 0.4 × reputation.
+     */
+    popularityCool: { slope: 0.95, base: 4, rate: 0.006 },
     reputationK: 1.0,
   },
 

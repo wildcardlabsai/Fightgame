@@ -23,9 +23,9 @@ const logo = { monogram: 'P', color: '#fff', emblem: 'bolt' as const }
 const fresh = (seed: string) => createNewGame({ seed, promotionName: 'P51', promoterName: 'T', homeCountry: 'ENG', difficulty: 'standard', logo }, 1_700_000_000_000)
 const SANCTIONING = RANKING_ORGS.filter((o) => o.sanctions).map((o) => o.id)
 
-interface Watch { jumps: number[]; changes: { key: string; from: string | null; to: string | null; day: number }[]; badTransition: string[]; weeks: number }
+interface Watch { stories: Map<string, { k: string; i: number }>; jumps: number[]; changes: { key: string; from: string | null; to: string | null; day: number }[]; badTransition: string[]; weeks: number }
 let world: GameState
-const watch: Watch = { jumps: [], changes: [], badTransition: [], weeks: 0 }
+const watch: Watch = { stories: new Map(), jumps: [], changes: [], badTransition: [], weeks: 0 }
 
 beforeAll(() => {
   let s = fresh('p51-world')
@@ -42,6 +42,7 @@ beforeAll(() => {
       if (was !== undefined && was !== t.c) watch.changes.push({ key: k, from: was, to: t.c, day: s.today })
       prevChamp[k] = t.c
     }
+    for (const st of m.stories) if (!watch.stories.has(st.id)) watch.stories.set(st.id, { k: st.k, i: st.i })
     if (w % 4 === 0) {
       for (const org of RANKING_ORGS) for (const wc of WEIGHT_CLASSES) {
         const l = getList(m, org.id, wc.id)
@@ -149,10 +150,10 @@ describe('event → fight → world → media: stories contain only what happene
     for (const n of m.narratives) for (const id of n.participants) expect(world.fighters[id], `${n.id} → ${id}`).toBeTruthy()
   })
   it('significance separates routine results from title changes and upsets', () => {
-    const imp = (k: string) => world.media!.stories.filter((x) => x.k === k).map((x) => x.i).sort((a, b) => a - b)
+    const imp = (k: string) => [...watch.stories.values()].filter((x) => x.k === k).map((x) => x.i).sort((a, b) => a - b)
     const med = (a: number[]) => a[Math.floor(a.length / 2)]
     const routine = imp('FIGHT_RESULT'), title = imp('TITLE_CHANGE'), upset = imp('UPSET')
-    expect(routine.length).toBeGreaterThan(3)
+    expect(routine.length).toBeGreaterThan(20)
     if (title.length >= 3) expect(med(title)).toBeGreaterThan(med(routine))
     if (upset.length >= 3) expect(med(upset)).toBeGreaterThan(med(routine))
   })

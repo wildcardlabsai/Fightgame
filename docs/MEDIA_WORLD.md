@@ -176,3 +176,28 @@ with media off as well, so it is the engine, not the media layer. Media coupling
 
 Known limits: career lines are a capped milestone timeline (28 per fighter, low-importance lines evicted first), not a bout-by-bout ledger;
 the engine itself prunes old fights after the retention horizon. `tests: src/engine/phase51.test.ts`.
+
+## Phase 5.2 — long-term fame
+**What the "decay" was.** Measured properly (the game's own accessors, not stored profiles — a profile that has drifted back to baseline is
+dropped, which read as zero in the 5.1 harness), media interest and fanbase are *derived from* public popularity
+(`baselineInterest = 0.5·pop + 0.15·rep`, `fanbaseBaseline = 600 000·(pop/100)^2.2`), so there is one root cause: `Fighter.popularity`.
+
+* The median fell because of **composition**, not decline: the starting world is seeded with established fighters (median fame 30), whereas
+  the steady state is dominated by recent pros (new pros enter at a median of ≈ 8–14 and need ≈ 15 fights to reach 30; ≈ 1.3 fights per fighter-year).
+  The distribution is stationary from about year 10 (median ≈ 14–17).
+* Individual fighters did **not** decay — they ratcheted *up* regardless of record. Wins add +3–4 fame on average, losses remove ≈ 0.8, and nothing
+  pulled fame back toward results (only −0.04/week after 26 idle weeks). A 19-15 journeyman (reputation 36) went 31 → 64; a 16-17 fighter went 61 → 96;
+  fame at the 95+ level went from 0 to 17 fighters by year 10.
+* `popularityGainK = 1.2` was introduced to offset the intake effect; it is the other half of that ratchet.
+
+**Change.** Fame above `0.95 × reputation + 4` cools by 0.6% of the excess per week (≈ 27%/year); nobody is pulled below that line
+or below the old 0.4 × reputation floor, and gains are untouched (`BALANCE.fights.popularityCool`). A star whose fame matches his standing keeps it;
+an unbeaten champion still reaches 100; a journeyman levels off in the high 40s.
+
+**Measured (10 seeds × 20 years, balanced bot; before → after, median across seeds).** Year 10 — P90 popularity 80 → 63.5, P99 100 → 91,
+fighters at 95+ 17 → 2, "stars" (≥ 60) 60 → 39, median fame 17 → 17.5 (unchanged: composition), commercially viable fighters 94 → 80, champions 19 → 18.5.
+AI promotions: none failed; median AI-show attendance within ±10%, AI revenue per show 624k → 428k at year 10 and 495k → 443k at year 20 (profit stays positive).
+Year 20 — P90 69.5 → 55.5, stars 41.5 → 28, viable 76 → 69.
+
+**Not changed (reported).** Promotion fanbase grows slowly and monotonically (AI median 0.92m → 1.4–1.5m over 20 years, ≈ +1.7%/year); promotion reputation
+saturates at 100 for most AI promotions by year 20. Both are bounded and were left alone.
