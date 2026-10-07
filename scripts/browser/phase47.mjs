@@ -26,7 +26,11 @@ const cues = (page) => page.evaluate(() => window.__audio.log.map((l) => l.cue))
 const resetAudio = (page) => page.evaluate(() => window.__audio.resetHistory())
 const load = async (page, name) => { await page.evaluate((json) => window.__fe.useGame.getState().importGame(json), fixture(name)); await page.waitForTimeout(200) }
 const go = async (page, hash) => { await page.evaluate((h) => { window.location.hash = h }, hash); await page.waitForTimeout(350) }
-const kpi = async (page, label) => (await page.locator('.kpi', { hasText: label }).first().locator('.v').innerText()).trim()
+const kpi = async (page, label) => {
+  if (label === 'Cash') return (await page.getByTestId('desk-cash').innerText()).trim()
+  if (label === 'Roster') return (await page.getByTestId('desk-roster').locator('.dt-big .display').innerText()).trim()
+  return (await page.locator('.dt-mini div', { hasText: label }).first().locator('dd').innerText()).trim()
+}
 
 const SCEN = {
   groundUp: { name: 'From the Ground Up', cash: '£300k', rep: '6', roster: '4', diff: 'standard', label: 'Hard' },
@@ -48,7 +52,7 @@ for (const [id, sc] of Object.entries(SCEN)) {
   await page.locator(`[data-scenario="${id}"]`).click()
   await page.fill('#pr', 'Test Promoter')
   await page.getByRole('button', { name: /Open the doors/ }).click()
-  await page.waitForSelector('.hero .kpis')
+  await page.waitForSelector('[data-testid="desk-promotion"]')
   check(`${id}: starting cash`, (await kpi(page, 'Cash')) === sc.cash, await kpi(page, 'Cash'))
   check(`${id}: reputation`, (await kpi(page, 'Reputation')).startsWith(sc.rep + '/'), await kpi(page, 'Reputation'))
   check(`${id}: roster size`, (await kpi(page, 'Roster')) === sc.roster, await kpi(page, 'Roster'))
@@ -62,7 +66,7 @@ for (const [id, sc] of Object.entries(SCEN)) {
   await page.reload()
   await page.waitForSelector('.title-panel')
   await page.getByRole('button', { name: /Continue/ }).click()
-  await page.waitForSelector('.hero .kpis')
+  await page.waitForSelector('[data-testid="desk-promotion"]')
   check(`${id}: save/load keeps cash, roster and career`, (await kpi(page, 'Cash')) === sc.cash && (await kpi(page, 'Roster')) === sc.roster, `${await kpi(page, 'Cash')} ${await kpi(page, 'Roster')}`)
   await ctx.close()
 }
@@ -74,7 +78,7 @@ for (const [id, sc] of Object.entries(SCEN)) {
   await page.waitForSelector('[data-scenario]')
   await page.fill('#pr', 'Adv Tester')
   await page.getByRole('button', { name: /Open the doors/ }).click()
-  await page.waitForSelector('.hero .kpis')
+  await page.waitForSelector('[data-testid="desk-promotion"]')
   check('first steps card shows on a new game', (await page.getByText('First steps').count()) > 0)
 
   // booking a large venue when cash is low (venues above the promotion's tier are locked, so use the biggest open one)
@@ -189,9 +193,9 @@ for (const [id, sc] of Object.entries(SCEN)) {
   await load(page, 'expiry')
   await go(page, '#/dashboard')
   await page.waitForTimeout(300)
-  const desk = await page.locator('.desk').innerText()
+  const desk = await page.getByTestId('desk-advice').innerText()
   check('dashboard desk lists the expiring contract', /expire/i.test(desk), desk.slice(0, 300))
-  check('dashboard desk shows at most five items', (await page.locator('.desk .advice').count()) <= 5)
+  check('dashboard desk shows at most five items', (await page.getByTestId('desk-advice').locator('.advice').count()) <= 5)
   await go(page, '#/fighters')
   await page.waitForTimeout(300)
   const roster = await page.locator('.advice-stack').first().innerText()
@@ -211,7 +215,7 @@ for (const [id, sc] of Object.entries(SCEN)) {
   check('no sound played before any interaction', (await cues(page)).length === 0)
   await page.fill('#pr', 'Audio Tester')
   await page.getByRole('button', { name: /Open the doors/ }).click()
-  await page.waitForSelector('.hero .kpis')
+  await page.waitForSelector('[data-testid="desk-promotion"]')
   await resetAudio(page)
   await page.getByTestId('nav-inbox').click()
   await page.waitForTimeout(150)
@@ -252,7 +256,7 @@ for (const [id, sc] of Object.entries(SCEN)) {
   await page.getByTestId('nav-inbox').click(); await page.waitForTimeout(150)
   check('mute silences every cue', (await cues(page)).length === afterMute, JSON.stringify(await cues(page)))
   await go(page, '#/settings')
-  await page.reload(); await page.waitForSelector('.title-panel'); await page.getByRole('button', { name: /Continue/ }).click(); await page.waitForSelector('.hero .kpis')
+  await page.reload(); await page.waitForSelector('.title-panel'); await page.getByRole('button', { name: /Continue/ }).click(); await page.waitForSelector('[data-testid="desk-promotion"]')
   await go(page, '#/settings')
   check('mute persists across reload', await page.getByTestId('audio-mute').isChecked())
   await page.getByTestId('audio-mute').uncheck()
@@ -281,7 +285,7 @@ for (const [id, sc] of Object.entries(SCEN)) {
   await page.locator('[data-scenario="regional"]').tap()
   await page.fill('#pr', 'Mobile Tester')
   await page.getByRole('button', { name: /Open the doors/ }).tap()
-  await page.waitForSelector('.hero .kpis')
+  await page.waitForSelector('[data-testid="desk-promotion"]')
   check('mobile: regional career starts with the right cash', (await kpi(page, 'Cash')) === '£800k')
   check('mobile: dashboard fits', await fits())
   await page.screenshot({ path: `${shots}/dash-mobile.png`, fullPage: true })

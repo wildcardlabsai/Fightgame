@@ -1,39 +1,32 @@
+import { useMemo } from 'react'
 import { deskAdvice } from '../../engine/advisor'
 import { firstSteps } from '../../engine/onboarding'
 import { objectiveStatuses, scenarioById } from '../../engine/scenarios'
 import { usePrefs } from '../../store/prefs'
 import { formatDay, weekOfYear } from '../../engine/calendar'
-import { fightList } from '../../engine/fightViews'
-import { dashboardEvent } from '../../engine/eventViews'
+import { fightList, fightView } from '../../engine/fightViews'
+import { dashboardEvent, eventView } from '../../engine/eventViews'
+import { eventPosterView } from '../../engine/eventPoster'
 import { opViews } from '../../engine/quotes'
-import {
-  attentionItems, cashRunwayWeeks, financialHealth, player, unreadCount, weeklyBurn,
-} from '../../engine/selectors'
-import { STAGE_LABEL } from '../../engine/systems/contracts'
-import { FOCUS_LABELS } from '../../engine/systems/development'
+import { attentionItems, cashRunwayWeeks, financialHealth, player, weeklyBurn } from '../../engine/selectors'
 import { useGame } from '../../store/gameStore'
 import { useViews } from '../../store/hooks'
 import { AdvicePanel } from '../components/Advice'
 import { TierPanel } from '../components/TierPanel'
 import { sponsorView } from '../../engine/sponsors'
-import { Avatar, Meter, RiskChip, Section } from '../components/Bits'
+import { Meter, RiskChip, Section } from '../components/Bits'
 import { AreaChart } from '../components/Charts'
 import { RangeText } from '../components/Estimates'
 import { compactNumber, money } from '../format'
-import { eventPosterView } from '../../engine/eventPoster'
-import { EventPoster } from '../visual/EventPoster'
+import { tierLabel } from '../../engine/tiers'
 import { cardFighter, FighterCard } from '../visual/FighterCard'
+import { FighterPortrait } from '../visual/FighterPortrait'
 import { NewsCard } from '../visual/NewsCard'
+import { VenueImage } from '../visual/VenueImage'
+import { CountUp } from '../visual/CountUp'
+import { KIND_CLASS, msgKind } from '../inboxKinds'
 
-const LOOP: { name: string; status: 'live' | 'partial' | 'locked'; note: string }[] = [
-  { name: 'Scout', status: 'live', note: 'Reports & searches live' },
-  { name: 'Sign', status: 'live', note: 'Negotiation live' },
-  { name: 'Develop', status: 'live', note: 'Training live' },
-  { name: 'Arrange fights', status: 'live', note: 'Matchmaking & fights live' },
-  { name: 'Build events', status: 'live', note: 'Venues, cards & promotion live' },
-  { name: 'Earn', status: 'live', note: 'Gate, sponsors, TV & PPV live' },
-  { name: 'Rankings', status: 'partial', note: 'Form & standing · titles Phase 6' },
-]
+const PRIO: Record<string, number> = { urgent: 0, important: 1, normal: 2 }
 
 export function Dashboard() {
   const game = useGame((s) => s.game)!
@@ -42,22 +35,21 @@ export function Dashboard() {
   const advance = useGame((s) => s.advance)
   const p = player(game)
   const views = useViews()
-  const roster = views.mine().sort((a, b) => b.grade.mid - a.grade.mid)
+  const roster = useMemo(() => views.mine().sort((a, b) => b.grade.mid - a.grade.mid), [views])
   const hot = views.freeAgents().filter((v) => v.status === 'active').sort((a, b) => b.reputation + b.popularity - (a.reputation + a.popularity)).slice(0, 4)
   const ops = opViews(game).filter((o) => o.status === 'active')
   const myFights = fightList(game, 'mine-open')
   const night = myFights.find((f) => f.statusKey === 'fightNight')
-  const lastResults = fightList(game, 'mine-results').slice(0, 3)
+  const nextFightItem = myFights.find((f) => ['scheduled', 'training', 'fightNight'].includes(f.statusKey)) ?? myFights.find((f) => f.statusKey === 'agreed') ?? null
+  const nextFight = nextFightItem ? fightView(game, nextFightItem.id) : null
+  const lastResult = fightList(game, 'mine-results').slice(0, 1)[0] ?? null
   const attention = attentionItems(game)
   const runway = cashRunwayWeeks(game)
   const burn = weeklyBurn(game)
-  const unread = unreadCount(game)
-  const mail = game.inbox.slice(0, 4)
   const de = dashboardEvent(game)
+  const ev = de.next ? eventView(game, de.next.id) : null
   const poster = de.next ? eventPosterView(game, de.next.id) : null
-  const spotlight = roster[0] ?? null
-  const nextFight = myFights.find((f) => f.statusKey !== 'negotiating') ?? null
-  const recent = lastResults[0] ?? null
+  const main = ev && ev.card.length ? ev.card[ev.card.length - 1] : null
   const health = financialHealth(game)
   const allDesk = deskAdvice(game, 'full', 12)
   const sc = scenarioById(game.scenario?.id)
@@ -67,48 +59,161 @@ export function Dashboard() {
   const stepsHidden = usePrefs((s) => s.firstStepsHidden)
   const hideSteps = usePrefs((s) => s.hideFirstSteps)
   const showSteps = !stepsHidden && steps.some((s) => !s.done)
+  const mail = useMemo(() => [...game.inbox].filter((m) => !m.read).sort((a, b) => (PRIO[a.priority] ?? 2) - (PRIO[b.priority] ?? 2) || b.day - a.day).slice(0, 4), [game.inbox])
+  const unread = game.inbox.filter((m) => !m.read).length
+
+  const nContenders = roster.filter((v) => v.stage === 'Contender').length
+  const nProspects = roster.filter((v) => v.stage === 'Prospect' || v.stage === 'Debutant' || v.stage === 'Rising').length
+  const nInjured = roster.filter((v) => v.availability.status === 'injured').length
 
   return (
     <>
-      <div className="hero">
-        <div className="caps">Week {weekOfYear(game.today)} · {formatDay(game.today)}</div>
-        <h1 className="display">{p.name.split(' ').slice(0, -1).join(' ') || p.name} <em>{p.name.split(' ').slice(-1)[0] !== p.name ? p.name.split(' ').slice(-1)[0] : ''}</em></h1>
-        <div className="dim" style={{ marginTop: 8 }}>Promoter {p.promoterName} · {p.tier} promotion · {p.homeCountry === 'USA' ? 'United States' : 'United Kingdom'}</div>
-        <div className="hero-row">
-          <button className="btn primary big" onClick={() => advance(1)}>Advance Week ▸</button>
-          <button className="btn ghost big" onClick={() => advance(4)}>+4 Weeks</button>
+      <header className="desk-head">
+        <div>
+          <div className="caps">Week {weekOfYear(game.today)} · {formatDay(game.today)}</div>
+          <h1 className="display">Promoter’s <em>Desk</em></h1>
+          <div className="dim" style={{ marginTop: 4 }}>{p.name} · promoter {p.promoterName}</div>
         </div>
-        <div className="kpis">
-          <div className="kpi"><div className="caps">Cash</div><div className={`v num ${p.cash < 0 ? 'red' : ''}`}>{money(p.cash)}</div><div className="s">{runway === null ? 'No running costs' : `${runway} weeks of runway`} · <span className={`hp ${health.state}`}>{health.label}</span></div></div>
-          <div className="kpi"><div className="caps">Weekly burn</div><div className="v num">{money(burn.total, false)}</div><div className="s">{money(burn.overheads, false)} overheads</div></div>
-          <div className="kpi"><div className="caps">Reputation</div><div className="v num">{Math.round(p.reputation)}<span className="dim" style={{ fontSize: 20 }}>/100</span></div><div className="s">{p.tier}</div></div>
-          <div className="kpi"><div className="caps">Fanbase</div><div className="v num">{compactNumber(p.fanbase)}</div><div className="s">followers</div></div>
-          <div className="kpi"><div className="caps">Roster</div><div className="v num">{roster.length}</div><div className="s">fighters under contract</div></div>
+        <div className="desk-actions">
+          <button className="btn primary big" data-testid="desk-advance" onClick={() => advance(1)}>Advance Week ▸</button>
+          <button className="btn ghost" onClick={() => advance(4)}>+4 Weeks</button>
         </div>
-      </div>
+      </header>
 
       {night && (
-        <div className="night-banner" style={{ marginTop: 18 }}>
-          <div><div className="caps">Fight night</div><div className="display" style={{ fontSize: 28 }}>{night.aName} vs {night.bName}</div></div>
+        <div className="night-banner" data-testid="desk-night">
+          <div><div className="caps">Fight night</div><div className="display" style={{ fontSize: 30 }}>{night.aName} vs {night.bName}</div></div>
           <button className="btn primary big" style={{ marginLeft: 'auto' }} onClick={() => navigate('fight', night.id)}>Go to the fight ▸</button>
         </div>
       )}
 
-      <div className="grid-2" style={{ marginTop: 18 }}>
-        <Section title="Promotion"><TierPanel /></Section>
-        <Section title="Sponsors" right={<button className="linkbtn" onClick={() => navigate('sponsors')}>Open</button>}>
-          {spons.deals.length === 0 && spons.offers.length === 0 ? <p className="empty">No standing sponsor yet. They approach as your promotion grows.</p> : (
-            <>
-              {spons.offers.length > 0 && <div className="attn info" style={{ cursor: 'pointer' }} onClick={() => navigate('sponsors')}><div><div className="t">{spons.offers[0].name} is interested</div><div className="d">{spons.offers.length > 1 ? `${spons.offers.length} offers waiting` : 'Offer waiting'} · {money(spons.offers[0].annual, false)} a year</div></div><button className="btn small go">Review</button></div>}
-              {spons.deals.map((d) => <div key={d.id} className="attn"><div><div className="t">{d.name}</div><div className="d">{money(d.annual, false)} a year · {d.eventsThisYear}/{d.minEvents} shows this year · {d.weeksLeft} weeks left</div></div></div>)}
-            </>
-          )}
-          <p className="dim" style={{ fontSize: 13, marginTop: 8 }}>{spons.slots.used} of {spons.slots.max} sponsor slots in use.</p>
-        </Section>
+      {/* ---------------------------------------------------------------- NEXT EVENT */}
+      <section className={`desk-hero${de.next ? '' : ' empty'}`} data-testid="desk-event" aria-label="Next event">
+        {de.next && poster && <div className="dh-bg" aria-hidden><VenueImage venue={poster.venue} /></div>}
+        {de.next && ev && main ? (
+          <>
+            <div className="dh-top">
+              <div>
+                <div className="caps gold">Next event · {de.next.weeksAway > 0 ? `in ${de.next.weeksAway} week${de.next.weeksAway === 1 ? '' : 's'}` : 'this week'} · {de.next.status}</div>
+                <h2 className="display dh-title">{de.next.name}</h2>
+                <div className="dh-meta">{formatDay(de.next.day)} · {de.next.venueName}, {de.next.city}</div>
+              </div>
+              {de.risk && <RiskChip risk={de.risk} />}
+            </div>
+            <div className="dh-main">
+              <div className="dh-label caps">Main event</div>
+              <div className="dh-duel">
+                <button type="button" className="dh-fighter a" onClick={() => navigate('fighter', main.aId)}>
+                  {poster?.main && <FighterPortrait f={poster.main.a} size="large" eager />}
+                  <span className="display dh-name">{main.aName}</span><span className="num dh-rec">{main.aRecord}</span>
+                </button>
+                <div className="dh-vs display">VS</div>
+                <button type="button" className="dh-fighter b" onClick={() => navigate('fighter', main.bId)}>
+                  {poster?.main && <FighterPortrait f={poster.main.b} size="large" eager />}
+                  <span className="display dh-name">{main.bName}</span><span className="num dh-rec">{main.bRecord}</span>
+                </button>
+              </div>
+              <div className="dh-sub dim">{main.division} · {main.rounds} rounds · {ev.card.length} fight{ev.card.length === 1 ? '' : 's'} on the card</div>
+            </div>
+            <dl className="dh-stats">
+              <div><dt>Tickets sold</dt><dd className="num"><CountUp value={de.next.sold} from={0} />{' '}<small>/ {de.next.capacity.toLocaleString('en-GB')}</small></dd><div className="dh-bar"><Meter value={de.next.fillPct} tone="gold" label="Tickets sold" /></div></div>
+              <div><dt>Fight hype</dt><dd className="num">{main.appealLabel}</dd><small className="dim">card: {ev.quality.label}</small></div>
+              <div><dt>Projected revenue</dt><dd className="num">{ev.forecast ? money(ev.forecast.revenue.lo + (ev.forecast.revenue.hi - ev.forecast.revenue.lo) / 2) : '—'}</dd><small className="dim">{ev.forecast ? `${money(ev.forecast.revenue.lo)} – ${money(ev.forecast.revenue.hi)}` : 'forecast appears with a card'}</small></div>
+              <div><dt>Projected profit</dt><dd className={`num ${ev.forecast && ev.forecast.profit.hi < 0 ? 'red' : ''}`}>{ev.forecast ? `${money(ev.forecast.profit.lo)} to ${money(ev.forecast.profit.hi)}` : '—'}</dd></div>
+            </dl>
+            <div className="dh-foot">
+              {de.actions.length > 0 && <div className="warn dh-todo">To do: {de.actions.join(' · ')}</div>}
+              <button className="btn primary big" data-testid="desk-manage" onClick={() => navigate('event', de.next!.id)}>Manage event ▸</button>
+            </div>
+          </>
+        ) : de.next && ev ? (
+          <div className="dh-empty">
+            <div className="caps gold">Next event · {de.next.status}</div>
+            <h2 className="display dh-title">{de.next.name}</h2>
+            <div className="dh-meta">{formatDay(de.next.day)} · {de.next.venueName}</div>
+            <p className="dim">No main event yet. Agree a fight and add it to the card.</p>
+            <button className="btn primary big" onClick={() => navigate('event', de.next!.id)}>Build the card ▸</button>
+          </div>
+        ) : (
+          <div className="dh-empty">
+            <div className="caps gold">No event booked</div>
+            <h2 className="display dh-title">Put on a show</h2>
+            <p className="dim">{de.actions[0]}</p>
+            <button className="btn primary big" onClick={() => navigate('events')}>Plan a show ▸</button>
+          </div>
+        )}
+      </section>
+
+      {/* ---------------------------------------------------------------- PROMOTION / ROSTER / NEXT FIGHT */}
+      <div className="desk-trio">
+        <section className="dt-col" aria-label="Your promotion" data-testid="desk-promotion">
+          <h3 className="dt-title caps">Your promotion</h3>
+          <div className="dt-tier display">{tierLabel(p.tier)}</div>
+          <div className="dt-name">{p.name}</div>
+          <div className="dt-cash num" data-testid="desk-cash">{money(p.cash)}</div>
+          <div className="dt-sub">{runway === null ? 'No running costs' : <><b className={runway < 8 ? 'red' : runway < 26 ? 'warn' : ''}>{runway} weeks</b> of runway</>} · <span className={`hp ${health.state}`}>{health.label}</span></div>
+          <dl className="dt-mini">
+            <div><dt>Reputation</dt><dd className="num">{Math.round(p.reputation)}<small>/100</small></dd></div>
+            <div><dt>Fanbase</dt><dd className="num">{compactNumber(p.fanbase)}</dd></div>
+            <div><dt>Weekly burn</dt><dd className="num">{money(burn.total, false)}</dd></div>
+          </dl>
+        </section>
+        <section className="dt-col" aria-label="Roster" data-testid="desk-roster">
+          <h3 className="dt-title caps">Roster <button className="linkbtn" onClick={() => navigate('fighters')}>Open</button></h3>
+          <div className="dt-big"><span className="display">{roster.length}</span><span className="dim"> fighters</span></div>
+          <dl className="dt-grid">
+            <div><dd className="num">{nContenders}</dd><dt>Contenders</dt></div>
+            <div><dd className="num">{nProspects}</dd><dt>Prospects</dt></div>
+            <div><dd className={`num ${nInjured ? 'red' : ''}`}>{nInjured}</dd><dt>Injured</dt></div>
+          </dl>
+          {roster[0] && <FighterCard f={cardFighter(roster[0])} size="compact" onClick={() => navigate('fighter', roster[0].id)} meta={<span className="dim" style={{ fontSize: 12.5 }}>Top of your roster · grade <RangeText r={roster[0].grade} scouted /></span>} />}
+        </section>
+        <section className="dt-col" aria-label="Next fight" data-testid="desk-fight">
+          <h3 className="dt-title caps">Next fight <button className="linkbtn" onClick={() => navigate('fights')}>All</button></h3>
+          {nextFight ? (
+            <button type="button" className="dt-fight" onClick={() => navigate(nextFight.statusKey === 'agreed' ? 'fight' : 'fight', nextFight.id)}>
+              <div className="dt-duel">
+                <FighterCard f={{ ...cardFighter(nextFight.a.fighter), record: nextFight.a.preRecord }} size="compact" />
+                <span className="display dt-vs">VS</span>
+                <FighterCard f={{ ...cardFighter(nextFight.b.fighter), record: nextFight.b.preRecord }} size="compact" />
+              </div>
+              <div className="dt-sub">{nextFight.division} · {nextFight.rounds} rounds · {nextFight.weeksAway ? `${nextFight.weeksAway} weeks away` : nextFight.status}</div>
+              <div className="dt-sub dim">{nextFight.eventName ?? 'Not yet on a card'}{nextFight.stakes[0] ? ` · ${nextFight.stakes[0]}` : ''}</div>
+            </button>
+          ) : lastResult ? (
+            <button type="button" className="dt-fight" onClick={() => navigate('fight', lastResult.id)}><div className="caps">Latest result</div><div className="dt-res">{lastResult.resultText}</div><div className="dt-sub dim">{lastResult.method} · {formatDay(lastResult.day, true)}</div></button>
+          ) : <p className="empty">Nothing booked. Open matchmaking and put a fighter in the ring.</p>}
+          {!nextFight && <button className="btn small" onClick={() => navigate('matchmaking')}>Make a fight ▸</button>}
+        </section>
+      </div>
+
+      {/* ---------------------------------------------------------------- INBOX / DESK */}
+      <div className="desk-pair">
+        <section aria-label="Inbox" data-testid="desk-inbox">
+          <div className="sec-head"><h2 className="display">Inbox</h2><button className="linkbtn" onClick={() => navigate('inbox')}>{unread > 0 ? `${unread} unread` : 'Open'}</button></div>
+          {mail.length === 0 ? <p className="empty">You are all caught up.</p> : mail.map((m) => (
+            <button key={m.id} className={`mailrow ${m.priority}`} onClick={() => (m.link ? openLink(m.link) : navigate('inbox'))}>
+              <span className={`catpill ${KIND_CLASS[msgKind(m)]}`}>{msgKind(m)}</span>
+              <span className="mr-s">{m.subject}</span>
+              <span className="mr-d dim">{formatDay(m.day, false)}</span>
+            </button>
+          ))}
+        </section>
+        <section aria-label="What to do next" data-testid="desk-advice">
+          <div className="sec-head"><h2 className="display">What next?</h2><span className="dim" style={{ fontSize: 13 }}>{attention.length ? `${attention.length} item${attention.length === 1 ? '' : 's'} need you` : 'Nothing urgent'}</span></div>
+          <AdvicePanel list={allDesk} cap={3} compact />
+          {attention.slice(0, 5).map((a) => (
+            <div key={a.id} className={`attn ${a.severity}`}>
+              <div><div className="t">{a.title}</div><div className="d">{a.detail}</div></div>
+              {a.link && <button className="btn small go" onClick={() => openLink(a.link!)}>{a.actionLabel ?? 'Open'}</button>}
+            </div>
+          ))}
+          {attention.length === 0 && allDesk.length === 0 && <p className="empty">The gym is quiet — advance the week.</p>}
+        </section>
       </div>
 
       {(sc || showSteps) && (
-        <div className="grid-2" style={{ marginTop: 18 }}>
+        <div className="grid-2" style={{ marginTop: 28 }}>
           {sc && (
             <Section title={`Your career: ${sc.name}`} right={<span className="chip">{sc.difficultyLabel}</span>}>
               {objectives.map((o) => (
@@ -135,155 +240,44 @@ export function Dashboard() {
         </div>
       )}
 
-      <div className="desk"><AdvicePanel list={allDesk} cap={4} title="Promoter’s desk" compact /></div>
-
-      <Section title="Next show" right={<button className="linkbtn" onClick={() => navigate('events')}>{de.openCount > 1 ? `All ${de.openCount} shows` : 'Events'}</button>}>
-        <div className="v-hero-grid" style={{ marginTop: 0 }}>
-          <div>
-            {!de.next ? (
-              <div className="attn"><div><div className="t">No show planned</div><div className="d">{de.actions[0]}</div></div><button className="btn small go" onClick={() => navigate('events')}>Plan a show</button></div>
-            ) : (
-              <>
-                {poster && <EventPoster v={poster} size="lead" onClick={() => navigate('event', de.next!.id)} />}
-                <div className="attn info" style={{ cursor: 'pointer', marginTop: 8 }} onClick={() => navigate('event', de.next!.id)}>
-                  <div style={{ flex: 1 }}>
-                    <div className="t">{de.next.name} <span className="dim">· {formatDay(de.next.day, false)} · {de.next.weeksAway}w · {de.next.status}</span></div>
-                    <div className="d">{de.next.sold > 0 ? `${de.next.sold.toLocaleString('en-GB')} / ${de.next.capacity.toLocaleString('en-GB')} sold (${de.next.fillPct}%)` : `${de.next.capacity.toLocaleString('en-GB')} seats`}{de.forecastProfit ? ` · forecast profit ${money(de.forecastProfit.lo)} to ${money(de.forecastProfit.hi)}` : ''}</div>
-                    {de.actions.length > 0 && <div className="d warn">To do: {de.actions.join(' · ')}</div>}
-                  </div>
-                  {de.risk && <RiskChip risk={de.risk} />}
-                </div>
-              </>
-            )}
-          </div>
-          <div className="v-spot" data-testid="dash-spotlight">
-            <div className="caps">Fighter spotlight</div>
-            {spotlight ? (
-              <>
-                <FighterCard f={cardFighter(spotlight)} size="large" onClick={() => navigate('fighter', spotlight.id)} />
-                <div className="dim" style={{ fontSize: 13.5 }}>{spotlight.stage} · {spotlight.style} · scout grade <RangeText r={spotlight.grade} scouted /></div>
-              </>
-            ) : <p className="empty">Sign a fighter and they will be featured here.</p>}
-            {nextFight && <div className="attn" style={{ cursor: 'pointer' }} onClick={() => navigate('fight', nextFight.id)}><div><div className="caps">Next fight</div><div className="t">{nextFight.aName} vs {nextFight.bName}</div><div className="d">{nextFight.status}{nextFight.weeksAway ? ` · ${nextFight.weeksAway} weeks` : ''}</div></div></div>}
-            {recent && <div className="attn info" style={{ cursor: 'pointer' }} onClick={() => navigate('fight', recent.id)}><div><div className="caps">Latest result</div><div className="t">{recent.resultText}</div><div className="d">{recent.method} · {formatDay(recent.day, true)}</div></div></div>}
-          </div>
-        </div>
-      </Section>
-
-      <Section title="The empire pipeline" right={<span className="dim" style={{ fontSize: 13 }}>What’s playable now vs. what’s coming</span>}>
-        <div className="pipeline">
-          {LOOP.map((s) => (
-            <div key={s.name} className={`pipe-step ${s.status}`}>
-              <div className="n">{s.name}</div>
-              <div className="dim" style={{ fontSize: 12.5 }}>{s.note}</div>
-            </div>
-          ))}
-        </div>
-      </Section>
-
-      <div className="grid-2">
-        <Section title="Needs your attention" right={attention.length > 0 ? <span className="chip red">{attention.length}</span> : undefined}>
-          {attention.length === 0 ? (
-            <p className="empty">Nothing urgent. The gym is quiet — advance the week.</p>
-          ) : attention.slice(0, 7).map((a) => (
-            <div key={a.id} className={`attn ${a.severity}`}>
-              <div>
-                <div className="t">{a.title}</div>
-                <div className="d">{a.detail}</div>
-              </div>
-              {a.link && (
-                <button className="btn small go" onClick={() => openLink(a.link!)}>
-                  {a.actionLabel ?? 'Open'}
-                </button>
-              )}
-            </div>
-          ))}
-        </Section>
-
-        <Section title="Your fighters" right={<button className="linkbtn" onClick={() => navigate('fighters')}>View all</button>}>
-          {roster.length === 0 ? <p className="empty">No fighters under contract.</p> : (
-            <table className="table">
-              <tbody>
-                {roster.map((f) => (
-                  <tr key={f.id} className="row" onClick={() => navigate('fighter', f.id)}>
-                    <td>
-                      <div className="fighter-cell">
-                        <Avatar f={f} />
-                        <div>
-                          <div className="fighter-name">{f.name}</div>
-                          <div className="fighter-sub">{f.recordText} · {f.age} · {FOCUS_LABELS[f.own!.trainingFocus]}</div>
-                        </div>
-                      </div>
-                    </td>
-                    <td><RangeText r={f.grade} /></td>
-                    <td className="mini-meters">
-                      <Meter value={f.own!.fitness.value} tone="good" label="Fitness" />
-                      <Meter value={f.own!.morale.value} label="Morale" />
-                    </td>
-                    <td className="dim" style={{ fontSize: 13 }}>{f.contract.kind === 'own' && f.contract.stage !== 'healthy' ? <span className="warn">{STAGE_LABEL[f.contract.stage]}</span> : f.own!.mood}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </Section>
-      </div>
-
-      <div className="grid-2">
-        <Section title="Cash trajectory" right={<button className="linkbtn" onClick={() => navigate('finances')}>Finances</button>}>
-          <AreaChart points={game.financeHistory.map((h) => ({ x: h.day, y: h.cash }))} />
-        </Section>
-        <Section title="Inbox" right={<button className="linkbtn" onClick={() => navigate('inbox')}>{unread > 0 ? `${unread} unread` : 'Open'}</button>}>
-          {mail.length === 0 ? <p className="empty">No messages.</p> : mail.map((m) => (
-            <button key={m.id} className="msg-row" style={{ borderLeftColor: m.priority === 'urgent' ? 'var(--red)' : m.priority === 'important' ? 'var(--gold)' : 'transparent' }} onClick={() => navigate('inbox')}>
-              <div className="s" style={{ fontWeight: m.read ? 400 : 700 }}>{m.subject}</div>
-              <div className="m"><span>{m.from}</span><span>{formatDay(m.day, false)}</span></div>
-            </button>
-          ))}
-        </Section>
-      </div>
-
-      <div className="grid-2">
-        <Section title="Your fights" right={<button className="linkbtn" onClick={() => navigate('fights')}>All fights</button>}>
-          {myFights.length === 0 && lastResults.length === 0 ? <p className="empty">Nothing booked. Open Matchmaking and put one of your fighters in the ring.</p> : (
-            <>
-              {myFights.slice(0, 4).map((f) => (
-                <div key={f.id} className="attn" style={{ cursor: 'pointer' }} onClick={() => navigate(f.statusKey === 'negotiating' ? 'deal' : 'fight', f.id)}>
-                  <div><div className="t">{f.aName} vs {f.bName}</div><div className="d">{f.status}{f.weeksAway ? ` · ${f.weeksAway} weeks` : ''}{f.city ? ` · ${f.city}` : ''}</div></div>
-                </div>
-              ))}
-              {lastResults.map((f) => (
-                <div key={f.id} className="attn info" style={{ cursor: 'pointer' }} onClick={() => navigate('fight', f.id)}>
-                  <div><div className="t">{f.resultText}</div><div className="d">{f.method} · {formatDay(f.day, true)}</div></div>
-                </div>
-              ))}
-            </>
-          )}
-        </Section>
-        <Section title="Market watch" right={<button className="linkbtn" onClick={() => navigate('scouting')}>Scouting</button>}>
-          {hot.length === 0 ? <p className="empty">Nobody notable is on the market. Send your scout looking.</p> : hot.map((v) => (
-            <div key={v.id} className="attn" style={{ cursor: 'pointer' }} onClick={() => navigate('fighter', v.id)}>
-              <div><div className="t">{v.name}</div><div className="d">{v.division} · {v.age} · {v.recordText} · {v.market.tags[0]}</div></div>
-              <span className="go"><RangeText r={v.grade} scouted={v.knowledge.reports > 0} /></span>
-            </div>
-          ))}
-        </Section>
-        <Section title="Scouting desk" right={<button className="linkbtn" onClick={() => navigate('scouting')}>Open</button>}>
-          {ops.length === 0 ? <p className="empty">Your scout is idle. Reports cost money — pick your targets carefully.</p> : ops.map((o) => (
-            <div key={o.id} className="op"><div><div className="fighter-name">{o.title}</div><div className="dim" style={{ fontSize: 13 }}>{o.scoutName}</div></div><div className="caps" style={{ alignSelf: 'center' }}>{o.weeksLeft} wk left</div></div>
-          ))}
-        </Section>
-      </div>
-
-      <Section title="Boxing news">
+      {/* ---------------------------------------------------------------- THE WORLD */}
+      <Section title="Boxing news" right={<button className="linkbtn" onClick={() => navigate('news')}>All news</button>}>
         {game.news.length === 0 ? <p className="empty">The world is quiet. Advance time and the headlines will follow.</p> : (
           <div className="v-news-grid">
-            {game.news.slice(0, 6).map((n) => (
+            {game.news.slice(0, 4).map((n) => (
               <NewsCard key={n.id} n={n} onClick={n.fightId || n.eventId || n.fighterId ? () => (n.eventId ? navigate('event', n.eventId) : n.fightId ? navigate('fight', n.fightId) : navigate('fighter', n.fighterId!)) : undefined} />
             ))}
           </div>
         )}
       </Section>
+
+      <div className="grid-2">
+        <Section title="Market watch" right={<button className="linkbtn" onClick={() => navigate('scouting')}>Scouting</button>}>
+          {hot.length === 0 ? <p className="empty">Nobody notable is on the market. Send your scout looking.</p> : hot.map((v) => (
+            <button key={v.id} type="button" className="mailrow" onClick={() => navigate('fighter', v.id)}>
+              <span className="mr-s"><b>{v.name}</b> · {v.division} · {v.age} · {v.recordText}</span>
+              <span className="mr-d"><RangeText r={v.grade} scouted={v.knowledge.reports > 0} /></span>
+            </button>
+          ))}
+          {ops.map((o) => <div key={o.id} className="op"><div><div className="fighter-name">{o.title}</div><div className="dim" style={{ fontSize: 13 }}>{o.scoutName}</div></div><div className="caps" style={{ alignSelf: 'center' }}>{o.weeksLeft} wk left</div></div>)}
+        </Section>
+        <Section title="Cash trajectory" right={<button className="linkbtn" onClick={() => navigate('finances')}>Finances</button>}>
+          <AreaChart points={game.financeHistory.map((h) => ({ x: h.day, y: h.cash }))} />
+        </Section>
+      </div>
+
+      <div className="grid-2">
+        <Section title="Promotion growth"><TierPanel /></Section>
+        <Section title="Sponsors" right={<button className="linkbtn" onClick={() => navigate('sponsors')}>Open</button>}>
+          {spons.deals.length === 0 && spons.offers.length === 0 ? <p className="empty">No standing sponsor yet. They approach as your promotion grows.</p> : (
+            <>
+              {spons.offers.length > 0 && <div className="attn info" style={{ cursor: 'pointer' }} onClick={() => navigate('sponsors')}><div><div className="t">{spons.offers[0].name} is interested</div><div className="d">{spons.offers.length > 1 ? `${spons.offers.length} offers waiting` : 'Offer waiting'} · {money(spons.offers[0].annual, false)} a year</div></div><button className="btn small go">Review</button></div>}
+              {spons.deals.map((d) => <div key={d.id} className="attn"><div><div className="t">{d.name}</div><div className="d">{money(d.annual, false)} a year · {d.eventsThisYear}/{d.minEvents} shows this year · {d.weeksLeft} weeks left</div></div></div>)}
+            </>
+          )}
+          <p className="dim" style={{ fontSize: 13, marginTop: 8 }}>{spons.slots.used} of {spons.slots.max} sponsor slots in use.</p>
+        </Section>
+      </div>
     </>
   )
 }

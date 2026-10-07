@@ -162,7 +162,7 @@ export function LiveFight({ fv, r, live, onDone }: { fv: FightView; r: ResultVie
 
   const resultPanel = (
     <div className={`fn-result ${fin.kind}`} data-testid="lf-finish" role="status">
-      <div className="caps">{fin.kind === 'draw' ? 'Final verdict' : 'Fight over'}</div>
+      <div className="caps gold">Final result</div>
       <div className="display t">{fin.kind === 'draw' ? fin.title : fin.kind === 'ko' ? fin.title : `${fin.winnerName} WINS`}</div>
       <div className="display s">{fin.kind === 'ko' ? fin.subtitle : fin.kind === 'draw' ? fin.subtitle : fin.method.toUpperCase()}</div>
       <div className="fn-duo" data-testid="result-duo">
@@ -189,7 +189,7 @@ export function LiveFight({ fv, r, live, onDone }: { fv: FightView; r: ResultVie
         <div><span className="caps">Punches landed</span><b>{r.stats.landed[0]}–{r.stats.landed[1]} ({r.stats.acc[0]}% / {r.stats.acc[1]}%)</b></div>
         <div><span className="caps">Power punches</span><b>{r.stats.power[0]}–{r.stats.power[1]}</b></div>
       </div>
-      {r.cards.length > 0 && <div className="lf-cards">{r.cards.map((c, i) => <div className="card-j" key={i}><div className="caps">Judge {i + 1}</div><div className="sc"><span className={c.a > c.b ? 'w' : ''}>{c.a}</span> – <span className={c.b > c.a ? 'w' : ''}>{c.b}</span></div></div>)}</div>}
+      {r.cards.length > 0 && <div className="lf-cards-wrap"><div className="caps gold lf-cards-t">Official scorecards · {r.methodLabel}</div><div className="dim lf-cards-n">{names.a} – {names.b}</div><div className="lf-cards">{r.cards.map((c, i) => <div className="card-j" key={i}><div className="caps">Judge {i + 1}</div><div className="sc"><span className={c.a > c.b ? 'w' : ''}>{c.a}</span> – <span className={c.b > c.a ? 'w' : ''}>{c.b}</span></div></div>)}</div></div>}
       <div className="fn-events"><div className="caps">Important moments</div>
         {keyTl.filter((e) => e.type !== 'result' && e.type !== 'intro').map((e) => <div key={e.id} className="fn-ev"><b>{e.round ? `R${e.round}` : '—'}</b><span><i>{e.title}</i> {e.detail}</span></div>)}
         {keyTl.filter((e) => e.type !== 'result' && e.type !== 'intro').length === 0 && <p className="dim">A tactical fight with no knockdowns or stoppage.</p>}

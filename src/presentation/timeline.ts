@@ -79,7 +79,7 @@ export function buildTimeline(inp: TimelineInput): TlEvent[] {
       const down: 0 | 1 = rd.counts[0] ? rd.counts[0].down : rd.kd[0] > 0 ? 1 : 0
       const attacker = who(down === 0 ? 1 : 0)
       add({
-        type: 'knockdown', round: rn, key: true, title: 'KNOCKDOWN', detail: `${attacker} drops ${who(down)} in round ${rn}.${rd.counts.length ? ` Count reached ${rd.counts[rd.counts.length - 1].count}.` : ''}`,
+        type: 'knockdown', round: rn, key: true, title: `${attacker.toUpperCase()} DROPS ${who(down).toUpperCase()}!`, detail: `${attacker} drops ${who(down)} in round ${rn}.${rd.counts.length ? ` Count reached ${rd.counts[rd.counts.length - 1].count}.` : ''}`,
         ms: steps.reduce((m, s) => m + s.ms, 0) + 400, during: i, reveal: i, steps, side: down, sfx: 'knockdown',
       })
     }

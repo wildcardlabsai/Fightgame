@@ -50,8 +50,8 @@ export function FightersScreen() {
   const onSort = (k: SortKey) => { if (k === sort) setDir((d) => (d === 1 ? -1 : 1)); else { setSort(k); setDir(k === 'name' || k === 'age' ? 1 : -1) } }
 
   const cols = tab === 'roster' || tab === 'expiring'
-    ? (['fighter', 'division', 'age', 'record', 'stage', 'grade', 'ceiling', 'rep', 'pop', 'club'] as const)
-    : (['fighter', 'division', 'age', 'record', 'stage', 'rep', 'pop', 'grade', 'club', 'tags'] as const)
+    ? (['identity', 'recordBig', 'division', 'age', 'style', 'grade', 'ceiling', 'rep', 'club', 'rank'] as const)
+    : (['identity', 'recordBig', 'division', 'age', 'style', 'club', 'rank', 'ask', 'know', 'grade'] as const)
 
   return (
     <>

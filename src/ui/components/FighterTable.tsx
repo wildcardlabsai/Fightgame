@@ -3,14 +3,16 @@ import type { FighterView } from '../../engine/view'
 import { useGame } from '../../store/gameStore'
 import { money } from '../format'
 import { Avatar, Flag, Meter } from './Bits'
+import { fighterFallback } from '../../assets/registry'
 import { KnowledgePips, RangeText } from './Estimates'
 
 export type ColKey =
-  | 'fighter' | 'division' | 'age' | 'record' | 'stage' | 'rep' | 'pop' | 'grade' | 'ceiling' | 'know' | 'club' | 'ask' | 'tags' | 'actions'
+  | 'identity' | 'recordBig' | 'style' | 'rank' | 'fighter' | 'division' | 'age' | 'record' | 'stage' | 'rep' | 'pop' | 'grade' | 'ceiling' | 'know' | 'club' | 'ask' | 'tags' | 'actions'
 
 export type SortKey = 'name' | 'age' | 'record' | 'rep' | 'pop' | 'grade' | 'ceiling' | 'ask' | 'division'
 
 const HEAD: Record<ColKey, { label: string; sort?: SortKey; right?: boolean }> = {
+  identity: { label: 'Fighter', sort: 'name' }, recordBig: { label: 'Record', sort: 'record' }, style: { label: 'Style' }, rank: { label: 'Rank' },
   fighter: { label: 'Fighter', sort: 'name' }, division: { label: 'Division', sort: 'division' }, age: { label: 'Age', sort: 'age', right: true },
   record: { label: 'Record', sort: 'record' }, stage: { label: 'Stage' }, rep: { label: 'Reputation', sort: 'rep' }, pop: { label: 'Popularity', sort: 'pop' },
   grade: { label: 'Scout grade', sort: 'grade' }, ceiling: { label: 'Ceiling', sort: 'ceiling' }, know: { label: 'Intel' },
@@ -29,6 +31,21 @@ export function FighterCell({ v }: { v: FighterView }) {
   )
 }
 
+/** Database-style identity cell: strong name, nickname and nationality under it. */
+export function FighterIdentity({ v }: { v: FighterView }) {
+  return (
+    <div className="fx-id">
+      <Avatar f={v} />
+      <div className="fx-text">
+        <div className="fx-name">{v.firstName} <b>{v.lastName}</b></div>
+        <div className="fx-sub">{v.nickname ? <span className="fx-nick">“{v.nickname}”</span> : null}<Flag code={v.nationKey} /><span>{v.nationName}</span></div>
+      </div>
+    </div>
+  )
+}
+
+const KNOW_TEXT: Record<string, string> = { Unknown: 'Unknown', Rumour: 'Rumours', Basic: 'Basic file', Detailed: 'Detailed', Comprehensive: 'Full file' }
+
 export function statusText(v: FighterView): string {
   if (v.status === 'retired') return 'Retired'
   if (v.contract.kind === 'own') return 'Your roster'
@@ -38,8 +55,12 @@ export function statusText(v: FighterView): string {
 
 function cell(v: FighterView, c: ColKey, actions?: (v: FighterView) => ReactNode): ReactNode {
   switch (c) {
+    case 'identity': return <FighterIdentity v={v} />
+    case 'recordBig': return <div className="fx-rec"><span className="num">{v.recordText}</span><small>{v.record.koWins} KO{v.record.koWins === 1 ? '' : 's'}{v.fights ? ` · ${v.koRate}%` : ''}</small></div>
+    case 'style': return <span className="fx-style">{v.style}</span>
+    case 'rank': return <span className="dim fx-rank" title="Rankings arrive with the next phase">Unranked</span>
+    case 'division': return <span className="fx-div" style={{ ['--hue' as string]: fighterFallback(v).hue }}>{v.division}</span>
     case 'fighter': return <FighterCell v={v} />
-    case 'division': return v.division
     case 'age': return <span className="num">{v.age}</span>
     case 'record': return <span className="num">{v.recordText}</span>
     case 'stage': return v.stage
@@ -47,7 +68,7 @@ function cell(v: FighterView, c: ColKey, actions?: (v: FighterView) => ReactNode
     case 'pop': return <div style={{ minWidth: 70 }}><Meter value={v.popularity} tone="gold" label="Popularity" /></div>
     case 'grade': return <span className="num grade-cell"><RangeText r={v.grade} scouted={v.knowledge.reports > 0 || v.own !== null} /></span>
     case 'ceiling': return <span className="num grade-cell"><RangeText r={v.ceiling} scouted={v.knowledge.reports > 0 || v.own !== null} /></span>
-    case 'know': return <KnowledgePips level={v.knowledge.level} />
+    case 'know': return <span className="fx-know"><KnowledgePips level={v.knowledge.level} /><small>{KNOW_TEXT[v.knowledge.level] ?? v.knowledge.level}</small></span>
     case 'club': return <span className={v.contract.kind === 'none' ? 'gold' : 'dim'}>{statusText(v)}</span>
     case 'ask': return <span className="num ask-cell">{money(v.market.askBand.retainerLo, false)}–{money(v.market.askBand.retainerHi, false)}<small className="dim"> /wk</small></span>
     case 'tags': return <span className="dim">{v.market.tags.join(' · ')}</span>

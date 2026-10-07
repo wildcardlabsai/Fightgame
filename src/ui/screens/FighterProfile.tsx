@@ -4,12 +4,12 @@ import { formatDay } from '../../engine/calendar'
 import { STAGE_LABEL } from '../../engine/systems/contracts'
 import { FOCUS_BLURBS, FOCUS_LABELS } from '../../engine/systems/development'
 import type { TrainingFocus } from '../../engine/types'
+import { fightView } from '../../engine/fightViews'
 import { useGame } from '../../store/gameStore'
 import { useViews } from '../../store/hooks'
 import { AdvicePanel } from '../components/Advice'
 import { Flag, Meter, Section } from '../components/Bits'
 import { FormDots } from '../components/FightBits'
-import { Ring } from '../components/Charts'
 import { RangeText, TraitRow } from '../components/Estimates'
 import { ScoutDialog } from '../components/ScoutDialog'
 import { money } from '../format'
@@ -22,6 +22,8 @@ export function FighterProfile({ id }: { id: string }) {
   const views = useViews()
   const v = views.fighter(id)
   const [scouting, setScouting] = useState(false)
+  const game = useGame((x) => x.game)!
+  const upcoming = v?.activeFightId ? fightView(game, v.activeFightId) : null
 
   if (!v) {
     return (
@@ -38,50 +40,62 @@ export function FighterProfile({ id }: { id: string }) {
 
   return (
     <>
-      <div className="profile-hero">
-        <FighterPortrait f={v} size="xl" eager className="profile-portrait" />
-        <div style={{ flex: 1, minWidth: 260 }}>
+      <header className="dossier" data-testid="dossier">
+        <div className="ds-portrait"><FighterPortrait f={v} size="xl" eager className="profile-portrait" /></div>
+        <div className="ds-main">
           <button className="linkbtn" onClick={() => navigate('fighters')}>◂ All fighters</button>
-          <div className="caps" style={{ marginTop: 8 }}>{v.nickname ? `“${v.nickname}”` : v.stage}</div>
-          <h1 className="display">{v.firstName} <span className="red">{v.lastName}</span></h1>
-          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 10, alignItems: 'center' }}>
-            <Flag code={v.nationKey} />
-            <span>{v.division}</span>
-            <span className="chip">{v.stage}</span>
-            <span className="chip">{v.style}</span>
+          <div className="ds-tags">
+            <span className={`ds-status ${v.availability.status}`}>{v.status === 'retired' ? 'Retired' : v.availability.label}</span>
             {mine && <span className="chip gold">On your roster</span>}
-            {v.status === 'retired' && <span className="chip red">Retired</span>}
-            {v.market.tags.filter((t) => t !== 'Looking for a promotion').map((t) => <span key={t} className="chip good">{t}</span>)}
+            <span className="chip">{v.stage}</span>
+            {v.market.tags.filter((t) => t !== 'Looking for a promotion').slice(0, 2).map((t) => <span key={t} className="chip good">{t}</span>)}
           </div>
-          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 14 }}>
+          {v.nickname && <div className="ds-nick display">“{v.nickname}”</div>}
+          <h1 className="ds-name display">{v.firstName} <span>{v.lastName}</span></h1>
+          <div className="ds-line"><Flag code={v.nationKey} /> <b>{v.nationName}</b> <span className="dim">· {v.hometown}</span> <span className="ds-dot" /> <b>{v.division}</b> <span className="ds-dot" /> {v.age} years · {v.style}</div>
+          <div className="ds-actions">
             {v.status === 'active' && <button className="btn" onClick={() => setScouting(true)}>{v.knowledge.reports ? 'Scout again' : 'Scout this fighter'}</button>}
             {!mine && <button className="btn ghost" onClick={() => toggleShortlist(v.id)} aria-pressed={v.shortlisted}>{v.shortlisted ? '★ Shortlisted' : '☆ Shortlist'}</button>}
-            {!mine && v.market.signable && <button className="btn primary" onClick={() => navigate('negotiation', v.id)}>{v.market.negotiation ? 'Continue negotiation' : 'Make an offer'}</button>}
+            {!mine && v.market.signable && <button className="btn primary" data-testid="make-offer" onClick={() => navigate('negotiation', v.id)}>{v.market.negotiation ? 'Continue negotiation' : 'Make an offer'}</button>}
             {mine && c.kind === 'own' && <button className={`btn${c.stage !== 'healthy' ? ' primary' : ''}`} onClick={() => navigate('negotiation', v.id)}>Renew contract</button>}
             {mine && <button className="btn primary" onClick={() => navigate('matchmaking', v.id)}>Find an opponent</button>}
             {v.activeFightId && <button className="btn ghost" onClick={() => navigate('fight', v.activeFightId!)}>Open booked fight</button>}
           </div>
           {!mine && !v.market.signable && v.status === 'active' && <p className="dim" style={{ marginTop: 8, fontSize: 13.5 }}>{v.market.unavailableReason}</p>}
         </div>
-        <div style={{ display: 'flex', gap: 30, alignItems: 'center', flexWrap: 'wrap' }}>
-          <div>
-            <div className="caps">Record</div>
-            <div className="display num" style={{ fontSize: 52 }}>{v.recordText}</div>
-            <div className="dim" style={{ fontSize: 13 }}>{v.record.koWins} KOs · {v.koRate}% KO rate</div>
-          </div>
-          <div className="ring" title="Scout's estimate of overall ability — a range, not a fact">
-            <Ring value={v.grade.mid} color={scouted ? 'var(--red)' : '#55555f'} />
-            <div className="c"><div>
-              <div className="num" style={{ fontSize: 30 }}><RangeText r={v.grade} scouted={scouted} /></div>
-              <div className="caps" style={{ fontSize: 11 }}>{scouted ? 'Scout grade' : 'Rough guess'}</div>
-            </div></div>
-          </div>
+        <div className="ds-stats">
+          <div className="ds-rec"><div className="caps">Professional record</div><div className="num" data-testid="ds-record">{v.recordText}</div><div className="dim">{v.record.koWins} KOs · {v.koRate}% KO rate{v.record.koLosses ? ` · stopped ${v.record.koLosses}×` : ''}</div></div>
+          <div className="ds-grade"><div className="caps">{scouted ? 'Scout grade' : 'Rough guess'}</div><div className="num"><RangeText r={v.grade} scouted={scouted} /></div><div className="dim">{v.knowledge.level} knowledge</div></div>
+          <div className="ds-form"><div className="caps">Recent form</div><FormDots form={v.form} /><div className="dim">{v.momentumLabel}</div></div>
+          <div className="ds-rank"><div className="caps">Division standing</div><div className="num">{v.standing.rank > 0 ? `#${v.standing.rank}` : '—'}</div><div className="dim">public form, not an official ranking</div></div>
         </div>
-      </div>
+      </header>
       <AdvicePanel list={fighterAdvice(v)} cap={2} />
 
       <div className="grid-2" style={{ marginTop: 6 }}>
         <div>
+          {upcoming && (
+            <Section title="Upcoming fight">
+              <button type="button" className="up-fight" data-testid="upcoming-fight" onClick={() => navigate('fight', upcoming.id)}>
+                <span className="up-vs display">{upcoming.a.fighter.id === v.id ? 'vs' : 'vs'} <b>{(upcoming.a.fighter.id === v.id ? upcoming.b : upcoming.a).fighter.name}</b></span>
+                <span className="up-rec num">{(upcoming.a.fighter.id === v.id ? upcoming.b : upcoming.a).preRecord}</span>
+                <span className="dim">{upcoming.division} · {upcoming.rounds} rounds · {upcoming.day ? formatDay(upcoming.day) : 'date to be set'}{upcoming.eventName ? ` · ${upcoming.eventName}` : ''}</span>
+              </button>
+            </Section>
+          )}
+          <Section title="Fight history">
+            {v.fightHistory.length === 0 ? <p className="empty">No recorded bouts yet in this game. Fights you arrange, and those you hear about, appear here.</p> : (
+              <div className="table-wrap"><table className="table">
+                <tbody>{v.fightHistory.map((h) => (
+                  <tr key={h.fightId} className="row" onClick={() => navigate('fight', h.fightId)}>
+                    <td className="num dim">{formatDay(h.day, true)}</td>
+                    <td><b className={h.result === 'W' ? 'good' : h.result === 'L' ? 'red' : ''}>{h.result}</b> <span className="dim">{h.method}{h.method !== 'UD' && h.method !== 'MD' && h.method !== 'SD' && h.method !== 'Draw' ? ` R${h.round}` : ''}</span></td>
+                    <td>vs {h.opponentName}</td>
+                  </tr>))}</tbody>
+              </table></div>
+            )}
+          </Section>
+
           <Section title="Scouting report" right={<span className="dim" style={{ fontSize: 13 }}>Intel: <b style={{ color: 'var(--text)' }}>{v.knowledge.level}</b> · {v.knowledge.confidence} confidence</span>}>
             {!scouted && <p className="dim" style={{ marginBottom: 10 }}>You have no scouting information on {v.firstName}. The “~” ranges below are guesses from the public record alone and could be well off.</p>}
             <div className="caps" style={{ margin: '6px 0 0' }}>Physical</div>
@@ -114,9 +128,32 @@ export function FighterProfile({ id }: { id: string }) {
             <p style={{ lineHeight: 1.6, maxWidth: '62ch' }}>{v.bio}</p>
             {v.notes.length > 0 && <p style={{ marginTop: 10 }}><span className="caps">Scout notes </span>{v.notes.map((n, i) => <span key={i} className="chip" style={{ marginRight: 6 }}>{n}</span>)}</p>}
           </Section>
+          <Section title="Career history">
+            {v.history.length === 0 ? <p className="empty">Nothing on record.</p> : (
+              <ul className="history">{v.history.map((h, i) => <li key={i}><span className="caps" style={{ marginRight: 10 }}>{formatDay(h.day, true)}</span>{h.text}</li>)}</ul>
+            )}
+            <p className="dim" style={{ fontSize: 13, marginTop: 8 }}>Titles and achievements arrive with championships in a later phase.</p>
+          </Section>
         </div>
 
         <div>
+          <Section title="Contract">
+            {c.kind === 'own' && (
+              <dl>
+                <div className="kv"><dt>Status</dt><dd><span className={`pill ${c.stage}`}>{STAGE_LABEL[c.stage]}</span></dd></div>
+                <div className="kv"><dt>Term</dt><dd>{formatDay(c.contract.startDay)} → {formatDay(c.contract.endDay)} <span className="dim">({c.weeksLeft} weeks left)</span></dd></div>
+                <div className="kv"><dt>Weekly retainer</dt><dd className="num" style={{ fontSize: 18 }}>{money(c.contract.weeklyRetainer, false)}</dd></div>
+                <div className="kv"><dt>Base purse</dt><dd className="num" style={{ fontSize: 18 }}>{money(c.contract.basePurse, false)} <span className="dim" style={{ fontSize: 13 }}>+ {money(c.contract.winBonus, false)} win bonus</span></dd></div>
+                <div className="kv"><dt>Fights</dt><dd>{c.contract.fightsRemaining} of {c.contract.fightsTotal} remaining · min {c.contract.minFightsPerYear}/yr</dd></div>
+                <div className="kv"><dt>PPV share</dt><dd>{c.contract.ppvShare > 0 ? `${(c.contract.ppvShare * 100).toFixed(1)}%` : 'None'}</dd></div>
+                <div className="kv"><dt>Signing bonus</dt><dd>{money(c.contract.signingBonus, false)} <span className="dim">(paid)</span></dd></div>
+                <div className="kv"><dt>Promises</dt><dd>{c.contract.titlePromise ? <span className="gold">Title opportunity owed</span> : 'None'}</dd></div>
+              </dl>
+            )}
+            {c.kind === 'rival' && <p>Under contract with <b>{c.promotionName}</b> — expected to run for roughly {c.approxMonthsLeft} more months.</p>}
+            {c.kind === 'none' && <p className="dim">{v.status === 'retired' ? 'Retired.' : `Free agent${v.market.availableWeeks !== null ? ` for ${v.market.availableWeeks} weeks` : ''}.`}</p>}
+          </Section>
+
           <Section title="Identity">
             <dl>
               <div className="kv"><dt>Age</dt><dd>{v.age}</dd></div>
@@ -151,23 +188,6 @@ export function FighterProfile({ id }: { id: string }) {
             )}
           </Section>
 
-          <Section title="Contract">
-            {c.kind === 'own' && (
-              <dl>
-                <div className="kv"><dt>Status</dt><dd><span className={`pill ${c.stage}`}>{STAGE_LABEL[c.stage]}</span></dd></div>
-                <div className="kv"><dt>Term</dt><dd>{formatDay(c.contract.startDay)} → {formatDay(c.contract.endDay)} <span className="dim">({c.weeksLeft} weeks left)</span></dd></div>
-                <div className="kv"><dt>Weekly retainer</dt><dd className="num" style={{ fontSize: 18 }}>{money(c.contract.weeklyRetainer, false)}</dd></div>
-                <div className="kv"><dt>Base purse</dt><dd className="num" style={{ fontSize: 18 }}>{money(c.contract.basePurse, false)} <span className="dim" style={{ fontSize: 13 }}>+ {money(c.contract.winBonus, false)} win bonus</span></dd></div>
-                <div className="kv"><dt>Fights</dt><dd>{c.contract.fightsRemaining} of {c.contract.fightsTotal} remaining · min {c.contract.minFightsPerYear}/yr</dd></div>
-                <div className="kv"><dt>PPV share</dt><dd>{c.contract.ppvShare > 0 ? `${(c.contract.ppvShare * 100).toFixed(1)}%` : 'None'}</dd></div>
-                <div className="kv"><dt>Signing bonus</dt><dd>{money(c.contract.signingBonus, false)} <span className="dim">(paid)</span></dd></div>
-                <div className="kv"><dt>Promises</dt><dd>{c.contract.titlePromise ? <span className="gold">Title opportunity owed</span> : 'None'}</dd></div>
-              </dl>
-            )}
-            {c.kind === 'rival' && <p>Under contract with <b>{c.promotionName}</b> — expected to run for roughly {c.approxMonthsLeft} more months.</p>}
-            {c.kind === 'none' && <p className="dim">{v.status === 'retired' ? 'Retired.' : `Free agent${v.market.availableWeeks !== null ? ` for ${v.market.availableWeeks} weeks` : ''}.`}</p>}
-          </Section>
-
           {v.own && (
             <Section title="Condition & training">
               {([['Fitness', v.own.fitness, 'good'], ['Conditioning', v.own.conditioning, 'good'], ['Confidence', v.own.confidence, 'blue'], ['Morale', v.own.morale, undefined]] as const).map(([label, b, tone]) => (
@@ -184,25 +204,6 @@ export function FighterProfile({ id }: { id: string }) {
             </Section>
           )}
 
-          <Section title="Fight history">
-            {v.fightHistory.length === 0 ? <p className="empty">No recorded bouts yet in this game. Fights you arrange, and those you hear about, appear here.</p> : (
-              <div className="table-wrap"><table className="table">
-                <tbody>{v.fightHistory.map((h) => (
-                  <tr key={h.fightId} className="row" onClick={() => navigate('fight', h.fightId)}>
-                    <td className="num dim">{formatDay(h.day, true)}</td>
-                    <td><b className={h.result === 'W' ? 'good' : h.result === 'L' ? 'red' : ''}>{h.result}</b> <span className="dim">{h.method}{h.method !== 'UD' && h.method !== 'MD' && h.method !== 'SD' && h.method !== 'Draw' ? ` R${h.round}` : ''}</span></td>
-                    <td>vs {h.opponentName}</td>
-                  </tr>))}</tbody>
-              </table></div>
-            )}
-          </Section>
-
-          <Section title="Career history">
-            {v.history.length === 0 ? <p className="empty">Nothing on record.</p> : (
-              <ul className="history">{v.history.map((h, i) => <li key={i}><span className="caps" style={{ marginRight: 10 }}>{formatDay(h.day, true)}</span>{h.text}</li>)}</ul>
-            )}
-            <p className="dim" style={{ fontSize: 13, marginTop: 8 }}>Titles and achievements arrive with championships in a later phase.</p>
-          </Section>
         </div>
       </div>
       {scouting && <ScoutDialog id={v.id} onClose={() => setScouting(false)} />}

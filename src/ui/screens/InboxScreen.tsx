@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { formatDay } from '../../engine/calendar'
 import type { MessageCategory } from '../../engine/types'
 import { useGame } from '../../store/gameStore'
+import { KIND_CLASS, msgKind } from '../inboxKinds'
 
 const CATS: (MessageCategory | 'all')[] = ['all', 'contract', 'fighter', 'finance', 'system', 'world']
 
@@ -39,7 +40,7 @@ export function InboxScreen() {
           {list.length === 0 && <p className="empty" style={{ padding: 20 }}>No messages here.</p>}
           {list.map((m) => (
             <button key={m.id} className={`msg-row ${m.priority}${m.read ? '' : ' unread'}${sel?.id === m.id ? ' sel' : ''}`} onClick={() => open(m.id)}>
-              <div className="s">{m.subject}</div>
+              <div className="s">{!m.read && <i className="unread-dot" aria-label="Unread" />}<span className={`catpill ${KIND_CLASS[msgKind(m)]}`}>{msgKind(m)}</span> {m.subject}</div>
               <div className="m"><span>{m.from}</span><span>{formatDay(m.day, false)}</span>{m.priority !== 'normal' && <span className={m.priority === 'urgent' ? 'red' : 'gold'}>{m.priority}</span>}</div>
             </button>
           ))}
@@ -47,7 +48,7 @@ export function InboxScreen() {
         <div className="msg-body">
           {sel ? (
             <>
-              <div className="caps">{sel.from} · {formatDay(sel.day)}</div>
+              <div className="caps"><span className={`catpill ${KIND_CLASS[msgKind(sel)]}`}>{msgKind(sel)}</span> {sel.from} · {formatDay(sel.day)}</div>
               <h3 className="display">{sel.subject}</h3>
               <p>{sel.body}</p>
               <div style={{ display: 'flex', gap: 10, marginTop: 24 }}>

@@ -28,7 +28,7 @@ const start = async (page, scen) => {
   await page.locator(`[data-scenario="${scen}"]`).click()
   await page.fill('#pr', 'Tier Tester')
   await page.getByRole('button', { name: /Open the doors/ }).click()
-  await page.waitForSelector('.hero .kpis')
+  await page.waitForSelector('[data-testid="desk-promotion"]')
 }
 
 // ---- starting tiers
@@ -122,9 +122,9 @@ for (const [id, [label, cap]] of Object.entries(START)) {
   await load(page, 'sponsor-behind')
   await go(page, '#/dashboard')
   await page.waitForTimeout(300)
-  const desk = await page.locator('.desk').innerText()
+  const desk = await page.getByTestId('desk-advice').innerText()
   check('advisor flags a sponsor falling behind on events', /requires 6 qualifying events this contract year and you have promoted 1/.test(desk) || /Sponsor commitments/.test(desk), desk.slice(0, 300))
-  check('desk is still at most five items', (await page.locator('.desk .advice').count()) <= 5)
+  check('desk is still at most five items', (await page.getByTestId('desk-advice').locator('.advice').count()) <= 5)
   await ctx.close()
 }
 

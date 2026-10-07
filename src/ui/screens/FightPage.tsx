@@ -8,6 +8,7 @@ import { Section } from '../components/Bits'
 import { RangeText } from '../components/Estimates'
 import { Corner, FormDots, StarRating, StatBar, VerdictChip } from '../components/FightBits'
 import { Modal } from '../components/Overlay'
+import { TaleOfTape } from '../components/TaleOfTape'
 import { LiveFight } from '../visual/LiveFight'
 import { money } from '../format'
 
@@ -89,7 +90,7 @@ function ResultSection({ fv, r, done }: { fv: FightView; r: ResultView; done: bo
               {(r.deductions[0] > 0 || r.deductions[1] > 0) && <p className="warn" style={{ marginTop: 8 }}>Point deductions: {a.lastName} {r.deductions[0]} · {b.lastName} {r.deductions[1]}</p>}
             </Section>
             {r.cards.length > 0 && (
-              <Section title="Scorecards">
+              <Section title="Official scorecards">
                 <div className="cards">
                   {r.cards.map((c, i) => (
                     <div className="card-j" key={i}><div className="caps">Judge {i + 1}</div>
@@ -97,7 +98,7 @@ function ResultSection({ fv, r, done }: { fv: FightView; r: ResultView; done: bo
                       <div className="dim" style={{ fontSize: 12.5 }}>{c.a > c.b ? a.lastName : c.b > c.a ? b.lastName : 'Even'}</div></div>
                   ))}
                 </div>
-                <p className="dim" style={{ marginTop: 8 }}>{r.methodLabel}.</p>
+                <p className="caps gold" style={{ marginTop: 8 }}>{r.methodLabel}</p>
               </Section>
             )}
             <Section title="Performance">
@@ -181,17 +182,10 @@ function FightPageInner({ id }: { id: string }) {
 
   return (
     <>
-      <Hero fv={fv} after={fv.result?.after} showWinner={revealed} hideMatchup={!!fv.result?.rounds} />
+      <Hero fv={fv} after={fv.result?.after} showWinner={revealed} hideMatchup={!!fv.result?.rounds || (!fv.result && !['cancelled', 'negotiating'].includes(fv.statusKey))} />
+      {!fv.result && !['cancelled', 'negotiating'].includes(fv.statusKey) && <TaleOfTape a={fv.a.fighter} b={fv.b.fighter} rounds={fv.rounds} division={fv.division} onBell={fv.statusKey === 'fightNight' && fv.canRunNight ? () => (fv.eventId ? navigate('event', fv.eventId!) : run(id)) : undefined} bellLabel={fv.eventId ? 'Ring the bell · go to the show' : 'Ring the bell'} />}
       {fv.result?.rounds && <LiveFight fv={fv} r={fv.result} live={animate} onDone={onDone} />}
       {fv.eventId && <p className="dim" style={{ marginTop: 8 }}>Part of <button className="linkbtn" onClick={() => navigate('event', fv.eventId!)}>{fv.eventName}</button></p>}
-
-      {fv.statusKey === 'fightNight' && fv.canRunNight && (
-        <div style={{ textAlign: 'center', padding: '30px 0 6px' }}>
-          <div className="caps">It’s fight week</div>
-          <p style={{ margin: '8px 0 18px' }}>Both fighters have made weight{fv.a.prep?.weightIssue || fv.b.prep?.weightIssue ? ' — though not without drama' : ''}. The crowd is in. Ring the bell.</p>
-          <button className="btn primary bell" onClick={() => (fv.eventId ? navigate('event', fv.eventId) : run(id))}>{fv.eventId ? 'Go to the show ▸' : 'Ring the bell ▸'}</button>
-        </div>
-      )}
 
       {fv.statusKey === 'negotiating' && <p className="empty">Talks are ongoing. <button className="linkbtn" onClick={() => navigate('deal', id)}>Open the negotiation</button></p>}
 

@@ -55,6 +55,7 @@ export function EventPage({ id }: { id: string }) {
   useEffect(() => { if (presenting) setLatched(nightFight) }, [presenting, nightFight])
   if (!v) return <><h1 className="display" style={{ fontSize: 44 }}>Event not found</h1><button className="btn" onClick={() => navigate('events')}>Back to events</button></>
   const editable = v.can.editCard
+  const main = v.card.find((c) => c.slot === 'MAIN EVENT') ?? null
 
   return (
     <>
@@ -68,12 +69,29 @@ export function EventPage({ id }: { id: string }) {
           {v.forecast && v.mine && <RiskChip risk={v.forecast.risk} />}
           <span className="dim">Card: {v.quality.label} ({v.quality.score})</span>
         </div>
+        {main && (
+          <div className="ev-main" data-testid="ev-main">
+            <div className="caps gold">Main event · {main.division} · {main.rounds} rounds</div>
+            <button className="ev-duel display" onClick={() => navigate('fight', main.fightId)} aria-label={`Tale of the tape: ${main.aName} versus ${main.bName}`}>
+              <span>{main.aName}</span><i>VS</i><span>{main.bName}</span>
+            </button>
+            <div className="ev-recs"><span className="num">{main.aRecord}</span><span className="dim">{main.status}</span><span className="num">{main.bRecord}</span></div>
+            <div className="ev-stats">
+              <div><span className="caps">Tickets</span><b className="num">{num(v.sales.total)} / {num(v.sales.capacity)}</b></div>
+              <div><span className="caps">Hype</span><b className="num">{v.quality.interest}</b></div>
+              {v.forecast && v.mine && <div><span className="caps">Projected revenue</span><b className="num">{rng(v.forecast.revenue)}</b></div>}
+              {v.result && <div><span className="caps">Actual revenue</span><b className="num">{money(v.finance.totalRevenue, false)}</b></div>}
+            </div>
+            <button className="btn small" onClick={() => navigate('fight', main.fightId)}>Tale of the tape ▸</button>
+          </div>
+        )}
       </div>
       {poster && <EventPoster v={poster} size="lead" />}
       </div>
       {v.mine && v.nextStep && v.statusKey !== 'cancelled' && <div className="attn info" style={{ marginTop: 14 }}><div className="t">{v.nextStep}</div></div>}
       {v.statusKey === 'cancelled' && <p className="attn critical">This show was cancelled: {v.cancelReason}.</p>}
 
+      {v.mine && v.open && v.statusKey !== 'cancelled' && <BuildSteps v={v} />}
       <AdvicePanel list={advice} cap={3} title="Promoter’s desk" />
 
       {v.can.run && <NightPanel v={v} runNext={runNext} nightFight={nightFight} />}
@@ -82,7 +100,7 @@ export function EventPage({ id }: { id: string }) {
 
       <div className="grid-2" style={{ alignItems: 'start' }}>
         <div>
-          <Section title="Fight card" right={editable ? <button className="btn small" onClick={() => setAdding(true)}>Add a fight</button> : <span className="dim" style={{ fontSize: 13 }}>{v.card.length} fights · min {v.venue.minFights}, max {v.venue.maxFights}</span>}>
+          <div id="eb-card" /><Section title="Fight card" right={editable ? <button className="btn small" onClick={() => setAdding(true)}>Add a fight</button> : <span className="dim" style={{ fontSize: 13 }}>{v.card.length} fights · min {v.venue.minFights}, max {v.venue.maxFights}</span>}>
             {v.card.length === 0 ? <p className="empty">The card is empty. Agree fights in Matchmaking, then add them here (opener first, headliner last).</p> : (
               <div>
                 {[...v.card].reverse().map((s) => <SlotRow key={s.fightId} s={s} n={v.card.length} editable={editable} eventId={v.id} />)}
@@ -94,7 +112,7 @@ export function EventPage({ id }: { id: string }) {
 
           {v.mine && v.open && (
             <>
-              <Section title="Tickets" right={<span className="dim" style={{ fontSize: 13 }}>Suggested GA £{v.refPrices.ga}</span>}>
+              <div id="eb-pricing" /><Section title="Tickets" right={<span className="dim" style={{ fontSize: 13 }}>Suggested GA £{v.refPrices.ga}</span>}>
                 <div className="grid-3">
                   {(['ga', 'premium', 'vip'] as const).map((k) => (
                     <Stepper key={k} label={{ ga: 'General admission', premium: 'Premium', vip: 'VIP' }[k]} value={v.prices[k]} step={k === 'ga' ? 5 : k === 'premium' ? 10 : 25} min={5} max={1000} format={(n) => `£${n}`} hint={`ref £${v.refPrices[k]}`} disabled={!v.can.editMoney}
@@ -104,7 +122,7 @@ export function EventPage({ id }: { id: string }) {
                 <p className="dim" style={{ fontSize: 13, marginTop: 8 }}>Seats: {num(v.sales.inventory[0])} GA · {num(v.sales.inventory[1])} premium · {num(v.sales.inventory[2])} VIP. Higher prices earn more per fan but sell fewer seats; prices must rise from GA to VIP.</p>
               </Section>
 
-              <Section title="Marketing">
+              <div id="eb-marketing" /><Section title="Marketing">
                 <div className="focus-grid">
                   {LEVELS.map((l) => (
                     <button key={l.k} className={`focus-opt${v.marketing.level === l.k ? ' on' : ''}`} aria-pressed={v.marketing.level === l.k} disabled={!v.can.editMoney}
@@ -127,7 +145,7 @@ export function EventPage({ id }: { id: string }) {
                 <p className="dim" style={{ fontSize: 13, marginTop: 8 }}>Budget {money(v.marketing.budget, false)} · spent so far {money(v.marketing.spent, false)}. Marketing is paid in weekly instalments and its effect shrinks as spend grows: a big building needs a big campaign.</p>
               </Section>
 
-              <Section title="Broadcast">
+              <div id="eb-broadcast" /><Section title="Broadcast">
                 <div className="focus-grid">
                   {v.broadcast.options.map((o) => (
                     <button key={o.kind} className={`focus-opt${v.broadcast.kind === o.kind ? ' on' : ''}`} aria-pressed={v.broadcast.kind === o.kind} disabled={!o.available || !v.can.editMoney} title={o.reason ?? undefined}
@@ -146,7 +164,7 @@ export function EventPage({ id }: { id: string }) {
                 )}
               </Section>
 
-              <Section title="Sponsors" right={v.can.sponsors ? <button className="linkbtn" onClick={() => act('refreshSponsors', v.id)}>Look for new offers</button> : undefined}>
+              <div id="eb-sponsors" /><Section title="Sponsors" right={v.can.sponsors ? <button className="linkbtn" onClick={() => act('refreshSponsors', v.id)}>Look for new offers</button> : undefined}>
                 {v.sponsor.offers.length === 0 ? <p className="empty">No offers yet. Sponsors appear once the card has a main event.</p> : v.sponsor.offers.map((o) => {
                   const on = v.sponsor.accepted?.id === o.id
                   return (
@@ -165,6 +183,7 @@ export function EventPage({ id }: { id: string }) {
         </div>
 
         <div>
+          <div id="eb-review" />
           {v.forecast && v.mine && <ForecastPanel v={v} />}
           {v.sales.trend !== 'not on sale' && <SalesPanel v={v} />}
           {v.mine && v.open && v.can.editCard && (
@@ -219,6 +238,45 @@ export function EventPage({ id }: { id: string }) {
 const slotFighter = (id: string, name: string, record: string, division: string): CardFighter => {
   const i = name.lastIndexOf(' ')
   return { id, name, firstName: i > 0 ? name.slice(0, i) : name, lastName: i > 0 ? name.slice(i + 1) : '', division, record }
+}
+
+
+const STEPS: { k: string; n: string; id: string; what: string }[] = [
+  { k: 'venue', n: 'Venue', id: 'eb-card', what: 'Where the night happens — it sets capacity and cost.' },
+  { k: 'card', n: 'Card', id: 'eb-card', what: 'The fights people pay to see. A main event is essential.' },
+  { k: 'pricing', n: 'Pricing', id: 'eb-pricing', what: 'Ticket prices: higher earns more per seat but sells slower.' },
+  { k: 'marketing', n: 'Marketing', id: 'eb-marketing', what: 'Spend to build awareness before the doors open.' },
+  { k: 'broadcast', n: 'Broadcast', id: 'eb-broadcast', what: 'TV, streaming or pay-per-view income against production cost.' },
+  { k: 'sponsors', n: 'Sponsors', id: 'eb-sponsors', what: 'Fixed fees with conditions on the headliner.' },
+  { k: 'review', n: 'Review', id: 'eb-review', what: 'Check the forecast and the advisor’s warnings.' },
+  { k: 'live', n: 'Go live', id: 'eb-review', what: 'Put the show on sale. Costs become real.' },
+]
+
+function BuildSteps({ v }: { v: EventView }) {
+  const preSale = v.statusKey === 'venueBooked' || v.statusKey === 'cardBuilding'
+  const cardOk = v.card.length >= v.venue.minFights && v.problems.length === 0
+  const done: Record<string, boolean> = {
+    venue: true, card: cardOk, pricing: !preSale, marketing: !preSale, broadcast: !preSale,
+    sponsors: !!v.sponsor.accepted || !preSale, review: !preSale, live: !preSale,
+  }
+  const cur = STEPS.findIndex((st) => !done[st.k])
+  const go = (id: string) => { const el = document.getElementById(id); if (el) el.scrollIntoView({ block: 'start', behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' }) }
+  const f = v.forecast
+  return (
+    <nav className="build-steps" aria-label="Event building steps" data-testid="build-steps">
+      <ol>
+        {STEPS.map((st, i) => (
+          <li key={st.k} className={done[st.k] ? 'done' : i === cur ? 'cur' : ''}>
+            <button onClick={() => go(st.id)} aria-current={i === cur ? 'step' : undefined}><span className="bs-n">{done[st.k] ? '✓' : i + 1}</span><span className="bs-t">{st.n}</span></button>
+          </li>
+        ))}
+      </ol>
+      <div className="bs-info">
+        <div><span className="caps">Building</span> <b>{cur >= 0 ? STEPS[cur].n : 'Live'}</b> — <span className="dim">{cur >= 0 ? STEPS[cur].what : 'The show is on sale.'}</span></div>
+        {f && <div className="bs-fin"><span className="caps">Risk</span> <RiskChip risk={f.risk} /> <span className="caps">Costs</span> <b className="num">{rng(f.costs)}</b> <span className="caps">Earnings</span> <b className={`num ${f.profit.hi < 0 ? 'red' : ''}`}>{rng(f.profit)}</b></div>}
+      </div>
+    </nav>
+  )
 }
 
 function SlotRow({ s, n, editable, eventId }: { s: CardSlot; n: number; editable: boolean; eventId: string }) {

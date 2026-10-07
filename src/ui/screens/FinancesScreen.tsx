@@ -41,6 +41,7 @@ export function FinancesScreen() {
   const sumCat = (c: TransactionCategory) => game.ledger.filter((t) => t.category === c && t.day > yearAgo).reduce((n, t) => n + t.amount, 0)
   const eventSpons = sumCat('sponsorship'), standingSpons = sumCat('standingSponsor')
   const finKey = fin.standing.split(' ')[0]
+  const yearNet = game.ledger.filter((t) => t.day > yearAgo && t.category !== 'startingFunds').reduce((n, t) => n + t.amount, 0)
   const spent = game.ledger.filter((t) => t.amount < 0).reduce((s, t) => s - t.amount, 0)
 
   return (
@@ -51,8 +52,9 @@ export function FinancesScreen() {
           <p className="sub">Every pound in and out is recorded. Shows are your income: tickets, sponsors, broadcast and PPV come in; venues, purses, marketing and production go out. Per-show profit lives on each event.</p>
         </div>
       </div>
-      <div className="kpis" style={{ marginTop: 0 }}>
+      <div className="kpis fin-kpis" style={{ marginTop: 0 }}>
         <div className="kpi"><div className="caps">Cash in bank</div><div className={`v num ${p.cash < 0 ? 'red' : ''}`}>{money(p.cash, false)}</div></div>
+        <div className="kpi"><div className="caps">12-month profit / loss</div><div className={`v num ${yearNet < 0 ? 'red' : 'good'}`}>{yearNet >= 0 ? '+' : '−'}{money(Math.abs(yearNet))}</div></div>
         <div className="kpi"><div className="caps">Weekly burn</div><div className="v num">{money(burn.total, false)}</div></div>
         <div className="kpi"><div className="caps">Runway</div><div className={`v num ${runway !== null && runway < 8 ? 'red' : ''}`}>{runway === null ? '—' : `${runway} wks`}</div></div>
         <div className="kpi"><div className="caps">Promotion tier</div><div className="v num">{tierLabel(p.tier)}</div></div>
