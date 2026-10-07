@@ -41,8 +41,9 @@ export function open(state: GameState, media: MediaState, type: NarrativeType, p
   }
   media.narratives.unshift(n)
   if (media.narratives.length > LIMITS.narratives) {
-    const idx = media.narratives.map((x, i) => ({ x, i })).reverse().find((e) => e.x.status !== 'active')?.i
-    media.narratives.splice(idx ?? media.narratives.length - 1, 1)
+    // Make room by retiring the weakest storyline (never the one just opened), and keep it on the record.
+    const weakest = media.narratives.filter((x) => x !== n).sort((a, b) => a.strength - b.strength)[0]
+    if (weakest) resolve(state, media, weakest, 'The story faded', 'expired')
   }
   return { n, created: true }
 }
@@ -109,7 +110,8 @@ export function narrativesFromFight(state: GameState, media: MediaState, ev: Wor
   const stop = STOPPAGES.includes(r.method)
 
   // ---- Rivalry
-  const prior = meetings(state, A, B)
+  const prior = meetings(state, A, B).filter((f) => f.id !== fight.id)
+  const meetingsNow = prior.length + 1
   const closeResult = ['SD', 'MD', 'DRAW', 'SDRAW', 'MDRAW'].includes(r.method)
   let pts = 0
   if (prior.length >= 1) pts += 14
@@ -121,10 +123,10 @@ export function narrativesFromFight(state: GameState, media: MediaState, ev: Wor
   if (pts > 0 && (prior.length >= 1 || closeResult || r.kd[0] + r.kd[1] >= 2)) {
     const s = bumpRivalry(media, A.id, B.id, pts)
     if (s >= 28) {
-      const { n, created } = open(state, media, 'RIVALRY', [A.id, B.id], s, { fights: prior.length })
+      const { n, created } = open(state, media, 'RIVALRY', [A.id, B.id], s, { fights: meetingsNow })
       touch(n, week, pts, fight.id)
-      n.facts.fights = prior.length
-      if (created) out.push(feature(state, [A.id, B.id], `${fighterName(A)} and ${fighterName(B)}: a rivalry is born`, `${prior.length} fight${prior.length === 1 ? '' : 's'} on the record`, `${fighterName(A)} and ${fighterName(B)} have now shared a ring ${prior.length} time${prior.length === 1 ? '' : 's'}${closeResult ? ', and the latest result was close' : ''}${r.kd[0] + r.kd[1] ? ` with ${r.kd[0] + r.kd[1]} knockdown${r.kd[0] + r.kd[1] === 1 ? '' : 's'}` : ''}. The public wants to see it settled.`, 40 + s * 0.3, fight.id))
+      n.facts.fights = meetingsNow
+      if (created) out.push(feature(state, [A.id, B.id], `${fighterName(A)} and ${fighterName(B)}: a rivalry is born`, `${meetingsNow} fight${meetingsNow === 1 ? '' : 's'} on the record`, `${fighterName(A)} and ${fighterName(B)} have now shared a ring ${meetingsNow === 1 ? 'once' : `${meetingsNow} times`}${closeResult ? ', and the latest result was close' : ''}${r.kd[0] + r.kd[1] ? ` with ${r.kd[0] + r.kd[1]} knockdown${r.kd[0] + r.kd[1] === 1 ? '' : 's'}` : ''}. The public wants to see it settled.`, 40 + s * 0.3, fight.id))
       if (prior.length >= 2 && decided) resolve(state, media, n, `${fighterName(W!)} won the series`)
     }
   }
@@ -151,7 +153,7 @@ export function narrativesFromFight(state: GameState, media: MediaState, ev: Wor
     // ---- Prospects and rising stars
     const age = fighterAge(W, state.today)
     const rank = primaryRank(media, W)
-    if (age <= 25 && totalFightsOf(W) <= 14 && ev.facts.streak !== undefined && Number(ev.facts.streak) >= 4) {
+    if (age <= 25 && totalFightsOf(W) <= 14 && !titlesHeldBy(media, W.id).length && ev.facts.streak !== undefined && Number(ev.facts.streak) >= 4) {
       const type: NarrativeType = rank !== null && rank <= 10 ? 'RISING_STAR' : 'PROSPECT_HYPE'
       const { n, created } = open(state, media, type, [W.id], 32, { streak: Number(ev.facts.streak) })
       touch(n, week, 5 + ev.sig * 0.1, fight.id)
@@ -247,6 +249,7 @@ export function weeklyNarratives(state: GameState, media: MediaState, events: Wo
     const quiet = week - n.lastUpdatedWeek, age = week - n.startWeek
     const gone = n.participants.some((id) => state.fighters[id]?.status === 'retired' || !state.fighters[id])
     if (gone) resolve(state, media, n, n.type === 'RETIREMENT' || n.type === 'LEGACY' ? 'A career ends' : 'A fighter retired', 'expired')
+    else if ((n.type === 'RISING_STAR' || n.type === 'PROSPECT_HYPE') && (titlesHeldBy(media, n.participants[0]).length || totalFightsOf(state.fighters[n.participants[0]]) > 18)) resolve(state, media, n, titlesHeldBy(media, n.participants[0]).length ? 'Became champion' : 'No longer a prospect')
     else if (n.type === 'TITLE_REIGN' || n.type === 'DIVISION_DOMINANCE') { if (!titlesHeldBy(media, n.participants[0]).length) resolve(state, media, n, 'No longer champion') }
     else if (n.strength < 8 || quiet > n.expiryRules.quietWeeks || age > n.expiryRules.maxWeeks) resolve(state, media, n, 'The story faded', 'expired')
   }
@@ -277,12 +280,16 @@ export function weeklyNarratives(state: GameState, media: MediaState, events: Wo
     const top = list?.e.find((e) => e.r === 1)
     if (!top || !rec.c || top.f === rec.c) continue
     const f = state.fighters[top.f]
-    if (!f) continue
+    if (!f || f.status !== 'active') continue
+    // One hunt per division, and never for a fighter who already holds a belt there.
+    if (titlesHeldBy(media, top.f).some((t) => t.wc === wc)) continue
+    if (media.narratives.some((x) => x.status === 'active' && x.type === 'CHAMPIONSHIP_HUNT' && x.facts.wc === wc)) continue
     const { n, created } = open(state, media, 'CHAMPIONSHIP_HUNT', [top.f], 36, { wc, body })
     if (created) { touch(n, week, 6); out.push(feature(state, [top.f], `${fighterName(f)} closes in on the ${weightClassLabel(f.weightClass)} title`, `Ranked #1 by ${body.toUpperCase()}`, `${fighterName(f)} (${f.record.wins}-${f.record.losses}-${f.record.draws}) is the leading contender for the ${weightClassLabel(f.weightClass)} championship.`, 34 + f.popularity * 0.2)) }
   }
   if (week % 4 === 0) for (const n of activeNarratives(media).filter((x) => x.type === 'CHAMPIONSHIP_HUNT')) {
     const id = n.participants[0]
+    if (titlesHeldBy(media, id).some((t) => t.wc === n.facts.wc)) { resolve(state, media, n, 'Won the title'); continue }
     const stillTop = Object.entries(media.rankings).some(([org, byWc]) => Object.keys(byWc ?? {}).some((wc) => getList(media, org, wc as Fighter['weightClass'])?.e.some((e) => e.f === id && e.r >= 1 && e.r <= 3)))
     if (!stillTop) resolve(state, media, n, 'No longer a leading contender', 'expired')
   }

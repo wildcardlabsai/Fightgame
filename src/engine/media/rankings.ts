@@ -123,6 +123,34 @@ function computeList(state: GameState, media: MediaState, org: RankingOrg, wc: W
   return { u: state.today, e: entries }
 }
 
+/**
+ * Keep a published list truthful between scheduled updates: the sanctioning champion always sits at rank 0 (a belt that changed
+ * hands or fell vacant shows at once), and retired fighters or fighters who left the division drop out. Ranks close up;
+ * `p` is kept so movement still reads against the last scheduled list.
+ */
+export function reseatLists(state: GameState, media: MediaState, wcs: Iterable<WeightClassId>): void {
+  for (const wc of new Set(wcs)) {
+    for (const org of RANKING_ORGS) {
+      const list = getList(media, org.id, wc)
+      if (!list || list.e.length === 0) continue
+      const champ = org.sanctions ? media.titles[`${org.id}|${wc}`]?.c ?? null : null
+      const next: RankEntry[] = []
+      if (champ && state.fighters[champ]?.status !== 'retired') {
+        const was = list.e.find((e) => e.f === champ)
+        next.push({ f: champ, r: 0, p: was ? was.r : null, why: 'title' })
+      }
+      for (const e of list.e) {
+        if (e.r === 0 || e.f === champ) continue
+        const f = state.fighters[e.f]
+        if (!f || f.status === 'retired' || f.weightClass !== wc) continue
+        next.push({ ...e, r: next.length + (next.length && next[0].r === 0 ? 0 : 1) })
+      }
+      const same = next.length === list.e.length && next.every((e, i) => e.f === list.e[i].f && e.r === list.e[i].r)
+      if (!same) media.rankings[org.id][wc] = pack({ u: list.u, e: next })
+    }
+  }
+}
+
 export interface RankMove { orgId: string; wc: WeightClassId; f: Id; from: number | null; to: number | null; why: RankReason }
 
 /** Recompute every list that is due this week. Returns the notable movements for the story engine. */

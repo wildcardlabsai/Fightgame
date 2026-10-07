@@ -98,7 +98,7 @@ export function decideAwards(state: GameState, media: MediaState): AwardRec[] {
   const add = (a: Omit<AwardRec, 'year' | 'organisationId'>) => out.push({ ...a, year: log.year, organisationId: GIVEN_BY[a.category] })
   const fo = best(log.fighters, (x) => x.pts)
   if (fo && fo[1].wins >= 2) add({ category: 'FIGHTER_OF_THE_YEAR', fighterId: fo[0], fighterName: fo[1].n, label: fo[1].n, facts: { wins: fo[1].wins, points: Math.round(fo[1].pts) } })
-  if (log.bestFight && log.bestFight.score >= 40) add({ category: 'FIGHT_OF_THE_YEAR', fightId: log.bestFight.id, label: log.bestFight.label, fighterId: log.bestFight.ps[0], facts: { score: Math.round(log.bestFight.score) } })
+  if (log.bestFight && log.bestFight.score >= 40) add({ category: 'FIGHT_OF_THE_YEAR', fightId: log.bestFight.id, label: log.bestFight.label, facts: { score: Math.round(log.bestFight.score), a: log.bestFight.ps[0], b: log.bestFight.ps[1] } })
   if (log.bestKo && log.bestKo.score >= 30) add({ category: 'KO_OF_THE_YEAR', fightId: log.bestKo.id, fighterId: log.bestKo.f, fighterName: log.bestKo.n, label: log.bestKo.label, facts: { score: Math.round(log.bestKo.score) } })
   const pr = best(log.prospects, (x) => x.pts)
   if (pr && pr[1].pts >= 8) add({ category: 'PROSPECT_OF_THE_YEAR', fighterId: pr[0], fighterName: pr[1].n, label: pr[1].n, facts: { points: Math.round(pr[1].pts) } })

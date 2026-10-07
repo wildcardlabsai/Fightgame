@@ -124,8 +124,10 @@ export function eventFromFight(state: GameState, media: MediaState, fight: Fight
   const A = state.fighters[fight.sideA.fighterId], B = state.fighters[fight.sideB.fighterId]
   if (!A || !B) return null
   const decided = r.winner !== null
-  const W = decided ? (r.winner === 0 ? A : B) : A
-  const L = decided ? (r.winner === 0 ? B : A) : B
+  // A drawn title fight is told from the champion's side (he kept the belt); otherwise side A leads.
+  const drawChamp = !decided && titleEvs[0]?.kind === 'TITLE_DEFENCE' && titleEvs[0].f === B.id
+  const W = decided ? (r.winner === 0 ? A : B) : drawChamp ? B : A
+  const L = decided ? (r.winner === 0 ? B : A) : drawChamp ? A : B
   const titled = titleEvs.length > 0
   const { sig, parts } = fightSignificance(state, media, fight, titled)
   const ev = fight.eventId ? state.events[fight.eventId] : undefined

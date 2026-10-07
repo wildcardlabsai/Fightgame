@@ -245,7 +245,7 @@ export interface AwardView { year: number; category: string; label: string; org:
 export function awardsList(state: GameState, opts: { fighterId?: Id; promotionId?: Id; limit?: number } = {}): AwardView[] {
   const media = state.media
   if (!media) return []
-  return getAwards(media).filter((a) => (!opts.fighterId || a.fighterId === opts.fighterId) && (!opts.promotionId || a.promotionId === opts.promotionId)).slice(0, opts.limit ?? 40)
+  return getAwards(media).filter((a) => (!opts.fighterId || a.fighterId === opts.fighterId || a.facts.a === opts.fighterId || a.facts.b === opts.fighterId) && (!opts.promotionId || a.promotionId === opts.promotionId)).slice(0, opts.limit ?? 40)
     .map((a) => ({ year: a.year, category: AWARD_LABEL[a.category], label: a.label, org: badge(a.organisationId), fighterId: a.fighterId, fightId: a.fightId, eventId: a.eventId, promotionId: a.promotionId, who: a.fighterName ?? a.label }))
 }
 

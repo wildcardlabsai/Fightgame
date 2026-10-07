@@ -29,6 +29,7 @@ import { playedShow } from './testShow'
 import type { GameState } from './types'
 import { WEIGHT_CLASSES } from '../data/weightClasses'
 import { clone } from './media/testing'
+import { LIMITS } from './media/state'
 
 const logo = { monogram: 'P', color: '#fff', emblem: 'bolt' as const }
 const fresh = (seed: string, scenario?: 'regional') => createNewGame({ seed, promotionName: 'P5', promoterName: 'T', homeCountry: 'ENG', difficulty: 'standard', logo, scenario }, 1_700_000_000_000)
@@ -188,7 +189,7 @@ describe('narratives, rivalries, popularity and viral moments', () => {
   it('storylines open, evolve and resolve; none lives forever', () => {
     const s = tick(world2y(), 156)
     const m = s.media!
-    expect(m.narratives.length).toBeLessThanOrEqual(50)
+    expect(m.narratives.length).toBeLessThanOrEqual(LIMITS.narratives)
     const week = Math.floor((s.today - s.startDay) / 7)
     for (const n of m.narratives) { expect(week - n.startWeek).toBeLessThanOrEqual(n.expiryRules.maxWeeks + 6) }
     const done = getDone(m)

@@ -32,7 +32,7 @@ const atCity = (f: Fx) => (f.has('city') ? ` in ${f.s('city')}` : '')
 const recs = (f: Fx) => `${f.s('w')} (${f.s('wrec')}) · ${f.s('l')} (${f.s('lrec')})`
 const how = (f: Fx) => (stopped(f) ? `${f.s('m')} in round ${f.n('rd')}` : f.s('m'))
 
-const TEMPLATES: Partial<Record<StoryKind, TplSet>> = {
+const TEMPLATES: Partial<Record<StoryKind | 'DRAW', TplSet>> = {
   FIGHT_RESULT: {
     neutral: [(f) => ({ h: stopped(f) ? `${f.s('wl')} stops ${f.s('ll')} in round ${f.n('rd')}` : `${f.s('wl')} beats ${f.s('ll')} on points`, s: recs(f) }), (f) => ({ h: `${f.s('w')} defeats ${f.s('l')}${atCity(f)}`, s: `By ${f.s('m')}` })],
     loud: [(f) => ({ h: stopped(f) ? `${f.s('wl')} STOPS ${f.s('ll')}` : `${f.s('wl')} TAKES THE DECISION`, s: recs(f) }), (f) => ({ h: `${f.s('wl')} GETS IT DONE${atCity(f).toUpperCase()}`, s: `By ${f.s('m')}` })],
@@ -54,13 +54,13 @@ const TEMPLATES: Partial<Record<StoryKind, TplSet>> = {
   WAR: {
     neutral: [(f) => ({ h: `${f.s('wl')} outlasts ${f.s('ll')} in a ${f.n('kd')}-knockdown fight`, s: recs(f) })],
     loud: [(f) => ({ h: `WAR! ${f.s('wl').toUpperCase()} AND ${f.s('ll').toUpperCase()} TRADE ${f.n('kd')} KNOCKDOWNS`, s: `${f.s('w')} wins by ${f.s('m')}` })],
-    edgy: [(f) => ({ h: `Wild fight: ${f.n('kd')} knockdowns and no defence from either man`, s: recs(f) })],
+    edgy: [(f) => ({ h: `Wild fight: ${f.n('kd')} knockdowns between ${f.s('wl')} and ${f.s('ll')}`, s: recs(f) })],
     warm: [(f) => ({ h: `A thriller: ${f.s('wl')} survives ${f.s('ll')}`, s: `${f.n('kd')} knockdowns in ${f.s('city') || 'the ring'}` })],
   },
   TITLE_CHANGE: {
     neutral: [(f) => ({ h: f.has('old') ? `${f.s('wl')} dethrones ${f.s('old')} to win the ${f.s('title')}` : `${f.s('wl')} wins the vacant ${f.s('title')}`, s: `${f.s('w')} by ${how(f)}` })],
     loud: [(f) => ({ h: f.has('old') ? `${f.s('wl').toUpperCase()} CLAIMS THE ${f.s('body')} CROWN` : `${f.s('wl').toUpperCase()} WINS THE VACANT ${f.s('body')} TITLE`, s: `${f.s('title')}` })],
-    edgy: [(f) => ({ h: f.has('old') ? `${f.s('old')} loses the belt: what now for the ${f.s('div')} division?` : `${f.s('wl')} takes a vacant belt — a champion at last`, s: recs(f) })],
+    edgy: [(f) => ({ h: f.has('old') ? `${f.s('old')} loses the belt: what now for the ${f.s('div')} division?` : `${f.s('wl')} takes the vacant belt: what next for the ${f.s('div')} division?`, s: recs(f) })],
     warm: [(f) => ({ h: `${f.s('wl')} is champion: ${f.s('title')}`, s: `${f.s('w')} beats ${f.s('l')} by ${f.s('m')}` })],
   },
   TITLE_DEFENCE: {
@@ -75,9 +75,15 @@ const TEMPLATES: Partial<Record<StoryKind, TplSet>> = {
     edgy: [(f) => ({ h: `${f.s('title')}: is ${f.s('bl')} ready, or is this a mismatch?`, s: `${f.s('a')} v ${f.s('b')}` })],
     warm: [(f) => ({ h: `A chance at the belt: ${f.s('a')} v ${f.s('b')}`, s: `${f.s('title')}` })],
   },
+  DRAW: {
+    neutral: [(f) => ({ h: `${f.s('w')} and ${f.s('l')} fight to a ${f.s('m')}`, s: f.has('sc') ? `Cards: ${f.s('sc')}` : recs(f) })],
+    loud: [(f) => ({ h: `NOTHING SEPARATES ${f.s('wl').toUpperCase()} AND ${f.s('ll').toUpperCase()}`, s: f.has('sc') ? `Cards: ${f.s('sc')}` : f.s('m') })],
+    edgy: [(f) => ({ h: `${f.s('wl')} and ${f.s('ll')} share the spoils: was that right?`, s: f.has('sc') ? `Cards: ${f.s('sc')}` : f.s('m') })],
+    warm: [(f) => ({ h: `${f.s('wl')} and ${f.s('ll')} cannot be separated`, s: f.s('m') })],
+  },
   CONTROVERSIAL_DECISION: {
     neutral: [(f) => ({ h: `${f.s('wl')} edges ${f.s('ll')} on a ${f.s('m')}`, s: f.has('sc') ? `Cards: ${f.s('sc')}` : recs(f) })],
-    loud: [(f) => ({ h: `FANS LEFT FUMING AFTER ${f.s('wl').toUpperCase()} EDGES ${f.s('ll').toUpperCase()}`, s: f.has('sc') ? `Cards: ${f.s('sc')}` : f.s('m') })],
+    loud: [(f) => ({ h: `TIGHT ONE: ${f.s('wl').toUpperCase()} EDGES ${f.s('ll').toUpperCase()}`, s: f.has('sc') ? `Cards: ${f.s('sc')}` : f.s('m') })],
     edgy: [(f) => ({ h: `Split opinion: was ${f.s('ll')} unlucky to lose to ${f.s('wl')}?`, s: f.has('sc') ? `Cards: ${f.s('sc')}` : f.s('m') })],
     warm: [(f) => ({ h: `${f.s('wl')} gets a narrow win over ${f.s('ll')}`, s: f.s('m') })],
   },
@@ -168,8 +174,8 @@ const TEMPLATES: Partial<Record<StoryKind, TplSet>> = {
   WEIGH_IN: {
     neutral: [(f) => ({ h: `${f.s('n')} had trouble making weight`, s: `${f.s('div')} · ${f.s('ev')}` })],
     loud: [(f) => ({ h: `WEIGH-IN DRAMA: ${f.s('n').toUpperCase()} STRUGGLES`, s: f.s('div') })],
-    edgy: [(f) => ({ h: `${f.s('n')} struggles on the scales — is the fight in danger?`, s: f.s('div') })],
-    warm: [(f) => ({ h: `${f.s('n')} gets there in the end on the scales`, s: f.s('div') })],
+    edgy: [(f) => ({ h: `${f.s('n')} struggled on the scales`, s: f.s('div') })],
+    warm: [(f) => ({ h: `${f.s('n')} had a difficult weigh-in`, s: f.s('div') })],
   },
   CALL_OUT: {
     neutral: [(f) => ({ h: `${f.s('n')} calls out ${f.s('t')}`, s: `${f.s('div')}` })],
@@ -270,7 +276,9 @@ const BODY: Partial<Record<StoryKind, (f: Fx) => string[]>> = {
 /** Stories only flatten into the same tone family as the outlet; the facts never change. */
 export function compose(kind: StoryKind, facts: Facts, tone: Tone, variant: number, depth = 3): Composed {
   const f = new Fx(facts)
-  const set = TEMPLATES[kind] ?? TEMPLATES.FIGHT_RESULT!
+  // A drawn fight never names a winner, whatever kind of story it became.
+  const draw = f.has('draw') && (kind === 'FIGHT_RESULT' || kind === 'CONTROVERSIAL_DECISION' || kind === 'WAR')
+  const set = (draw ? TEMPLATES.DRAW : TEMPLATES[kind]) ?? TEMPLATES.FIGHT_RESULT!
   const list = set[tone] ?? set.neutral
   const t = list[variant % list.length](f)
   let lines = (BODY[kind] ?? fightLines)(f).filter((x) => x && x.trim().length > 1)

@@ -12,12 +12,12 @@ import { mediaMessage } from './inbox'
 import { rosterOf } from './requests'
 import { rankingIdentity } from '../../data/mediaIdentity'
 import { weightClassLabel } from '../../data/weightClasses'
-import type { BoxingEvent, Fight, Fighter, GameState, Id } from '../types'
+import type { BoxingEvent, Fight, Fighter, GameState, Id, WeightClassId } from '../types'
 import { addCareer, seedCareers } from './career'
 import { narrativesFromFight, narrativesFromRetirement, narrativesFromTitle, weeklyNarratives } from './narratives'
 import { addInterest, decayProfiles, profileOf } from './popularity'
 import { RANK_ORG_BY_ID } from './orgs'
-import { rankIn, updateRankings, type RankMove } from './rankings'
+import { rankIn, reseatLists, updateRankings, type RankMove } from './rankings'
 import { freshMedia, LIMITS } from './state'
 import { coverEvent, pruneStories } from './stories'
 import { flagTitleFights, installChampions, maintainTitles, settleTitleFight, titleName, type TitleEvent } from './titles'
@@ -82,7 +82,11 @@ function careerFromFight(state: GameState, media: MediaState, ev: WorldEvent, fi
   if (!A || !B) return
   const day = fight.day
   const decided = r.winner !== null
-  if (!decided) return
+  if (!decided) {
+    // A drawn title fight is still a defence for the champion.
+    for (const te of titleEvs) if (te.kind === 'TITLE_DEFENCE' && te.f) addCareer(media, te.f, { d: day, k: 'TITLE_DEFENCE', a: titleName(te.body, fight.weightClass), n: te.defences })
+    return
+  }
   const W = r.winner === 0 ? A : B, L = r.winner === 0 ? B : A
   if (ev.tags.includes('upset')) addCareer(media, W.id, { d: day, k: 'UPSET', a: fighterName(L), n: Number(ev.facts.lrank ?? 0) || undefined })
   if (ev.tags.includes('unbeaten-fell')) addCareer(media, L.id, { d: day, k: 'FIRST_LOSS', a: fighterName(W) })
@@ -106,6 +110,7 @@ function ingestFights(state: GameState, media: MediaState): Ingested {
   for (const fight of fights) {
     mark(media, fight.id)
     const titleEvs = settleTitleFight(state, media, fight)
+    if (titleEvs.length) reseatLists(state, media, [fight.weightClass])
     const ev = eventFromFight(state, media, fight, titleEvs)
     if (!ev) continue
     events.push(ev)
@@ -194,6 +199,10 @@ function weekly(state: GameState, media: MediaState, week: number, ingested: Ing
   // Rankings and titles
   const moves = updateRankings(state, media)
   const titleEvs = [...maintainTitles(state, media), ...flagTitleFights(state, media)]
+  // A belt vacated, or a fighter retired, since the lists were last published: keep every list truthful.
+  const touched = new Set<WeightClassId>(titleEvs.filter((t) => t.kind === 'TITLE_VACANT' || t.kind === 'STRIPPED').map((t) => t.wc))
+  for (const f of Object.values(state.fighters)) if (f.status === 'retired' && f.retiredDay !== null && f.retiredDay > lastDay) touched.add(f.weightClass)
+  if (touched.size) reseatLists(state, media, touched)
   const mine = new Set(rosterOf(state).map((f) => f.id))
   const bestPerFighter = new Map<Id, RankMove>()
   for (const mv of moves) {
