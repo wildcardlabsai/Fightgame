@@ -69,19 +69,19 @@ export const TIER_DEFS: Record<PromotionTier, TierDef> = {
     id: 'National', label: 'National', rank: 2, blurb: 'A major domestic promotion: arenas, national television and real sponsorship.',
     rosterCap: 28, maxCapacity: 20_000, broadcasts: ['localTv', 'nationalTv', 'streaming', 'ppv'], sponsorTier: 3, sponsorSlots: 3, overheadMult: 2,
     unlocks: ['Roster capacity 28', 'Arena access (up to 20,000 seats)', 'Pay-per-view becomes available', 'National sponsors'],
-    requires: { reputation: 30, fanbase: 40_000, events: 14, revenue: 1_000_000, bestAttendance: 2_000, established: { count: 2, minReputation: 38 }, finance: 'notCritical', cash: 0 },
+    requires: { reputation: 42, fanbase: 120_000, events: 30, revenue: 3_500_000, bestAttendance: 4_000, established: { count: 3, minReputation: 42 }, finance: 'notCritical', cash: 0 },
   },
   Major: {
     id: 'Major', label: 'International', rank: 3, blurb: 'A major international promotion with overseas reach and elite talent.',
     rosterCap: 40, maxCapacity: 20_000, broadcasts: ['localTv', 'nationalTv', 'streaming', 'ppv'], sponsorTier: 4, sponsorSlots: 4, overheadMult: 4.5,
     unlocks: ['Roster capacity 40', 'International sponsors', 'Elite fighters take your calls'],
-    requires: { reputation: 52, fanbase: 350_000, events: 35, revenue: 9_000_000, bestAttendance: 8_000, established: { count: 4, minReputation: 52 }, finance: 'healthy', cash: 1_500_000 },
+    requires: { reputation: 58, fanbase: 450_000, events: 50, revenue: 14_000_000, bestAttendance: 8_000, established: { count: 4, minReputation: 55 }, finance: 'healthy', cash: 1_500_000 },
   },
   Global: {
     id: 'Global', label: 'Global', rank: 4, blurb: 'The top of the sport: stadium nights, major PPV and a worldwide audience.',
     rosterCap: 60, maxCapacity: 1_000_000, broadcasts: ['localTv', 'nationalTv', 'streaming', 'ppv'], sponsorTier: 5, sponsorSlots: 5, overheadMult: 10,
     unlocks: ['Roster capacity 60', 'Stadium events', 'Global sponsorship'],
-    requires: { reputation: 72, fanbase: 1_500_000, events: 70, revenue: 45_000_000, bestAttendance: 18_000, established: { count: 7, minReputation: 62 }, finance: 'healthy', cash: 8_000_000 },
+    requires: { reputation: 78, fanbase: 2_000_000, events: 90, revenue: 55_000_000, bestAttendance: 18_000, established: { count: 7, minReputation: 65 }, finance: 'healthy', cash: 8_000_000 },
   },
 }
 

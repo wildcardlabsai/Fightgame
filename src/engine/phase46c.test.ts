@@ -62,6 +62,48 @@ describe('promotion tier data', () => {
   })
 })
 
+describe('tier ladder sanity (Phase 4.6.1)', () => {
+  const req = (t: PromotionTier) => TIER_DEFS[t].requires!
+  it('every dimension rises with every step (no tier is easier than the one below it)', () => {
+    for (let i = 2; i < 5; i++) {
+      const a = req(TIER_SEQUENCE[i - 1]), b = req(TIER_SEQUENCE[i])
+      for (const k of ['reputation', 'fanbase', 'events', 'revenue', 'bestAttendance'] as const) expect(b[k], `${TIER_SEQUENCE[i]} ${k}`).toBeGreaterThan(a[k])
+      expect(b.established.count).toBeGreaterThanOrEqual(a.established.count)
+      expect(b.established.minReputation).toBeGreaterThan(a.established.minReputation)
+      expect(b.cash).toBeGreaterThanOrEqual(a.cash)
+    }
+  })
+  it('requirements only read the promotion\'s own record — nothing a higher tier unlocks is needed to reach it (no circular dependency)', () => {
+    // Each bar is reachable inside the previous tier: the biggest crowd asked for fits a venue that tier may already book.
+    for (let i = 1; i < 5; i++) { const need = req(TIER_SEQUENCE[i]).bestAttendance; const prev = TIER_DEFS[TIER_SEQUENCE[i - 1]]; expect(need, TIER_SEQUENCE[i]).toBeLessThanOrEqual(prev.maxCapacity) }
+    // Revenue and event counts are cumulative, not tier-gated, and fighters rated N+ can be signed at any tier.
+    expect(req('National').established.minReputation).toBeLessThanOrEqual(req('Major').established.minReputation)
+  })
+  it('one unusual event cannot promote a promotion on its own', () => {
+    const s = fresh('spike2', 'regional')
+    const p = player(s)
+    p.stats.bestAttendance = 20_000; p.stats.revenue = 50_000_000 // one monster night
+    expect(tierStatus(s).met).toBe(false)
+    expect(tierStatus(s).rows.filter((r) => !r.met).map((r) => r.key)).toEqual(expect.arrayContaining(['events', 'reputation']))
+    let t = s
+    for (let i = 0; i < 12; i++) t = advanceOneWeek(t)
+    expect(player(t).tier).toBe('Regional')
+  })
+  it('the Regional Promoter starts well short of National on every measure that is about the track record', () => {
+    const s = fresh('r1', 'regional')
+    const st = tierStatus(s)
+    const miss = st.rows.filter((r) => !r.met).map((r) => r.key)
+    expect(miss).toEqual(expect.arrayContaining(['events', 'revenue', 'attendance', 'reputation']))
+    expect(st.pct).toBeLessThan(60)
+  })
+  it('National Powerhouse starts National and stays there (it already clears the retention floor)', () => {
+    let s = fresh('n1', 'national')
+    for (let i = 0; i < 60; i++) s = advanceOneWeek(s)
+    expect(player(s).tier).toBe('National')
+    expect(s.promotionProgress!.history).toHaveLength(0)
+  })
+})
+
 describe('scenario starting tiers are coherent', () => {
   const expectTier: Record<ScenarioId, PromotionTier> = { groundUp: 'Startup', regional: 'Regional', national: 'National', champion: 'Startup' }
   for (const id of SCENARIO_ORDER) {

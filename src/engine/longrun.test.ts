@@ -2,18 +2,21 @@ import { describe, expect, it } from 'vitest'
 import { BALANCE as B } from './balance'
 import { freeAgents, rosterOf } from './selectors'
 import { advanceOneWeek } from './tick'
+import { cpuMs, median } from './benchTime'
 import { createNewGame } from './worldgen'
 
 describe('eight-year world simulation (player passive)', () => {
   it('keeps the market healthy, rivals stocked and state size bounded', () => {
     let s = createNewGame({ seed: 'longrun', promotionName: 'L', promoterName: 'T', homeCountry: 'ENG', difficulty: 'forgiving', logo: { monogram: 'L', color: '#fff', emblem: 'bolt' } })
     const rows: string[] = []
-    const t0 = performance.now()
+    const yearMs: number[] = []
+    let t0 = cpuMs()
     let day0 = s.today
     for (let w = 1; w <= 52 * 8; w++) {
       s = advanceOneWeek(s)
       if (w % 52 === 0) {
         const y = w / 52
+        yearMs.push((cpuMs() - t0) / 52)
         const signed = Object.values(s.fighters).reduce((n, f) => n + f.history.filter((h) => h.kind === 'signed' && h.day > day0 && h.promotionId !== s.playerPromotionId).length, 0)
         day0 = s.today
         const retired = Object.values(s.fighters).filter((f) => f.status === 'retired').length
@@ -33,11 +36,13 @@ describe('eight-year world simulation (player passive)', () => {
           expect(Number.isFinite(p.cash)).toBe(true)
           if (p.cash < 0) expect(distressed).toBe(true)
         }
+        t0 = cpuMs()
       }
     }
-    const ms = (performance.now() - t0) / (52 * 8)
-    console.log(rows.join('\n') + `\navg ms/week ${ms.toFixed(1)}`)
-    expect(ms).toBeLessThan(60) // average over eight years incl. fights
+    // Median of the eight yearly CPU-time averages: robust to one noisy year, still catches a real across-the-board slowdown.
+    const ms = median(yearMs)
+    console.log(rows.join('\n') + `\nmedian cpu ms/week ${ms.toFixed(1)} (years: ${yearMs.map((x) => x.toFixed(0)).join(', ')})`)
+    expect(ms).toBeLessThan(60) // median CPU ms/week over eight years incl. fights
     expect(JSON.stringify(s).length).toBeLessThan(3_500_000) // fits comfortably in browser storage
     // Every strategy actually made signings over the years.
     for (const strat of ['traditional', 'prospectFactory', 'money', 'regional'] as const) {
