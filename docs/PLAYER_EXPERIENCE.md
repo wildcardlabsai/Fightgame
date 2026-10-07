@@ -73,3 +73,6 @@ Every sound is paired with something visible (toast, banner, panel). In browser 
 | `engine` › keeps state consistent over three years | explicit 30 s timeout | The 3-year sim exceeds vitest's 5 s default when the whole suite runs in parallel; it passes alone. Assertions unchanged. |
 
 Version expectations use `GAME_STATE_VERSION`, so the bump to 6 needed no test edits.
+
+| `phase2` › ledger archive keeps cash reconciled | explicit 60 s timeout | 160-week sim now also runs tier/sponsor checks and exceeds vitest's 5 s default under parallel load; assertions unchanged (Phase 4.6c). |
+| `phase4` › refuses a venue you cannot afford / books PPV through the ledger | fixtures set the promotion to National tier | arenas and PPV are National-tier unlocks now (Phase 4.6c); the assertions are unchanged. |

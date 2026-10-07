@@ -117,3 +117,6 @@ grows with interest (£40k + £45·interest²).
 
 `scripts/audit/run.sh <dir> <years> "<strategies>" "<seeds>" [difficulty]` then `node scripts/audit/summarize.mjs <dir>`.
 Sections: `players`, `events`, `demand`, `ai`, `world`, `sizes`.
+
+
+> Phase 4.6 completion (promotion tiers, standing sponsors, tier-gated venues, overhead scaling): see `docs/ECONOMY_BALANCE.md`.

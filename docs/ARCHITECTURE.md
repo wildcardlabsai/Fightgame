@@ -153,3 +153,8 @@ UI (EventsScreen, EventPage)  →  store.eventDo(name,…) / runNextEventFight  
 - `src/audio/` (manager, synth backend, bindings) and `store/gameEvents.ts`: audio is driven by `data-sfx` attributes and store-emitted game events, never from render paths.
 - `GAME_STATE_VERSION` 6: optional `scenario` field.
 - Test hooks: `window.__audio` (always) and `window.__fe` (only with `?e2e`) in `main.tsx`; browser checks in `scripts/browser/phase47.mjs`.
+
+## Phase 4.6c additions
+
+- `tiers.ts` (pure data: caps, venue size limits, unlocks, requirements, overhead), `tierProgress.ts` (weekly progression, hysteresis, migration placement), `sponsorCatalog.ts` + `sponsors.ts` (standing sponsors; every payment via `ledger.post`, category `standingSponsor`; keyed randomness, never the world RNG). All allow-listed for the UI and static-scanned for hidden-field access.
+- `GAME_STATE_VERSION` 7: `promotionProgress`, `sponsors`, `PromotionStats.revenue`; v6→v7 migration places the player on the tier already earned.

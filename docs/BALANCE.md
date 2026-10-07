@@ -114,3 +114,6 @@ PPV: 16% of rival events (Apex 61%, Redline 27%, others ≈1–2%; 82% at stadiu
 * Rich rivals pile up cash until the distribution ceiling; Apex makes ~£4–5m a year of profit.
 * Strategy tables for 5/10 years are on final code; the 20-year strategy runs predate the final retention/fame tweaks.
 * Brutal is unforgiving for imperfect play.
+
+
+> Phase 4.6 completion: the balance changes, evidence and before/after simulations are in `docs/ECONOMY_BALANCE.md`.

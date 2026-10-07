@@ -65,3 +65,134 @@ Observed share of income: ~2.5% (Local) → ~6% (Regional) → ~11% (National) o
 | National Powerhouse (Easy) | National | £4m | 24 | 28 | |
 | Build a Champion (Expert) | Local | £420k | 5 | 10 | |
 
+
+## 6. Simulation results
+
+"Survive" = never insolvent at a year-end within the horizon and cash ≥ 0 at the end. Worlds are deterministic (seeds `s01…`). Before = Phase 4.7 code with the Phase 4.5 promoters (12 seeds at 5 years, 6 at 10); After = this phase with the updated promoters (25 seeds per core configuration at 3 and 5 years — the 3-year figures are the first three years of the same 5-year worlds — 4 seeds at 10 years, 1 at 20; the extra strategies 8 seeds).
+
+### Before → after, 5 years
+| scenario | strategy | n before→after | survive before→after | cash med before→after | rev/yr med | tier after | roster after |
+|---|---|---|---|---|---|---|---|
+| champion | aggressive | 12→25 | 25%→72% | -874k→802k | 1.6m→3.8m | National | 10 |
+| champion | balanced | 12→25 | 33%→80% | -487k→3.2m | 1.9m→3.4m | National | 8 |
+| champion | conservative | 12→25 | 58%→92% | 1.9m→3.3m | 1.7m→2.1m | Regional | 5 |
+| champion | prospects | 12→8 | 83%→88% | 3.8m→4.7m | 3.5m→3.9m | National | 9 |
+| champion | superstar | 12→8 | 17%→88% | -937k→3.1m | 1.0m→2.0m | Regional | 5 |
+| groundUp | aggressive | 12→25 | 17%→96% | -809k→1.6m | 1.7m→1.8m | Regional | 10 |
+| groundUp | balanced | 18→25 | 89%→88% | 1.2m→1.4m | 2.5m→2.3m | Regional | 8 |
+| groundUp | conservative | 25→25 | 100%→100% | 1.8m→2.0m | 1.6m→1.4m | Regional | 5 |
+| groundUp | prospects | 12→8 | 100%→100% | 4.5m→4.8m | 3.2m→3.4m | National | 9 |
+| groundUp | superstar | 12→8 | 33%→88% | -113k→2.6m | 1.4m→1.4m | Regional | 5 |
+| national | aggressive | 12→25 | 100%→92% | 11.7m→32.4m | 23.2m→28.0m | Intl | 16 |
+| national | balanced | 12→25 | 100%→100% | 16.9m→35.6m | 12.1m→16.5m | Intl | 15 |
+| national | conservative | 12→25 | 100%→100% | 2.4m→4.7m | 2.4m→3.1m | National | 16 |
+| national | prospects | 12→8 | 100%→100% | 2.1m→4.0m | 3.7m→5.1m | National | 15 |
+| national | superstar | 12→8 | 0%→0% | -2.1m→-800k | 462k→1.1m | National | 0 |
+| regional | aggressive | 12→25 | 0%→84% | -1.4m→3.3m | 1.1m→6.6m | National | 10 |
+| regional | balanced | 12→25 | 100%→96% | 3.9m→9.8m | 6.1m→6.5m | National | 8 |
+| regional | conservative | 12→25 | 92%→100% | 1.0m→2.3m | 2.0m→2.4m | National | 8 |
+| regional | prospects | 12→8 | 100%→100% | 1.2m→2.1m | 3.1m→3.6m | National | 9 |
+| regional | superstar | 12→8 | 25%→13% | -1.1m→-603k | 1.0m→2.0m | National | 6.5 |
+
+### Before → after, 10 years (Balanced and Aggressive were the ones that collapsed)
+| scenario | strategy | n before→after | survive before→after | cash med before→after | rev/yr med | tier after | roster after |
+|---|---|---|---|---|---|---|---|
+| champion | aggressive | 6→4 | 17%→75% | -2.1m→17.6m | 808k→9.3m | National | 10 |
+| champion | balanced | 6→4 | 33%→75% | -2.0m→7.1m | 599k→5.1m | National | 8 |
+| champion | conservative | –→4 | –→100% | –→4.6m | –→1.8m | National | 5 |
+| groundUp | aggressive | 6→4 | 0%→75% | -1.9m→1.3m | 986k→1.8m | Regional | 7 |
+| groundUp | balanced | 6→4 | 83%→100% | 3.0m→5.4m | 3.8m→3.8m | National | 8 |
+| groundUp | conservative | –→4 | –→100% | –→4.3m | –→1.5m | Regional | 5 |
+| national | aggressive | 6→4 | 100%→100% | 23.6m→68.0m | 22.0m→27.0m | Intl | 10 |
+| national | balanced | 6→4 | 100%→100% | 9.3m→59.5m | 10.2m→16.6m | Intl | 8 |
+| national | conservative | –→4 | –→100% | –→4.9m | –→2.9m | National | 5 |
+| regional | aggressive | 6→4 | 0%→25% | -2.5m→-2.1m | 627k→1.5m | National | 0 |
+| regional | balanced | 6→4 | 100%→100% | 4.3m→20.2m | 5.8m→7.5m | National | 8 |
+| regional | conservative | –→4 | –→100% | –→1.2m | –→1.7m | National | 5 |
+
+### Full after-tables (all requested columns, 3 and 5 years)
+```
+
+### Horizon 3 years
+scenario | strategy | n | survive | bankrupt | tier | cash med | rev/yr med | evt profit med | evt loss med | worst | best | roster | payroll/yr | shows/yr | fill | att | bcast/yr | spons evt/yr | spons stand/yr | ppv/yr
+champion | aggressive | 25 | 92% | 8% | Regional | 1.29m | 3.13m | 99k | -43k | -278k | 527k | 10 | 1.59m | 8.0 | 100% | 3500 | 128k | 138k | 56k | 0k
+champion | balanced | 25 | 84% | 16% | Regional | 1.79m | 2.82m | 79k | -24k | -164k | 502k | 8 | 1.45m | 8.7 | 88% | 1907 | 127k | 123k | 57k | 0k
+champion | conservative | 25 | 92% | 8% | Regional | 2.64m | 2.22m | 171k | -8k | -63k | 277k | 5 | 569k | 7.3 | 100% | 4200 | 55k | 97k | 58k | 0k
+champion | prospects | 8 | 88% | 13% | National | 4.35m | 3.69m | 136k | -24k | -68k | 264k | 9 | 941k | 14.0 | 100% | 4192 | 97k | 166k | 105k | 0k
+champion | superstar | 8 | 88% | 13% | Regional | 2.86m | 2.28m | 177k | – | 0k | 279k | 5 | 497k | 7.3 | 100% | 3883 | 59k | 103k | 56k | 0k
+groundUp | aggressive | 25 | 100% | 0% | Local(max Regional) | 1.54m | 1.28m | 83k | -12k | -22k | 201k | 5 | 323k | 7.0 | 90% | 2404 | 43k | 54k | 30k | 0k
+groundUp | balanced | 25 | 92% | 8% | Local(max Regional) | 989k | 1.70m | 57k | -13k | -67k | 285k | 8 | 852k | 7.7 | 79% | 1400 | 55k | 73k | 29k | 0k
+groundUp | conservative | 25 | 100% | 0% | Local(max Regional) | 1.58m | 1.33m | 97k | -11k | -21k | 242k | 5 | 323k | 7.3 | 93% | 2571 | 44k | 57k | 32k | 0k
+groundUp | prospects | 8 | 100% | 0% | Regional | 3.37m | 2.68m | 72k | -4k | -32k | 273k | 9 | 669k | 13.8 | 100% | 2500 | 83k | 123k | 51k | 0k
+groundUp | superstar | 8 | 100% | 0% | Local(max Regional) | 1.47m | 1.21m | 83k | -5k | -8k | 208k | 5 | 292k | 6.8 | 98% | 2316 | 43k | 54k | 26k | 0k
+national | aggressive | 25 | 96% | 4% | National | 14.80m | 26.06m | 307k | -228k | -2.37m | 4.50m | 20 | 11.08m | 11.0 | 79% | 14854 | 0k | 1.80m | 1.05m | 6.01m
+national | balanced | 25 | 100% | 0% | Intl | 20.02m | 14.28m | 463k | -240k | -749k | 1.28m | 20 | 5.42m | 12.0 | 84% | 9442 | 653k | 1.14m | 1.09m | 0k
+national | conservative | 25 | 100% | 0% | National | 5.35m | 3.08m | 228k | -102k | -230k | 310k | 21 | 1.58m | 7.3 | 100% | 4800 | 53k | 203k | 572k | 0k
+national | prospects | 8 | 100% | 0% | National | 6.58m | 5.13m | 172k | -80k | -246k | 284k | 19.5 | 2.60m | 14.0 | 100% | 4800 | 102k | 372k | 598k | 0k
+national | superstar | 8 | 0% | 100% | National | -1.10m | 1.44m | -295k | -422k | -1.22m | 298k | 8 | 1.82m | 2.0 | 43% | 6372 | 0k | 72k | 499k | 79k
+regional | aggressive | 25 | 96% | 4% | National | 1.63m | 4.36m | 80k | -79k | -568k | 1.76m | 10 | 2.18m | 8.7 | 86% | 3840 | 61k | 220k | 227k | 349k
+regional | balanced | 25 | 96% | 4% | National | 6.23m | 5.96m | 150k | -38k | -288k | 1.10m | 10 | 2.46m | 11.7 | 80% | 3118 | 298k | 315k | 256k | 0k
+regional | conservative | 25 | 100% | 0% | National | 2.53m | 2.19m | 149k | -38k | -83k | 287k | 10 | 783k | 7.3 | 90% | 3975 | 48k | 108k | 234k | 0k
+regional | prospects | 8 | 100% | 0% | National | 3.68m | 4.25m | 123k | -26k | -159k | 254k | 9.5 | 1.74m | 14.2 | 100% | 4660 | 97k | 225k | 366k | 0k
+regional | superstar | 8 | 100% | 0% | National | 1.68m | 2.20m | 143k | -412k | -659k | 279k | 9.5 | 800k | 6.8 | 88% | 4096 | 36k | 111k | 227k | 1k
+
+### Horizon 5 years
+scenario | strategy | n | survive | bankrupt | tier | cash med | rev/yr med | evt profit med | evt loss med | worst | best | roster | payroll/yr | shows/yr | fill | att | bcast/yr | spons evt/yr | spons stand/yr | ppv/yr
+champion | aggressive | 25 | 72% | 28% | National | 802k | 3.77m | 97k | -70k | -583k | 2.87m | 10 | 2.12m | 8.2 | 99% | 3500 | 103k | 181k | 84k | 167k
+champion | balanced | 25 | 80% | 20% | National | 3.24m | 3.39m | 80k | -28k | -293k | 885k | 8 | 1.75m | 9.0 | 91% | 1906 | 152k | 151k | 75k | 0k
+champion | conservative | 25 | 92% | 8% | Regional(max National) | 3.26m | 2.08m | 146k | -10k | -70k | 277k | 5 | 594k | 7.2 | 100% | 4123 | 53k | 93k | 68k | 0k
+champion | prospects | 8 | 88% | 13% | National | 4.68m | 3.92m | 115k | -46k | -182k | 264k | 9 | 1.46m | 14.2 | 100% | 4200 | 100k | 186k | 179k | 0k
+champion | superstar | 8 | 88% | 13% | Regional(max National) | 3.12m | 1.99m | 141k | -16k | -31k | 279k | 5 | 462k | 6.9 | 100% | 3508 | 49k | 91k | 66k | 0k
+groundUp | aggressive | 25 | 96% | 4% | Regional | 1.60m | 1.79m | 72k | -27k | -235k | 383k | 10 | 782k | 7.2 | 91% | 2568 | 62k | 84k | 39k | 0k
+groundUp | balanced | 25 | 88% | 12% | Regional | 1.45m | 2.26m | 62k | -22k | -141k | 449k | 8 | 1.19m | 8.8 | 82% | 1400 | 68k | 101k | 42k | 0k
+groundUp | conservative | 25 | 100% | 0% | Regional | 1.97m | 1.39m | 89k | -12k | -39k | 242k | 5 | 395k | 7.2 | 93% | 2661 | 44k | 60k | 40k | 0k
+groundUp | prospects | 8 | 100% | 0% | National(max National) | 4.80m | 3.41m | 102k | -22k | -78k | 273k | 9 | 1.07m | 14.0 | 100% | 3499 | 92k | 173k | 77k | 0k
+groundUp | superstar | 8 | 88% | 13% | Regional | 2.62m | 1.39m | 89k | -2k | -8k | 253k | 5 | 367k | 6.9 | 100% | 2563 | 44k | 64k | 37k | 0k
+national | aggressive | 25 | 92% | 8% | Intl | 32.38m | 27.98m | 454k | -236k | -2.96m | 5.87m | 16 | 11.37m | 11.0 | 84% | 14990 | 0k | 2.10m | 1.77m | 6.78m
+national | balanced | 25 | 100% | 0% | Intl | 35.63m | 16.48m | 523k | -196k | -1.33m | 1.59m | 15 | 6.32m | 12.2 | 90% | 9695 | 735k | 1.43m | 1.62m | 0k
+national | conservative | 25 | 100% | 0% | National | 4.70m | 3.11m | 178k | -51k | -230k | 310k | 16 | 1.91m | 7.2 | 100% | 4800 | 55k | 217k | 558k | 0k
+national | prospects | 8 | 100% | 0% | National | 3.98m | 5.06m | 121k | -75k | -246k | 284k | 15 | 3.45m | 13.1 | 100% | 4800 | 106k | 405k | 582k | 0k
+national | superstar | 8 | 0% | 100% | National | -800k | 1.05m | -295k | -422k | -1.22m | 298k | 0 | 1.09m | 1.2 | 43% | 6372 | 0k | 43k | 487k | 47k
+regional | aggressive | 25 | 84% | 16% | National | 3.29m | 6.63m | 88k | -103k | -1.09m | 2.89m | 10 | 2.61m | 8.0 | 88% | 4200 | 36k | 334k | 260k | 1.24m
+regional | balanced | 25 | 96% | 4% | National | 9.79m | 6.50m | 158k | -53k | -850k | 1.20m | 8 | 2.87m | 11.0 | 86% | 3160 | 403k | 388k | 294k | 0k
+regional | conservative | 25 | 100% | 0% | National | 2.27m | 2.39m | 122k | -30k | -86k | 287k | 8 | 1.12m | 7.4 | 100% | 4200 | 49k | 120k | 272k | 0k
+regional | prospects | 8 | 100% | 0% | National | 2.06m | 3.56m | 87k | -41k | -159k | 254k | 9 | 2.13m | 11.0 | 100% | 4800 | 82k | 201k | 370k | 0k
+regional | superstar | 8 | 13% | 88% | National | -603k | 1.97m | 116k | -233k | -739k | 279k | 6.5 | 950k | 5.2 | 84% | 4187 | 22k | 100k | 236k | 61k
+```
+(`evt profit/loss med` = median profitable / loss-making show; `worst`/`best` = largest single loss/profit; `spons stand/yr` = standing sponsors, `spons evt/yr` = per-event sponsors.)
+
+### Tier progression (Balanced promoter, median years to reach)
+| Scenario | Local→Regional | Regional→National | National→International |
+|---|---|---|---|
+| From the Ground Up | 3.3 | 7.8 | 16.1 (20-year world) |
+| Regional Promoter | start | 1.7 | 7.7 (1 of 4 within 10 years) |
+| Build a Champion | 0.8 | 4.4 | 12.3 (20-year world) |
+| National Powerhouse | – | start | 2.9 |
+Global was not reached within 20 years in any world (intended: it is the end game).
+
+### 20-year worlds (Balanced, 1 seed per scenario)
+Ground Up: International at year 16, £21.5m cash. Regional: National, £49.8m. Champion: International at year 12, £16.1m. National Powerhouse: International in year 3, £127m. No world went insolvent; none collapsed or stalled.
+
+## 7. Reading the results against the goals
+- **Conservative is the safest.** 92–100% survival at 5 years, 100% at 10 years in every scenario — but it also grows slowest (ends at Regional/National with £1–5m).
+- **Balanced is viable.** 80–100% at 5 years and 75–100% at 10; reaches National in 4–8 years from a local start.
+- **Aggressive is viable but riskier**: 72–96% at 5 years, 25–100% at 10 (Regional start 25%): higher ceilings (£17–68m at 10 years) and the biggest single losses (down to −£3m).
+- **Bad decisions still bite.** Superstar-betting from a Regional or National start is 13–0% survival; every strategy still sees losing shows (median loss £10–250k, worst −£3m).
+- **Bankruptcy is caused by sustained decisions**, not scaling: failures are star bets before the tier can use them, staying small while paying a developed roster, or failing to recover after a dip.
+- **Money is not created**: `economy46c.test.ts` replays two years of a balanced promoter with sponsors and checks `cash = archive + Σ ledger` every 26 weeks; sponsor income equals its ledger lines.
+
+## 8. Remaining economic concerns (honest)
+1. **National Powerhouse runs away.** Balanced is £36m at 5 years, £60–127m at 10–20 years with no money sink (revenue £15–28m a year against 20–25% margins). It is the "Easy" career, and decisions still matter (Conservative ends at £5m), but past National the game needs sinks (staff, facilities, titles, taxes) — a Phase 5+ job. Tier overhead scaling slows but does not stop it.
+2. **Regional Promoter reaches National in under two years.** Its starting reputation (24) is already close to the National bar (30). Probably fine for "Normal", but the Regional→National step is short in that career.
+3. **Aggressive from a Regional start is a coin-flip over 10 years (25%).** Intended to be risky; worth watching in human playtests.
+4. **Audit promoters are scripted.** They now use forecast-driven pricing, purse affordability, tier-aware bets and a cash-scare downshift; they do not release surplus fighters or negotiate. Humans can do better (and worse). All Before numbers used the older promoters, so part of the improvement is the promoters getting smarter; the engine changes account for tier gating, overhead scaling, the champion's contract and sponsors.
+5. **Seeds are limited at long horizons** (4 at 10 years, 1 at 20), because a 10-year world takes minutes. Treat the 10- and 20-year columns as indicative.
+6. **Tier requirements are judgement calls** calibrated from these runs, not from human play.
+
+## 9. How to reproduce
+```
+scripts/audit/runmatrix.sh <repo> <outdir> <years> "<scenarios>" "<strategies>" "<seeds>" <parallel>
+node scripts/audit/matrix.mjs <outdir> 3,5,10      # survival, cash, revenue, event profit/loss, tier, roster, payroll, sponsors…
+node scripts/audit/diagnose.mjs <outdir> 5         # cash-flow decomposition
+node scripts/audit/compare.mjs <before> <after> 5  # side-by-side
+```

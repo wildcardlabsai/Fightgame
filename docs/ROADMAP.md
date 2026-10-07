@@ -69,3 +69,7 @@ Animation, sound, richer charts, fight/event presentation, tutorial/onboarding, 
 ## Phase 4.7 — Promoter advisor, career scenarios, onboarding & audio ✅
 
 See `docs/PLAYER_EXPERIENCE.md`. Phase 4.6 (progression/economic curve tuning) was paused part-way for this phase: its diagnosis harness (cash-flow breakdown, career tracker) is committed; no balance values were changed.
+
+## Phase 4.6c — Promotion tiers, standing sponsors, economy calibration ✅
+
+See `docs/ECONOMY_BALANCE.md`. Tier table in `src/engine/tiers.ts`, sponsors in `src/engine/sponsorCatalog.ts` / `sponsors.ts`. Save version 7.

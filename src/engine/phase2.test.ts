@@ -543,7 +543,7 @@ describe('integrity over time', () => {
     expect(s.ledger.length).toBeLessThanOrEqual(600)
     expect(s.ledgerArchive).not.toBe(0)
     ledgerBalanced(s)
-  })
+  }, 60_000)
 })
 
 describe('persistence of knowledge, contracts and negotiations', () => {
