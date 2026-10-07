@@ -21,7 +21,13 @@ export function cuesFor(e: GameEvent): { cue: CueId; atMs: number; once?: string
     case 'event.started': return [{ cue: 'eventStarted', atMs: 0, once: `start:${e.eventId}` }, { cue: 'crowdAmbience', atMs: 600 }]
     case 'event.mainEvent': return [{ cue: 'mainEvent', atMs: 0, once: `main:${e.eventId}` }]
     case 'event.completed': return [{ cue: 'eventCompleted', atMs: 0, once: `done:${e.eventId}` }]
+    case 'fight.round': return e.round === 1 ? [{ cue: 'bell', atMs: 0, once: `lf:${e.fightId}:r1` }, { cue: 'crowd', atMs: 400, once: `lf:${e.fightId}:crowd` }] : [{ cue: 'bell', atMs: 0, once: `lf:${e.fightId}:r${e.round}` }]
+    case 'fight.knockdown': return [{ cue: 'knockdown', atMs: 0, once: `lf:${e.fightId}:kd${e.round}` }]
+    case 'fight.finish': return e.ko
+      ? [{ cue: 'ko', atMs: 0, once: `lf:${e.fightId}:fin` }, { cue: 'resultAnnounce', atMs: 1100, once: `lf:${e.fightId}:ann` }]
+      : [{ cue: 'decision', atMs: 0, once: `lf:${e.fightId}:fin` }, { cue: 'resultAnnounce', atMs: 900, once: `lf:${e.fightId}:ann` }]
     case 'fight.result': {
+      if (e.presented) return []
       const ko = KO_METHODS.has(e.method)
       const steps: { cue: CueId; atMs: number }[] = [{ cue: 'bell', atMs: 0 }, { cue: 'crowd', atMs: 450 }]
       if (e.knockdowns > 0) steps.push({ cue: 'knockdown', atMs: 1000 })

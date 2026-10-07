@@ -20,6 +20,10 @@ import { Avatar, Meter, RiskChip, Section } from '../components/Bits'
 import { AreaChart } from '../components/Charts'
 import { RangeText } from '../components/Estimates'
 import { compactNumber, money } from '../format'
+import { eventPosterView } from '../../engine/eventPoster'
+import { EventPoster } from '../visual/EventPoster'
+import { cardFighter, FighterCard } from '../visual/FighterCard'
+import { NewsCard } from '../visual/NewsCard'
 
 const LOOP: { name: string; status: 'live' | 'partial' | 'locked'; note: string }[] = [
   { name: 'Scout', status: 'live', note: 'Reports & searches live' },
@@ -50,6 +54,10 @@ export function Dashboard() {
   const unread = unreadCount(game)
   const mail = game.inbox.slice(0, 4)
   const de = dashboardEvent(game)
+  const poster = de.next ? eventPosterView(game, de.next.id) : null
+  const spotlight = roster[0] ?? null
+  const nextFight = myFights.find((f) => f.statusKey !== 'negotiating') ?? null
+  const recent = lastResults[0] ?? null
   const health = financialHealth(game)
   const allDesk = deskAdvice(game, 'full', 12)
   const sc = scenarioById(game.scenario?.id)
@@ -130,19 +138,36 @@ export function Dashboard() {
       <div className="desk"><AdvicePanel list={allDesk} cap={4} title="Promoter’s desk" compact /></div>
 
       <Section title="Next show" right={<button className="linkbtn" onClick={() => navigate('events')}>{de.openCount > 1 ? `All ${de.openCount} shows` : 'Events'}</button>}>
-        {!de.next ? (
-          <div className="attn"><div><div className="t">No show planned</div><div className="d">{de.actions[0]}</div></div><button className="btn small go" onClick={() => navigate('events')}>Plan a show</button></div>
-        ) : (
-          <div className="attn info" style={{ cursor: 'pointer' }} onClick={() => navigate('event', de.next!.id)}>
-            <div style={{ flex: 1 }}>
-              <div className="t">{de.next.name} <span className="dim">· {formatDay(de.next.day, false)} · {de.next.weeksAway}w</span></div>
-              <div className="d">{de.next.venueName}, {de.next.city} · {de.next.status} · {de.next.main}</div>
-              <div className="d">{de.next.sold > 0 ? `${de.next.sold.toLocaleString('en-GB')} / ${de.next.capacity.toLocaleString('en-GB')} sold (${de.next.fillPct}%)` : `${de.next.capacity.toLocaleString('en-GB')} seats`}{de.forecastProfit ? ` · forecast profit ${money(de.forecastProfit.lo)} to ${money(de.forecastProfit.hi)}` : ''}</div>
-              {de.actions.length > 0 && <div className="d warn">To do: {de.actions.join(' · ')}</div>}
-            </div>
-            {de.risk && <RiskChip risk={de.risk} />}
+        <div className="v-hero-grid" style={{ marginTop: 0 }}>
+          <div>
+            {!de.next ? (
+              <div className="attn"><div><div className="t">No show planned</div><div className="d">{de.actions[0]}</div></div><button className="btn small go" onClick={() => navigate('events')}>Plan a show</button></div>
+            ) : (
+              <>
+                {poster && <EventPoster v={poster} size="lead" onClick={() => navigate('event', de.next!.id)} />}
+                <div className="attn info" style={{ cursor: 'pointer', marginTop: 8 }} onClick={() => navigate('event', de.next!.id)}>
+                  <div style={{ flex: 1 }}>
+                    <div className="t">{de.next.name} <span className="dim">· {formatDay(de.next.day, false)} · {de.next.weeksAway}w · {de.next.status}</span></div>
+                    <div className="d">{de.next.sold > 0 ? `${de.next.sold.toLocaleString('en-GB')} / ${de.next.capacity.toLocaleString('en-GB')} sold (${de.next.fillPct}%)` : `${de.next.capacity.toLocaleString('en-GB')} seats`}{de.forecastProfit ? ` · forecast profit ${money(de.forecastProfit.lo)} to ${money(de.forecastProfit.hi)}` : ''}</div>
+                    {de.actions.length > 0 && <div className="d warn">To do: {de.actions.join(' · ')}</div>}
+                  </div>
+                  {de.risk && <RiskChip risk={de.risk} />}
+                </div>
+              </>
+            )}
           </div>
-        )}
+          <div className="v-spot" data-testid="dash-spotlight">
+            <div className="caps">Fighter spotlight</div>
+            {spotlight ? (
+              <>
+                <FighterCard f={cardFighter(spotlight)} size="large" onClick={() => navigate('fighter', spotlight.id)} />
+                <div className="dim" style={{ fontSize: 13.5 }}>{spotlight.stage} · {spotlight.style} · scout grade <RangeText r={spotlight.grade} scouted /></div>
+              </>
+            ) : <p className="empty">Sign a fighter and they will be featured here.</p>}
+            {nextFight && <div className="attn" style={{ cursor: 'pointer' }} onClick={() => navigate('fight', nextFight.id)}><div><div className="caps">Next fight</div><div className="t">{nextFight.aName} vs {nextFight.bName}</div><div className="d">{nextFight.status}{nextFight.weeksAway ? ` · ${nextFight.weeksAway} weeks` : ''}</div></div></div>}
+            {recent && <div className="attn info" style={{ cursor: 'pointer' }} onClick={() => navigate('fight', recent.id)}><div><div className="caps">Latest result</div><div className="t">{recent.resultText}</div><div className="d">{recent.method} · {formatDay(recent.day, true)}</div></div></div>}
+          </div>
+        </div>
       </Section>
 
       <Section title="The empire pipeline" right={<span className="dim" style={{ fontSize: 13 }}>What’s playable now vs. what’s coming</span>}>
@@ -252,13 +277,9 @@ export function Dashboard() {
 
       <Section title="Boxing news">
         {game.news.length === 0 ? <p className="empty">The world is quiet. Advance time and the headlines will follow.</p> : (
-          <div style={{ display: 'grid', gap: 0 }}>
-            {game.news.slice(0, 8).map((n) => (
-              <div key={n.id} className="attn" style={{ cursor: n.fighterId || n.fightId || n.eventId ? 'pointer' : 'default' }} onClick={() => n.eventId ? navigate('event', n.eventId) : n.fightId ? navigate('fight', n.fightId) : n.fighterId && navigate('fighter', n.fighterId)}>
-                <span className="caps" style={{ minWidth: 64 }}>{formatDay(n.day, false)}</span>
-                <span>{n.headline}</span>
-                <span className="chip" style={{ marginLeft: 'auto' }}>{n.category}</span>
-              </div>
+          <div className="v-news-grid">
+            {game.news.slice(0, 6).map((n) => (
+              <NewsCard key={n.id} n={n} onClick={n.fightId || n.eventId || n.fighterId ? () => (n.eventId ? navigate('event', n.eventId) : n.fightId ? navigate('fight', n.fightId) : navigate('fighter', n.fighterId!)) : undefined} />
             ))}
           </div>
         )}

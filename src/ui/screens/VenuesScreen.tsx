@@ -5,6 +5,7 @@ import { venueViews, type VenueView } from '../../engine/eventViews'
 import { useGame } from '../../store/gameStore'
 import { Meter, Stars } from '../components/Bits'
 import { money } from '../format'
+import { VenueCard } from '../visual/VenueCard'
 
 const TIERS = ['all', 'local', 'regional', 'national', 'arena', 'stadium'] as const
 
@@ -29,6 +30,11 @@ export function VenuesScreen() {
       <div className="tabs" role="tablist">
         {TIERS.map((t) => <button key={t} role="tab" aria-selected={tier === t} className={`tab${tier === t ? ' active' : ''}`} onClick={() => setTier(t)}>{t === 'all' ? 'All' : t[0].toUpperCase() + t.slice(1)}</button>)}
       </div>
+      <div className="v-vgrid" data-testid="venue-cards" style={{ marginBottom: 20 }}>
+        {rows.map((v) => <VenueCard key={v.id} v={v} onClick={() => setOpen(open === v.id ? null : v.id)} />)}
+      </div>
+      {open && rows.find((v) => v.id === open) && <VenueDetail v={rows.find((v) => v.id === open)!} />}
+      <details className="v-table-fold"><summary className="linkbtn" style={{ cursor: 'pointer', marginBottom: 8 }}>Compare in a table</summary>
       <div className="table-wrap">
         <table className="table">
           <thead><tr><th>Venue</th><th>Tier</th><th>Prestige</th><th style={{ minWidth: 160 }}>Capacity</th><th>Card</th><th className="r">Hire / night</th></tr></thead>
@@ -37,6 +43,7 @@ export function VenuesScreen() {
           </tbody>
         </table>
       </div>
+      </details>
       {mine.length > 0 && <p className="dim" style={{ marginTop: 10, fontSize: 13 }}>Your bookings: {mine.map((e) => `${e.name} (${game.venues[e.venueId].name}, ${formatDay(e.day, false)})`).join(' · ')}</p>}
     </>
   )
@@ -66,5 +73,21 @@ function Row({ v, max, open, toggle }: { v: VenueView; max: number; open: boolea
         </td></tr>
       )}
     </>
+  )
+}
+
+function VenueDetail({ v }: { v: VenueView }) {
+  return (
+    <section className="section" data-testid="venue-detail">
+      <div className="section-head"><h2>{v.name}</h2></div>
+      <dl>
+        <div className="kv"><dt>Production capability</dt><dd>{v.production}/5 · staging bill ≈ {money(v.productionCost, false)}</dd></div>
+        <div className="kv"><dt>Local market</dt><dd>{v.market >= 1.3 ? 'Huge' : v.market >= 1.05 ? 'Strong' : v.market >= 0.85 ? 'Average' : 'Small'} fight city (×{v.market.toFixed(2)})</dd></div>
+        <div className="kv"><dt>Card size</dt><dd>{v.minFights}–{v.maxFights} fights</dd></div>
+        <div className="kv"><dt>Next free Saturdays</dt><dd>{v.freeDates.length ? v.freeDates.map((d) => formatDay(d, false)).join(' · ') : 'None soon'}</dd></div>
+        {v.bookedBy.length > 0 && <div className="kv"><dt>Already booked</dt><dd>{v.bookedBy.slice(0, 5).map((b) => `${formatDay(b.day, false)} ${b.mine ? '(you)' : ''}`).join(' · ')}</dd></div>}
+        {v.locked && <div className="kv"><dt>Locked</dt><dd className="warn">{v.locked}</dd></div>}
+      </dl>
+    </section>
   )
 }

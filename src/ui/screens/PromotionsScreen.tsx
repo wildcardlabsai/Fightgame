@@ -4,7 +4,8 @@ import { TIER_ORDER } from '../../engine/promotions'
 import type { AiStrategy } from '../../engine/types'
 import { useGame } from '../../store/gameStore'
 import { useViews } from '../../store/hooks'
-import { PromoLogo, Section } from '../components/Bits'
+import { Section } from '../components/Bits'
+import { PromoMark } from '../visual/PromoMark'
 import { TierPanel } from '../components/TierPanel'
 import { tierLabel } from '../../engine/tiers'
 import { FighterTable } from '../components/FighterTable'
@@ -47,7 +48,7 @@ export function PromotionsScreen() {
           <tbody>
             {promos.map(({ p, roster, avgRep, avgAge }) => (
               <tr key={p.id} className={`row${p.isPlayer ? ' mine' : ''}`} onClick={() => setSel(p.id === sel ? null : p.id)}>
-                <td className="primary" data-label="Promotion"><div className="fighter-cell"><PromoLogo p={p} size={36} />
+                <td className="primary" data-label="Promotion"><div className="fighter-cell"><PromoMark p={p} size={36} />
                   <div><div className="fighter-name">{p.name}{p.isPlayer && <span className="chip gold" style={{ marginLeft: 8 }}>You</span>}</div>
                     <div className="fighter-sub">{p.promoterName} · est. {formatDay(p.foundedDay, true).split(' ').pop()}</div></div></div></td>
                 <td data-label="Tier">{tierLabel(p.tier)}</td>

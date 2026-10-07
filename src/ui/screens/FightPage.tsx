@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { formatDay } from '../../engine/calendar'
 import { eventList } from '../../engine/eventViews'
 import { fightView, type FightSideView, type FightView, type ResultView } from '../../engine/fightViews'
@@ -8,6 +8,7 @@ import { Section } from '../components/Bits'
 import { RangeText } from '../components/Estimates'
 import { Corner, FormDots, StarRating, StatBar, VerdictChip } from '../components/FightBits'
 import { Modal } from '../components/Overlay'
+import { LiveFight } from '../visual/LiveFight'
 import { money } from '../format'
 
 const INTENSITY: Record<CampIntensity, { n: string; d: string }> = {
@@ -21,7 +22,7 @@ const PLAN: Record<FightPlan, { n: string; d: string }> = {
   cautious: { n: 'Cautious', d: 'Stay safe, protect the chin, win rounds.' },
 }
 
-function Hero({ fv, after, showWinner }: { fv: FightView; after?: [string, string]; showWinner: boolean }) {
+function Hero({ fv, after, showWinner, hideMatchup }: { fv: FightView; after?: [string, string]; showWinner: boolean; hideMatchup?: boolean }) {
   const r = fv.result
   const wName = r && r.winner !== null ? (r.winner === 0 ? fv.a.fighter : fv.b.fighter) : null
   const lName = r && r.winner !== null ? (r.winner === 0 ? fv.b.fighter : fv.a.fighter) : null
@@ -34,11 +35,11 @@ function Hero({ fv, after, showWinner }: { fv: FightView; after?: [string, strin
         </div>
         <div className="caps">{fv.status}{fv.seriesNote ? ` · ${fv.seriesNote}` : ''}</div>
       </div>
-      <div className="matchup">
+      {!hideMatchup && <div className="matchup">
         <Corner v={fv.a.fighter} side="a" record={after && showWinner ? after[0] : fv.a.preRecord} extra={<div style={{ marginTop: 6 }}><FormDots form={fv.a.fighter.form} /></div>} />
         <div className="vs">VS</div>
         <Corner v={fv.b.fighter} side="b" record={after && showWinner ? after[1] : fv.b.preRecord} extra={<div style={{ marginTop: 6 }}><FormDots form={fv.b.fighter.form} /></div>} />
-      </div>
+      </div>}
       {r && showWinner && (
         <div className={`result-banner${r.upsetLabel ? ' upset' : ''}`}>
           <div className="caps">{r.upsetLabel ?? 'Result'}{r.stoppage ? ' · Stoppage' : ''}</div>
@@ -69,39 +70,11 @@ function Strengths({ a, b }: { a: FightSideView; b: FightSideView }) {
   )
 }
 
-function ResultSection({ fv, r, shown }: { fv: FightView; r: ResultView; shown: number }) {
+function ResultSection({ fv, r, done }: { fv: FightView; r: ResultView; done: boolean }) {
   const navigate = useGame((s) => s.navigate)
-  const total = r.rounds?.length ?? 0
-  const done = shown >= total
   const a = fv.a.fighter, b = fv.b.fighter
   return (
     <>
-      {r.rounds && (
-        <Section title="Round by round">
-          <div className="timeline" style={{ marginBottom: 16 }}>
-            {r.rounds.map((rd, i) => (
-              <div key={i} className={`tl ${i < shown ? (rd.winner === 0 ? 'a' : rd.winner === 1 ? 'b' : '') : 'hidden'}`} title={rd.line}>
-                {rd.kd[0] + rd.kd[1] > 0 && i < shown && <span className="kdm">⬇</span>}{rd.n}
-              </div>
-            ))}
-          </div>
-          {r.rounds.slice(0, shown).map((rd) => (
-            <div key={rd.n} className={`round-row${rd.kd[0] + rd.kd[1] > 0 ? ' kd' : ''}`}>
-              <div className="n">R{rd.n}</div>
-              <div>
-                <div>{rd.line}</div>
-                <div className="dim" style={{ fontSize: 13 }}>
-                  {a.lastName} {rd.a.landed}/{rd.a.thrown} · {b.lastName} {rd.b.landed}/{rd.b.thrown}
-                  {rd.kd[0] > 0 ? ` · ⬇ ${b.lastName} down${rd.kd[0] > 1 ? ' ×' + rd.kd[0] : ''}` : ''}{rd.kd[1] > 0 ? ` · ⬇ ${a.lastName} down${rd.kd[1] > 1 ? ' ×' + rd.kd[1] : ''}` : ''}
-                  {rd.punish[0] !== 'Barely marked' && rd.punish[0] !== 'Light damage' ? ` · ${a.lastName}: ${rd.punish[0].toLowerCase()}` : ''}{rd.punish[1] !== 'Barely marked' && rd.punish[1] !== 'Light damage' ? ` · ${b.lastName}: ${rd.punish[1].toLowerCase()}` : ''}
-                </div>
-              </div>
-              <div className="sc">{rd.cards.join(' · ')}</div>
-            </div>
-          ))}
-          {!done && <p className="dim" style={{ marginTop: 12 }}>…the bell for round {shown + 1}…</p>}
-        </Section>
-      )}
       {!r.rounds && <Section title="Round by round"><p className="empty">Round-by-round detail is only recorded for fights you are involved in.</p></Section>}
 
       {done && (
@@ -180,7 +153,9 @@ function AddToEvent({ fightId }: { fightId: string }) {
   )
 }
 
-export function FightPage({ id }: { id: string }) {
+export function FightPage({ id }: { id: string }) { return <FightPageInner key={id} id={id} /> }
+
+function FightPageInner({ id }: { id: string }) {
   const game = useGame((s) => s.game)!
   const navigate = useGame((s) => s.navigate)
   const justRan = useGame((s) => s.justRan)
@@ -191,26 +166,23 @@ export function FightPage({ id }: { id: string }) {
   const withdraw = useGame((s) => s.withdrawFight)
   const fv = useMemo(() => fightView(game, id), [game, id])
   const total = fv?.result?.rounds?.length ?? 0
-  const animate = !!fv?.result && justRan === id && total > 0
-  const [shown, setShown] = useState(animate ? 0 : 9999)
+  // Decided once, on arrival: this fight was just run, so it is presented live. (The result already exists in the game state.)
+  const [animate] = useState(() => !!fv?.result && justRan === id && total > 0)
+  const [revealed, setRevealed] = useState(!animate)
+  const onDone = useCallback(() => { setRevealed(true); ack() }, [ack])
   const [picked, setPicked] = useState<number | null>(null)
   const [confirm, setConfirm] = useState(false)
-  useEffect(() => {
-    if (!animate) return
-    const t = setInterval(() => setShown((n) => (n >= total ? n : n + 1)), 750)
-    return () => clearInterval(t)
-  }, [animate, total])
   useEffect(() => () => { if (animate) ack() }, [animate, ack])
 
   if (!fv) return <><h1 className="display" style={{ fontSize: 44 }}>Fight not found</h1><button className="btn" onClick={() => navigate('fights')}>Back to fights</button></>
-  const revealed = !animate || shown >= total
   const mySide: 0 | 1 | null = fv.a.mine ? 0 : fv.b.mine ? 1 : null
   const myPrep = mySide === 0 ? fv.a.prep : mySide === 1 ? fv.b.prep : null
   const open = ['scheduled', 'training', 'fightNight'].includes(fv.statusKey)
 
   return (
     <>
-      <Hero fv={fv} after={fv.result?.after} showWinner={revealed} />
+      <Hero fv={fv} after={fv.result?.after} showWinner={revealed} hideMatchup={!!fv.result?.rounds} />
+      {fv.result?.rounds && <LiveFight fv={fv} r={fv.result} live={animate} onDone={onDone} />}
       {fv.eventId && <p className="dim" style={{ marginTop: 8 }}>Part of <button className="linkbtn" onClick={() => navigate('event', fv.eventId!)}>{fv.eventName}</button></p>}
 
       {fv.statusKey === 'fightNight' && fv.canRunNight && (
@@ -299,8 +271,7 @@ export function FightPage({ id }: { id: string }) {
         </Section>
       )}
 
-      {fv.result && <ResultSection fv={fv} r={fv.result} shown={shown} />}
-      {animate && !revealed && <div style={{ textAlign: 'center', marginTop: 10 }}><button className="btn ghost" onClick={() => setShown(9999)}>Skip to the result</button></div>}
+      {fv.result && <ResultSection fv={fv} r={fv.result} done={revealed} />}
 
       {fv.statusKey === 'cancelled' && <p className="attn critical">This fight was cancelled: {fv.cancelReason}.</p>}
       {['scheduled', 'training'].includes(fv.statusKey) && fv.mine && <div style={{ marginTop: 18 }}><button className="linkbtn" onClick={() => setConfirm(true)}>Withdraw from this fight</button></div>}

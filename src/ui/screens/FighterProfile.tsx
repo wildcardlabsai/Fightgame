@@ -7,12 +7,13 @@ import type { TrainingFocus } from '../../engine/types'
 import { useGame } from '../../store/gameStore'
 import { useViews } from '../../store/hooks'
 import { AdvicePanel } from '../components/Advice'
-import { Avatar, Flag, Meter, Section } from '../components/Bits'
+import { Flag, Meter, Section } from '../components/Bits'
 import { FormDots } from '../components/FightBits'
 import { Ring } from '../components/Charts'
 import { RangeText, TraitRow } from '../components/Estimates'
 import { ScoutDialog } from '../components/ScoutDialog'
 import { money } from '../format'
+import { FighterPortrait } from '../visual/FighterPortrait'
 
 export function FighterProfile({ id }: { id: string }) {
   const navigate = useGame((s) => s.navigate)
@@ -38,7 +39,7 @@ export function FighterProfile({ id }: { id: string }) {
   return (
     <>
       <div className="profile-hero">
-        <Avatar f={v} large />
+        <FighterPortrait f={v} size="xl" eager className="profile-portrait" />
         <div style={{ flex: 1, minWidth: 260 }}>
           <button className="linkbtn" onClick={() => navigate('fighters')}>◂ All fighters</button>
           <div className="caps" style={{ marginTop: 8 }}>{v.nickname ? `“${v.nickname}”` : v.stage}</div>

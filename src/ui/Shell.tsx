@@ -3,7 +3,7 @@ import { cashRunwayWeeks, financialHealth, player, unreadCount } from '../engine
 import { lazy, Suspense, useEffect } from 'react'
 import { useGame, type ScreenId } from '../store/gameStore'
 import { Icon } from './components/Icons'
-import { PromoLogo } from './components/Bits'
+import { PromoMark } from './visual/PromoMark'
 import { TierUpNotice } from './components/TierUpNotice'
 import { money } from './format'
 const FightDealScreen = lazy(() => import('./screens/FightDealScreen').then((m) => ({ default: m.FightDealScreen })))
@@ -24,6 +24,8 @@ const InboxScreen = lazy(() => import('./screens/InboxScreen').then((m) => ({ de
 const PromotionsScreen = lazy(() => import('./screens/PromotionsScreen').then((m) => ({ default: m.PromotionsScreen })))
 const SettingsScreen = lazy(() => import('./screens/SettingsScreen').then((m) => ({ default: m.SettingsScreen })))
 const SponsorsScreen = lazy(() => import('./screens/SponsorsScreen').then((m) => ({ default: m.SponsorsScreen })))
+// Development-only: compiled out of production builds, so the gallery is neither reachable nor shipped.
+const AssetGallery = import.meta.env.DEV ? lazy(() => import('./screens/AssetGallery').then((m) => ({ default: m.AssetGallery }))) : null
 const VenuesScreen = lazy(() => import('./screens/VenuesScreen').then((m) => ({ default: m.VenuesScreen })))
 
 interface NavDef { screen: ScreenId; label: string; icon: string }
@@ -82,6 +84,7 @@ export function Shell() {
               {n.screen === 'inbox' && unread > 0 && <span className="badge">{unread}</span>}
             </button>
           ))}
+          {import.meta.env.DEV && <button data-sfx="navigate" className={`nav-item${activeScreen === 'assets' ? ' active' : ''}`} onClick={() => navigate('assets')}>Assets (dev)</button>}
           <button data-sfx="navigate" className={`nav-item nav-settings-mobile${activeScreen === 'settings' ? ' active' : ''}`} onClick={() => navigate('settings')} aria-current={activeScreen === 'settings' ? 'page' : undefined}>Settings</button>
         </div>
         <div className="nav-group nav-locked-group">
@@ -104,7 +107,7 @@ export function Shell() {
       <div className="main">
         <header className="hud">
           <div className="hud-id">
-            <PromoLogo p={p} size={36} />
+            <PromoMark p={p} size={36} />
             <div>
               <div className="display name">{p.name}</div>
               <div className="caps">{p.tier} promotion</div>
@@ -168,5 +171,6 @@ function Screen() {
     case 'event': return <EventPage id={route.param ?? ''} />
     case 'deal': return <FightDealScreen id={route.param ?? ''} />
     case 'negotiation': return <NegotiationScreen id={route.param ?? ''} />
+    case 'assets': return AssetGallery ? <AssetGallery /> : <Dashboard />
   }
 }

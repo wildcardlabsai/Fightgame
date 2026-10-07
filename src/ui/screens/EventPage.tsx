@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { formatDay } from '../../engine/calendar'
 import { eventView, venueFits, type CardSlot, type EventView } from '../../engine/eventViews'
 import { eventAdvice, needsConfirmation, visibleAdvice } from '../../engine/advisor'
@@ -11,6 +11,10 @@ import { AreaChart } from '../components/Charts'
 import { Modal, Stepper } from '../components/Overlay'
 import { money } from '../format'
 import { FightPage } from './FightPage'
+import { eventPosterView } from '../../engine/eventPoster'
+import { CountUp } from '../visual/CountUp'
+import { EventPoster } from '../visual/EventPoster'
+import { FighterCard, type CardFighter } from '../visual/FighterCard'
 
 const rng = (r: { lo: number; hi: number }, f: (n: number) => string = (n) => money(n)) => (Math.round(r.lo) === Math.round(r.hi) ? f(r.lo) : `${f(r.lo)} to ${f(r.hi)}`)
 const num = (n: number) => Math.round(n).toLocaleString('en-GB')
@@ -35,6 +39,7 @@ export function EventPage({ id }: { id: string }) {
   const act = useGame((s) => s.eventDo)
   const runNext = useGame((s) => s.runNextEventFight)
   const nightFight = useGame((s) => s.nightFight)
+  const justRan = useGame((s) => s.justRan)
   const v = useMemo(() => eventView(game, id), [game, id])
   const [adding, setAdding] = useState(false)
   const [confirmCancel, setConfirmCancel] = useState(false)
@@ -42,11 +47,18 @@ export function EventPage({ id }: { id: string }) {
   const [confirmSale, setConfirmSale] = useState(false)
   const advisorMode = usePrefs((x) => x.advisor)
   const advice = useMemo(() => eventAdvice(game, id), [game, id])
+  const poster = useMemo(() => eventPosterView(game, id), [game, id])
+  const onCard = !!v && !!nightFight && v.card.some((c) => c.fightId === nightFight)
+  const presenting = onCard && justRan === nightFight
+  // Once a fight has been presented on this page it stays on screen (the event may already be complete underneath).
+  const [latched, setLatched] = useState<string | null>(null)
+  useEffect(() => { if (presenting) setLatched(nightFight) }, [presenting, nightFight])
   if (!v) return <><h1 className="display" style={{ fontSize: 44 }}>Event not found</h1><button className="btn" onClick={() => navigate('events')}>Back to events</button></>
   const editable = v.can.editCard
 
   return (
     <>
+      <div className="v-ehero">
       <div className="hero">
         <div className="caps">{v.promotion} · {formatDay(v.day)} · {v.weeksAway > 0 ? `in ${v.weeksAway} weeks` : 'this week'}</div>
         <h1 className="display">{v.name}</h1>
@@ -57,14 +69,16 @@ export function EventPage({ id }: { id: string }) {
           <span className="dim">Card: {v.quality.label} ({v.quality.score})</span>
         </div>
       </div>
+      {poster && <EventPoster v={poster} size="lead" />}
+      </div>
       {v.mine && v.nextStep && v.statusKey !== 'cancelled' && <div className="attn info" style={{ marginTop: 14 }}><div className="t">{v.nextStep}</div></div>}
       {v.statusKey === 'cancelled' && <p className="attn critical">This show was cancelled: {v.cancelReason}.</p>}
 
       <AdvicePanel list={advice} cap={3} title="Promoter’s desk" />
 
       {v.can.run && <NightPanel v={v} runNext={runNext} nightFight={nightFight} />}
-      {v.result && <CompletePanel v={v} />}
-      {!v.can.run && nightFight && !v.result && v.open && <FightPage id={nightFight} />}
+      {v.result && !presenting && <CompletePanel v={v} />}
+      {!v.can.run && nightFight && onCard && (presenting || latched === nightFight || (!v.result && v.open)) && <FightPage id={nightFight} />}
 
       <div className="grid-2" style={{ alignItems: 'start' }}>
         <div>
@@ -202,6 +216,11 @@ export function EventPage({ id }: { id: string }) {
   )
 }
 
+const slotFighter = (id: string, name: string, record: string, division: string): CardFighter => {
+  const i = name.lastIndexOf(' ')
+  return { id, name, firstName: i > 0 ? name.slice(0, i) : name, lastName: i > 0 ? name.slice(i + 1) : '', division, record }
+}
+
 function SlotRow({ s, n, editable, eventId }: { s: CardSlot; n: number; editable: boolean; eventId: string }) {
   const act = useGame((x) => x.eventDo)
   const navigate = useGame((x) => x.navigate)
@@ -210,7 +229,11 @@ function SlotRow({ s, n, editable, eventId }: { s: CardSlot; n: number; editable
     <div className={`slot ${top ? 'main' : s.slot === 'CO-MAIN' ? 'co' : ''}`}>
       <div className="slot-tag caps">{s.slot}</div>
       <div style={{ flex: 1, cursor: 'pointer' }} onClick={() => navigate('fight', s.fightId)}>
-        <div className="fighter-name"><span className={s.winner === 0 ? 'gold' : ''}>{s.aName}</span> <span className="dim">vs</span> <span className={s.winner === 1 ? 'gold' : ''}>{s.bName}</span></div>
+        <div className="slot-cards">
+          <FighterCard f={slotFighter(s.aId, s.aName, s.aRecord, s.division)} size="compact" badge={s.winner === 0 ? <span className="chip gold">W</span> : undefined} />
+          <span className="dim">vs</span>
+          <FighterCard f={slotFighter(s.bId, s.bName, s.bRecord, s.division)} size="compact" badge={s.winner === 1 ? <span className="chip gold">W</span> : undefined} />
+        </div>
         <div className="fighter-sub">{s.aRecord} / {s.bRecord} · {s.division} · {s.rounds} rds · {s.appealLabel}</div>
         {s.result && <div className="fighter-sub">{s.result}</div>}
       </div>
@@ -318,7 +341,7 @@ function NightPanel({ v, runNext, nightFight }: { v: EventView; runNext: (id: st
     <div className="night-wrap">
       <div className="night-banner" style={{ marginTop: 18 }}>
         <div>
-          <div className="caps">Show night · {num(v.sales.total)} in the building ({v.sales.fillPct}%)</div>
+          <div className="caps">Show night · {v.venue.name} · {num(v.sales.total)} in the building ({v.sales.fillPct}%){v.broadcast.kind === 'ppv' ? ' · PPV' : v.broadcast.kind !== 'none' ? ' · Broadcast live' : ''}</div>
           <div className="display" style={{ fontSize: 28 }}>{mainNext ? 'The main event' : next ? `Up next: ${next.slot.toLowerCase()}` : 'The night is done'}</div>
           {next && <div className="dim">{next.aName} vs {next.bName} · {next.division}</div>}
         </div>
@@ -344,20 +367,22 @@ function NightPanel({ v, runNext, nightFight }: { v: EventView; runNext: (id: st
 function CompletePanel({ v }: { v: EventView }) {
   const r = v.result!
   const navigate = useGame((s) => s.navigate)
+  const main = v.card[v.card.length - 1]
   return (
     <div className="complete">
       <div className="caps" style={{ color: 'var(--gold)' }}>Event complete</div>
       <h2 className="display" style={{ fontSize: 44, margin: '4px 0 12px' }}>{v.name}</h2>
       <div className="kpis">
-        <div className="kpi"><div className="caps">Attendance</div><div className="v num">{num(r.attendance)}</div><div className="s">{Math.round((100 * r.attendance) / v.venue.capacity)}% of {num(v.venue.capacity)}</div></div>
-        <div className="kpi"><div className="caps">Profit</div><div className={`v num ${r.profit >= 0 ? 'good' : 'red'}`}>{r.profit >= 0 ? '+' : ''}{money(r.profit)}</div><div className="s">{money(r.revenue)} in · {money(r.costs)} out</div></div>
+        <div className="kpi"><div className="caps">Attendance</div><div className="v num"><CountUp value={r.attendance} from={0} fmt={num} /></div><div className="s">{Math.round((100 * r.attendance) / v.venue.capacity)}% of {num(v.venue.capacity)}</div></div>
+        <div className="kpi"><div className="caps">Profit</div><div className={`v num ${r.profit >= 0 ? 'good' : 'red'}`}><CountUp value={r.profit} from={0} fmt={(n) => `${n >= 0 ? '+' : '−'}${money(Math.abs(n))}`} ms={1100} /></div><div className="s"><CountUp value={r.revenue} from={0} fmt={(n) => money(n)} /> in · <CountUp value={r.costs} from={0} fmt={(n) => money(n)} /> out</div></div>
         <div className="kpi"><div className="caps">Atmosphere</div><div className="v num">{r.atmosphere}</div><div className="s">/ 100</div></div>
         <div className="kpi"><div className="caps">Event rating</div><div className="v num">{r.reputation}</div><div className="s">/ 100 · card {r.cardQuality}</div></div>
         {r.ppvBuys > 0 && <div className="kpi"><div className="caps">PPV buys</div><div className="v num">{num(r.ppvBuys)}</div></div>}
       </div>
+      {main && main.result && <p style={{ marginTop: 10 }}><span className="caps">Main event</span> · <b>{main.result}</b>{main.method ? ` · ${main.method}` : ''}</p>}
       <dl style={{ marginTop: 12 }}>
-        <div className="kv"><dt>Promotion reputation</dt><dd className={r.promoRepDelta >= 0 ? 'good' : 'red'}>{r.promoRepDelta >= 0 ? '+' : ''}{r.promoRepDelta}</dd></div>
-        <div className="kv"><dt>Fanbase</dt><dd className={r.fanDelta >= 0 ? 'good' : 'red'}>{r.fanDelta >= 0 ? '+' : ''}{num(r.fanDelta)}</dd></div>
+        <div className="kv"><dt>Promotion reputation</dt><dd className={r.promoRepDelta >= 0 ? 'good' : 'red'}><CountUp value={r.promoRepDelta} from={0} fmt={(n) => `${n >= 0 ? '+' : ''}${n}`} /></dd></div>
+        <div className="kv"><dt>Fanbase</dt><dd className={r.fanDelta >= 0 ? 'good' : 'red'}><CountUp value={r.fanDelta} from={0} fmt={(n) => `${n >= 0 ? '+' : '−'}${num(Math.abs(n))}`} /></dd></div>
         {v.riserNames.length > 0 && <div className="kv"><dt>Biggest popularity moves</dt><dd>{v.riserNames.map((x) => `${x.name} ${x.delta >= 0 ? '+' : ''}${x.delta}`).join(' · ')}</dd></div>}
       </dl>
       {r.notable.length > 0 && <ul className="notable">{r.notable.map((n) => <li key={n}>{n}</li>)}</ul>}

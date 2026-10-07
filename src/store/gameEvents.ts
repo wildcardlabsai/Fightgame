@@ -13,7 +13,11 @@ export type GameEvent =
   | { type: 'event.started'; eventId: string }
   | { type: 'event.mainEvent'; eventId: string }
   | { type: 'event.completed'; eventId: string }
-  | { type: 'fight.result'; fightId: string; method: string; knockdowns: number }
+  /** `presented`: the live fight screen will play the fight's cues in step with what is shown, so this event adds none. */
+  | { type: 'fight.result'; fightId: string; method: string; knockdowns: number; presented?: boolean }
+  | { type: 'fight.round'; fightId: string; round: number }
+  | { type: 'fight.knockdown'; fightId: string; round: number }
+  | { type: 'fight.finish'; fightId: string; ko: boolean }
   | { type: 'modal.open' }
   | { type: 'modal.close' }
   | { type: 'advice'; id: string; level: 'info' | 'tip' | 'caution' | 'highRisk' | 'critical' }

@@ -2,6 +2,7 @@ import type { CSSProperties, ReactNode } from 'react'
 import { nation } from '../../data/nations'
 import type { Promotion } from '../../engine/types'
 import { EmblemGlyph } from './Icons'
+import { FighterPortrait } from '../visual/FighterPortrait'
 
 export function Section({ title, right, children }: { title: string; right?: ReactNode; children: ReactNode }) {
   return (
@@ -20,17 +21,9 @@ export function Flag({ code }: { code: string }) {
   return <span className="flag" title={n?.name}>{n?.code ?? code}</span>
 }
 
-const AVATAR_COLORS = ['#8c1b24', '#1f4f9a', '#2a7a56', '#7a4a1c', '#5b3a8c', '#3a5f6e', '#8a6a1e']
-
-export function Avatar({ f, large }: { f: { firstName: string; lastName: string; id: string }; large?: boolean }) {
-  let h = 0
-  for (const ch of f.id) h = (h * 31 + ch.charCodeAt(0)) >>> 0
-  const bg = AVATAR_COLORS[h % AVATAR_COLORS.length]
-  return (
-    <span className={`avatar${large ? ' lg' : ''}`} style={{ background: `linear-gradient(135deg, ${bg}, #101015)` }} aria-hidden>
-      {f.firstName[0]}{f.lastName[0]}
-    </span>
-  )
+/** Small fighter picture for lists and cards: the real thumbnail when one exists, otherwise a division-coloured silhouette with initials. */
+export function Avatar({ f, large }: { f: { firstName: string; lastName: string; id: string; division?: string }; large?: boolean }) {
+  return <FighterPortrait f={f} size={large ? 'card' : 'thumb'} />
 }
 
 export function Meter({ value, tone, potential, label }: { value: number; tone?: 'good' | 'gold' | 'blue'; potential?: number; label?: string }) {

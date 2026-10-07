@@ -11,14 +11,14 @@ import { emitGameEvent } from './gameEvents'
 
 export type ScreenId =
   | 'dashboard' | 'fighters' | 'fighter' | 'calendar' | 'inbox' | 'finances' | 'promotions'
-  | 'venues' | 'settings' | 'scouting' | 'contracts' | 'negotiation' | 'matchmaking' | 'fights' | 'fight' | 'deal' | 'events' | 'event' | 'sponsors'
+  | 'venues' | 'settings' | 'scouting' | 'contracts' | 'negotiation' | 'matchmaking' | 'fights' | 'fight' | 'deal' | 'events' | 'event' | 'sponsors' | 'assets'
 
 export interface Route {
   screen: ScreenId
   param?: string
 }
 
-const SCREENS: ScreenId[] = ['dashboard', 'fighters', 'fighter', 'calendar', 'inbox', 'finances', 'promotions', 'venues', 'settings', 'scouting', 'contracts', 'negotiation', 'matchmaking', 'fights', 'fight', 'deal', 'events', 'event', 'sponsors']
+const SCREENS: ScreenId[] = ['dashboard', 'fighters', 'fighter', 'calendar', 'inbox', 'finances', 'promotions', 'venues', 'settings', 'scouting', 'contracts', 'negotiation', 'matchmaking', 'fights', 'fight', 'deal', 'events', 'event', 'sponsors', ...(import.meta.env.DEV ? (['assets'] as ScreenId[]) : [])]
 
 export function parseHash(hash: string): Route {
   const [, screen, param, extra] = hash.replace(/^#/, '').split('/')
@@ -102,7 +102,7 @@ let noticeSeq = 0
 /** Tell the audio layer how a fight ended (method and knockdowns only — no hidden information). */
 function announceFight(g: GameState, fightId: string): void {
   const res = g.fights[fightId]?.result
-  if (res) emitGameEvent({ type: 'fight.result', fightId, method: res.method, knockdowns: res.kd[0] + res.kd[1] })
+  if (res) emitGameEvent({ type: 'fight.result', fightId, method: res.method, knockdowns: res.kd[0] + res.kd[1], presented: true })
 }
 function announceFinish(before: GameState, after: GameState, eventId: string): void {
   const done = (s: GameState) => ['completed', 'settled', 'archived'].includes(s.events[eventId]?.status ?? '')

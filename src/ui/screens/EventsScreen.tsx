@@ -7,20 +7,32 @@ import { useGame } from '../../store/gameStore'
 import { AdvicePanel } from '../components/Advice'
 import { Modal } from '../components/Overlay'
 import { money } from '../format'
+import { eventPosterView } from '../../engine/eventPoster'
+import { EventPoster } from '../visual/EventPoster'
+import { FighterPortrait } from '../visual/FighterPortrait'
+import { VenueImage } from '../visual/VenueImage'
 
 type Tab = 'open' | 'history' | 'upcoming' | 'world'
 
 function Row({ e }: { e: EventListItem }) {
   const navigate = useGame((s) => s.navigate)
+  const game = useGame((s) => s.game)!
+  const pv = eventPosterView(game, e.id)
   const go = () => navigate('event', e.id)
   const done = e.profit !== undefined
   return (
     <tr className={`row${e.mine ? ' mine' : ''}`} tabIndex={0} onClick={go} onKeyDown={(k) => { if (k.key === 'Enter') go() }}>
       <td data-label="Date" className="num">{formatDay(e.day, true)}</td>
       <td className="primary" data-label="Show">
-        <div className="fighter-name">{e.name}</div>
-        <div className="fighter-sub">{e.mine ? '' : `${e.promotion} · `}{e.venueName}, {e.city} · {e.fights} fights</div>
-        <div className="fighter-sub">{e.main}</div>
+        <div className="ev-thumb">
+          {pv && <VenueImage venue={{ name: pv.venue.name, tier: pv.venue.tier, capacity: pv.venue.capacity }} />}
+          {pv?.main && <span className="ev-fighters"><FighterPortrait f={pv.main.a} size="thumb" /><FighterPortrait f={pv.main.b} size="thumb" /></span>}
+          <div>
+            <div className="fighter-name">{e.name}</div>
+            <div className="fighter-sub">{e.mine ? '' : `${e.promotion} · `}{e.venueName}, {e.city} · {e.fights} fights</div>
+            <div className="fighter-sub">{e.main}</div>
+          </div>
+        </div>
       </td>
       <td data-label="Status">{e.statusKey === 'cancelled' ? <span className="red">Cancelled</span> : <span className={e.statusKey === 'fightWeek' || e.statusKey === 'live' ? 'red' : ''}>{e.status}{e.open && e.weeksAway ? ` · ${e.weeksAway}w` : ''}</span>}</td>
       <td data-label={done ? 'Result' : 'Sales'} className="num">
@@ -78,6 +90,7 @@ function NewEventModal({ onClose }: { onClose: () => void }) {
 
 export function EventsScreen() {
   const game = useGame((s) => s.game)!
+  const navigate = useGame((s) => s.navigate)
   const [tab, setTab] = useState<Tab>('open')
   const [creating, setCreating] = useState(false)
   const lists = { open: eventList(game, 'mine-open'), history: eventList(game, 'mine-history', 80), upcoming: eventList(game, 'world-upcoming', 40), world: eventList(game, 'world-results', 40) }
@@ -99,6 +112,11 @@ export function EventsScreen() {
           <button key={k} role="tab" aria-selected={tab === k} className={`tab${tab === k ? ' active' : ''}`} onClick={() => setTab(k)}>{labels[k]}<span className="count">{lists[k].length}</span></button>
         ))}
       </div>
+      {(tab === 'open' || tab === 'upcoming') && rows.length > 0 && (
+        <div className="v-poster-list" data-testid="event-posters">
+          {rows.slice(0, 6).map((e) => { const pv = eventPosterView(game, e.id); return pv ? <EventPoster key={e.id} v={pv} size="card" onClick={() => navigate('event', e.id)} /> : null })}
+        </div>
+      )}
       {rows.length === 0 ? (
         <p className="empty">{tab === 'open' ? 'No shows planned. Plan one, then bring fights to the card.' : tab === 'history' ? 'No completed shows yet.' : tab === 'upcoming' ? 'No rival shows announced yet.' : 'No rival results yet.'}</p>
       ) : (
