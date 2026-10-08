@@ -230,3 +230,31 @@ Tests added (`phase46c.test.ts › tier ladder sanity`): every requirement dimen
 **Problem.** `longrun` asserted ≤ 60 ms/week wall time and `perf` ≤ 40 ms; both failed intermittently when the whole suite ran in parallel (62 ms), and would also fail on a slower machine without any regression.
 **Fix.** The guards now measure *relative* cost: each timed segment (a quarter for `perf`, a year for `longrun`) is divided by the cost of a fixed reference workload (cloning a fixed world) measured immediately before and after it on the same host, and the median over segments is compared with a limit (`benchTime.ts`). Limits sit ~40% above what the code does today (week tick ≈ 6.9–7.2× the reference, limit 10; eight-year world ≈ 12.3–12.7×, limit 17.5), so a genuine slowdown of that size fails while host load does not. The full suite passed twice in a row under default parallelism. (Not "a bigger threshold": the old limits were wall-clock numbers; these are ratios.)
 **Observation (unchanged from before this phase).** A week tick costs ~27 ms in year 1 and ~55–75 ms by year 8 on this host (state grows with history) — identical to the Phase 4.7 commit (26/36/51/62 vs 27/34/46/61 ms by year). Worth a look before Phase 5 adds more per-week work.
+
+
+## 11. Phase 5.3 — economy after popularity cooling (decision: healthy, no changes)
+Phase 5.2 removed a popularity ratchet (fame above `0.95 × reputation + 4` cools). This audit asked whether the leaner world is still a
+working economy. Method: matched seeds, code before (`10ea37a`) versus after (`0050897`), same bots (`scripts/audit`, `runWorld`).
+
+**Dependency chain.** Popularity → `fightAppeal` (0.68 × (0.7 hi + 0.3 lo) + 0.32 × reputation) → `cardQuality` → `eventInterest` →
+ticket demand `65 × (interest/10)^2.3` (and the reference ticket price, TV fee, viewers `(interest/40)^1.1`, PPV buys, per-event sponsor eligibility).
+The 2.3 exponent is why a ~20% lower headliner popularity is a ~⅓ revenue fall on star-heavy shows. The same popularity also prices the fighter
+(purse), so cost falls with revenue.
+
+**AI promotions (6 seeds × 7 scenario/strategy worlds, 10 years; 3 idle 20-year worlds each).**
+Shows per year unchanged (≈ 40–48), cancellations 0 in both, empty shows (< 40% full) 2–6% in both, median attendance 3,342 → 3,324 (year 10),
+median ticket revenue −11%, median cost −16%, **median profit £121k → £122k**, loss-making shows 21% → 21%, AI cash median £3.4m → £3.4m,
+insolvent AI promotions 3 → 5 of 252 promotion-years at year 10 (critical 9 → 8). The large fall is star pay-per-view (arena average £1.19m → £0.51m), which is also where
+the inflated fame paid most. Divisions: the smallest division holds 1–8 fighters in both versions (unchanged).
+
+**Player (16 worlds each for Ground Up balanced/aggressive and Build a Champion; 6 each for Regional and National; 8–10 years).**
+Survival within one world of the old figure everywhere (Ground Up balanced 81% → 75%, aggressive 88% → 81%, Champion 81% → 75%; 100% → 100% for Regional and National), median
+event profit −2% to −8% for the small promotions and unchanged for the rest, revenue −5% to −15% at the lowest tiers. 20-year worlds (2 seeds × 3 scenarios): survival 100% both,
+final cash Ground Up £14.6m → £16.4m, Regional £21.9m → £29.8m, National £98m → £109m. The 6-seed dip seen first (Ground Up balanced 67% → 50%) did not persist once the sample grew.
+
+**Star economy (fixed popularity/reputation inputs, so identical before and after).** Superstar (pop 92 / rep 84) stadium card: 82% full, £4.2m gate; its £3.8m main-event
+purses make it loss-making at the median unless it goes pay-per-view (median −£0.6m, 90th percentile +£1.9m) — the designed high-risk bet. Champion (72/68) at arena level: ≈ break-even
+(−£49k TV, +£128k PPV median), 100% full. Contender (50/50) at national level: +£260–300k and 78–100% full. The old inflated fame made a champion *less* profitable (pop 88: −£435k), because the purse rose faster than demand.
+
+**Not changed, and why.** Nothing in the economy: lower numbers than before reflect the removal of inflated fame, not a malfunction. Known and unchanged: a National Powerhouse career ends with £100m+ and few sinks (§8.1),
+and superstar-vs-superstar cards need pay-per-view to pay.
