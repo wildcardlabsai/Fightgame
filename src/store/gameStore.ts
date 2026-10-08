@@ -4,7 +4,10 @@ import * as mediaCommands from '../engine/media/commands'
 import { browserStorage, deserialiseGame, serialiseGame } from '../engine/save'
 import { openBestBackend, SaveVault, type SlotMeta } from '../engine/persistence'
 import { advanceWeeks } from '../engine/tick'
-import type { GameState, Id, NegotiationKind, Offer, ScoutDepth, TrainingFocus } from '../engine/types'
+import type { GameState, Id, NegotiationKind, Offer, ScoutDepth, TrainingFocus, WeightClassId } from '../engine/types'
+import type { ContractMove } from '../engine/business/contractTalks'
+import type { FightMove } from '../engine/business/fightTalks'
+import type { DevPlan } from '../engine/business/types'
 import type { SearchSpec } from '../engine/scouting'
 import type { FightOffer, FightPrep } from '../engine/types'
 import { createNewGame, type NewGameOptions } from '../engine/worldgen'
@@ -62,6 +65,14 @@ interface GameStore {
   /** Returns the verdict so the UI can react (e.g. navigate after a signing). */
   makeOffer: (fighterId: Id, offer: Offer, kind: NegotiationKind) => 'accept' | 'counter' | 'reject' | 'error'
   walkAway: (fighterId: Id) => void
+  // ---- Phase 5.4: conversations, plans, division moves ----
+  /** Open (or resume) a contract conversation. Returns the talk id, or null with a toast explaining why not. */
+  openContractTalk: (fighterId: Id, kind: NegotiationKind) => string | null
+  contractMove: (talkId: string, move: ContractMove) => 'ok' | 'agreed' | 'walked' | 'error'
+  openFightTalk: (fightId: Id) => string | null
+  fightMove: (talkId: string, move: FightMove) => 'ok' | 'agreed' | 'walked' | 'error'
+  choosePlan: (fighterId: Id, plan: DevPlan) => boolean
+  changeDivision: (fighterId: Id, to: WeightClassId) => boolean
   release: (fighterId: Id) => boolean
   /** Opens a link produced by the engine (fighter profile or screen). */
   openLink: (link: { kind: 'fighter'; id: string } | { kind: 'screen'; screen: string } | { kind: 'fight'; id: string } | { kind: 'event'; id: string }) => void
@@ -302,6 +313,62 @@ export const useGame = create<GameStore>((set, get) => {
       return v === 'walkedAway' ? 'error' : v
     },
     walkAway: (fighterId) => update((g) => commands.endNegotiation(g, fighterId)),
+    openContractTalk: (fighterId, kind) => {
+      const g = get().game
+      if (!g) return null
+      const r = commands.startContractTalk(g, fighterId, kind)
+      if (!r.ok) { get().notify(r.error ?? 'They will not talk.', 'bad'); return null }
+      set({ game: r.state })
+      return r.talkId ?? null
+    },
+    contractMove: (talkId, move) => {
+      const g = get().game
+      if (!g) return 'error'
+      const r = commands.contractMove(g, talkId, move)
+      if (!r.ok) { get().notify(r.error ?? 'That did not work.', 'bad'); return 'error' }
+      set({ game: r.state })
+      const t = r.state.business?.talks[talkId]
+      if (t?.status === 'agreed') { get().notify(t.contractKind === 'renewal' ? 'Contract renewed.' : 'Signed! They have joined your roster.', 'good', false); emitGameEvent({ type: 'contract.accepted' }); return 'agreed' }
+      if (t?.status === 'broken') { get().notify('Their camp has walked away.', 'bad', false); emitGameEvent({ type: 'contract.rejected' }); return 'walked' }
+      return 'ok'
+    },
+    openFightTalk: (fightId) => {
+      const g = get().game
+      if (!g) return null
+      const r = commands.startFightTalk(g, fightId)
+      if (!r.ok) { get().notify(r.error ?? 'They will not talk.', 'bad'); return null }
+      set({ game: r.state })
+      return r.talkId ?? null
+    },
+    fightMove: (talkId, move) => {
+      const g = get().game
+      if (!g) return 'error'
+      const r = commands.fightTalkMove(g, talkId, move)
+      if (!r.ok) { get().notify(r.error ?? 'That did not work.', 'bad'); return 'error' }
+      set({ game: r.state })
+      const t = r.state.business?.talks[talkId]
+      if (t?.status === 'agreed') { get().notify('Fight agreed! Now set a date.', 'good'); return 'agreed' }
+      if (t?.status === 'broken') { get().notify('Talks collapsed.', 'bad'); return 'walked' }
+      return 'ok'
+    },
+    choosePlan: (fighterId, plan) => {
+      const g = get().game
+      if (!g) return false
+      const r = commands.choosePlan(g, fighterId, plan)
+      if (!r.ok) { get().notify(r.error ?? 'Could not change the plan.', 'bad'); return false }
+      set({ game: r.state })
+      get().notify('Development plan updated.', 'good', false)
+      return true
+    },
+    changeDivision: (fighterId, to) => {
+      const g = get().game
+      if (!g) return false
+      const r = commands.changeDivision(g, fighterId, to)
+      if (!r.ok) { get().notify(r.error ?? 'Could not change division.', 'bad'); return false }
+      set({ game: r.state })
+      get().notify('Division changed.', 'good')
+      return true
+    },
     release: (fighterId) => {
       const g = get().game
       if (!g) return false
