@@ -49,14 +49,15 @@ const boot = async (page) => { await page.goto(`${base}/?e2e`); await page.waitF
   const offer = page.getByTestId('make-offer')
   if (await offer.count()) {
     await offer.click(); await page.waitForTimeout(500)
-    check('6 negotiation shows the dossier and conversation', (await page.getByTestId('neg-dossier').count()) === 1 && (await page.getByTestId('neg-conversation').count()) === 1)
+    check('6 negotiation shows the camp, the conversation and the expected terms', (await page.getByTestId('talk-header').count()) === 1 && (await page.getByTestId('talk-log').count()) === 1 && (await page.getByTestId('expected-terms').count()) >= 1)
     await page.screenshot({ path: `${shots}/410-negotiation.png` })
     check('6 scroll position reset on arrival', (await page.evaluate(() => window.scrollY)) < 5)
-    const s = page.getByTestId('move-suggested'); await s.click(); await page.waitForTimeout(500)
-    let signed = (await page.getByTestId('move-accept').count()) === 0 && (await page.getByTestId('turn-them').count()) > 0
-    for (let i = 0; i < 3 && (await page.getByTestId('move-accept').count()); i++) { await page.getByTestId('move-accept').click(); await page.waitForTimeout(400) }
+    await page.getByTestId('ask-priorities').click(); await page.waitForTimeout(400)
+    await page.getByTestId('talk-propose').click(); await page.waitForTimeout(500)
+    let signed = (await page.getByTestId('accept-counter').count()) === 0
+    for (let i = 0; i < 3 && (await page.getByTestId('accept-counter').count()); i++) { await page.getByTestId('accept-counter').click(); await page.waitForTimeout(400) }
     const mine = await page.evaluate(() => { const g = window.__fe.useGame.getState().game; return Object.values(g.contracts).filter((c) => c.promotionId === g.playerPromotionId).length })
-    check('7 negotiation produced a real response (counter / accept / reject) without error', (await page.getByTestId('turn-them').count()) >= 1, String(signed))
+    check('7 negotiation produced a real response (counter / accept / reject) without error', (await page.getByTestId('talk-line').count()) >= 3 || /#\/fighter\//.test(await page.evaluate(() => location.hash)), String(await page.getByTestId('talk-line').count()))
     check('7 roster contracts readable after negotiation', mine >= 4, String(mine))
   } else check('6 free agent could be offered', false, 'no make-offer button')
   await ctx.close()

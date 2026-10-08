@@ -77,7 +77,7 @@ for (const w of [1280, 1024, 390]) {
   await go(page, `#/fighter/${ids.champ}`)
   const hasBelt = await game(page, (g) => Object.values(g.media.titles).filter((t) => t.c === Object.values(g.contracts).find((c) => c.promotionId === g.playerPromotionId)?.fighterId).length)
   // free the champion for the move if a fight is booked (test setup only)
-  await page.evaluate((id) => { const g = window.__fe.useGame.getState().game; const f = g.fighters[id]; f.activeFightId = null; if (g.business.moved) delete g.business.moved[id]; f.morale = Math.max(f.morale, 60); window.__fe.useGame.setState({ game: structuredClone(g) }) }, ids.champ)
+  await page.evaluate((id) => { const g = window.__fe.useGame.getState().game; const f = g.fighters[id]; f.activeFightId = null; f.lastFightDay = g.today - 60; if (g.business.moved) delete g.business.moved[id]; f.morale = Math.max(f.morale, 60); window.__fe.useGame.setState({ game: structuredClone(g) }) }, ids.champ)
   await page.waitForTimeout(300)
   await go(page, `#/fighter/${ids.champ}`)
   check('division: move control present with options', (await page.getByTestId('division-move').count()) === 1 && (await page.getByTestId('division-option').count()) >= 1)

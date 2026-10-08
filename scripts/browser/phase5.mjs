@@ -95,7 +95,11 @@ const FORBIDDEN = ['potential', 'discipline', 'composure', 'injury risk', 'prosp
 
   // ---- rankings and titles
   await go(page, '#/rankings')
-  check('6 rankings screen: five lists', (await page.locator('[data-testid^="rank-org-"]').count()) === 5)
+  // Phase 5.4: fifteen lists in five groups (world, European, domestic, area, media & index).
+  let listCount = 0
+  for (const g of ['world', 'european', 'domestic', 'area', 'media']) { const b = page.getByTestId(`rank-group-${g}`); if (await b.count()) { await b.click(); await page.waitForTimeout(250); listCount += await page.locator('[data-testid^="rank-org-"]').count() } }
+  check('6 rankings screen: fifteen lists in groups', listCount >= 13 && listCount <= 16, String(listCount))
+  await page.getByTestId('rank-group-world').click(); await page.waitForTimeout(250)
   const rows = await page.getByTestId('rank-row').count()
   check('6 a ranking list has rows with reasons', rows > 0 && (await page.getByTestId('rank-row').first().innerText()).length > 10, String(rows))
   const first = await page.getByTestId('rank-row').first().innerText()
@@ -104,9 +108,9 @@ const FORBIDDEN = ['potential', 'discipline', 'composure', 'injury risk', 'prosp
   check('6 switching list and division works', /#\/rankings\/atlas\/heavyweight/.test(await page.evaluate(() => location.hash)))
   await page.screenshot({ path: `${shots}/p5-rankings-1280.png` })
   void first
-  await go(page, '#/titles'); check('7 titles: champions per division', (await page.getByTestId('title-row').count()) === 17)
-  await page.getByTestId('title-body-pioneer').click(); await page.waitForTimeout(300)
-  check('7 sanctioning body tabs switch', /titles\/pioneer/.test(await page.evaluate(() => location.hash)))
+  await go(page, '#/titles'); check('7 titles: belts for the division', (await page.getByTestId('title-row').count()) >= 1)
+  await page.getByTestId('title-level-tab').nth(2).click(); await page.waitForTimeout(300)
+  check('7 level tabs switch', /titles\/(area|domestic|european|world)/.test(await page.evaluate(() => location.hash)))
 
   // ---- fighter database + profile
   await go(page, '#/fighters/known')
@@ -144,7 +148,7 @@ const FORBIDDEN = ['potential', 'discipline', 'composure', 'injury risk', 'prosp
   await load(page, 'p5-new')
   await go(page, '#/media'); check('14 a brand-new world has an honest, working Media screen', (await page.locator('main').innerText()).length > 60)
   await go(page, '#/rankings'); check('14 new world rankings exist from the start', (await page.getByTestId('rank-row').count()) > 0)
-  await go(page, '#/titles'); check('14 new world titles exist from the start', (await page.getByTestId('title-row').count()) === 17)
+  await go(page, '#/titles'); check('14 new world titles exist from the start', (await page.getByTestId('title-row').count()) >= 1)
   await page.getByRole('button', { name: /Advance week/i }).first().click().catch(() => {})
   await page.waitForTimeout(500)
   await ctx.close()

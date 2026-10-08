@@ -46,9 +46,10 @@ for (const [id, [label, cap]] of Object.entries(START)) {
     await go(page, '#/events')
     await page.getByRole('button', { name: /Plan a show/ }).click()
     await page.waitForSelector('.modal')
-    const locked = await page.locator('.modal select option[disabled]').count()
+    await page.locator('.modal [data-testid=venue-sort]').selectOption('capacity-desc'); await page.waitForTimeout(300)
+    const locked = await page.locator('.modal [data-testid=venue-locked]').count()
     check('ground-up: arenas and stadiums are locked in the venue picker', locked >= 8, String(locked))
-    check('ground-up: locked venues say what unlocks them', (await page.locator('.modal select option[disabled]').first().innerText()).includes('Opens at'))
+    check('ground-up: locked venues say what unlocks them', (await page.locator('.modal [data-testid=venue-locked]').first().innerText()).includes('Opens at'))
     await page.keyboard.press('Escape')
     await go(page, '#/venues')
     check('venues screen marks locked venues', (await page.getByText(/Opens at (Regional|National) promotion level/).count()) > 0)
@@ -111,7 +112,10 @@ for (const [id, [label, cap]] of Object.entries(START)) {
   await go(page, '#/events')
   await page.getByRole('button', { name: /Plan a show/ }).click()
   await page.waitForSelector('.modal')
-  const enabledNational = await page.locator('.modal select option:not([disabled])').evaluateAll((os) => os.some((o) => /Hallam|Bayou|Docklands/.test(o.textContent)))
+  await page.locator('.modal [data-testid=venue-sort]').selectOption('capacity-desc'); await page.waitForTimeout(300)
+  // After the promotion a national venue (thousands of seats) can be chosen: one of the largest visible rooms is enabled.
+  await page.locator('.modal [data-testid=venue-filter-avail]').check().catch(async () => { await page.locator('.modal [data-testid=venue-filter-avail]').click() }); await page.waitForTimeout(250)
+  const enabledNational = (await page.locator('.modal [data-testid=venue-choose]:not([disabled])').count()) >= 1
   check('national venues unlocked after promotion', enabledNational)
   await ctx.close()
 }

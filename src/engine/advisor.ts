@@ -438,7 +438,8 @@ export function contractTalkAdvice(state: GameState, fighterId: Id, offer: Offer
   const t = expectedContractTerms(state, fighterId, kind, offer)
   const f = state.fighters[fighterId]
   if (!t || !f) return []
-  const out: Advice[] = []
+  // The financial read on the deal (annual cost against cash and burn) stays, then the market read from the public ranges.
+  const out: Advice[] = [...contractAdvice(state, fighterId, offer)]
   if (t.assessment === 'Lowball') out.push({ id: `ct-${fighterId}-low`, level: 'caution', topic: 'contract', title: 'This looks like a lowball', body: 'Against the market ranges, this offer is well short. Their camp may take offence — repeated lowballs end talks.' })
   else if (t.assessment === 'Generous offer') out.push({ id: `ct-${fighterId}-gen`, level: 'tip', topic: 'contract', title: 'A generous offer', body: 'This is above the usual range. You may be able to keep more of it.' })
   if (offer.pathway) out.push({ id: `ct-${fighterId}-path`, level: 'caution', topic: 'titles', title: 'Only promise what you can deliver', body: `${pathwayText(offer.pathway)} will be tracked. If it does not happen by the deadline, morale, trust and your reputation suffer.` })
