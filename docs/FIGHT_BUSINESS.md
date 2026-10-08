@@ -228,7 +228,41 @@ the venue record in state holds only the real venue's id (facts are read from th
 
 ## 11. Long-run results and performance
 
-See the table at the end of this file (filled from `scripts/audit/phase54-longrun.ts` and `scripts/audit/phase54-careers.ts`).
+`npx tsx scripts/audit/phase54-longrun.ts <years> <seed> bot|passive` plays a world and, every four weeks, runs `auditWorld` (no duplicate or
+two-division champions, no retired champions, no mandatory order on a vacant belt or naming one challenger for two belts of a body, no title
+without a valid division, ratings unique/ordered/in the right division, reigns chronological and closed with a reason, no attendance above
+capacity, no impossible hire/capacity) and watches rating jumps. `bot` = the scripted balanced promoter plays; `passive` = the player does nothing.
+
+| Run | Result | Champions (share of active fighters) | Title-fight share | Median purse vs year 1 | Rivals insolvent | Max rating jump | Save / media |
+|---|---|---|---|---|---|---|---|
+| 5 years, bot (p54-long3) | **clean** | 14.5% → 11.4% | 25% → 23% | ×0.87 | 0 / 6 | 8 | 3.4 MB / 399 kB |
+| 10 years, bot (p54-long2) | **clean** | 15.0% → 13.2% | 27% → 23% | ×1.17 | 0 / 6 | 8 | 4.7 MB / 548 kB |
+| 10 years, passive (p54-long4) | **clean** | 12% → 9.8% | 28% → 20% | ×1.16 | 1 / 6 (from year 9) | 8 | 3.2 MB / 480 kB |
+| 20 years, passive (p54-long) | **clean** | 12.7% → 5.6% | 28% → 15% | ×0.96 (peak ×1.44) | 1–2 / 6 late | 9 | 3.7 MB / 617 kB |
+
+No retired champions, no duplicate titles, no impossible rank jumps, purses do not inflate, rivals' cash stays flat (~£28–31 M average). The
+share of fighters holding a belt falls in very long worlds because the rated pool thins (see limitations); titles go *dormant* with a stated reason
+rather than being awarded to nobody.
+
+**Performance against Phase 5.3** (passive worlds, three seeds, ms per simulated week; same machine, same script):
+
+| Year | Phase 5.3 | Phase 5.4 |
+|---|---|---|
+| 2 | 19–24 ms | 27–28 ms |
+| 4 | 30–32 ms | 36–40 ms |
+| 8 | 36–40 ms | 44–50 ms |
+| Save size at year 8 | 2.8 MB | 3.0 MB (+6%) |
+
+About +20–25% per week. Explained, not hidden: thirteen title bodies and fifteen rating lists instead of five, obligation-first AI booking, a
+larger state to clone each week (+6%), 111 more venues to consider. Optimisations already in: a once-per-change index of who holds which belt
+(it cut a week from ~45 to ~25 ms when first added), compact rating lists, lazy venue forecasting for rivals, cached hometown distances.
+The `perf` test (a week tick relative to a clone of the starting world) reads ≈7.2–8.0× against a limit of 10 (Phase 5.3: ≈6.9–7.3×).
+
+**Career shapes** (from `scripts/audit/phase54-careers.ts`, a 14-year world): a prospect who climbs Prospect → Regional → Domestic → European contender →
+World contender → Mandatory challenger → Title challenger → Champion → Unified → Undisputed; a unified champion who defended repeatedly and was stripped
+of a belt for refusing a mandatory; a champion who lost the belt and retired; journeymen and losing careers that never touch a title; fighters who changed
+division and gave up belts on the way; a superstar who reached peak popularity. The same script prints how a money-minded and a title-minded camp answer the same
+opening offer.
 
 ## 12. Known limitations
 
