@@ -26,11 +26,15 @@ export function pushLine(talk: Talk, day: number, who: TalkLine['who'], tag: Tal
 
 /** Keep the conversation list bounded: closed talks go first, oldest first. */
 export function trimTalks(state: GameState): void {
-  const b = biz(state)
+  const b = state.business
+  if (!b) return
   const ids = Object.keys(b.talks)
   if (ids.length <= BUSINESS_LIMITS.talks) return
   const closed = ids.filter((id) => b.talks[id].status !== 'open').sort((x, y) => (b.talks[x].closedDay ?? 0) - (b.talks[y].closedDay ?? 0))
   for (const id of closed) { if (Object.keys(b.talks).length <= BUSINESS_LIMITS.talks) break; delete b.talks[id] }
+  // Still too many: the oldest open conversations lapse quietly (no penalty — they simply went cold).
+  const open = Object.keys(b.talks).sort((x, y) => b.talks[x].openedDay - b.talks[y].openedDay)
+  for (const id of open) { if (Object.keys(b.talks).length <= BUSINESS_LIMITS.talks) break; delete b.talks[id] }
 }
 
 /** Remember something the camp has told the player (drives expected-terms confidence and what the UI may show). */

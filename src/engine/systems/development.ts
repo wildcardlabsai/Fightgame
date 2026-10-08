@@ -43,11 +43,11 @@ export function ageGrowthFactor(age: number): number {
 /** Age at which each physical trait starts to decline. Mental/craft traits hold up far longer. */
 export const DECLINE_ONSET: Partial<Record<AttributeKey, number>> = { speed: 29, stamina: 30, chin: 31, power: 33 }
 
-export function developFighter(f: Fighter, today: number, rng: Rng): void {
+export function developFighter(f: Fighter, today: number, rng: Rng, growthMult = 1): void {
   if (f.status !== 'active') return
   const age = fighterAge(f, today)
   const room = clamp(f.potential - fighterRating(f), 0, 40)
-  const growth = ageGrowthFactor(age) * (room / 40) * 0.25
+  const growth = ageGrowthFactor(age) * (room / 40) * 0.25 * growthMult
   const focus = FOCUS_ATTRS[f.trainingFocus]
   const focused = focus.length > 0
   const moraleFactor = 0.7 + (f.morale / 100) * 0.5 // unhappy fighters train poorly

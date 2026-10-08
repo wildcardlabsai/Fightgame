@@ -149,28 +149,10 @@ export function submitFightOffer(input: GameState, fightId: Id, raw: FightOffer)
   const ev = evaluateFightOffer(state, fight, offer)
   neg.rounds.push({ day: state.today, offer, verdict: ev.verdict, counter: ev.counter, reasons: ev.reasons, mood: ev.mood })
   if (neg.rounds.length > 10) neg.rounds.shift()
-  const nOpp = fighterName(opp), nMe = fighterName(state.fighters[fight.sideA.fighterId])
+  const nOpp = fighterName(opp)
 
   if (ev.verdict === 'accept') {
-    fight.terms = { ...fight.terms, ...offer }
-    fight.sideB.preRecord = `${opp.record.wins}-${opp.record.losses}-${opp.record.draws}`
-    transition(fight, 'agreed')
-    fight.negotiation = undefined
-    opp.activeFightId = fight.id
-    if (offer.fights === 2) {
-      const second = createFight(state, fight.sideA.fighterId, fight.sideB.fighterId, fight.organiserId, 'player', { ...fight.terms, rematch: false, fights: 1 })
-      second.seriesOf = fight.id
-      second.status = 'negotiating'
-      transition(second, 'agreed')
-      second.negotiation = undefined
-      second.sideA = { ...second.sideA, prep: defaultPrep() }
-      state.fighters[fight.sideA.fighterId].activeFightId = fight.id // the series is booked one fight at a time
-    }
-    postMessage(state, {
-      from: 'Matchmaking', category: 'fighter', priority: 'important', subject: `Fight agreed: ${nMe} vs ${nOpp}`,
-      body: `${nOpp}'s camp has agreed terms: £${offer.purseB.toLocaleString('en-GB')} purse${offer.rematch ? ', with a rematch clause' : ''}. Choose a date to schedule the fight.`,
-      link: { kind: 'fight', id: fight.id },
-    })
+    agreeFight(state, fight, offer)
     return { ok: true, state, fightId, verdict: 'accept' }
   }
 
@@ -189,6 +171,33 @@ export function submitFightOffer(input: GameState, fightId: Id, raw: FightOffer)
     cancelFight(state, fight, `talks with ${nOpp}'s camp collapsed`, B.fights.negotiationLockWeeks)
   }
   return { ok: true, state, fightId, verdict: ev.verdict }
+}
+
+
+/** The agreed bout: terms recorded, the fight moves to AGREED, a series is booked one fight at a time, and the player is told. */
+export function agreeFight(state: GameState, fight: Fight, offer: FightOffer): void {
+  const opp = state.fighters[fight.sideB.fighterId]
+  const nOpp = fighterName(opp), nMe = fighterName(state.fighters[fight.sideA.fighterId])
+  fight.terms = { ...fight.terms, ...offer }
+  if (offer.rounds) fight.scheduledRounds = offer.rounds
+  fight.sideB.preRecord = `${opp.record.wins}-${opp.record.losses}-${opp.record.draws}`
+  transition(fight, 'agreed')
+  fight.negotiation = undefined
+  opp.activeFightId = fight.id
+  if (offer.fights === 2) {
+    const second = createFight(state, fight.sideA.fighterId, fight.sideB.fighterId, fight.organiserId, 'player', { ...fight.terms, rematch: false, fights: 1 })
+    second.seriesOf = fight.id
+    second.status = 'negotiating'
+    transition(second, 'agreed')
+    second.negotiation = undefined
+    second.sideA = { ...second.sideA, prep: defaultPrep() }
+    state.fighters[fight.sideA.fighterId].activeFightId = fight.id // the series is booked one fight at a time
+  }
+  postMessage(state, {
+    from: 'Matchmaking', category: 'fighter', priority: 'important', subject: `Fight agreed: ${nMe} vs ${nOpp}`,
+    body: `${nOpp}'s camp has agreed terms: £${offer.purseB.toLocaleString('en-GB')} purse${offer.rematch ? ', with a rematch clause' : ''}. Choose a date to schedule the fight.`,
+    link: { kind: 'fight', id: fight.id },
+  })
 }
 
 /** Abandon a negotiation or an agreed-but-unscheduled fight. */

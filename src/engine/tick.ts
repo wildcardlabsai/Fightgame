@@ -22,6 +22,8 @@ import { birthdayMessages, developFighter, updateCondition } from './systems/dev
 import { processWeeklyFinance } from './systems/finance'
 import { processRetirements, talentIntake } from './systems/world'
 import { PASS_EVERY, processMedia } from './media/process'
+import { planGrowthMult, processPlans } from './business/plans'
+import { processBusiness } from './business/weekly'
 import type { GameState } from './types'
 
 export interface TickResult {
@@ -46,7 +48,7 @@ export function advanceOneWeek(input: GameState, opts: { media?: boolean } = {})
   // 1. Fighters develop and recover.
   for (const f of Object.values(state.fighters)) {
     if (f.status !== 'active') continue
-    developFighter(f, state.today, rng)
+    developFighter(f, state.today, rng, planGrowthMult(state, f))
     updateCondition(f, state.today)
   }
   for (const f of playerRoster(state)) {
@@ -82,6 +84,8 @@ export function advanceOneWeek(input: GameState, opts: { media?: boolean } = {})
   aiSigning(state, rng, ids)
   aiFinances(state)
   processObligations(state)
+  processPlans(state)
+  processBusiness(state)
   processTier(state)
   processSponsors(state)
   for (const o of checkObjectives(state)) {

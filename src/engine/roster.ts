@@ -145,17 +145,25 @@ export function releaseFromPlayer(state: GameState, fighterId: Id): ReleaseResul
   return { ok: true, fee }
 }
 
-/** Enforce open obligations once the relevant systems exist. */
+/**
+ * Title-shot promises written into a contract (the simple “title opportunity” clause). Settled from the fights themselves: kept when the
+ * fighter has really fought for a title since the deal was struck; broken at the end of the contract otherwise (morale and trust fall).
+ */
 export function processObligations(state: GameState): void {
   if (!FEATURES.titlesImplemented) return
   for (const o of state.obligations) {
-    if (o.status === 'open' && o.dueDay <= state.today) {
+    if (o.status !== 'open') continue
+    const f = state.fighters[o.fighterId]
+    if (!f) { o.status = 'broken'; continue }
+    const fought = f.recentFights.some((id) => { const ft = state.fights[id]; return !!ft?.result && ft.day >= o.createdDay && !!ft.title && (ft.title.kind === 'title' || ft.title.kind === 'unification') })
+    if (fought) {
+      o.status = 'fulfilled'
+      f.morale = Math.min(100, f.morale + 6)
+      f.promoRelations[o.promotionId] = (f.promoRelations[o.promotionId] ?? 0) + 10
+    } else if (o.dueDay <= state.today) {
       o.status = 'broken'
-      const f = state.fighters[o.fighterId]
-      if (f) {
-        f.morale = Math.max(1, f.morale - 15)
-        f.promoRelations[o.promotionId] = (f.promoRelations[o.promotionId] ?? 0) - 25
-      }
+      f.morale = Math.max(1, f.morale - 15)
+      f.promoRelations[o.promotionId] = (f.promoRelations[o.promotionId] ?? 0) - 25
     }
   }
 }

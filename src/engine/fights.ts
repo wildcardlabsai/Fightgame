@@ -2,6 +2,7 @@
  * FIGHTS: creation, availability, scheduling, camp, fight night and post-fight processing.
  * The Fight entity is the system of record; fighters only hold `activeFightId` and a short `recentFights` list.
  */
+import { planFightFactors } from './business/plans'
 import { VENUE_SEEDS } from '../data/venues'
 import { regionOf } from '../data/nations'
 import { weightClassLabel } from '../data/weightClasses'
@@ -390,13 +391,15 @@ function processResult(state: GameState, fight: Fight, endDamage: [number, numbe
     dRep *= B.fights.reputationK
     if (dPop > 0) dPop *= B.fights.popularityGainK
     dPop *= exposureFor(state, fight, dPop)
+    const pk = planFightFactors(state, f.id)
+    if (dPop > 0) dPop *= pk.fame
     r.dRep[i] = Math.round(dRep * 10) / 10
     r.dPop[i] = Math.round(dPop * 10) / 10
     f.reputation = clamp(f.reputation + dRep, 1, 100)
     f.popularity = clamp(f.popularity + dPop, 1, 100)
     // Morale, confidence, career momentum
     const ko = lost && (r.method === 'KO' || r.method === 'TKO')
-    f.morale = clamp(f.morale + (won ? 6 + 5 * r.upset : lost ? -(7 + 6 * pWin + (ko ? 6 : 0)) : 0), 1, 100)
+    f.morale = clamp(f.morale + (won ? 6 + 5 * r.upset : lost ? -(7 + 6 * pWin + (ko ? 6 : 0)) * pk.lossMorale : 0), 1, 100)
     f.confidence = clamp(f.confidence + (won ? 5 + 8 * r.upset + 6 * (r.perf[i] - 0.5) : lost ? -(6 + 8 * pWin + (ko ? 8 : 0)) : 0), 1, 100)
     f.momentum = clamp(0.65 * f.momentum + (won ? 30 + 25 * r.upset : lost ? -(25 + 25 * pWin) : 0), -100, 100)
     f.fitness = clamp(f.fitness - 5 - 6 * Math.min(1, endDamage[i]), 20, 100)

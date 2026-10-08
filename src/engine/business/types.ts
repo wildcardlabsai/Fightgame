@@ -77,6 +77,9 @@ export interface Talk {
   mood: 'eager' | 'warm' | 'lukewarm' | 'cold'
   /** Hidden to the UI as a number: the view shows only a three-step tension reading. */
   patience: number
+  p0: number
+  /** Money components the camp has already conceded (a later counter is never worse for the player than the last). */
+  asked: string[]
   offer: Offer | null
   counter: Offer | null
   fightOffer: FightOffer | null
@@ -95,6 +98,9 @@ export interface NegRecord {
   lowballs: number
   walkouts: number
   lastDay: Day
+  /** Promises kept / broken with this camp (their memory of you). */
+  kept?: number
+  broken?: number
 }
 
 export interface TitleHistory { won: number; defences: number; best: TitleLevel | null; unifiedDay: Day | null; undisputedDay: Day | null }

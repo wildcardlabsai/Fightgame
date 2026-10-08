@@ -1,3 +1,4 @@
+import { planInjuryMult } from '../business/plans'
 import { BALANCE as B } from '../balance'
 import { fighterAge, fighterName } from '../fighters'
 import { postMessage } from '../messages'
@@ -32,7 +33,7 @@ export function rollFightInjury(state: GameState, f: Fighter, endDamage: number,
   if (forced) return makeInjury(rng, state.today, severityFor(rng, 'moderate'), rng.pick(['cut', 'broken hand', 'eye damage', 'shoulder strain']))
   const age = fighterAge(f, state.today)
   const p = (I.base + I.perDamage * Math.min(1, endDamage) + I.perKnockdown * kdSuffered + I.perAgeOver30 * Math.max(0, age - 30)) * (I.riskMult + (f.injuryRisk / 100) * 0.8)
-  if (!rng.chance(p)) return null
+  if (!rng.chance(p * planInjuryMult(state, f.id))) return null
   return makeInjury(rng, state.today, severityFor(rng))
 }
 

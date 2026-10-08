@@ -6,6 +6,10 @@ import * as ev from './events/events'
 import { processMedia } from './media/process'
 import { orderReport, orderSearch, toggleShortlist as toggleShortlistState, type SearchSpec } from './scouting'
 import { financialHealth, playerRoster } from './selectors'
+import { openContractTalk, talkMove, type ContractMove, type TalkOutcome } from './business/contractTalks'
+import { fightMove, openFightTalk, type FightMove, type FightTalkOutcome } from './business/fightTalks'
+import { setPlan } from './business/plans'
+import type { DevPlan } from './business/types'
 import type { GameState, Id, NegotiationKind, Offer, ScoutDepth, TrainingFocus } from './types'
 
 export interface CommandResult {
@@ -143,4 +147,19 @@ export function runEventToEnd(state: GameState, eventId: Id): ev.EvResult {
   ev.runWholeEvent(next, next.events[eventId])
   processMedia(next)
   return { ok: true, state: next, eventId }
+}
+
+// ---------------------------------------------------------------- Phase 5.4: conversations and plans
+
+export const startContractTalk = (state: GameState, fighterId: Id, kind: NegotiationKind): TalkOutcome => openContractTalk(state, fighterId, kind)
+export const contractMove = (state: GameState, talkId: string, move: ContractMove): TalkOutcome => talkMove(state, talkId, move)
+export const startFightTalk = (state: GameState, fightId: Id): FightTalkOutcome => openFightTalk(state, fightId)
+export const fightTalkMove = (state: GameState, talkId: string, move: FightMove): FightTalkOutcome => fightMove(state, talkId, move)
+
+/** Set a rostered fighter’s development plan outside a negotiation. */
+export function choosePlan(state: GameState, fighterId: Id, plan: DevPlan): CommandResult {
+  if (!playerRoster(state).some((f) => f.id === fighterId)) return { ok: false, error: 'That fighter is not on your roster.', state }
+  const next = structuredClone(state)
+  setPlan(next, fighterId, plan)
+  return { ok: true, state: next }
 }

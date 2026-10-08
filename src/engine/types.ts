@@ -201,6 +201,8 @@ export interface Offer {
   titlePromise: boolean
   /** Phase 5.4: a concrete pathway promised in the talks (tracked as a commitment). */
   pathway?: import('./business/types').PathwayOffer | null
+  /** Phase 5.4: the development plan agreed in the talks (applied when the deal is struck). */
+  plan?: import('./business/types').DevPlan | null
 }
 
 export type NegotiationKind = 'signing' | 'renewal'
