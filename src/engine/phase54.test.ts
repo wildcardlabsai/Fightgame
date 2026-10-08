@@ -12,7 +12,7 @@ import { ambitionOf, managerOf } from './business/manager'
 import { advanceOneWeek } from './tick'
 import { newLog, playWeek, STRATEGIES } from './sim/strategies'
 import { getReigns } from './media/records'
-import { levelOf } from './business/titleDefs'
+import { levelOf, levelRank } from './business/titleDefs'
 import type { Fighter, GameState } from './types'
 
 const logo = { monogram: 'P', color: '#fff', emblem: 'bolt' as const }
@@ -188,7 +188,13 @@ describe('title integrity under the full ladder (3-year bot world)', () => {
             const world = (rec: Record<string, string | null>) => Object.entries(rec).filter(([kk, cc]) => cc === c && kk.endsWith(`|${wc}`) && levelOf(kk.split('|')[0]) === 'world').length
             // The belts held when it was given up: last week's, or this week's plus the one given up (a belt may have been won in between).
             const belts = Math.max(world(before), world(now) + 1)
-            relinquished.push({ key: k, holder: c, worldBelts: belts })
+            // Two legitimate causes: the belt was given up for being spread too thin (three or more world belts), or the holder moved UP a level
+            // of the ladder (a lower reign closes the moment a higher belt is held — then the holder must now hold a higher-level belt there).
+            if (/moved up to/.test(reign!.how)) {
+              const lvl = levelRank(levelOf(body))
+              const higher = Object.entries(now).some(([kk, cc]) => cc === c && kk.endsWith(`|${wc}`) && levelRank(levelOf(kk.split('|')[0])) > lvl)
+              expect(higher, `${k} closed as "moved up" but ${c} holds no higher belt`).toBe(true)
+            } else relinquished.push({ key: k, holder: c, worldBelts: belts })
           }
         }
       }

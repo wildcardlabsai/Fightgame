@@ -168,7 +168,8 @@ describe('Fight Night reads only recorded data', () => {
 describe('title-fight presentation contract', () => {
   it('no fight is a title fight unless the fight data says so', () => {
     const { after, fightIds } = playedShow('title')
-    for (const id of fightIds) expect(fightView(after, id)!.title).toBeNull()
+    // A title is shown exactly when the fight's own data carries one (a fight is flagged as a title fight when it is scheduled); never inferred.
+    for (const id of fightIds) expect(!!fightView(after, id)!.title, id).toBe(!!after.fights[id].title)
     const src = readdirSync(join(__dirname)).filter((f) => f.endsWith('.ts') && !f.includes('.test.') && f !== 'testShow.ts')
     for (const f of src) expect(readFileSync(join(__dirname, f), 'utf8'), f).not.toMatch(/\.title\s*=[^=]/)
   })

@@ -106,9 +106,9 @@
 /* ---- Integrity pass: current vs former titles */
 .bz-clabel { font-size: 26px; font-weight: 800; text-transform: uppercase; color: var(--gold); margin: 4px 0 6px; line-height: 1.1; }
 .bz-cur b { font-size: 17px; }
-.bz-former { opacity: .85; } .bz-former summary { cursor: pointer; min-height: 36px; display: flex; align-items: center; }
+.bz-former { opacity: .85; } .bz-former summary { cursor: pointer; min-height: 44px; display: flex; align-items: center; }
 .bz-former .chip, .bz-hist .chip { opacity: .8; }
-.bz-hist { margin: 6px 0; font-size: 13.5px; } .bz-hist summary { cursor: pointer; min-height: 36px; display: flex; align-items: center; color: var(--dim); }
+.bz-hist { margin: 6px 0; font-size: 13.5px; } .bz-hist summary { cursor: pointer; min-height: 44px; display: flex; align-items: center; color: var(--dim); }
 .bz-hlist { list-style: none; margin: 4px 0 0; padding: 0; } .bz-hlist li { padding: 4px 0; border-top: 1px solid var(--line); overflow-wrap: anywhere; }
 .rk-hlabel { font-family: var(--display); letter-spacing: .08em; text-transform: uppercase; color: var(--gold); }
 .bz-best.champ { border-left: 3px solid var(--gold); background: linear-gradient(90deg, rgba(212,162,76,.16), transparent 70%); }
