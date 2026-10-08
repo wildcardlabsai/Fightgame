@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { formatDay } from '../../engine/calendar'
-import { eventView, venueFits, type CardSlot, type EventView } from '../../engine/eventViews'
+import { eventView, type CardSlot, type EventView } from '../../engine/eventViews'
 import { eventAdvice, needsConfirmation, visibleAdvice } from '../../engine/advisor'
 import type { BroadcastKind, MarketingLevel, PromoStrategy } from '../../engine/types'
 import { useGame } from '../../store/gameStore'
@@ -15,6 +15,7 @@ import { eventPosterView } from '../../engine/eventPoster'
 import { CountUp } from '../visual/CountUp'
 import { EventPoster } from '../visual/EventPoster'
 import { EventMediaPanel } from '../media/EventMediaPanel'
+import { VenueFitList } from '../venues/VenueFitList'
 import { FighterCard, type CardFighter } from '../visual/FighterCard'
 
 const rng = (r: { lo: number; hi: number }, f: (n: number) => string = (n) => money(n)) => (Math.round(r.lo) === Math.round(r.hi) ? f(r.lo) : `${f(r.lo)} to ${f(r.hi)}`)
@@ -190,7 +191,7 @@ export function EventPage({ id }: { id: string }) {
           {v.sales.trend !== 'not on sale' && <SalesPanel v={v} />}
           {v.mine && v.open && v.can.editCard && (
             <Section title="Venue fit" right={<button className="linkbtn" onClick={() => setFits((x) => !x)}>{fits ? 'Hide' : 'Compare venues'}</button>}>
-              {fits ? <FitTable id={v.id} /> : <p className="dim" style={{ fontSize: 13 }}>See how this card would fill every venue, using only public information.</p>}
+              {fits ? <VenueFitList eventId={v.id} currentVenueId={v.venue.id} /> : <p className="dim" style={{ fontSize: 13 }}>See how this card would fill every venue, using only public information.</p>}
             </Section>
           )}
           <FinancePanel v={v} />
@@ -348,25 +349,6 @@ function SalesPanel({ v }: { v: EventView }) {
       </dl>
       {s.history.length > 1 && <AreaChart points={s.history.map((y, i) => ({ x: i, y }))} height={110} color="var(--gold)" formatY={(n) => num(n)} />}
     </Section>
-  )
-}
-
-function FitTable({ id }: { id: string }) {
-  const game = useGame((s) => s.game)!
-  const rows = useMemo(() => venueFits(game, id), [game, id])
-  return (
-    <div className="table-wrap"><table className="table">
-      <thead><tr><th>Venue</th><th className="r">Seats</th><th>Fill</th><th>Profit</th><th>Fit</th></tr></thead>
-      <tbody>{rows.map((r) => (
-        <tr key={r.venueId} className={r.free ? '' : 'dim'}>
-          <td><div className="fighter-name">{r.name}</div><div className="fighter-sub">{r.city} · {r.tierLabel}{r.free ? '' : ' · booked'}</div></td>
-          <td className="r num">{num(r.capacity)}</td>
-          <td className="num">{Math.round(r.fill.lo * 100)}–{Math.round(r.fill.hi * 100)}%</td>
-          <td className="num">{rng(r.profit)}</td>
-          <td><span className={`chip ${r.verdict === 'good fit' ? 'good' : r.verdict === 'too big' || r.verdict === 'loses money' ? 'red' : 'gold'}`}>{r.verdict}</span></td>
-        </tr>
-      ))}</tbody>
-    </table></div>
   )
 }
 

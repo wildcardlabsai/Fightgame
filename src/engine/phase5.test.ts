@@ -14,7 +14,7 @@ import { fightSignificance } from './media/worldEvents'
 import { compose } from './media/copy'
 import { bumpRivalry, rivalryStrength } from './media/narratives'
 import { decodeWhy, rankIn } from './media/rankings'
-import { getAwards, getDone, getHistory } from './media/records'
+import { getAwards, getDone, getHistory, getList } from './media/records'
 import { champions } from './media/testing'
 import { unwindViral } from './media/videos'
 import { storiesList, mediaHome, fighterMediaView, rankingView, titlesOverview, eventMediaView, headlineRank } from './media/views'
@@ -87,7 +87,7 @@ describe('rankings: several authorities, explainable movement', () => {
         const e = s.media!.rankings[org.id][wc.id]
         expect(e).toBeTruthy()
         if (r.movement !== '–') { moved++; expect(r.why.length).toBeGreaterThan(3) }
-        const why = decodeWhy(JSON.parse(e!).e.find((x: { f: string }) => x.f === r.id).why)
+        const why = decodeWhy(getList(s.media!, org.id, wc.id)!.e.find((x) => x.f === r.id)!.why)
         if (why.k === 'beat' || why.k === 'lost') {
           cited++
           const f = s.fighters[r.id]

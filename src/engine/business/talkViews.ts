@@ -130,3 +130,7 @@ export function fightTalkView(state: GameState, talkId: string): FightTalkView |
 
 export const openContractTalkId = (state: GameState, fighterId: Id, kind: 'signing' | 'renewal'): string | null => openTalkFor(state, fighterId, kind)?.id ?? null
 export const openFightTalkId = (state: GameState, fightId: Id): string | null => openFightTalkFor(state, fightId)?.id ?? null
+
+/** How the current DRAFT compares with the public ranges (the same words the panel uses for the last offer sent). */
+export const assessContractDraft = (state: GameState, fighterId: Id, kind: 'signing' | 'renewal', offer: Offer) => expectedContractTerms(state, fighterId, kind, offer)?.assessment ?? 'Not yet judged'
+export const assessFightDraft = (state: GameState, fightId: Id, offer: FightOffer) => expectedFightTerms(state, fightId, offer)?.assessment ?? 'Not yet judged'

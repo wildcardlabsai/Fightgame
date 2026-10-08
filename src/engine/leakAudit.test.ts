@@ -61,7 +61,7 @@ describe('static scan of the presentation layer', () => {
     const re = /import\s+(type\s+)?(\{[^}]*\}|\*\s+as\s+\w+|\w+)\s+from\s+'([^']+)'/g
     // value imports the UI legitimately needs (labels and public constants only)
     const allowedValues: Record<string, string[]> = {
-      'systems/development': ['FOCUS_LABELS', 'FOCUS_BLURBS'], 'systems/contracts': ['STAGE_LABEL'], promotions: ['TIER_ORDER', 'LOGO_COLORS', 'LOGO_EMBLEMS', 'monogramFor'],
+      'systems/development': ['FOCUS_LABELS', 'FOCUS_BLURBS'], 'systems/contracts': ['STAGE_LABEL'], promotions: ['TIER_ORDER', 'LOGO_COLORS', 'LOGO_EMBLEMS', 'monogramFor'], 'business/titleDefs': ['LEVEL_LABEL', 'LEVEL_ORDER', 'levelOf'],
     }
     for (const f of presentation) {
       let m: RegExpExecArray | null
@@ -69,7 +69,7 @@ describe('static scan of the presentation layer', () => {
         const [, isType, names, mod] = m
         const engine = mod.match(/engine\/(.+)$/)?.[1]
         if (!engine) continue
-        const ok = ['view', 'quotes', 'selectors', 'calendar', 'types', 'save', 'worldgen', 'config', 'tick', 'commands', 'scouting', 'fightViews', 'matchmaking', 'eventViews', 'persistence', 'advisor', 'scenarios', 'onboarding', 'preferences', 'sponsors', 'tiers', 'tierProgress', 'eventPoster', 'media/views']
+        const ok = ['view', 'quotes', 'selectors', 'calendar', 'types', 'save', 'worldgen', 'config', 'tick', 'commands', 'scouting', 'fightViews', 'matchmaking', 'eventViews', 'persistence', 'advisor', 'scenarios', 'onboarding', 'preferences', 'sponsors', 'tiers', 'tierProgress', 'eventPoster', 'media/views', 'business/views', 'business/talkViews']
         if (['knowledge', 'market', 'negotiation', 'roster', 'rng', 'balance', 'ledger', 'systems/aiMarket', 'systems/aiFights', 'systems/world', 'ids', 'messages', 'fights', 'fightNegotiation', 'fight/sim', 'fight/profile', 'fight/injuries', 'fight/styles', 'fight/lifecycle'].includes(engine)) bad.push(`${f.path} imports ${engine}`)
         if (!isType && !ok.includes(engine) && engine !== 'media/commands') {
           const allowed = allowedValues[engine] ?? []

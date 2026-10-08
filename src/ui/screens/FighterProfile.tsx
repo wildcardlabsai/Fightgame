@@ -1,10 +1,11 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { fighterAdvice } from '../../engine/advisor'
 import { formatDay } from '../../engine/calendar'
 import { STAGE_LABEL } from '../../engine/systems/contracts'
 import { FOCUS_BLURBS, FOCUS_LABELS } from '../../engine/systems/development'
 import type { TrainingFocus } from '../../engine/types'
 import { fightView } from '../../engine/fightViews'
+import { fighterBusinessView } from '../../engine/business/views'
 import { useGame } from '../../store/gameStore'
 import { useViews } from '../../store/hooks'
 import { AdvicePanel } from '../components/Advice'
@@ -15,6 +16,7 @@ import { ScoutDialog } from '../components/ScoutDialog'
 import { money } from '../format'
 import { FighterPortrait } from '../visual/FighterPortrait'
 import { FighterMediaPanel } from '../media/FighterMediaPanel'
+import { CareerPanel, CommitmentsPanel, DivisionMove, ExpectedTermsPanel, PlanChooser, ToldPanel, ValuePanel } from '../business/ProfileBusiness'
 
 export function FighterProfile({ id }: { id: string }) {
   const navigate = useGame((s) => s.navigate)
@@ -24,6 +26,7 @@ export function FighterProfile({ id }: { id: string }) {
   const v = views.fighter(id)
   const [scouting, setScouting] = useState(false)
   const game = useGame((x) => x.game)!
+  const bv = useMemo(() => fighterBusinessView(game, id), [game, id])
   const upcoming = v?.activeFightId ? fightView(game, v.activeFightId) : null
 
   if (!v) {
@@ -73,6 +76,23 @@ export function FighterProfile({ id }: { id: string }) {
       </header>
       <AdvicePanel list={fighterAdvice(v)} cap={2} />
       <FighterMediaPanel id={v.id} revealPersona={v.personality.trait !== null} />
+      {bv && v.status === 'active' && (
+        <div className="biz-area">
+          <CareerPanel bv={bv} mine={mine} />
+          <div className="biz-grid">
+            <div>
+              <ValuePanel bv={bv} />
+              {bv.commitments.length > 0 || mine ? <CommitmentsPanel bv={bv} /> : null}
+            </div>
+            <div>
+              {bv.expected && <ExpectedTermsPanel t={bv.expected} canNegotiate={(!mine && v.market.signable) || (mine && c.kind === 'own')} onOpen={() => navigate('negotiation', v.id)} />}
+              {mine && <PlanChooser bv={bv} />}
+              {mine && <DivisionMove bv={bv} divisionName={v.division} />}
+              <ToldPanel bv={bv} />
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="grid-2" style={{ marginTop: 6 }}>
         <div>
@@ -175,7 +195,7 @@ export function FighterProfile({ id }: { id: string }) {
               <div className="kv"><dt>Career stage</dt><dd>{v.stage}</dd></div>
               <div className="kv"><dt>Availability</dt><dd className={v.availability.status === 'available' ? 'good' : 'warn'}>{v.availability.label}{v.availability.weeks ? ` · ${v.availability.weeks} weeks` : ''}</dd></div>
               <div className="kv"><dt>Division standing</dt><dd>{v.standing.rank > 0 ? `#${v.standing.rank} of ${v.standing.of}` : 'Unrated'} <span className="dim">(public form, not an official ranking)</span></dd></div>
-              <div className="kv"><dt>Titles</dt><dd className="dim">None on record</dd></div>
+              <div className="kv"><dt>Titles</dt><dd className={bv?.held.length ? 'gold' : 'dim'}>{bv?.held.length ? bv.held.map((h) => h.title).join(', ') : 'None held'}</dd></div>
             </dl>
           </Section>
 

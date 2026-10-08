@@ -7,8 +7,7 @@ import { WEIGHT_CLASSES } from '../../data/weightClasses'
 import type { Day, Fighter, GameState, Id, WeightClassId } from '../types'
 import { TITLE_DEF_BY_ID, isEligibleFor } from '../business/titleDefs'
 import { RANKING_ORGS, RANK_ORG_BY_ID } from './orgs'
-import { pack } from './packed'
-import { getList } from './records'
+import { getList, packList } from './records'
 import type { MediaState, RankEntry, RankList, RankingMethod, RankingOrg, RankReason } from './types'
 import { totalFightsOf, weekIndex } from './util'
 
@@ -155,7 +154,7 @@ export function reseatLists(state: GameState, media: MediaState, wcs: Iterable<W
         next.push({ ...e, r: next.length + (next.length && next[0].r === 0 ? 0 : 1) })
       }
       const same = next.length === list.e.length && next.every((e, i) => e.f === list.e[i].f && e.r === list.e[i].r)
-      if (!same) media.rankings[org.id][wc] = pack({ u: list.u, e: next })
+      if (!same) media.rankings[org.id][wc] = packList({ u: list.u, e: next })
     }
   }
 }
@@ -165,7 +164,11 @@ export interface RankMove { orgId: string; wc: WeightClassId; f: Id; from: numbe
 /** Recompute every list that is due this week. Returns the notable movements for the story engine. */
 export function updateRankings(state: GameState, media: MediaState, first = false): RankMove[] {
   const week = weekIndex(state)
-  const due = RANKING_ORGS.filter((o) => o.active && media.rankOrgs[o.id]?.active !== false && (first || week % o.updateEveryWeeks === o.offset))
+  // The media pass runs every second week, so “week % every === offset” would never fire for an odd offset: a list is due when its
+  // schedule has ticked over since the previous pass.
+  const prev = media.week
+  const ticked = (o: RankingOrg): boolean => Math.floor((week - o.offset) / o.updateEveryWeeks) > Math.floor((prev - o.offset) / o.updateEveryWeeks)
+  const due = RANKING_ORGS.filter((o) => o.active && media.rankOrgs[o.id]?.active !== false && (first || ticked(o)))
   if (due.length === 0) return []
   const ctx = buildContexts(state, media)
   const byWc = new Map<WeightClassId, Fighter[]>()
@@ -177,7 +180,7 @@ export function updateRankings(state: GameState, media: MediaState, first = fals
       const prev = getList(media, org.id, wc.id)
       const list = computeList(state, media, org, wc.id, ctx, byWc.get(wc.id) ?? [], first)
       if (!list) continue
-      media.rankings[org.id][wc.id] = pack(list)
+      media.rankings[org.id][wc.id] = packList(list)
       if (first || !prev) continue
       for (const e of list.e) {
         const from = e.p

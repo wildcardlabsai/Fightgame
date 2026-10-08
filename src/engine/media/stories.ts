@@ -120,7 +120,8 @@ export function pruneStories(media: MediaState, week: number): void {
   media.stories = media.stories.filter((s) => s.x > week)
   if (media.stories.length > LIMITS.stories) {
     // Importance decides what is kept, but the last few weeks' stories always survive so a fighter's latest coverage never vanishes at once.
-    const keep = (x: StoredStory) => (week - x.w <= 3 ? 100 : x.i)
+    // Stories about a real, finished fight are the backbone of the newsroom: they outlast comparable admin items (vacancies, orders, rating moves).
+    const keep = (x: StoredStory) => (week - x.w <= 3 ? 100 : x.i + (x.ft ? 6 : 0))
     media.stories.sort((a, b) => keep(b) - keep(a) || b.w - a.w)
     media.stories.length = LIMITS.stories
     media.stories.sort((a, b) => b.w - a.w || b.i - a.i)

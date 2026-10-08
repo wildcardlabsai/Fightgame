@@ -214,7 +214,10 @@ export function cancelledEvent(state: GameState, ev: BoxingEvent): WorldEvent | 
 export function announcedFight(state: GameState, media: MediaState, fight: Fight, titleBodies: string[]): WorldEvent | null {
   const A = state.fighters[fight.sideA.fighterId], B = state.fighters[fight.sideB.fighterId]
   if (!A || !B) return null
-  const { sig, parts } = fightSignificance(state, media, fight, titleBodies.length > 0)
+  const base = fightSignificance(state, media, fight, titleBodies.length > 0)
+  // The announcement of a regional title fight is smaller news than a world title one (the result keeps its full weight).
+  const sig = Math.max(0, base.sig - (({ area: 14, domestic: 8, european: 3 } as Record<string, number>)[fight.title?.level ?? ''] ?? 0))
+  const parts = base.parts
   const ev = fight.eventId ? state.events[fight.eventId] : undefined
   const d = dayToDate(fight.day)
   const facts: Facts = {

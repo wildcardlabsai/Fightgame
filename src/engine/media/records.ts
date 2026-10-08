@@ -2,7 +2,7 @@
  * pipeline run (`flushRecords`), so a busy week costs one decode/encode per record, not one per entry. */
 import { edit, unpack } from './packed'
 import { LIMITS } from './state'
-import type { AwardRec, CareerEntry, DoneNarrative, HistoryRec, MediaState, RankList, Reign } from './types'
+import type { AwardRec, CareerEntry, DoneNarrative, HistoryRec, MediaState, RankEntry, RankList, Reign } from './types'
 import type { Id, WeightClassId } from '../types'
 
 interface Pending { hist: HistoryRec[]; done: DoneNarrative[]; reigns: Reign[]; awards: AwardRec[]; career: Map<Id, CareerEntry[]> }
@@ -69,9 +69,25 @@ export function pushCareer(m: MediaState, id: Id, e: CareerEntry): void {
   if (list) list.push(e); else p.career.set(id, [e])
 }
 
+const LISTS = new Map<string, RankList>()
+/** Rating lists are stored as compact tuples [fighter, rank, previous rank, reason] (a third of the bytes of keyed objects). */
+export function packList(l: RankList): string {
+  const s = JSON.stringify({ u: l.u, e: l.e.map((x) => [x.f, x.r, x.p, x.why]) })
+  if (LISTS.size > 600) LISTS.clear()
+  LISTS.set(s, l)
+  return s
+}
 export const getList = (m: MediaState, org: string, wc: WeightClassId): RankList | undefined => {
   const s = m.rankings[org]?.[wc]
-  return s ? unpack<RankList | undefined>(s, undefined) : undefined
+  if (!s) return undefined
+  const hit = LISTS.get(s)
+  if (hit) return hit
+  const raw = JSON.parse(s) as { u: number; e: (unknown[] | RankEntry)[] }
+  // Older saves hold keyed objects; both forms are read.
+  const l: RankList = { u: raw.u, e: raw.e.map((x) => (Array.isArray(x) ? { f: x[0] as string, r: x[1] as number, p: x[2] as number | null, why: x[3] as string } : (x as RankEntry))) }
+  if (LISTS.size > 600) LISTS.clear()
+  LISTS.set(s, l)
+  return l
 }
 
 /** Retired for two years: keep the milestones that make a legacy (belts, number-one runs, retirement), drop the passing detail. */

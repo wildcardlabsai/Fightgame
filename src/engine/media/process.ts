@@ -172,17 +172,20 @@ function titleEventToWorld(state: GameState, te: TitleEvent): WorldEvent | null 
   const title = titleName(te.body, te.wc)
   const lvl = levelOf(te.body)
   const lvlSig = lvl === 'world' ? 14 : lvl === 'european' ? 9 : lvl === 'domestic' ? 6 : 2
+  // Housekeeping at an area title (a vacancy, an order, a lapsed eliminator) is not news outside its region; a domestic belt’s only when its holder is known.
+  if (lvl === 'area' && te.kind !== 'DIVISION_MOVE' && te.kind !== 'UNIFIED' && te.kind !== 'UNDISPUTED') return null
+  if (lvl === 'domestic' && ['MANDATORY_EXTENDED', 'ELIM_LAPSED', 'TITLE_OPEN'].includes(te.kind)) return null
   const feature = (h: string, sub: string, text: string, sig: number, fighters: Id[], tags: string[]): WorldEvent => ({
     kind: 'FEATURE', day: state.today, fighters, names: fighters.map((id) => fighterName(state.fighters[id])), promotions: [], facts: { h, s: sub, body: text },
     sig: Math.round(clampTo(sig)), parts: { title: lvlSig }, tags,
   })
   if (te.kind === 'MANDATORY' && f && te.o) {
     const ch = state.fighters[te.o]
-    return { kind: 'MANDATORY', day: state.today, fighters: [f.id, te.o], names: [fighterName(f), fighterName(ch)], promotions: [], facts: { body: body.shortName, c: fighterName(f), ch: fighterName(ch), div, due: formatDay(state.today + 26 * 7, false), title }, sig: Math.round(clampTo(14 + lvlSig + f.popularity * 0.3 + f.reputation * 0.2)), parts: { champion: f.popularity * 0.3 }, tags: ['mandatory'] }
+    return { kind: 'MANDATORY', day: state.today, fighters: [f.id, te.o], names: [fighterName(f), fighterName(ch)], promotions: [], facts: { body: body.shortName, c: fighterName(f), ch: fighterName(ch), div, due: formatDay(state.today + 26 * 7, false), title }, sig: Math.round(clampTo(4 + lvlSig + f.popularity * 0.3 + f.reputation * 0.2)), parts: { champion: f.popularity * 0.3 }, tags: ['mandatory'] }
   }
   if ((te.kind === 'STRIPPED' || te.kind === 'TITLE_VACANT') && te.f) {
     const n = f ? fighterName(f) : 'The champion'
-    return { kind: te.kind === 'STRIPPED' ? 'STRIPPED' : 'TITLE_VACANT', day: state.today, fighters: [te.f], names: [n], promotions: [], facts: { n, title, body: body.shortName, div, how: te.how ?? '' }, sig: Math.round(clampTo(30 + lvlSig + (f?.popularity ?? 20) * 0.3 + (f?.reputation ?? 20) * 0.2)), parts: { vacancy: 30 }, tags: ['vacancy'] }
+    return { kind: te.kind === 'STRIPPED' ? 'STRIPPED' : 'TITLE_VACANT', day: state.today, fighters: [te.f], names: [n], promotions: [], facts: { n, title, body: body.shortName, div, how: te.how ?? '' }, sig: Math.round(clampTo(18 + 1.5 * lvlSig + (f?.popularity ?? 20) * 0.3 + (f?.reputation ?? 20) * 0.2)), parts: { vacancy: 30 }, tags: ['vacancy'] }
   }
   if (te.kind === 'DIVISION_MOVE' && f && (f.reputation >= 40 || f.popularity >= 45)) return feature(`${fighterName(f)} moves up to ${div}`, te.how ?? 'A new division', `${fighterName(f)} will now campaign at ${div}. ${te.how ?? ''}`.trim(), 22 + f.popularity * 0.25 + f.reputation * 0.2, [f.id], ['division'])
   if (te.kind === 'ELIM_ORDERED' && f && o) return feature(`${body.shortName} order ${div} eliminator: ${fighterName(f)} v ${fighterName(o)}`, 'The winner becomes the mandatory challenger', `${body.name} have ordered an eliminator between ${fighterName(f)} and ${fighterName(o)}, two of the leading ${div} contenders. The winner will be named mandatory challenger for the ${title}.`, 24 + lvlSig + (f.popularity + o.popularity) * 0.15, [f.id, o.id], ['eliminator'])
@@ -204,13 +207,16 @@ function titleCareer(state: GameState, media: MediaState, te: TitleEvent): void 
   else if (te.kind === 'DIVISION_MOVE' && te.f) addCareer(media, te.f, { d, k: 'DIVISION_MOVE', a: weightClassLabel(te.wc) })
 }
 
+/** A move on a small regional list is smaller news than one on a world list. */
+const LOW_LEVEL_PENALTY: Record<string, number> = { area: 8, domestic: 4, european: 2 }
+
 function moveToWorld(state: GameState, _media: MediaState, mv: RankMove): WorldEvent | null {
   const f = state.fighters[mv.f]
   if (!f || mv.to === null) return null
   const org = RANK_ORG_BY_ID[mv.orgId]
   const fromText = mv.from === null ? 'unranked' : mv.from === 0 ? 'champion' : `#${mv.from}`
   const toText = mv.to === 0 ? 'champion' : `#${mv.to}`
-  const sig = 14 + (mv.to <= 1 ? 22 : mv.to <= 3 ? 14 : mv.to <= 5 ? 8 : 2) + f.popularity * 0.15 + org.authority * 0.2 + (f.contractId && state.contracts[f.contractId]?.promotionId === state.playerPromotionId ? 8 : 0)
+  const sig = 14 + (mv.to <= 1 ? 22 : mv.to <= 3 ? 14 : mv.to <= 5 ? 8 : 2) + f.popularity * 0.15 + org.authority * 0.2 - (LOW_LEVEL_PENALTY[levelOf(mv.orgId)] ?? 0) + (f.contractId && state.contracts[f.contractId]?.promotionId === state.playerPromotionId ? 8 : 0)
   return {
     kind: 'RANKING_CHANGE', day: state.today, fighters: [f.id], names: [fighterName(f)], promotions: [], facts: { n: fighterName(f), div: weightClassLabel(f.weightClass), list: rankingIdentity(mv.orgId).shortName, from: mv.from, to: mv.to, fromText, toText, why: reasonText(mv.why, mv.from, mv.to, (id) => (state.fighters[id] ? fighterName(state.fighters[id]) : undefined)) },
     sig: Math.round(clampTo(sig)), parts: { authority: org.authority * 0.2 }, tags: ['ranking'],
@@ -219,8 +225,15 @@ function moveToWorld(state: GameState, _media: MediaState, mv: RankMove): WorldE
 
 function weekly(state: GameState, media: MediaState, week: number, ingested: Ingested): void {
   /** Whole weeks since the last full pass (the tick runs the media pipeline every second week). */
-  // Once a quarter, retired fighters shrink to a legacy line (bounded state).
-  if (week % 13 === 0) for (const id of Object.keys(media.career)) { const f = state.fighters[id]; if (f?.status === 'retired' && f.retiredDay !== null && state.today - f.retiredDay > 2 * 365) pruneRetiredCareer(media, id) }
+  // Once a quarter, long-retired fighters and the lowest-profile active ones shrink to a short career line (bounded state).
+  if (week % 13 === 0) {
+    const mineIds = new Set(rosterOf(state).map((x) => x.id))
+    for (const id of Object.keys(media.career)) {
+      const f = state.fighters[id]
+      if (!f) continue
+      if (f.status === 'retired' ? f.retiredDay !== null && state.today - f.retiredDay > 2 * 365 : f.reputation < 30 && !mineIds.has(id)) pruneRetiredCareer(media, id)
+    }
+  }
   const steps = Math.max(1, week - Math.max(media.week, week - 8))
   const lastDay = state.startDay + Math.max(media.week, -1) * 7
   const out: WorldEvent[] = []
@@ -242,7 +255,7 @@ function weekly(state: GameState, media: MediaState, week: number, ingested: Ing
   for (const mv of bestPerFighter.values()) {
     if (mv.orgId !== 'ringside' && mv.orgId !== 'atlas' && mv.orgId !== 'index') continue
     const w = moveToWorld(state, media, mv)
-    if (w && (mv.to! <= 3 || w.sig >= 40)) out.push(w)
+    if (w && (mv.to! <= 2 || w.sig >= 44)) out.push(w)
     const f = state.fighters[mv.f]
     if (f && mv.orgId === 'ringside' && mv.to !== null && mv.to <= 10 && mine.has(f.id)) {
       mediaMessage(state, media, { from: rankingIdentity('ringside').shortName, category: 'world', priority: 'normal', key: `rk-${f.id}-${mv.to}`, subject: `RANKING UPDATE: ${fighterName(f)} is now ${rankLabel(mv.to)} at ${weightClassLabel(f.weightClass)}`, body: `${rankingIdentity('ringside').name} now list ${fighterName(f)} at ${rankLabel(mv.to)} in the ${weightClassLabel(f.weightClass)} division${mv.from === null ? ', up from unranked' : `, up from ${rankLabel(mv.from)}`}. ${reasonText(mv.why, mv.from, mv.to, (id) => (state.fighters[id] ? fighterName(state.fighters[id]) : undefined))}.`, link: { kind: 'fighter', id: f.id } })

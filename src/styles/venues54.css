@@ -1,0 +1,30 @@
+.vn-filters { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 170px), 1fr)); gap: 10px 12px; margin-bottom: 10px; }
+.vn-filters .vn-f-q { grid-column: 1 / -1; }
+.vn-filters .input, .vn-filters .select, .vn-check, .vn-choose { min-height: 44px; }
+.vn-checks { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 4px 18px; }
+.vn-check { display: flex; align-items: center; gap: 8px; font-size: 14px; cursor: pointer; }
+.vn-check input { width: 20px; height: 20px; }
+.vn-count { font-size: 13px; margin: 6px 0 10px; }
+.vn-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 330px), 1fr)); gap: 14px; }
+.vn-card { display: flex; flex-direction: column; min-width: 0; background: var(--bg-2); border: 1px solid var(--line); }
+.vn-card.best { border-color: var(--good); } .vn-card.sel { border-color: var(--gold); }
+.vn-card.locked .vn-img { filter: grayscale(.8) brightness(.75); }
+.vn-img { margin: 0; position: relative; aspect-ratio: 16 / 7; overflow: hidden; background: #07070a; }
+.vn-img img, .vn-img .v-venue { width: 100%; height: 100%; object-fit: cover; display: block; }
+.vn-cap { position: absolute; left: 0; right: 0; bottom: 0; padding: 3px 8px; font-size: 11.5px; background: rgba(0,0,0,.65); color: #ddd; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vn-cap a { color: var(--gold); }
+.vn-body { padding: 12px 14px 14px; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.vn-top { display: flex; flex-direction: column; gap: 6px; }
+.vn-name { font-family: var(--display); font-weight: 800; font-size: 21px; line-height: 1.1; margin: 0; overflow-wrap: anywhere; }
+.vn-chips { display: flex; gap: 6px; flex-wrap: wrap; }
+.vn-where { font-size: 13.5px; overflow-wrap: anywhere; }
+.vn-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 12px; margin: 0; }
+.vn-stats dt { font-size: 11.5px; letter-spacing: .1em; text-transform: uppercase; color: var(--dim); font-family: var(--display); }
+.vn-stats dd { margin: 0; font-family: var(--display); font-size: 17px; overflow-wrap: anywhere; }
+.vn-verdict { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+.vn-home { margin: 0; font-size: 13.5px; color: var(--gold); } .vn-lock { margin: 0; font-size: 14px; } .vn-avail { font-size: 13px; }
+.vn-current { margin: 0; font-size: 14px; color: var(--gold); }
+.vn-facts summary { cursor: pointer; min-height: 44px; display: flex; align-items: center; color: var(--gold); font-family: var(--display); text-transform: uppercase; letter-spacing: .1em; font-size: 13px; }
+.vn-note { margin: 4px 0; font-size: 13px; }
+.vn-more { display: flex; justify-content: center; margin: 16px 0; }
+.vn-choose { width: 100%; }

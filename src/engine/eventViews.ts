@@ -19,6 +19,7 @@ import { cardProblems, eventAcceptsFight, isSaturday, playerOpenEvents, venueBoo
 import { EVENT_STATUS_LABEL, isEventOpen } from './events/lifecycle'
 import { viewsOf } from './view'
 import { cardFighterIds, fighterDistanceKm, realDefinition, travelCost } from './business/venues'
+import { nation } from '../data/nations'
 import { weightClassLabel } from '../data/weightClasses'
 import type { BoxingEvent, BroadcastKind, EventFinance, GameState, Id, SponsorOffer, TicketPrices, Venue } from './types'
 
@@ -230,9 +231,18 @@ export function eventView(state: GameState, id: Id): EventView | null {
   }
 }
 
+/** Public facts about where a venue is and how sure we are of them (real venues carry their research status; generic halls say they are placeholders). */
+export interface VenuePlace { real: boolean; generic: boolean; region: string | null; countryName: string; kind: string | null; capacityNote: string; sourceCount: number; verification: string | null }
+export function venuePlace(v: Venue): VenuePlace {
+  const def = realDefinition(v)
+  const countryName = def?.countryName ?? (v.country === 'KSA' ? 'Saudi Arabia' : nation(v.country)?.name ?? v.country)
+  if (def) return { real: true, generic: false, region: def.region, countryName, kind: def.kind.replace('_', ' '), capacityNote: def.boxingCapacitySource === 'published' ? 'Boxing capacity (published)' : 'Boxing capacity (estimated)', sourceCount: def.sources.length, verification: def.verificationStatus }
+  return { real: false, generic: true, region: null, countryName, kind: null, capacityNote: 'Generic hall — a game placeholder, not a real building', sourceCount: 0, verification: null }
+}
+
 export interface VenueFit {
-  /** Real-world venue facts (null for generic halls). */
-  place: { real: boolean; generic: boolean; region: string | null; countryName: string | null; kind: string | null; capacityNote: string; sourceCount: number; verification: string | null } | null
+  /** Real-world venue facts. */
+  place: VenuePlace
   /** Expected attendance (people), the attendance at which the show breaks even, the booking cost, and the travel bill for this card. */
   attendance: { lo: number; hi: number }; breakEven: number | null; travel: number; risk: 'safe' | 'watch' | 'highRisk'
   /** Home-crowd note from the card's fighters' hometowns (distance based). */
@@ -247,7 +257,6 @@ export function venueFits(state: GameState, eventId: Id): VenueFit[] {
     const alt = { ...ev, venueId: v.id, city: v.city, country: v.country }
     const f = forecastEvent(state, alt)
     const mid = (f.fill.lo + f.fill.hi) / 2
-    const def = realDefinition(v)
     const fighters = cardFighterIds(cardFights(state, alt))
     const near = fighters.filter((id) => { const km = fighterDistanceKm(state, id, v); return km !== null && km < 80 }).length
     const attMid = (f.attendance.lo + f.attendance.hi) / 2
@@ -255,8 +264,7 @@ export function venueFits(state: GameState, eventId: Id): VenueFit[] {
     const other = (f.revenue.lo + f.revenue.hi) / 2 - (f.ticketRevenue.lo + f.ticketRevenue.hi) / 2
     const costMid = (f.costs.lo + f.costs.hi) / 2
     return {
-      place: v.generic ? { real: false, generic: true, region: null, countryName: null, kind: null, capacityNote: 'Generic hall — a game placeholder, not a real building', sourceCount: 0, verification: null }
-        : def ? { real: true, generic: false, region: def.region, countryName: def.countryName, kind: def.kind.replace('_', ' '), capacityNote: def.boxingCapacitySource === 'published' ? 'Boxing capacity (published)' : 'Boxing capacity (estimated)', sourceCount: def.sources.length, verification: def.verificationStatus } : null,
+      place: venuePlace(v),
       attendance: { lo: Math.round(f.attendance.lo), hi: Math.round(f.attendance.hi) },
       breakEven: ticketPer > 0 ? Math.max(0, Math.round((costMid - other) / ticketPer)) : null,
       travel: travelCost(state, fighters, v), risk: f.risk,

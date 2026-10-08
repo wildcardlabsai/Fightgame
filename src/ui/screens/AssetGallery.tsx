@@ -9,6 +9,7 @@ import type { GenAsset, GenManifest } from '../../assetgen/types'
 import genJson from '../../../asset-pipeline/generation-manifest.json'
 import { useGame } from '../../store/gameStore'
 import { useViews } from '../../store/hooks'
+import { REAL_VENUE_BY_ID } from '../../data/realVenues'
 
 const GEN = genJson as unknown as GenManifest
 type Tab = 'all' | 'fighters' | 'promotions' | 'venues' | 'news' | 'missing' | 'generated' | 'failed' | 'shipped'
@@ -46,6 +47,8 @@ export function AssetGallery() {
   const counts = useMemo(() => GEN.assets.reduce<Record<string, number>>((n, a) => { n[a.status] = (n[a.status] ?? 0) + 1; return n }, {}), [])
   const sameWorld = game.seed === GEN.world.seed
   const list = GEN.assets.filter((a) => {
+    // Real venues are never queued for image generation (no invented pictures of real buildings).
+    if (a.entityType === 'venue' && (REAL_VENUE_BY_ID[a.entityId] || a.entityId.startsWith('rv_'))) return false
     switch (tab) {
       case 'fighters': return a.entityType === 'fighter'
       case 'promotions': return a.entityType === 'promotion'

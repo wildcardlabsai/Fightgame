@@ -11,6 +11,7 @@ import { eventPosterView } from '../../engine/eventPoster'
 import { EventPoster } from '../visual/EventPoster'
 import { FighterPortrait } from '../visual/FighterPortrait'
 import { VenueImage } from '../visual/VenueImage'
+import { VenuePicker } from '../venues/VenuePicker'
 
 type Tab = 'open' | 'history' | 'upcoming' | 'world'
 
@@ -60,10 +61,8 @@ function NewEventModal({ onClose }: { onClose: () => void }) {
     <Modal title="Plan a new show" onClose={onClose} wide>
       <label className="field"><span className="caps">Event name</span>
         <input className="input" value={name} placeholder="e.g. Fight Night at the Rialto" onChange={(e) => setName(e.target.value)} maxLength={48} aria-label="Event name" /></label>
-      <label className="field"><span className="caps">Venue</span>
-        <select className="select" value={venueId} onChange={(e) => setVenueId(e.target.value)} aria-label="Venue">
-          {venues.map((x) => <option key={x.id} value={x.id} disabled={!!x.locked}>{x.name}, {x.city} — {x.capacity.toLocaleString('en-GB')} seats · hire {money(x.hireCost, false)}{x.locked ? ` · 🔒 ${x.locked}` : ''}</option>)}
-        </select></label>
+      <div className="caps" style={{ marginBottom: 6 }}>Venue</div>
+      <VenuePicker value={venueId} onChange={(id) => { setVenueId(id); setDay(null) }} />
       <div className="kpis" style={{ margin: '10px 0' }}>
         <div className="kpi"><div className="caps">Tier</div><div className="v num" style={{ fontSize: 22 }}>{v.tierLabel}</div></div>
         <div className="kpi"><div className="caps">Capacity</div><div className="v num" style={{ fontSize: 22 }}>{v.capacity.toLocaleString('en-GB')}</div></div>
