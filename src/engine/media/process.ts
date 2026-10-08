@@ -30,6 +30,7 @@ import { bodyIdentity } from '../../data/mediaIdentity'
 import { formatDay } from '../calendar'
 import { runExtensions } from './extensions'
 import { flushRecords, getReigns, pruneRetiredCareer } from './records'
+import { settleRounds } from '../business/fightRounds'
 
 /** Build the media world for a game that has none: rankings, inaugural champions, profiles, opening career lines. */
 export function initMediaWorld(state: GameState): MediaState {
@@ -241,6 +242,8 @@ function weekly(state: GameState, media: MediaState, week: number, ingested: Ing
   // Rankings and titles
   const moves = updateRankings(state, media)
   const titleEvs = [...(media.queue ?? []).splice(0), ...activateTitles(state, media), ...maintainTitles(state, media), ...flagTitleFights(state, media)]
+  // A belt can come onto the line, or leave it, while a fight is booked: the persisted length follows (one rule, `settleRounds`).
+  for (const ft of Object.values(state.fights)) if (!ft.result && (ft.status === 'negotiating' || ft.status === 'agreed' || ft.status === 'scheduled' || ft.status === 'training')) settleRounds(state, ft)
   // A belt vacated, or a fighter retired, since the lists were last published: keep every list truthful.
   const touched = new Set<WeightClassId>(titleEvs.filter((t) => t.kind === 'TITLE_VACANT' || t.kind === 'STRIPPED').map((t) => t.wc))
   for (const f of Object.values(state.fighters)) if (f.status === 'retired' && f.retiredDay !== null && f.retiredDay > lastDay) touched.add(f.weightClass)

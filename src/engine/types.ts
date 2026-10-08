@@ -815,4 +815,4 @@ export interface GameState {
   business?: import('./business/types').BusinessState
 }
 
-export const GAME_STATE_VERSION = 9
+export const GAME_STATE_VERSION = 10

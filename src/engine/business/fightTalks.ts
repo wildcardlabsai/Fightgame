@@ -14,8 +14,6 @@ import { agreeFight, evaluateFightOffer, fightAsk, normaliseFightOffer, offerVal
 import { cancelFight, lockKey, validateMatch } from '../fights'
 import { fighterName } from '../fighters'
 import { postMessage } from '../messages'
-import { bodiesFor } from '../media/titles'
-import { levelRank, levelOf, type TitleLevel } from './titleDefs'
 import { careerValue } from './marketValue'
 import { managerOf, topPriorities, type Manager, type Priority } from './manager'
 import { planFactors, planOf } from './plans'
@@ -37,27 +35,9 @@ export interface FightTalkOutcome { ok: boolean; error?: string; state: GameStat
 const PRIORITIES: Priority[] = ['money', 'title', 'activity', 'exposure', 'career', 'loyalty', 'development', 'security']
 const clamp = (v: number, lo: number, hi: number): number => Math.max(lo, Math.min(hi, v))
 
-export type StakeKind = 'standard' | 'eliminator' | 'title' | 'unification'
-export interface Stakes { kind: StakeKind; level: TitleLevel | null; bodies: string[] }
-
-/** What a bout between these two would be, according to the title system as it stands right now. Never a promise: it is read, not set. */
-export function fightStakes(state: GameState, fight: Fight): Stakes {
-  const media = state.media
-  if (!media) return { kind: 'standard', level: null, bodies: [] }
-  const a = fight.sideA.fighterId, b = fight.sideB.fighterId
-  const bodies = bodiesFor(media, a, b, fight.weightClass)
-  if (bodies.length) {
-    const level = bodies.map(levelOf).sort((x, y) => levelRank(y) - levelRank(x))[0]
-    const champs = new Set(bodies.filter((x) => levelOf(x) === 'world').map((x) => media.titles[`${x}|${fight.weightClass}`]?.c).filter(Boolean))
-    return { kind: champs.size >= 2 ? 'unification' : 'title', level, bodies }
-  }
-  for (const [k, rec] of Object.entries(media.titles)) {
-    const e = rec.elim
-    if (!e || e.fightId || !k.endsWith(`|${fight.weightClass}`)) continue
-    if ((e.a === a && e.b === b) || (e.a === b && e.b === a)) return { kind: 'eliminator', level: levelOf(k.split('|')[0]), bodies: [k.split('|')[0]] }
-  }
-  return { kind: 'standard', level: null, bodies: [] }
-}
+export { fightStakes } from './stakes'
+export type { StakeKind, Stakes } from './stakes'
+import { fightStakes } from './stakes'
 
 export interface FightUtility { ratio: number; base: number; unmet: Priority | null; sat: Record<Priority, number>; weights: Record<Priority, number>; mgr: Manager }
 

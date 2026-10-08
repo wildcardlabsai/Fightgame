@@ -10,6 +10,8 @@ import { BALANCE as B } from './balance'
 import { FEATURES } from './config'
 import { weeksBetween } from './calendar'
 import { clamp, fighterAge, fighterName, totalFights, type PublicFacts, publicFacts, visibility } from './fighters'
+import { settleRounds } from './business/fightRounds'
+import { flagFight } from './media/titles'
 import { buildSimFighter, roundsFor, sizeEdge, weightCompatible, type SimFighter } from './fight/profile'
 import { rollCampInjury, rollFightInjury } from './fight/injuries'
 import { STATUS_LABEL, isOpen, transition } from './fight/lifecycle'
@@ -134,6 +136,7 @@ export function createFight(state: GameState, aId: Id, bId: Id, organiserId: Id,
   }
   state.fights[fight.id] = fight
   a.activeFightId = fight.id
+  settleRounds(state, fight)
   return fight
 }
 
@@ -197,6 +200,8 @@ export function scheduleFight(input: GameState, fightId: Id, day: Day): OpResult
   fight.day = day
   chooseVenue(state, fight)
   transition(fight, 'scheduled')
+  flagFight(state, fight)
+  settleRounds(state, fight)
   for (const side of [fight.sideA, fight.sideB]) { state.fighters[side.fighterId].activeFightId = fight.id }
   const nA = fighterName(state.fighters[fight.sideA.fighterId]), nB = fighterName(state.fighters[fight.sideB.fighterId])
   postMessage(state, {

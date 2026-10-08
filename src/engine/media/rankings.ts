@@ -5,7 +5,7 @@
  */
 import { WEIGHT_CLASSES } from '../../data/weightClasses'
 import type { Day, Fighter, GameState, Id, WeightClassId } from '../types'
-import { TITLE_DEF_BY_ID, isEligibleFor } from '../business/titleDefs'
+import { TITLE_DEF_BY_ID, isEligibleFor, levelOf, levelRank, type TitleLevel } from '../business/titleDefs'
 import { RANKING_ORGS, RANK_ORG_BY_ID } from './orgs'
 import { getList, packList } from './records'
 import type { MediaState, RankEntry, RankList, RankingMethod, RankingOrg, RankReason } from './types'
@@ -107,6 +107,13 @@ export function rankIn(media: MediaState, orgId: string, wc: WeightClassId, id: 
   return l?.e.find((e) => e.f === id)?.r ?? null
 }
 
+/** Fighters who hold a belt of a HIGHER level in this division: they are not rated for the lower belts (the ladder of levels). */
+function higherHolders(media: MediaState, wc: WeightClassId, level: TitleLevel): Set<Id> {
+  const out = new Set<Id>()
+  for (const [k, rec] of Object.entries(media.titles)) if (rec.c && k.endsWith(`|${wc}`) && levelRank(levelOf(k.slice(0, k.indexOf('|')))) > levelRank(level)) out.add(rec.c)
+  return out
+}
+
 function computeList(state: GameState, media: MediaState, org: RankingOrg, wc: WeightClassId, ctx: Map<Id, RecCtx>, everyone: Fighter[], first: boolean): RankList | null {
   const prev = getList(media, org.id, wc)
   const champId = org.sanctions ? media.titles[`${org.id}|${wc}`]?.c ?? null : null
@@ -114,7 +121,8 @@ function computeList(state: GameState, media: MediaState, org: RankingOrg, wc: W
   const def = TITLE_DEF_BY_ID[org.id]
   const minFights = def?.minFights ?? MIN_FIGHTS_TO_RANK
   const winShare = (f: Fighter): number => { const n = totalFightsOf(f); return n ? f.record.wins / n : 0 }
-  const pool = everyone.filter((f) => totalFightsOf(f) >= minFights && (!def || (isEligibleFor(def, f) && (winShare(f) >= def.minWinShare || f.id === champId))))
+  const above = def ? higherHolders(media, wc, def.level) : null
+  const pool = everyone.filter((f) => totalFightsOf(f) >= minFights && !(above && above.has(f.id) && f.id !== champId) && (!def || (isEligibleFor(def, f) && (winShare(f) >= def.minWinShare || f.id === champId))))
   const minPool = def?.minPool ?? MIN_DIVISION_SIZE
   if (pool.length < minPool && !(champId && ctx.has(champId))) return prev ? { u: state.today, e: [] } : null
   const scored = pool.map((f) => ({ f, s: rankScore(f, ctx.get(f.id)!, org.methodology) })).sort((a, b) => b.s - a.s || (a.f.id < b.f.id ? -1 : 1))

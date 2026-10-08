@@ -11,9 +11,10 @@ import { validateMatch } from '../fights'
 import { approachOpponent, type FightOutcome } from '../fightNegotiation'
 import { rosterOf } from '../media/requests'
 import type { Fighter, GameState, Id } from '../types'
-import { STATUS_LABEL, contenderStatus, nextMilestone, titleEligibility, titleOpportunities, type Eligibility, type Opportunity } from './titleEco'
-import { LEVEL_LABEL, TITLE_DEF_BY_ID, levelRank, type TitleLevel } from './titleDefs'
+import { STATUS_LABEL, contenderStatus, currentTitleLabel, nextMilestone, titleEligibility, titleOpportunities, type Eligibility, type Opportunity } from './titleEco'
+import { LEVEL_LABEL, TITLE_DEF_BY_ID, levelOf, levelRank, type TitleLevel } from './titleDefs'
 import { SANCTIONING } from '../media/orgs'
+import { titlesHeldBy } from '../media/titles'
 
 export type TargetState = 'ready' | 'blocked' | 'building'
 export interface TitleTarget {
@@ -42,6 +43,8 @@ export interface TitlePathView {
   record: string
   statusLabel: string
   next: string
+  /** Set only for a current champion: the headline from the live belts and the road ahead. */
+  champion: { label: string; belts: string[]; road: string } | null
   /** The single most useful target: the highest belt that can be requested, else the closest one. */
   best: TitleTarget | null
   targets: TitleTarget[]
@@ -94,7 +97,7 @@ export function titlePathFor(state: GameState, f: Fighter): TitlePathView {
   targets.sort((a, b) => rank(a) - rank(b) || (a.state === 'building' ? gap(a) - gap(b) : 0) || levelRank(b.level) - levelRank(a.level))
   const next = nextMilestone(state, f)
   return {
-    id: f.id, name: fighterName(f), division: weightClassLabel(f.weightClass), record: `${f.record.wins}-${f.record.losses}-${f.record.draws}`, statusLabel: STATUS_LABEL[contenderStatus(state, f)], next: next.text,
+    id: f.id, name: fighterName(f), division: weightClassLabel(f.weightClass), record: `${f.record.wins}-${f.record.losses}-${f.record.draws}`, statusLabel: STATUS_LABEL[contenderStatus(state, f)], next: next.text, champion: championRoad(state, f),
     best: targets[0] ?? null, targets, readyCount: targets.filter((t) => t.state === 'ready').length, openFightId: open,
   }
 }
@@ -113,4 +116,12 @@ export function requestTitleFight(input: GameState, fighterId: Id, body: string)
   if (!target || !target.request) return { ok: false, error: 'They are not in a position to ask for that title fight yet.', state: input }
   if (target.state === 'blocked') return { ok: false, error: target.blocked ?? 'That fight cannot be requested right now.', state: input }
   return approachOpponent(input, fighterId, target.request.opponentId)
+}
+
+function championRoad(state: GameState, f: Fighter): TitlePathView['champion'] {
+  const label = currentTitleLabel(state, f.id)
+  if (!label || !state.media) return null
+  const belts = titlesHeldBy(state.media, f.id).sort((a, b) => levelRank(levelOf(b.body)) - levelRank(levelOf(a.body))).map((h) => bodyIdentity(h.body).shortName)
+  const world = titlesHeldBy(state.media, f.id).some((h) => levelOf(h.body) === 'world')
+  return { label, belts, road: label.startsWith('Undisputed') ? 'Defend → build the legacy' : world ? 'Defend → unify → undisputed' : 'Defend → move up to a bigger belt' }
 }

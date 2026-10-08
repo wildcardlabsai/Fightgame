@@ -195,7 +195,7 @@ export function FighterProfile({ id }: { id: string }) {
               <div className="kv"><dt>Career stage</dt><dd>{v.stage}</dd></div>
               <div className="kv"><dt>Availability</dt><dd className={v.availability.status === 'available' ? 'good' : 'warn'}>{v.availability.label}{v.availability.weeks ? ` · ${v.availability.weeks} weeks` : ''}</dd></div>
               <div className="kv"><dt>Division standing</dt><dd>{v.standing.rank > 0 ? `#${v.standing.rank} of ${v.standing.of}` : 'Unrated'} <span className="dim">(public form, not an official ranking)</span></dd></div>
-              <div className="kv"><dt>Titles</dt><dd className={bv?.held.length ? 'gold' : 'dim'}>{bv?.held.length ? bv.held.map((h) => h.title).join(', ') : 'None held'}</dd></div>
+              <div className="kv"><dt>Titles</dt><dd className={bv?.held.length ? 'gold' : 'dim'}>{bv?.held.length ? `${bv.currentLabel ?? 'Champion'} — ${bv.held.map((h) => h.short).join(' · ')}` : 'None held'}</dd></div>
             </dl>
           </Section>
 

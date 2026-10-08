@@ -48,7 +48,7 @@ export function ContenderList({ card, paths }: { card: BeltCard; paths?: Map<str
   )
 }
 
-const STATE_CHIP = { champion: ['CHAMPION', 'good'], vacant: ['VACANT', 'red'], dormant: ['DORMANT', ''] } as const
+const STATE_CHIP = { champion: ['CURRENT CHAMPION', 'good'], vacant: ['VACANT', 'red'], dormant: ['NOT CONTESTED', ''] } as const
 
 /** One belt: title, body, champion, state, orders, territory and the contenders. */
 export function BeltCardView({ card, paths }: { card: BeltCard; paths?: Map<string, TitlePathView> }) {
@@ -75,6 +75,11 @@ export function BeltCardView({ card, paths }: { card: BeltCard; paths?: Map<stri
         {card.mandatory && <p className="bz-order"><span className="chip red">MANDATORY</span> {card.mandatory.challenger} must be faced · {weeks(card.mandatory.dueWeeks)} left{card.mandatory.extended ? ' (extended)' : ''}</p>}
         {card.eliminator && <p className="bz-order"><span className="chip gold">ELIMINATOR</span> {card.eliminator.a} vs {card.eliminator.b} · {weeks(card.eliminator.dueWeeks)} left</p>}
         <p className="dim bz-sub bz-meta" data-testid="belt-territory">{card.territory} · top {card.challengerLimit} can challenge</p>
+        {card.history.length > 0 && (
+          <details className="bz-hist" data-testid="reign-history"><summary>View reign history ({card.history.length})</summary>
+            <ul className="bz-hlist">{card.history.map((r, i) => <li key={`${r.id}${r.from}${i}`}><span className="chip">FORMER CHAMPION</span> <b>{r.name}</b> <span className="dim">{formatDay(r.from, false)}–{formatDay(r.to, false)} · {r.defences} def. · {r.how}</span></li>)}</ul>
+          </details>
+        )}
         <button type="button" className="bz-toggle" aria-expanded={open} aria-controls={listId} onClick={() => setOpen(!open)}>{open ? 'Hide' : 'Show'} contenders ({card.contenders.length})</button>
         <div id={listId} hidden={!open}>{open && <ContenderList card={card} paths={paths} />}</div>
       </article>

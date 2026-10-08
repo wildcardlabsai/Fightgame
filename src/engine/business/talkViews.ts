@@ -7,6 +7,7 @@ import { weightClassLabel } from '../../data/weightClasses'
 import { fighterAge, fighterName } from '../fighters'
 import type { Fighter, FightOffer, GameState, Id, Offer } from '../types'
 import { describeChange, openTalkFor, openingOffer } from './contractTalks'
+import { roundsOptionsFor } from './fightRounds'
 import { describeFightChange, fightStakes, openFightTalkFor, planWarning } from './fightTalks'
 import { ambitionOf, ambitionLabel, managerOf, PRIORITY_LABEL, type Priority } from './manager'
 import { pathwayOptions } from './commitments'
@@ -118,8 +119,8 @@ export function fightTalkView(state: GameState, talkId: string): FightTalkView |
   if (!fight || !f) return null
   const st = fightStakes(state, fight)
   const label = st.kind === 'standard' ? 'A standard bout' : st.kind === 'eliminator' ? 'A title eliminator' : st.kind === 'unification' ? 'A unification fight' : 'A title fight'
-  const rounds = fight.scheduledRounds
-  const roundsOptions = st.level === 'world' || st.level === 'european' ? [12] : st.level ? [10, 12] : [4, 6, 8, 10]
+  const roundsOptions = roundsOptionsFor(state, fight)
+  const rounds = roundsOptions.length === 1 ? roundsOptions[0] : fight.scheduledRounds
   const expected = expectedFightTerms(state, fight.id, t.fightOffer)
   return {
     header: header(state, t, f), log: t.log.slice(), offer: t.fightOffer, counter: t.status === 'open' ? t.fightCounter : null,

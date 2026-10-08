@@ -56,7 +56,7 @@ describe('division moves and title relinquishment', () => {
 
   it('a booked fighter cannot move; only one move a year; the camp must agree; the player can only move their own fighters', () => {
     const s = clone(world())
-    const f = Object.values(s.fighters).find((x) => x.status === 'active' && !x.activeFightId)!
+    const f = Object.values(s.fighters).find((x) => x.status === 'active' && !x.activeFightId && (x.lastFightDay === null || s.today - x.lastFightDay > 28))!
     const o = divisionMoveOptions(s, f)[0]
     f.activeFightId = 'f_x'
     expect(applyDivisionMove(s, f.id, o.to)).toMatch(/fight booked/i)

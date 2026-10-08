@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import { Flag } from '../components/Bits'
-import { divisionsList, defaultDivision, rankingOrgs, rankingView, reignsList } from '../../engine/media/views'
-import { beltsHeld, divisionOptions, myTitlePaths, titleBoard, titleLevels, type BeltCard } from '../../engine/business/views'
+import { divisionsList, defaultDivision, rankingOrgs, rankingView } from '../../engine/media/views'
+import { beltsHeld, currentTitleLabel, divisionOptions, myTitlePaths, titleBoard, titleLevels, type BeltCard } from '../../engine/business/views'
 import { levelOf } from '../../engine/business/titleDefs'
 import type { TitleLevel } from '../../engine/business/titleDefs'
 import { formatDay } from '../../engine/calendar'
@@ -78,7 +78,7 @@ function Rankings({ param }: { param?: string }) {
               {rows.map((r) => {
                 const c = byId.get(r.id)
                 const held = r.champion ? beltsHeld(game, r.id) : []
-                const others = held.filter((h) => !(belt && h.title === belt.title))
+                const label = r.champion ? (currentTitleLabel(game, r.id) ?? 'Champion') : ''
                 const target = r.mine && belt ? paths.get(r.id)?.targets.find((t) => t.body === belt.body && t.state === 'ready') : undefined
                 return (
                   <li key={r.id} className="bz-li">
@@ -90,7 +90,7 @@ function Rankings({ param }: { param?: string }) {
                       </button>
                       <span className={`rk-move ${r.movementTone}`} aria-label={`Movement ${r.movement}`}>{r.movement}</span>
                       <span className="rk-why dim" title={r.why}>{r.why}</span>
-                      {r.champion && held.length > 0 && <span className="rk-holds" data-testid="champ-holds"><b>Holds</b> {held.map((h) => <span key={h.title} className={`chip${belt && h.title === belt.title ? ' gold' : ''}`} title={h.title}>{h.short}</span>)}{others.length > 0 && <span className="dim"> {others.length === 1 ? 'and 1 other belt' : `and ${others.length} other belts`}</span>}</span>}
+                      {r.champion && held.length > 0 && <span className="rk-holds" data-testid="champ-holds"><b className="rk-hlabel">{label}</b>{held.map((h) => <span key={h.title} className={`chip${belt && h.title === belt.title ? ' gold' : ''}`} title={h.title}>{h.short}</span>)}</span>}
                       {target && <span className="rk-req"><RequestButton fighterId={r.id} target={target} small /></span>}
                     </div>
                     {belt && r.rank === belt.challengerLimit && r.rank < (rows[rows.length - 1]?.rank ?? 0) && <ul className="bz-lim-wrap"><LimitMarker limit={belt.challengerLimit} /></ul>}
@@ -119,8 +119,6 @@ function Titles({ param }: { param?: string }) {
   const division = divisions.find((d) => d.id === p2)?.id ?? defaultDivision(game)
   const go = (l: string, d: string) => navigate('titles', `${l}/${d}`)
   const cards = useMemo(() => titleBoard(game, level, division), [game, level, division])
-  const bodies = useMemo(() => new Set(cards.map((c) => c.body)), [cards])
-  const reigns = useMemo(() => reignsList(game).filter((r) => bodies.has(r.b)).slice(0, 6), [game, bodies])
   const readyN = paths.filter((p) => p.readyCount > 0).length
   return (
     <>
@@ -144,7 +142,6 @@ function Titles({ param }: { param?: string }) {
             {cards.map((c) => <BeltCardView key={`${c.body}-${c.division}`} card={c} paths={pathMap} />)}
           </div>
           {cards.length === 0 && <p className="empty">No belts at this level.</p>}
-          {reigns.length > 0 && <details className="bz-hist"><summary className="m-sec display">Recent reigns ({reigns.length})</summary><ul className="m-done">{reigns.map((r, i) => <li key={i}>{r.fn} · {r.title} · {formatDay(r.from, false)}–{r.to ? formatDay(r.to, false) : 'now'} · {r.defences} def. — {r.how}</li>)}</ul></details>}
         </>
       )}
     </>

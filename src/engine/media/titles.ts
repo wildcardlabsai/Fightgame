@@ -16,7 +16,7 @@ import { DAYS_PER_WEEK } from '../calendar'
 import { fighterName } from '../fighters'
 import { keyedFloat, keyedRng } from '../rng'
 import type { Day, Fight, FightTitle, GameState, Id, WeightClassId } from '../types'
-import { TITLE_DEF_BY_ID, LEVEL_ORDER, levelOf, levelRank, type TitleDef, type TitleLevel } from '../business/titleDefs'
+import { TITLE_DEF_BY_ID, LEVEL_LABEL, LEVEL_ORDER, levelOf, levelRank, type TitleDef, type TitleLevel } from '../business/titleDefs'
 import { noteDefence, noteTitleWon, noteUnified } from '../business/titleHistory'
 import { SANCTIONING } from './orgs'
 import { rankIn } from './rankings'
@@ -105,6 +105,33 @@ function vacate(state: GameState, media: MediaState, body: string, wc: WeightCla
   rec.c = null; rec.cn = undefined; rec.vacantSince = endDay; rec.defences = 0; rec.mand = undefined; rec.elim = undefined
 }
 
+/**
+ * THE LADDER OF LEVELS: AREA < BRITISH/COMMONWEALTH (domestic) < EUROPEAN < WORLD. A fighter holds at most one level of belt in a
+ * division: winning a higher level closes the lower reign in the same transition (several belts of the SAME level may be held together:
+ * unified and undisputed world champions, or British and Commonwealth together). The lower reign is never deleted; it stays in history.
+ */
+export function higherBeltOf(media: MediaState, id: Id, wc: WeightClassId, level: TitleLevel): string | null {
+  let best: string | null = null
+  for (const t of titlesHeldBy(media, id)) if (t.wc === wc && levelRank(levelOf(t.body)) > levelRank(level) && (!best || levelRank(levelOf(t.body)) > levelRank(levelOf(best)))) best = t.body
+  return best
+}
+
+/** Close every lower-level reign of a fighter who holds a higher-level belt in the same division (or of the given fighters only). */
+export function enforceHierarchy(state: GameState, media: MediaState, only?: Id[]): TitleEvent[] {
+  const ev: TitleEvent[] = []
+  const ids = only ?? [...holderIndex(media).keys()]
+  for (const id of ids) {
+    const held = titlesHeldBy(media, id)
+    if (held.length < 2) continue
+    for (const t of held) {
+      const up = higherBeltOf(media, id, t.wc, levelOf(t.body))
+      if (!up) continue
+      vacate(state, media, t.body, t.wc, t.rec, `relinquished — moved up to the ${bodyIdentity(up).shortName} ${LEVEL_LABEL[levelOf(up)].toLowerCase()} title`, ev, 'TITLE_VACANT')
+    }
+  }
+  return ev
+}
+
 /** A champion leaves the belt for a reason the game can state (retirement, a move of division, …). */
 export function vacateTitle(state: GameState, media: MediaState, body: string, wc: WeightClassId, how: string): TitleEvent[] {
   const rec = media.titles[titleKey(body, wc)]
@@ -120,13 +147,16 @@ export function vacateTitle(state: GameState, media: MediaState, body: string, w
 export function installChampions(state: GameState, media: MediaState): void {
   for (const wc of WEIGHT_CLASSES.map((w) => w.id)) {
     const heldWorld = new Set<Id>()
-    for (const org of SANCTIONING) {
+    const heldRank = new Map<Id, number>()
+    // Highest level first, so the sport begins on the ladder of levels: nobody starts holding a lower belt beneath a higher one.
+    for (const org of SANCTIONING.slice().sort((a, b) => levelRank(levelOf(b.id)) - levelRank(levelOf(a.id)))) {
       const d = def(org.id)
       const entries = (getList(media, org.id, wc)?.e ?? []).filter((e) => e.r >= 1)
       if (entries.length < (d?.minPool ?? 5)) continue
-      const top = entries.find((e) => !(d?.level === 'world' && heldWorld.has(e.f)))
+      const top = entries.find((e) => !(d?.level === 'world' && heldWorld.has(e.f)) && (heldRank.get(e.f) ?? -1) <= levelRank(levelOf(org.id)))
       if (!top) continue
       if (d?.level === 'world') heldWorld.add(top.f)
+      heldRank.set(top.f, Math.max(heldRank.get(top.f) ?? -1, levelRank(levelOf(org.id))))
       const f = state.fighters[top.f]
       const rng = keyedRng(state.seed, 'init-title', org.id, wc)
       touchTitles(media)
@@ -178,6 +208,7 @@ export function maintainTitles(state: GameState, media: MediaState): TitleEvent[
   const ev: TitleEvent[] = []
   const week = weekIndex(state)
   let elimOpen = openEliminators(media)
+  ev.push(...enforceHierarchy(state, media))
   for (const [k, rec] of Object.entries(media.titles)) {
     const [body, wcRaw] = k.split('|')
     const d = def(body)
@@ -253,6 +284,9 @@ export function bodiesFor(media: MediaState, aId: Id, bId: Id, wc: WeightClassId
     const rec = media.titles[titleKey(org.id, wc)]
     if (!rec) continue
     const rA = rankIn(media, org.id, wc, aId), rB = rankIn(media, org.id, wc, bId)
+    const lvl = levelOf(org.id)
+    // A fighter who already holds a higher level of belt in this division does not contest a lower one (the ladder of levels).
+    if (higherBeltOf(media, aId, wc, lvl) || higherBeltOf(media, bId, wc, lvl)) continue
     if (rec.c) {
       if (rec.c === aId && rB !== null && rB >= 1 && rB <= org.challengerLimit) out.push(org.id)
       else if (rec.c === bId && rA !== null && rA >= 1 && rA <= org.challengerLimit) out.push(org.id)
@@ -262,6 +296,12 @@ export function bodiesFor(media: MediaState, aId: Id, bId: Id, wc: WeightClassId
       out.push(org.id)
     }
   }
+  // A bout is for the highest level of belt on the line: lower belts are not also awarded in the same fight (a fighter who wins a higher
+  // belt would give the lower one up in the same breath, leaving a reign of no length).
+  if (out.length > 1) {
+    const top = Math.max(...out.map((b) => levelRank(levelOf(b))))
+    return out.filter((b) => levelRank(levelOf(b)) === top)
+  }
   return out
 }
 
@@ -270,9 +310,66 @@ export function holdsWorldBelt(media: MediaState, id: Id, wc: WeightClassId): bo
   return false
 }
 
+/** Flag one fight as a title fight / eliminator if the title system says it is one. Idempotent. */
+function flagOne(state: GameState, media: MediaState, fight: Fight): TitleEvent | null {
+  const elimFights = (media.elimFights ??= {})
+  if (fight.result || media.titleFights[fight.id] || elimFights[fight.id]) return null
+  const a = state.fighters[fight.sideA.fighterId], b = state.fighters[fight.sideB.fighterId]
+  if (!a || !b) return null
+  const bodies = bodiesFor(media, a.id, b.id, fight.weightClass)
+  if (bodies.length > 0) {
+    media.titleFights[fight.id] = bodies
+    const worlds = bodies.filter((x) => levelOf(x) === 'world')
+    const champs = new Set(worlds.map((x) => media.titles[titleKey(x, fight.weightClass)]?.c).filter((x): x is Id => !!x))
+    const kind = champs.size >= 2 ? 'unification' : 'title'
+    fight.title = fightTitleMeta(bodies, fight.weightClass, kind)
+    return { kind: 'TITLE_FIGHT_SET', body: fight.title.bodies![0], wc: fight.weightClass, f: a.id, o: b.id, fightId: fight.id }
+  }
+  // An ordered eliminator between exactly these two contenders.
+  for (const [k, rec] of Object.entries(media.titles)) {
+    const e = rec.elim
+    if (!e || e.fightId) continue
+    const [body, wc] = k.split('|')
+    if (wc !== fight.weightClass || !((e.a === a.id && e.b === b.id) || (e.a === b.id && e.b === a.id))) continue
+    e.fightId = fight.id
+    elimFights[fight.id] = k
+    fight.title = fightTitleMeta([body], fight.weightClass, 'eliminator')
+    return { kind: 'TITLE_FIGHT_SET', body, wc: fight.weightClass, f: a.id, o: b.id, fightId: fight.id }
+  }
+  return null
+}
+
+/**
+ * Flag a fight the moment it is scheduled, so it carries its title (and, through `settleRounds`, its championship distance) from the
+ * first day it is on the calendar rather than from the next weekly pass. The news event is queued for that pass.
+ */
+export function flagFight(state: GameState, fight: Fight): void {
+  const media = state.media
+  if (!media || !LIVE.has(fight.status)) return
+  const ev = flagOne(state, media, fight)
+  if (ev) (media.queue ??= []).push(ev)
+}
+
+/** A fight that was called off must not keep a title flag or an eliminator slot. */
+export function releaseDeadFlags(state: GameState, media: MediaState): void {
+  for (const fid of Object.keys(media.titleFights)) {
+    const ft = state.fights[fid]
+    if (!ft || ft.status === 'cancelled') delete media.titleFights[fid]
+  }
+  const elim = media.elimFights ?? {}
+  for (const fid of Object.keys(elim)) {
+    const ft = state.fights[fid]
+    if (ft && ft.status !== 'cancelled') continue
+    const rec = media.titles[elim[fid]]
+    if (rec?.elim?.fightId === fid) rec.elim.fightId = undefined
+    delete elim[fid]
+  }
+}
+
 /** Mark upcoming fights that qualify. Idempotent. Returns one event per newly flagged fight. */
 export function flagTitleFights(state: GameState, media: MediaState): TitleEvent[] {
   const ev: TitleEvent[] = []
+  releaseDeadFlags(state, media)
   const elimFights = (media.elimFights ??= {})
   // Only fighters who appear in some body's list can be in a title fight: build that set once.
   const open = Object.values(state.fights).filter((f) => !f.result && !media.titleFights[f.id] && !elimFights[f.id] && LIVE.has(f.status))
@@ -281,30 +378,8 @@ export function flagTitleFights(state: GameState, media: MediaState): TitleEvent
   for (const org of SANCTIONING) for (const wc of Object.keys(media.rankings[org.id] ?? {})) for (const e of getList(media, org.id, wc as WeightClassId)?.e ?? []) listed.add(e.f)
   for (const fight of open) {
     if (!listed.has(fight.sideA.fighterId) || !listed.has(fight.sideB.fighterId)) continue
-    const a = state.fighters[fight.sideA.fighterId], b = state.fighters[fight.sideB.fighterId]
-    if (!a || !b) continue
-    const bodies = bodiesFor(media, a.id, b.id, fight.weightClass)
-    if (bodies.length > 0) {
-      media.titleFights[fight.id] = bodies
-      const worlds = bodies.filter((x) => levelOf(x) === 'world')
-      const champs = new Set(worlds.map((x) => media.titles[titleKey(x, fight.weightClass)]?.c).filter((x): x is Id => !!x))
-      const kind = champs.size >= 2 ? 'unification' : 'title'
-      fight.title = fightTitleMeta(bodies, fight.weightClass, kind)
-      ev.push({ kind: 'TITLE_FIGHT_SET', body: fight.title.bodies![0], wc: fight.weightClass, f: a.id, o: b.id, fightId: fight.id })
-      continue
-    }
-    // An ordered eliminator between exactly these two contenders.
-    for (const [k, rec] of Object.entries(media.titles)) {
-      const e = rec.elim
-      if (!e || e.fightId) continue
-      const [body, wc] = k.split('|')
-      if (wc !== fight.weightClass || !((e.a === a.id && e.b === b.id) || (e.a === b.id && e.b === a.id))) continue
-      e.fightId = fight.id
-      elimFights[fight.id] = k
-      fight.title = fightTitleMeta([body], fight.weightClass, 'eliminator')
-      ev.push({ kind: 'TITLE_FIGHT_SET', body, wc: fight.weightClass, f: a.id, o: b.id, fightId: fight.id })
-      break
-    }
+    const e = flagOne(state, media, fight)
+    if (e) ev.push(e)
   }
   return ev
 }
@@ -369,6 +444,8 @@ export function settleTitleFight(state: GameState, media: MediaState, fight: Fig
       ev.push({ kind: 'TITLE_FILLED', body, wc: fight.weightClass, f: W, o: W === A ? B : A, fightId: fight.id })
     }
   }
+  // Winning a higher level closes any lower reign in the same transition.
+  ev.push(...enforceHierarchy(state, media, [A, B]))
   // Unified and undisputed status follow from the belts now held in the division.
   if (W) {
     const wc = fight.weightClass

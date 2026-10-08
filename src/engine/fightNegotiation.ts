@@ -15,6 +15,7 @@ import { baseMoney, normaliseOffer as _n, appraise, valueOf } from './market'
 import { boundedPurse, careerValue, contextFor, eventRevenueMid } from './business/marketValue'
 import { postMessage } from './messages'
 import { TIER_ORDER } from './promotions'
+import { settleRounds } from './business/fightRounds'
 import { player } from './selectors'
 import type { Fight, FightOffer, GameState, Id, Mood, Promotion, Verdict } from './types'
 void _n
@@ -179,7 +180,7 @@ export function agreeFight(state: GameState, fight: Fight, offer: FightOffer): v
   const opp = state.fighters[fight.sideB.fighterId]
   const nOpp = fighterName(opp), nMe = fighterName(state.fighters[fight.sideA.fighterId])
   fight.terms = { ...fight.terms, ...offer }
-  if (offer.rounds) fight.scheduledRounds = offer.rounds
+  settleRounds(state, fight, offer.rounds)
   fight.sideB.preRecord = `${opp.record.wins}-${opp.record.losses}-${opp.record.draws}`
   transition(fight, 'agreed')
   fight.negotiation = undefined

@@ -4,6 +4,7 @@ import { keyedNormal } from './rng'
 import { createStartingScout } from './scouting'
 import { emptyBusiness } from './business/types'
 import { migrateVenues } from './business/venues'
+import { normaliseTitles } from './business/titleNormalise'
 import { GAME_STATE_VERSION, type AiStrategy, type GameState } from './types'
 import { freshSponsorBook } from './sponsors'
 import { freshTierProgress, highestQualifyingTier } from './tierProgress'
@@ -121,6 +122,7 @@ export function migrate(data: unknown): GameState | null {
   if (s.version < 7) migrateV6toV7(s as never)
   if (s.version < 8) migrateV7toV8(s as never)
   if (s.version < 9) migrateV8toV9(s as never)
+  if (s.version < 10) migrateV9toV10(s as never)
   return s as GameState
 }
 
@@ -280,4 +282,14 @@ function migrateV8toV9(s: any): void {
     }
   }
   s.version = 9
+}
+
+/**
+ * v9 → v10 (title integrity): the ladder of levels and the championship distance. Fighters holding belts of two levels in one division
+ * have the lower reign closed ("relinquished — moved up to …", dated today, history kept); retired or departed champions give up their
+ * belts; booked title fights get the distance their belts require. Only genuinely inconsistent state is changed.
+ */
+function migrateV9toV10(s: any): void {
+  if (s.media) normaliseTitles(s as GameState)
+  s.version = 10
 }

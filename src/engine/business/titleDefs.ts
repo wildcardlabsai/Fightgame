@@ -97,3 +97,11 @@ export function eligibilityReason(def: TitleDef, f: { nationality: string; homet
 }
 
 export type { WeightClassId }
+
+/**
+ * Championship DISTANCE, as data: the scheduled rounds of a fight with a belt on the line, by the highest level at stake. World,
+ * European, British and Commonwealth titles are twelve rounds; an area title has its own configured distance. An eliminator is a
+ * championship-class bout and carries the distance configured here. `business/fightRounds.ts` is the only place these are applied.
+ */
+export const TITLE_ROUNDS: Record<TitleLevel, number> = { world: 12, european: 12, domestic: 12, area: 10 }
+export const ELIMINATOR_ROUNDS: Record<TitleLevel, number> = { world: 12, european: 12, domestic: 10, area: 8 }

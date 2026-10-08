@@ -22,7 +22,7 @@ import { ambitionLabel, ambitionOf, managerOf } from './manager'
 import { planChoices, toldSummary } from './talkViews'
 import { negStage, STAGE_LABEL } from './stage'
 import { expectedContractTerms, type ExpectedContractTerms } from './terms'
-import { LADDER, STATUS_LABEL, allEligibility, championObligations, contenderStatus, nextMilestone, titleOpportunities, type ContenderStatus, type Eligibility, type Opportunity } from './titleEco'
+import { LADDER, STATUS_LABEL, currentTitleLabel, allEligibility, championObligations, contenderStatus, nextMilestone, titleOpportunities, type ContenderStatus, type Eligibility, type Opportunity } from './titleEco'
 import { LEVEL_LABEL, LEVEL_ORDER, TITLE_DEF_BY_ID, levelOf, type TitleLevel } from './titleDefs'
 import { planOf } from './plans'
 
@@ -46,6 +46,8 @@ export interface BeltCard {
   mandatory: { challengerId: Id; challenger: string; dueWeeks: number; extended: boolean } | null
   eliminator: { aId: Id; bId: Id; a: string; b: string; dueWeeks: number } | null
   contenders: ContenderRow[]
+  /** Closed reigns of this belt, most recent first. Historical only: never used to decide who is champion. */
+  history: { name: string; id: Id; from: number; to: number; defences: number; how: string }[]
   challengerLimit: number
   poolEligible: number
   poolNeeded: number
@@ -96,7 +98,7 @@ export function titleBoard(state: GameState, level: TitleLevel, wc: WeightClassI
       champion: t?.c ? { id: t.c, name: nm(t.c), record: rec(t.c), mine: mine.has(t.c), sinceDay: t.since, weeks: weeksBetween(t.since, state.today), defences: t.defences } : null,
       mandatory: t?.mand ? { challengerId: t.mand.challenger, challenger: t.mand.cn, dueWeeks: Math.max(0, weeksBetween(state.today, t.mand.due)), extended: !!t.mand.ext } : null,
       eliminator: t?.elim ? { aId: t.elim.a, bId: t.elim.b, a: nm(t.elim.a), b: nm(t.elim.b), dueWeeks: Math.max(0, weeksBetween(state.today, t.elim.due)) } : null,
-      contenders, challengerLimit: d?.challengerLimit ?? 0, poolEligible: eligible, poolNeeded: d?.minPool ?? 4,
+      contenders, history: getReigns(media).filter((r) => r.b === org.id && r.wc === wc && r.to !== null).slice(-4).reverse().map((r) => ({ name: r.fn, id: r.f, from: r.from, to: r.to as number, defences: r.defences, how: r.how })), challengerLimit: d?.challengerLimit ?? 0, poolEligible: eligible, poolNeeded: d?.minPool ?? 4,
     })
   }
   return out
@@ -124,7 +126,12 @@ export interface FighterBusinessView {
   statusLabel: string
   ladder: LadderStep[]
   next: { text: string; concrete: boolean }
-  held: { title: string; level: TitleLevel; weeks: number; defences: number; body: string }[]
+  /** The belts held NOW (from the live title records). */
+  held: { title: string; level: TitleLevel; weeks: number; defences: number; body: string; short: string }[]
+  /** One line for the headline: "WBC world champion", "Unified world champion", "Undisputed world champion", "European champion"… or null. */
+  currentLabel: string | null
+  /** Closed reigns, most recent first: these are history and are never shown as current. */
+  former: { title: string; level: TitleLevel; division: string; from: number; to: number; defences: number; how: string }[]
   duties: ReturnType<typeof championObligations>
   opportunities: Opportunity[]
   eligibility: Eligibility[]
@@ -173,9 +180,10 @@ export function fighterBusinessView(state: GameState, id: Id): FighterBusinessVi
   }))
   void openCommitments
   const learned = toldSummary(state, f, undefined)
-  const held = media ? titlesHeldBy(media, id).map((h) => ({ title: titleName(h.body, h.wc), level: levelOf(h.body), weeks: weeksBetween(h.rec.since, state.today), defences: h.rec.defences, body: h.body })) : []
+  const held = media ? titlesHeldBy(media, id).map((h) => ({ title: titleName(h.body, h.wc), level: levelOf(h.body), weeks: weeksBetween(h.rec.since, state.today), defences: h.rec.defences, body: h.body, short: bodyIdentity(h.body).shortName })) : []
+  const former = media ? getReigns(media).filter((r) => r.f === id && r.to !== null).slice(-8).reverse().map((r) => ({ title: titleName(r.b, r.wc), level: levelOf(r.b), division: weightClassLabel(r.wc), from: r.from, to: r.to as number, defences: r.defences, how: r.how })) : []
   return {
-    id, name: fighterName(f), stage: STAGE_LABEL[negStage(state, f)], status, statusLabel: STATUS_LABEL[status], ladder, next: nextMilestone(state, f), held, duties: championObligations(state, f), opportunities: titleOpportunities(state, f),
+    id, name: fighterName(f), stage: STAGE_LABEL[negStage(state, f)], status, statusLabel: STATUS_LABEL[status], ladder, next: nextMilestone(state, f), held, currentLabel: currentTitleLabel(state, id), former, duties: championObligations(state, f), opportunities: titleOpportunities(state, f),
     eligibility: allEligibility(state, f), history: { won: hist?.won ?? 0, defences: hist?.defences ?? 0, best: hist?.best ? LEVEL_LABEL[hist.best] : null, unified: !!hist?.unifiedDay, undisputed: !!hist?.undisputedDay },
     value: { score: Math.round(value), label: valueLabel(value), drivers, commercial, commercialLabel: valueLabel(commercial) }, expected, commitments,
     plan: own ? { current: planOf(state, id), choices: planChoices(state, f) } : null, told: learned,
@@ -184,6 +192,7 @@ export function fighterBusinessView(state: GameState, id: Id): FighterBusinessVi
   }
 }
 
+export { currentTitleLabel }
 export { myTitlePaths, titlePathFor } from './titlePath'
 export type { TitlePathView, TitleTarget } from './titlePath'
 

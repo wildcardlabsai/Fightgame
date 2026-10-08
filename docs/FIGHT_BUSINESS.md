@@ -281,3 +281,34 @@ opening offer.
 
 Rivals' managers and plans; a venue-change command for booked shows; multi-fighter packages in a negotiation; sponsor and broadcaster
 pathways as promises; a licensed-photo workflow with a review tool; a larger world so Area titles are alive everywhere.
+
+## Title and fight integrity pass (save version 10)
+
+**Fight length has one source of truth.** `Fight.scheduledRounds` is resolved by `business/fightRounds.ts` (`settleRounds`) when a fight is
+created, agreed, scheduled (and put on a card), and again every week until fight night. The championship distance is data in
+`titleDefs.ts`: world, European, British and Commonwealth titles are 12 rounds, an area title is 10, an eliminator is 12 (world/European),
+10 (British/Commonwealth) or 8 (area). A negotiated length applies only where nothing is at stake. Simulation, scorecards, Fight Night,
+the tale of the tape, event cards, history and media stories all read the persisted number. The invariant is `fightRoundsProblem`.
+Root cause of the old bug: length was chosen once at creation from reputation and experience (`roundsFor`), before and independent of the
+title system, and the weekly title flag never touched it, so a champion could be booked for 4, 6, 8 or 10 rounds. With media coupling
+off (`media.effects = false`, a test-only mode) titles do not shape the sport, so lengths stay on the career rules.
+
+**Current titles come only from the live belts** (`media.titles[...].c`). Former titles come only from closed reigns. The profile shows
+CURRENT TITLES (with "WBC world champion", "Unified world champion" or "Undisputed world champion") and a separate, collapsed FORMER
+TITLES list; belt cards say CURRENT CHAMPION / VACANT / NOT CONTESTED with MANDATORY and ELIMINATOR chips, and the reign history sits
+behind "View reign history".
+
+**Ladder of levels** (area < British/Commonwealth < European < world). A fighter holds at most one level of belt per division. Winning a
+higher level closes the lower reign in the same settlement (`enforceHierarchy`): reason "relinquished — moved up to the WBC world title",
+dated, the reign kept in history, the belt left vacant, news and lists updated. Several belts of the same level stay legal: unified and
+undisputed world champions, British and Commonwealth together. A fighter holding a higher belt is not a challenger for, nor rated on the
+lists of, a lower belt. A bout is for the highest level of belt on the line, so no zero-length reign is ever created. A weekly pass repairs
+any state that escaped (belt held by a retired fighter or one who left the division). Division moves relinquish every belt at the old
+weight, as before.
+
+**Saves.** v9 → v10 (`normaliseTitles`): closes lower reigns held beneath a higher belt, vacates belts held by retired or departed
+champions, drops flags the ladder no longer allows from booked title fights and gives booked fights their championship distance. Fights
+already fought are history and are not touched. Idempotent.
+
+**Tests / audits.** `phase54integrity.test.ts` (lengths for each level and the full lifecycle, the ladder, unified/undisputed, division
+moves, current vs former, migration, a 3-year audit) and `scripts/audit/phase54-integrity.ts` (multi-seed, 5 and 10 years).

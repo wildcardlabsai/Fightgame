@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import type { FighterBusinessView } from '../../engine/business/views'
 import type { ExpectedContractTerms } from '../../engine/business/terms'
+import { formatDay } from '../../engine/calendar'
 import { useGame } from '../../store/gameStore'
 import { Meter, Section } from '../components/Bits'
 import { Modal } from '../components/Overlay'
@@ -27,13 +28,24 @@ export function CareerPanel({ bv, mine }: { bv: FighterBusinessView; mine: boole
         </ol>
         <p className="biz-next" data-testid="next-milestone"><span className="caps">Next milestone</span> {bv.next.text}</p>
 
-        {bv.held.length > 0 && (
-          <div className="biz-block">
-            <h3 className="caps">Belts held</h3>
+        <div className="biz-block bz-current" data-testid="current-titles">
+          <h3 className="caps">Current titles</h3>
+          {bv.held.length === 0 ? <p className="dim">None held at the moment.</p> : (
+            <>
+              {bv.currentLabel && <p className="bz-clabel display" data-testid="current-label">{bv.currentLabel}</p>}
+              <ul className="biz-list">
+                {bv.held.map((h) => <li key={h.body + h.title} className="bz-cur"><span className="chip gold">CHAMPION</span> <b>{h.title}</b> <span className="dim">· {weeks(h.weeks)} · {h.defences} defence{h.defences === 1 ? '' : 's'}</span></li>)}
+              </ul>
+            </>
+          )}
+        </div>
+        {bv.former.length > 0 && (
+          <details className="biz-block bz-former" data-testid="former-titles">
+            <summary className="caps">Former titles ({bv.former.length})</summary>
             <ul className="biz-list">
-              {bv.held.map((h) => <li key={h.body + h.title}><span className="chip gold">CHAMPION</span> <b>{h.title}</b> <span className="dim">· {weeks(h.weeks)} as champion · {h.defences} defence{h.defences === 1 ? '' : 's'}</span></li>)}
+              {bv.former.map((r, i) => <li key={`${r.title}${r.from}${i}`}><span className="chip">FORMER</span> <b>{r.title}</b> <span className="dim">· {formatDay(r.from, false)}–{formatDay(r.to, false)} · {r.defences} defence{r.defences === 1 ? '' : 's'} · {r.how}</span></li>)}
             </ul>
-          </div>
+          </details>
         )}
         {bv.duties.length > 0 && (
           <div className="biz-block">

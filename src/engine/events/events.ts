@@ -2,6 +2,8 @@
  * EVENT OPERATIONS: create, build the card, price, promote, sell, run the night, settle, cancel.
  * Money moves only through eventFinance.receive/spend (→ ledger.post for the player).
  */
+import { settleRounds } from '../business/fightRounds'
+import { flagFight } from '../media/titles'
 import { cardFighterIds, travelCost } from '../business/venues'
 import { dealFor, settleDeal, voidBroadcast } from '../media/broadcast'
 import { weightClassLabel } from '../../data/weightClasses'
@@ -124,6 +126,8 @@ export function attachFight(state: GameState, ev: BoxingEvent, fight: Fight): vo
   fight.city = ev.city
   fight.country = ev.country
   fightTransition(fight, 'scheduled')
+  flagFight(state, fight)
+  settleRounds(state, fight)
   state.fighters[fight.sideA.fighterId].activeFightId = fight.id
   state.fighters[fight.sideB.fighterId].activeFightId = fight.id
   const fights = cardFights(state, ev)

@@ -45,6 +45,12 @@ export function PathCard({ view }: { view: TitlePathView }) {
         <div><button type="button" className="bz-pname display" onClick={() => navigate('fighter', view.id)}>{view.name}</button><div className="dim bz-sub">{view.division} · {view.record}</div></div>
         <span className="chip gold">{view.statusLabel}</span>
       </header>
+      {view.champion && (
+        <div className="bz-best champ" data-testid="path-champion">
+          <div className="bz-best-t"><span className="caps">Current champion</span> <b>{view.champion.label}</b></div>
+          <div className="dim">{view.champion.belts.join(' · ')} — {view.champion.road}</div>
+        </div>
+      )}
       {best ? (
         best.request ? (
           <div className="bz-best" data-testid="path-best">

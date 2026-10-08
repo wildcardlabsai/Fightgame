@@ -10,7 +10,7 @@ import { keyedFloat } from '../rng'
 import { fighterAge, fighterName } from '../fighters'
 import { SANCTIONING } from '../media/orgs'
 import { rankIn } from '../media/rankings'
-import { bodiesFor, holdsWorldBelt, titleKey, titleName, titlesHeldBy } from '../media/titles'
+import { bodiesFor, higherBeltOf, holdsWorldBelt, titleKey, titleName, titlesHeldBy } from '../media/titles'
 import { getList } from '../media/records'
 import type { Fight, Fighter, GameState, Id, WeightClassId } from '../types'
 import { bodyIdentity } from '../../data/mediaIdentity'
@@ -49,6 +49,8 @@ export function titleEligibility(state: GameState, f: Fighter, body: string, wc:
   if (!terr) return { ...base, status: 'ineligible', rank: null, champion: rec?.c ?? null, canChallengeNow: false, reasons }
   if (f.weightClass !== wc) { reasons.push(`Fights at ${weightClassLabel(f.weightClass)}, not ${weightClassLabel(wc)}.`); return { ...base, status: 'ineligible', rank: null, champion: rec?.c ?? null, canChallengeNow: false, reasons } }
   if (!rec) { reasons.push(`The ${bodyIdentity(body).shortName} ${weightClassLabel(wc)} title is not being contested — too few eligible fighters in the division.`); return { ...base, status: 'dormant', rank: null, champion: null, canChallengeNow: false, reasons } }
+  const up = higherBeltOf(media, f.id, wc, levelOf(body))
+  if (up) { reasons.push(`Holds the ${bodyIdentity(up).shortName} ${LEVEL_LABEL[levelOf(up)].toLowerCase()} title, so the ${LEVEL_LABEL[levelOf(body)].toLowerCase()} belts are behind them.`); return { ...base, status: 'ineligible', rank: null, champion: rec.c ?? null, canChallengeNow: false, reasons } }
   if (rec.c === f.id) { reasons.push(`Champion since ${weeksBetween(rec.since, state.today)} weeks ago, ${rec.defences} defence${rec.defences === 1 ? '' : 's'}.`); return { ...base, status: 'champion', rank: 0, champion: f.id, canChallengeNow: false, reasons } }
   const rank = rankIn(media, body, wc, f.id)
   const n = countFights(f)
@@ -291,6 +293,23 @@ export function unificationPartner(state: GameState, id: Id): Id | null {
   const others = Object.entries(media.titles).filter(([k, r]) => r.c && r.c !== id && k.endsWith(`|${f.weightClass}`) && levelOf(k.split('|')[0]) === 'world' && !r.mand && !r.elim).map(([, r]) => r.c!)
   const pick = [...new Set(others)].filter((o) => !mine.some((t) => t.body === Object.entries(media.titles).find(([, r]) => r.c === o)?.[0].split('|')[0])).sort()[0]
   return pick ?? null
+}
+
+/** The champion's headline, from the live records only: one world belt names the body; two or more is unified; all of them is undisputed. */
+export function currentTitleLabel(state: GameState, id: Id): string | null {
+  const media = state.media
+  if (!media) return null
+  const held = titlesHeldBy(media, id)
+  if (!held.length) return null
+  const wc = held[0].wc
+  const world = held.filter((h) => h.wc === wc && levelOf(h.body) === 'world')
+  if (world.length >= 2) {
+    const all = Object.keys(media.titles).filter((k) => k.endsWith(`|${wc}`) && levelOf(k.slice(0, k.indexOf('|'))) === 'world').length
+    return world.length >= all ? 'Undisputed world champion' : 'Unified world champion'
+  }
+  if (world.length === 1) return `${bodyIdentity(world[0].body).shortName} world champion`
+  const top = held.slice().sort((a, b) => levelRank(levelOf(b.body)) - levelRank(levelOf(a.body)))[0]
+  return `${LEVEL_LABEL[levelOf(top.body)]} champion`
 }
 
 export { bodiesFor, LEVEL_ORDER }
