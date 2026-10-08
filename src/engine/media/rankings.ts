@@ -113,7 +113,8 @@ function computeList(state: GameState, media: MediaState, org: RankingOrg, wc: W
   // Who may be on this list: every eligible, active fighter with enough fights (title bodies carry their own territory rule).
   const def = TITLE_DEF_BY_ID[org.id]
   const minFights = def?.minFights ?? MIN_FIGHTS_TO_RANK
-  const pool = everyone.filter((f) => totalFightsOf(f) >= minFights && (!def || isEligibleFor(def, f)))
+  const winShare = (f: Fighter): number => { const n = totalFightsOf(f); return n ? f.record.wins / n : 0 }
+  const pool = everyone.filter((f) => totalFightsOf(f) >= minFights && (!def || (isEligibleFor(def, f) && (winShare(f) >= def.minWinShare || f.id === champId))))
   const minPool = def?.minPool ?? MIN_DIVISION_SIZE
   if (pool.length < minPool && !(champId && ctx.has(champId))) return prev ? { u: state.today, e: [] } : null
   const scored = pool.map((f) => ({ f, s: rankScore(f, ctx.get(f.id)!, org.methodology) })).sort((a, b) => b.s - a.s || (a.f.id < b.f.id ? -1 : 1))

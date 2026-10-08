@@ -171,22 +171,30 @@ function pickVenue(state: GameState, promo: Promotion, fights: Fight[], day: num
   if (ai.strategy === 'regional') { const home = options.filter((v) => v.country === promo.homeCountry); if (home.length) options = home }
   if (options.length === 0) return null
   const want = 0.95 - 0.45 * ai.risk
-  const scored = options.map((v) => {
+  // Largest room first (a home-country room counts a little bigger): the first one the card can fill is the choice, so most weeks only a
+  // few of the (now many) venues need a demand forecast. Same choice as forecasting every venue and sorting.
+  const ordered = options.map((v) => ({ v, home: v.country === promo.homeCountry ? 1 : 0 })).sort((a, c) => c.v.capacity * (1 + 0.15 * c.home) - a.v.capacity * (1 + 0.15 * a.home))
+  const fillOf = (v: Venue): number => {
     const ev = draftEvent(state, promo, fights, v, day)
     ev.marketing.strategy = promoStrategy(state, promo, ev)
     const ref = refPrices(eventInterest(state, ev))
     const spend = planSpend(promo, v, ref.ga, mktMult)
     ev.prices = ref
     const d = demandFor(state, ev, 'public', ref, spend)
-    const fill = (soldFromDemand(d, v).reduce((a, c) => a + c, 0) / v.capacity) * Math.min(1.6, u)
-    return { v, fill, home: v.country === promo.homeCountry ? 1 : 0 }
-  })
-  scored.sort((a, c) => c.v.capacity * (1 + 0.15 * c.home) - a.v.capacity * (1 + 0.15 * a.home))
-  const fits = scored.filter((x) => x.fill >= want)
-  let choice = fits.length ? fits[0] : scored.slice().sort((a, c) => c.fill - a.fill)[0]
+    return (soldFromDemand(d, v).reduce((a, c) => a + c, 0) / v.capacity) * Math.min(1.6, u)
+  }
+  const evaluated: { v: Venue; fill: number }[] = []
+  let choice: { v: Venue; fill: number } | null = null
+  for (const o of ordered) {
+    const fill = fillOf(o.v)
+    evaluated.push({ v: o.v, fill })
+    if (fill >= want) { choice = { v: o.v, fill }; break }
+  }
+  // Nothing fills: the venue that fills best (every venue was forecast).
+  if (!choice) choice = evaluated.slice().sort((a, c) => c.fill - a.fill)[0]
   // The weakest promoters sometimes reach for a bigger room than the card justifies.
-  const bigger = scored.filter((x) => x.v.capacity > choice.v.capacity)
-  if (bigger.length && keyedFloat(state.seed, 'aiover', promo.id, day) < comp.overreach) choice = bigger[bigger.length - 1 - Math.floor(keyedFloat(state.seed, 'aiover2', promo.id, day) * Math.min(2, bigger.length))] ?? choice
+  const bigger = ordered.filter((x) => x.v.capacity > choice!.v.capacity)
+  if (bigger.length && keyedFloat(state.seed, 'aiover', promo.id, day) < comp.overreach) return bigger[bigger.length - 1 - Math.floor(keyedFloat(state.seed, 'aiover2', promo.id, day) * Math.min(2, bigger.length))]?.v ?? choice.v
   return choice.v
 }
 

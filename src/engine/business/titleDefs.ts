@@ -30,6 +30,8 @@ export interface TitleDef {
   minPool: number
   /** Fewest professional fights to be rated. */
   minFights: number
+  /** Smallest win share (wins ÷ bouts) to be rated at all: a fighter on a losing record is not a world title contender. */
+  minWinShare: number
   /** Weeks without a defence before the body orders a mandatory challenge / the window to make it / inactivity strip. */
   mandatoryAfterWeeks: number
   mandatoryWindowWeeks: number
@@ -40,28 +42,28 @@ export interface TitleDef {
 
 const UK = ['ENG', 'SCO', 'WAL']
 const T = (id: string, level: TitleLevel, eligibility: Eligibility, p: Partial<TitleDef> = {}): TitleDef => ({
-  id, level, eligibility, rankingCount: 10, challengerLimit: 8, minPool: 4, minFights: 5,
+  id, level, eligibility, rankingCount: 10, challengerLimit: 8, minPool: 4, minFights: 5, minWinShare: 0.3,
   mandatoryAfterWeeks: 40, mandatoryWindowWeeks: 26, inactiveStripWeeks: 78, prestige: 60, ...p,
 })
 
 export const TITLE_DEFS: TitleDef[] = [
   // WORLD (the four major world titles) — open to everyone.
-  T('atlas', 'world', { kind: 'any' }, { prestige: 100, rankingCount: 10, challengerLimit: 5, minPool: 5, minFights: 10 }),
-  T('pioneer', 'world', { kind: 'any' }, { prestige: 96, rankingCount: 10, challengerLimit: 4, minPool: 5, minFights: 10 }),
-  T('crown', 'world', { kind: 'any' }, { prestige: 94, rankingCount: 10, challengerLimit: 5, minPool: 5, minFights: 10 }),
-  T('apex', 'world', { kind: 'any' }, { prestige: 92, rankingCount: 10, challengerLimit: 4, minPool: 5, minFights: 10 }),
+  T('atlas', 'world', { kind: 'any' }, { minWinShare: 0.4, prestige: 100, rankingCount: 10, challengerLimit: 5, minPool: 6, minFights: 10 }),
+  T('pioneer', 'world', { kind: 'any' }, { minWinShare: 0.4, prestige: 96, rankingCount: 10, challengerLimit: 4, minPool: 7, minFights: 10 }),
+  T('crown', 'world', { kind: 'any' }, { minWinShare: 0.4, prestige: 94, rankingCount: 10, challengerLimit: 5, minPool: 8, minFights: 10 }),
+  T('apex', 'world', { kind: 'any' }, { minWinShare: 0.4, prestige: 92, rankingCount: 10, challengerLimit: 4, minPool: 10, minFights: 10 }),
   // EUROPEAN
-  T('european', 'european', { kind: 'nations', nations: [...UK, 'IRL', 'UKR', 'POL', 'GER'] }, { prestige: 70, rankingCount: 8, challengerLimit: 4, mandatoryAfterWeeks: 44, minPool: 4, minFights: 8 }),
+  T('european', 'european', { kind: 'nations', nations: [...UK, 'IRL', 'UKR', 'POL', 'GER'] }, { minWinShare: 0.3, prestige: 70, rankingCount: 8, challengerLimit: 4, mandatoryAfterWeeks: 44, minPool: 5, minFights: 8 }),
   // DOMESTIC
-  T('british', 'domestic', { kind: 'nations', nations: UK }, { prestige: 62, rankingCount: 8, challengerLimit: 4, mandatoryAfterWeeks: 40, minPool: 4, minFights: 6 }),
-  T('commonwealth', 'domestic', { kind: 'nations', nations: [...UK, 'AUS', 'NGA', 'GHA'] }, { prestige: 58, rankingCount: 8, challengerLimit: 4, mandatoryAfterWeeks: 48, minPool: 4, minFights: 6 }),
+  T('british', 'domestic', { kind: 'nations', nations: UK }, { minWinShare: 0.3, prestige: 62, rankingCount: 8, challengerLimit: 4, mandatoryAfterWeeks: 40, minPool: 5, minFights: 6 }),
+  T('commonwealth', 'domestic', { kind: 'nations', nations: [...UK, 'AUS', 'NGA', 'GHA'] }, { minWinShare: 0.3, prestige: 58, rankingCount: 8, challengerLimit: 4, mandatoryAfterWeeks: 48, minPool: 5, minFights: 6 }),
   // AREA (home-town based; a game abstraction of regional boxing)
-  T('area_wal', 'area', { kind: 'nations', nations: ['WAL'] }, { prestige: 36, rankingCount: 5, challengerLimit: 3, mandatoryAfterWeeks: 52, minPool: 3, minFights: 3, inactiveStripWeeks: 104 }),
-  T('area_eng', 'area', { kind: 'nations', nations: ['ENG'] }, { prestige: 38, rankingCount: 6, challengerLimit: 3, mandatoryAfterWeeks: 52, minPool: 3, minFights: 3, inactiveStripWeeks: 104 }),
-  T('area_nor', 'area', { kind: 'towns', nations: ['ENG'], towns: ['Manchester', 'Liverpool', 'Newcastle'] }, { prestige: 34, rankingCount: 5, challengerLimit: 3, mandatoryAfterWeeks: 52, minPool: 3, minFights: 3, inactiveStripWeeks: 104 }),
-  T('area_cen', 'area', { kind: 'towns', nations: ['ENG'], towns: ['Sheffield', 'Leeds'] }, { prestige: 34, rankingCount: 5, challengerLimit: 3, mandatoryAfterWeeks: 52, minPool: 3, minFights: 3, inactiveStripWeeks: 104 }),
-  T('area_mid', 'area', { kind: 'towns', nations: ['ENG'], towns: ['Birmingham'] }, { prestige: 33, rankingCount: 5, challengerLimit: 3, mandatoryAfterWeeks: 52, minPool: 3, minFights: 3, inactiveStripWeeks: 104 }),
-  T('area_sou', 'area', { kind: 'towns', nations: ['ENG'], towns: ['London', 'Bristol'] }, { prestige: 35, rankingCount: 5, challengerLimit: 3, mandatoryAfterWeeks: 52, minPool: 3, minFights: 3, inactiveStripWeeks: 104 }),
+  T('area_wal', 'area', { kind: 'nations', nations: ['WAL'] }, { prestige: 36, rankingCount: 5, challengerLimit: 3, mandatoryAfterWeeks: 52, minPool: 4, minFights: 4, inactiveStripWeeks: 104 }),
+  T('area_eng', 'area', { kind: 'nations', nations: ['ENG'] }, { prestige: 38, rankingCount: 6, challengerLimit: 3, mandatoryAfterWeeks: 52, minPool: 4, minFights: 4, inactiveStripWeeks: 104 }),
+  T('area_nor', 'area', { kind: 'towns', nations: ['ENG'], towns: ['Manchester', 'Liverpool', 'Newcastle'] }, { prestige: 34, rankingCount: 5, challengerLimit: 3, mandatoryAfterWeeks: 52, minPool: 4, minFights: 4, inactiveStripWeeks: 104 }),
+  T('area_cen', 'area', { kind: 'towns', nations: ['ENG'], towns: ['Sheffield', 'Leeds'] }, { prestige: 34, rankingCount: 5, challengerLimit: 3, mandatoryAfterWeeks: 52, minPool: 4, minFights: 4, inactiveStripWeeks: 104 }),
+  T('area_mid', 'area', { kind: 'towns', nations: ['ENG'], towns: ['Birmingham'] }, { prestige: 33, rankingCount: 5, challengerLimit: 3, mandatoryAfterWeeks: 52, minPool: 4, minFights: 4, inactiveStripWeeks: 104 }),
+  T('area_sou', 'area', { kind: 'towns', nations: ['ENG'], towns: ['London', 'Bristol'] }, { prestige: 35, rankingCount: 5, challengerLimit: 3, mandatoryAfterWeeks: 52, minPool: 4, minFights: 4, inactiveStripWeeks: 104 }),
 ]
 
 export const TITLE_DEF_BY_ID: Record<string, TitleDef> = Object.fromEntries(TITLE_DEFS.map((d) => [d.id, d]))

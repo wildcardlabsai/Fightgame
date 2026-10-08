@@ -12,6 +12,7 @@
 import { WEIGHT_CLASSES, weightClassLabel } from '../../data/weightClasses'
 import { clamp, fighterAge, fighterName } from '../fighters'
 import { keyedFloat } from '../rng'
+import { reseatLists } from '../media/rankings'
 import { titlesHeldBy, vacateTitle } from '../media/titles'
 import { postMessage } from '../messages'
 import type { Fighter, GameState, Id, WeightClassId } from '../types'
@@ -31,6 +32,7 @@ export function divisionMoveOptions(state: GameState, f: Fighter): DivisionOptio
   let blocked: string | null = null
   if (f.status !== 'active') blocked = 'Retired'
   else if (f.activeFightId) blocked = 'Has a fight booked'
+  else if (f.lastFightDay !== null && state.today - f.lastFightDay < 21) blocked = 'Fought within the last three weeks — the result is still being settled'
   else if (last !== undefined && state.today - last < COOLDOWN_WEEKS * WEEKS) blocked = 'Moved division within the last year'
   const out: DivisionOption[] = []
   if (i < WEIGHT_CLASSES.length - 1) out.push({ dir: 'up', to: WEIGHT_CLASSES[i + 1].id, label: WEIGHT_CLASSES[i + 1].name, blocked })
@@ -73,6 +75,8 @@ export function applyDivisionMove(state: GameState, fighterId: Id, to: WeightCla
   }
   f.weightClass = to
   reshape(f, opt.dir)
+  // The published lists must not keep the fighter in the division they have left.
+  if (media) reseatLists(state, media, [from, to])
   const b = biz(state)
   ;(b.moved ??= {})[f.id] = state.today
   if (f.contractId && state.contracts[f.contractId]?.promotionId === state.playerPromotionId) {

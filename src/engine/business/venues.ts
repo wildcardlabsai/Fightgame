@@ -42,7 +42,8 @@ export function venueFromReal(d: RealVenueDefinition): Venue {
   const base = venueFields({ name: d.name, city: d.city, country: d.country, capacity, hireCost: 0, prestige: d.prestige, production: d.production, market })
   return {
     id: d.id, name: d.name, city: d.city, country: d.country, capacity, hireCost: hireCostFor(capacity, d.prestige), prestige: d.prestige, ...base,
-    realId: d.id, region: d.region, lat: d.latitude, lon: d.longitude, pools: d.market, broadcast: d.broadcastSuitability, ppv: d.ppvSuitability, history: d.boxingHistory,
+    // Only the id is stored: every other researched fact is read from the static data (keeps the per-week state clone small).
+    realId: d.id,
   }
 }
 
@@ -83,15 +84,25 @@ export const bookable = (v: Venue): boolean => !v.legacy
 // ------------------------------------------------------------------- Geography
 
 export function venueCoord(v: Venue): [number, number] | null {
-  if (v.lat !== undefined && v.lon !== undefined) return [v.lat, v.lon]
+  const d = v.realId ? REAL_VENUE_BY_ID[v.realId] : undefined
+  if (d) return [d.latitude, d.longitude]
   return NATION_CENTRES[v.country] ?? null
 }
 
+const KM = new Map<string, number | null>()
+/** Distance from a fighter's hometown to a venue. Both ends are static data, so the answer is cached by (hometown, venue). */
 export function fighterDistanceKm(state: GameState, fighterId: Id, v: Venue): number | null {
   const f = state.fighters[fighterId]
+  if (!f) return null
+  const key = `${f.nationality}:${f.hometown}|${v.realId ?? `${v.id}:${v.country}`}`
+  const hit = KM.get(key)
+  if (hit !== undefined) return hit
   const vc = venueCoord(v)
-  const hc = f ? hometownCoord(f.nationality, f.hometown) : null
-  return vc && hc ? distanceKm(hc, vc) : null
+  const hc = hometownCoord(f.nationality, f.hometown)
+  const km = vc && hc ? distanceKm(hc, vc) : null
+  if (KM.size > 20_000) KM.clear()
+  KM.set(key, km)
+  return km
 }
 
 /** What getting one fighter’s camp (fighter + trainer) to the venue costs. Free inside an hour and a half’s drive. */

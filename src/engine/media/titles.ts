@@ -222,8 +222,9 @@ export function maintainTitles(state: GameState, media: MediaState): TitleEvent[
     }
     const list = getList(media, body, wc)
     if (!rec.elim && idle >= WEEKS(d.mandatoryAfterWeeks)) {
-      const top = list?.e.find((e) => e.r === 1)
-      if (top && top.f !== rec.c) {
+      // The leading contender who is still active in this division (a list may not yet have dropped someone who retired or moved this week).
+      const top = list?.e.find((e) => e.r >= 1 && e.f !== rec.c && state.fighters[e.f]?.status === 'active' && state.fighters[e.f].weightClass === wc)
+      if (top) {
         rec.mand = { challenger: top.f, cn: fighterName(state.fighters[top.f]), ordered: state.today, due: state.today + WEEKS(d.mandatoryWindowWeeks) }
         ev.push({ kind: 'MANDATORY', body, wc, f: rec.c, o: top.f })
       }

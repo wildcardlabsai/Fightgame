@@ -33,26 +33,31 @@ export function processRetirements(state: GameState, rng: Rng): void {
     if (!rng.chance(retirementChance(f, age))) continue
     // A fighter who has just won a belt takes a first defence before calling it a day (the draw above is spent either way).
     if (state.media?.effects && recentlyCrowned(state, f)) continue
-    const contract = f.contractId ? state.contracts[f.contractId] : null
-    const mine = contract?.promotionId === state.playerPromotionId
-    f.status = 'retired'
-    f.retiredDay = state.today
-    if (contract) archiveContract(state, contract, 'retired')
-    f.contractId = null
-    f.availableSince = null
-    pushHistory(f, { day: state.today, kind: 'retired', promotionId: contract?.promotionId ?? null })
-    if (contract && !mine) { const pr = state.promotions[contract.promotionId]; if (pr.ai) pr.ai.urgency = Math.min(3, pr.ai.urgency + 1) }
-    if (mine) {
-      postMessage(state, {
-        from: 'Gym', category: 'fighter', priority: 'important',
-        subject: `${fighterName(f)} retires`,
-        body: `After ${f.record.wins + f.record.losses + f.record.draws} professional fights (${f.record.wins}-${f.record.losses}-${f.record.draws}), ${f.firstName} ${f.lastName} has decided to hang up the gloves at ${age}.`,
-        link: { kind: 'fighter', id: f.id },
-      })
-    }
-    if (f.reputation >= 45 || mine) {
-      postNews(state, { headline: `${fighterName(f)} (${f.record.wins}-${f.record.losses}-${f.record.draws}) announces retirement`, category: 'retirement', fighterId: f.id })
-    }
+    retire(state, f)
+  }
+  // (washouts of long-idle nobodies were tried and removed: they shrank the rated pool faster than they trimmed the bloat)
+}
+
+function retire(state: GameState, f: Fighter): void {
+  const contract = f.contractId ? state.contracts[f.contractId] : null
+  const mine = contract?.promotionId === state.playerPromotionId
+  f.status = 'retired'
+  f.retiredDay = state.today
+  if (contract) archiveContract(state, contract, 'retired')
+  f.contractId = null
+  f.availableSince = null
+  pushHistory(f, { day: state.today, kind: 'retired', promotionId: contract?.promotionId ?? null })
+  if (contract && !mine) { const pr = state.promotions[contract.promotionId]; if (pr.ai) pr.ai.urgency = Math.min(3, pr.ai.urgency + 1) }
+  if (mine) {
+    postMessage(state, {
+      from: 'Gym', category: 'fighter', priority: 'important',
+      subject: `${fighterName(f)} retires`,
+      body: `After ${f.record.wins + f.record.losses + f.record.draws} professional fights (${f.record.wins}-${f.record.losses}-${f.record.draws}), ${f.firstName} ${f.lastName} has decided to hang up the gloves.`,
+      link: { kind: 'fighter', id: f.id },
+    })
+  }
+  if (f.reputation >= 45 || mine) {
+    postNews(state, { headline: `${fighterName(f)} (${f.record.wins}-${f.record.losses}-${f.record.draws}) announces retirement`, category: 'retirement', fighterId: f.id })
   }
 }
 
