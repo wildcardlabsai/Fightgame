@@ -25,7 +25,7 @@ export function TopNav({ unread }: { unread: number }) {
 
   return (
     <nav className="topnav" aria-label="Main" ref={ref} data-testid="topnav">
-      <a className="tn-brand" href="#/dashboard" aria-label="Fight Empire home"><img src="/brand/wordmark.png" alt="Fight Empire" /></a>
+      <a className="tn-brand" href="#/dashboard" aria-label="Fight Empire home"><img src={`${import.meta.env.BASE_URL}brand/wordmark.png`} alt="Fight Empire" /></a>
       <ul className="tn-primary">
         {NAV.map((g) => {
           const single = g.items.length === 1

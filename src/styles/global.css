@@ -267,9 +267,9 @@ a { color: inherit; text-decoration: none; }
 @keyframes fade { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 
 /* ---------- Title screen ---------- */
-.title { min-height: 100%; display: grid; grid-template-columns: minmax(0, 1fr) minmax(360px, 520px); position: relative; overflow: hidden; background: radial-gradient(1000px 600px at 20% 30%, rgba(225,29,42,.22), transparent 70%), #050507; }
+.title { min-height: 100vh; min-height: 100dvh; display: grid; grid-template-columns: minmax(0, 1fr) clamp(380px, 36vw, 760px); position: relative; overflow: hidden; background: radial-gradient(1000px 600px at 20% 30%, rgba(225,29,42,.22), transparent 70%), #050507; }
 .title::before { content: ''; position: absolute; inset: 0; background: repeating-linear-gradient(115deg, rgba(255,255,255,.025) 0 2px, transparent 2px 22px); pointer-events: none; }
-.title-art { display: grid; place-items: center; padding: 30px; position: relative; }
+.title-art { display: grid; place-items: center; padding: 30px; position: sticky; top: 0; align-self: start; height: 100vh; height: 100dvh; }
 .title-art img { width: min(560px, 100%); mix-blend-mode: screen; -webkit-mask-image: radial-gradient(closest-side, #000 62%, transparent 100%); mask-image: radial-gradient(closest-side, #000 62%, transparent 100%); }
 .title-panel h1 + p { margin-top: 10px; }
 .title-panel { position: relative; padding: 44px 40px; background: rgba(8,8,11,.88); border-left: 1px solid var(--line); display: flex; flex-direction: column; gap: 18px; justify-content: center; overflow-y: auto; }
@@ -292,7 +292,7 @@ a { color: inherit; text-decoration: none; }
   .page { padding: 20px 16px 50px; }
   .hero, .profile-hero { margin: -20px -16px 0; padding: 24px 16px; }
   .title { grid-template-columns: 1fr; }
-  .title-art { padding: 10px; max-height: 40vh; }
+  .title-art { padding: 10px; max-height: 40vh; height: auto; position: relative; }
   .title-art img { width: min(260px, 60%); }
   .title-panel { padding: 24px 18px; border-left: 0; }
   .kpi { margin-right: 18px; padding-right: 18px; }
