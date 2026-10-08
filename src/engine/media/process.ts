@@ -98,6 +98,8 @@ function careerFromFight(state: GameState, media: MediaState, ev: WorldEvent, fi
       addCareer(media, W.id, { d: day, k: 'TITLE_WON', a: t })
       if (te.kind === 'TITLE_CHANGE') addCareer(media, L.id, { d: day, k: 'TITLE_LOST', a: t })
     } else if (te.kind === 'TITLE_DEFENCE') addCareer(media, W.id, { d: day, k: 'TITLE_DEFENCE', a: t, n: te.defences })
+    else if (te.kind === 'UNIFIED') addCareer(media, W.id, { d: day, k: 'UNIFIED', a: weightClassLabel(fight.weightClass) })
+    else if (te.kind === 'UNDISPUTED') addCareer(media, W.id, { d: day, k: 'UNDISPUTED', a: weightClassLabel(fight.weightClass) })
   }
   const ev2 = fight.eventId ? state.events[fight.eventId] : undefined
   if (ev2 && ev2.card[ev2.card.length - 1] === fight.id) for (const x of [A, B]) addCareer(media, x.id, { d: day, k: 'MAIN_EVENT', a: ev2.name })
@@ -182,12 +184,24 @@ function titleEventToWorld(state: GameState, te: TitleEvent): WorldEvent | null 
     const n = f ? fighterName(f) : 'The champion'
     return { kind: te.kind === 'STRIPPED' ? 'STRIPPED' : 'TITLE_VACANT', day: state.today, fighters: [te.f], names: [n], promotions: [], facts: { n, title, body: body.shortName, div, how: te.how ?? '' }, sig: Math.round(clampTo(30 + lvlSig + (f?.popularity ?? 20) * 0.3 + (f?.reputation ?? 20) * 0.2)), parts: { vacancy: 30 }, tags: ['vacancy'] }
   }
+  if (te.kind === 'DIVISION_MOVE' && f && (f.reputation >= 40 || f.popularity >= 45)) return feature(`${fighterName(f)} moves up to ${div}`, te.how ?? 'A new division', `${fighterName(f)} will now campaign at ${div}. ${te.how ?? ''}`.trim(), 22 + f.popularity * 0.25 + f.reputation * 0.2, [f.id], ['division'])
   if (te.kind === 'ELIM_ORDERED' && f && o) return feature(`${body.shortName} order ${div} eliminator: ${fighterName(f)} v ${fighterName(o)}`, 'The winner becomes the mandatory challenger', `${body.name} have ordered an eliminator between ${fighterName(f)} and ${fighterName(o)}, two of the leading ${div} contenders. The winner will be named mandatory challenger for the ${title}.`, 24 + lvlSig + (f.popularity + o.popularity) * 0.15, [f.id, o.id], ['eliminator'])
   if (te.kind === 'ELIM_RESULT' && f && o) return feature(`${fighterName(f)} wins the ${body.shortName} ${div} eliminator`, `Now mandatory challenger for the ${title}`, `${fighterName(f)} beat ${fighterName(o)} in the ${body.name} ${div} eliminator and has been named mandatory challenger for the ${title}.`, 28 + lvlSig + f.popularity * 0.2, [f.id, o.id], ['eliminator'])
   if (te.kind === 'MANDATORY_EXTENDED' && f && o) return feature(`${body.shortName} extend the deadline for ${fighterName(f)} v ${fighterName(o)}`, te.how ?? 'Deadline extended', `${body.name} have given the ${div} champion and challenger eight more weeks to make the mandatory defence: ${te.how ?? 'a valid delay'}.`, 18 + lvlSig, [f.id, o.id], ['mandatory'])
   if (te.kind === 'TITLE_OPEN' && lvl !== 'area') return feature(`The ${title} is vacant and open to contenders`, `${div} · ${body.shortName}`, `The ${title} has no champion. The leading ${body.name} ${div} contenders are expected to meet for it.`, 14 + lvlSig, [], ['vacancy'])
   if ((te.kind === 'UNIFIED' || te.kind === 'UNDISPUTED') && f) return feature(te.kind === 'UNDISPUTED' ? `${fighterName(f)} is the undisputed ${div} champion` : `${fighterName(f)} unifies the ${div} titles`, te.kind === 'UNDISPUTED' ? 'Every world title in the division' : 'More than one world belt', `${fighterName(f)} now holds ${te.kind === 'UNDISPUTED' ? 'every world title in the division' : 'more than one world title'} at ${div}.`, 52 + f.popularity * 0.3, [f.id], ['unification'])
   return null
+}
+
+/** Milestones that come from the title world rather than from one fight (bounded: addCareer keeps the least important lines last). */
+function titleCareer(state: GameState, media: MediaState, te: TitleEvent): void {
+  const t = titleName(te.body, te.wc)
+  const d = state.today
+  if (te.kind === 'TITLE_VACANT' && te.f && /relinquished|moved/.test(te.how ?? '')) addCareer(media, te.f, { d, k: 'VACATED', a: t })
+  else if (te.kind === 'STRIPPED' && te.f) addCareer(media, te.f, { d, k: 'STRIPPED', a: t })
+  else if (te.kind === 'ELIM_RESULT' && te.f) addCareer(media, te.f, { d, k: 'ELIM_WON', a: t })
+  else if (te.kind === 'MANDATORY' && te.o) addCareer(media, te.o, { d, k: 'MANDATORY', a: t })
+  else if (te.kind === 'DIVISION_MOVE' && te.f) addCareer(media, te.f, { d, k: 'DIVISION_MOVE', a: weightClassLabel(te.wc) })
 }
 
 function moveToWorld(state: GameState, _media: MediaState, mv: RankMove): WorldEvent | null {
@@ -213,7 +227,7 @@ function weekly(state: GameState, media: MediaState, week: number, ingested: Ing
 
   // Rankings and titles
   const moves = updateRankings(state, media)
-  const titleEvs = [...activateTitles(state, media), ...maintainTitles(state, media), ...flagTitleFights(state, media)]
+  const titleEvs = [...(media.queue ?? []).splice(0), ...activateTitles(state, media), ...maintainTitles(state, media), ...flagTitleFights(state, media)]
   // A belt vacated, or a fighter retired, since the lists were last published: keep every list truthful.
   const touched = new Set<WeightClassId>(titleEvs.filter((t) => t.kind === 'TITLE_VACANT' || t.kind === 'STRIPPED').map((t) => t.wc))
   for (const f of Object.values(state.fighters)) if (f.status === 'retired' && f.retiredDay !== null && f.retiredDay > lastDay) touched.add(f.weightClass)
@@ -240,6 +254,7 @@ function weekly(state: GameState, media: MediaState, week: number, ingested: Ing
     }
   }
   for (const te of titleEvs) {
+    titleCareer(state, media, te)
     if (te.kind === 'TITLE_FIGHT_SET' && te.fightId) {
       runExtensions.onTitleEvent(state, media, te)
       const fight = state.fights[te.fightId]

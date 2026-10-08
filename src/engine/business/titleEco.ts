@@ -14,7 +14,7 @@ import { bodiesFor, holdsWorldBelt, titleKey, titleName, titlesHeldBy } from '..
 import { getList } from '../media/records'
 import type { Fight, Fighter, GameState, Id, WeightClassId } from '../types'
 import { bodyIdentity } from '../../data/mediaIdentity'
-import { LEVEL_LABEL, LEVEL_ORDER, TITLE_DEF_BY_ID, eligibilityReason, isEligibleFor, levelOf, levelRank, type TitleLevel } from './titleDefs'
+import { LEVEL_STAKES, LEVEL_LABEL, LEVEL_ORDER, TITLE_DEF_BY_ID, eligibilityReason, isEligibleFor, levelOf, levelRank, type TitleLevel } from './titleDefs'
 
 const vacantFor = (body: string): number => (TITLE_DEF_BY_ID[body]?.challengerLimit ?? 5) + 1
 
@@ -294,3 +294,23 @@ export function unificationPartner(state: GameState, id: Id): Id | null {
 }
 
 export { bodiesFor, LEVEL_ORDER }
+
+// ------------------------------------------------------------------ appeal
+
+/**
+ * What a belt on the line adds to a fight’s pull (a game weighting, `LEVEL_STAKES`): bigger for higher levels, more again for a
+ * unification, a little for an eliminator, and a premium when the winner could become undisputed. Zero unless the media world is
+ * feeding the economy (the flags themselves come from it). Read from the fight’s own `title` record, never inferred.
+ */
+export function titleAppeal(state: GameState, fight: Fight): number {
+  if (!state.media?.effects || !fight.title?.level) return 0
+  const base = LEVEL_STAKES[fight.title.level].appeal * 0.65
+  const kind = fight.title.kind ?? 'title'
+  let v = kind === 'eliminator' ? base * 0.5 : kind === 'unification' ? base * 1.45 : base
+  if (kind === 'unification' && fight.title.level === 'world') {
+    const worlds = worldBodiesIn(state, fight.weightClass)
+    const bodies = (fight.title.bodies ?? []).filter((b) => levelOf(b) === 'world').length
+    if (worlds > 0 && bodies >= worlds) v += 3 // the winner is the undisputed champion
+  }
+  return v
+}

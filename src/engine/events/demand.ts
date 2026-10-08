@@ -16,6 +16,7 @@ import { clamp } from '../fighters'
 import { publicExpectation } from '../fights'
 import { keyedNormal } from '../rng'
 import { mediaAppeal, mediaHype } from '../media/effects'
+import { titleAppeal } from '../business/titleEco'
 import type { BoxingEvent, BroadcastKind, Fight, Fighter, GameState, Promotion, TicketPrices, Venue, WeightClassId } from '../types'
 
 const E = B.events
@@ -54,6 +55,7 @@ export function fightAppeal(state: GameState, fight: Fight): number {
   v += ((a.momentum + b.momentum) / 200) * 4
   v += Math.min(10, rivalryHeat(state, a, b) * 4)
   v += mediaAppeal(state, a.id, b.id)
+  v += titleAppeal(state, fight)
   v *= 0.9 + 0.2 * (DIVISION_IMPORTANCE[fight.weightClass] ?? 0.8)
   return clamp(v, 0, 100)
 }

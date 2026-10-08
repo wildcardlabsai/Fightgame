@@ -6,10 +6,12 @@ import type { GameState } from '../types'
 import { processCommitments } from './commitments'
 import { pruneTitleHistory } from './titleHistory'
 import { trimTalks } from './talkCore'
+import { aiDivisionMoves } from './divisions'
 
 const TALK_IDLE_DAYS = 28
 
 export function processBusiness(state: GameState): void {
+  aiDivisionMoves(state)
   const b = state.business
   if (!b) return
   processCommitments(state)

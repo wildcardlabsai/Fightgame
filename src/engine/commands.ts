@@ -9,6 +9,7 @@ import { financialHealth, playerRoster } from './selectors'
 import { openContractTalk, talkMove, type ContractMove, type TalkOutcome } from './business/contractTalks'
 import { fightMove, openFightTalk, type FightMove, type FightTalkOutcome } from './business/fightTalks'
 import { setPlan } from './business/plans'
+import { applyDivisionMove, campAgrees } from './business/divisions'
 import type { DevPlan } from './business/types'
 import type { GameState, Id, NegotiationKind, Offer, ScoutDepth, TrainingFocus } from './types'
 
@@ -161,5 +162,18 @@ export function choosePlan(state: GameState, fighterId: Id, plan: DevPlan): Comm
   if (!playerRoster(state).some((f) => f.id === fighterId)) return { ok: false, error: 'That fighter is not on your roster.', state }
   const next = structuredClone(state)
   setPlan(next, fighterId, plan)
+  return { ok: true, state: next }
+}
+
+/** Move a rostered fighter to the next division up or down (the camp must agree; belts at the old weight are relinquished). */
+export function changeDivision(state: GameState, fighterId: Id, to: import('./types').WeightClassId): CommandResult {
+  const f = state.fighters[fighterId]
+  if (!f || !playerRoster(state).some((x) => x.id === fighterId)) return { ok: false, error: 'That fighter is not on your roster.', state }
+  const refuse = campAgrees(state, f)
+  if (refuse) return { ok: false, error: refuse, state }
+  const next = structuredClone(state)
+  const err = applyDivisionMove(next, fighterId, to)
+  if (err) return { ok: false, error: err, state }
+  if (next.media) processMedia(next)
   return { ok: true, state: next }
 }

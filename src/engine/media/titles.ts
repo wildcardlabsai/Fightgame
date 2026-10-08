@@ -41,7 +41,7 @@ const ELIM_GATE = 0.2
 
 export type TitleEventKind =
   | 'TITLE_CHANGE' | 'TITLE_DEFENCE' | 'TITLE_FILLED' | 'TITLE_VACANT' | 'STRIPPED' | 'MANDATORY' | 'MANDATORY_WARNING' | 'MANDATORY_EXTENDED'
-  | 'TITLE_FIGHT_SET' | 'ELIM_ORDERED' | 'ELIM_RESULT' | 'ELIM_LAPSED' | 'TITLE_OPEN' | 'UNIFIED' | 'UNDISPUTED'
+  | 'TITLE_FIGHT_SET' | 'ELIM_ORDERED' | 'ELIM_RESULT' | 'ELIM_LAPSED' | 'TITLE_OPEN' | 'UNIFIED' | 'UNDISPUTED' | 'DIVISION_MOVE'
 export interface TitleEvent { kind: TitleEventKind; body: string; wc: WeightClassId; f?: Id; o?: Id; fightId?: Id; defences?: number; how?: string }
 
 const def = (body: string): TitleDef => TITLE_DEF_BY_ID[body]

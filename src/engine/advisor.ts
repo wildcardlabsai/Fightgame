@@ -19,10 +19,16 @@ import { tierStatus } from './tierProgress'
 import { cashRunwayWeeks, eventCommitments, financialHealth, player, weeklyBurn } from './selectors'
 import type { BoxingEvent, GameState, Id, Offer } from './types'
 import { viewsOf, type FighterView } from './view'
+import { pathwayText } from './business/commitments'
+import { fightStakes, planWarning } from './business/fightTalks'
+import { planFit } from './business/plans'
+import { levelRank } from './business/titleDefs'
+import { titleOpportunities } from './business/titleEco'
+import { expectedContractTerms, expectedFightTerms } from './business/terms'
 
 export type AdviceLevel = 'info' | 'tip' | 'caution' | 'highRisk' | 'critical'
 export type AdvisorMode = 'full' | 'standard' | 'minimal' | 'off'
-export type AdviceTopic = 'finance' | 'event' | 'contract' | 'fighter' | 'matchmaking' | 'roster' | 'growth' | 'sponsor'
+export type AdviceTopic = 'finance' | 'event' | 'contract' | 'fighter' | 'matchmaking' | 'roster' | 'growth' | 'sponsor' | 'titles'
 
 export const LEVEL_RANK: Record<AdviceLevel, number> = { info: 0, tip: 1, caution: 2, highRisk: 3, critical: 4 }
 export const LEVEL_LABEL: Record<AdviceLevel, string> = { info: 'INFO', tip: 'TIP', caution: 'CAUTION', highRisk: 'HIGH RISK', critical: 'CRITICAL' }
@@ -42,7 +48,7 @@ export interface Advice {
   actionLabel?: string
 }
 
-const TOPIC_RANK: Record<AdviceTopic, number> = { finance: 0, event: 1, contract: 2, roster: 3, sponsor: 4, fighter: 5, matchmaking: 6, growth: 7 }
+const TOPIC_RANK: Record<AdviceTopic, number> = { finance: 0, event: 1, contract: 2, titles: 3, roster: 4, sponsor: 5, fighter: 6, matchmaking: 7, growth: 8 }
 
 /** Most serious first; finance before other topics at the same level; id keeps the order deterministic. */
 export function sortAdvice(list: Advice[]): Advice[] {
@@ -379,13 +385,74 @@ export function tierAdvice(state: GameState): Advice[] {
   return out
 }
 
+// ----------------------------------------------------------- The fight business (Phase 5.4)
+
+/**
+ * Promises, title duties and opportunities. Reads only what the player can see: their own commitments and roster, the public lists,
+ * the public expected-terms ranges. Never a manager's weights, an ambition the camp has not told you, or a reservation price.
+ */
+export function businessAdvice(state: GameState): Advice[] {
+  const out: Advice[] = []
+  const mine = new Set(viewsOf(state).mine().map((v) => v.id))
+  for (const c of state.business?.commitments ?? []) {
+    if (c.status !== 'open' || !mine.has(c.fighterId)) continue
+    const f = state.fighters[c.fighterId]
+    const weeks = Math.ceil((c.dueDay - state.today) / 7)
+    const link = { kind: 'fighter' as const, id: f.id }
+    const what = pathwayText({ kind: c.kind, weeks: 0, maxRank: c.maxRank ?? undefined })
+    if (weeks <= 6) out.push({ id: `promise-${c.id}`, level: 'highRisk', topic: 'titles', title: 'A promise is about to be broken', body: `${f.firstName}’s camp was promised ${what}. ${weeks <= 0 ? 'The deadline has passed this week.' : `Only ${weeks} week${weeks === 1 ? '' : 's'} remain.`} A broken promise costs morale, trust and your reputation.`, link, actionLabel: 'Open profile' })
+    else if (weeks <= 16) out.push({ id: `promise-${c.id}`, level: 'caution', topic: 'titles', title: 'Promise due', body: `${f.firstName}’s camp was promised ${what} within ${weeks} weeks. Start making the fight.`, link, actionLabel: 'Open profile' })
+  }
+  for (const v of viewsOf(state).mine()) {
+    const f = state.fighters[v.id]
+    if (!f || f.status !== 'active') continue
+    for (const o of titleOpportunities(state, f)) {
+      if (o.kind === 'DEFENCE_DUE' || o.kind === 'MANDATORY_SHOT') out.push({ id: `title-${o.kind}-${f.id}-${o.body}`, level: (o.dueWeeks ?? 99) <= 8 ? 'highRisk' : 'caution', topic: 'titles', title: o.kind === 'DEFENCE_DUE' ? 'Mandatory defence due' : 'Mandatory shot available', body: o.text, link: { kind: 'fighter', id: f.id }, actionLabel: 'Open profile' })
+      else if (o.kind === 'ELIMINATOR') out.push({ id: `title-elim-${f.id}-${o.body}`, level: 'tip', topic: 'titles', title: 'Eliminator ordered', body: o.text, link: { kind: 'fighter', id: f.id } })
+      else if ((o.kind === 'CHALLENGE' || o.kind === 'VACANT') && levelRank(o.level) >= levelRank('european') && !f.activeFightId) out.push({ id: `title-shot-${f.id}-${o.body}`, level: 'tip', topic: 'titles', title: 'A title shot is on the table', body: o.text, link: { kind: 'fighter', id: f.id } })
+    }
+    const amb = state.business?.learned[f.id]?.includes('ambition')
+    const plan = state.business?.plans[f.id]
+    if (plan && planFit(state, f, plan, !!amb).score <= -0.4) out.push({ id: `plan-${f.id}`, level: 'info', topic: 'growth', title: 'Development plan', body: `${f.firstName}’s ${plan} plan no longer suits where the career is — consider changing it.`, link: { kind: 'fighter', id: f.id } })
+  }
+  return out.slice(0, 12)
+}
+
+/** Advice shown while making a fight (public expected terms and stakes). */
+export function fightTalkAdvice(state: GameState, fightId: Id): Advice[] {
+  const fight = state.fights[fightId]
+  if (!fight) return []
+  const out: Advice[] = []
+  const st = fightStakes(state, fight)
+  if (st.kind === 'eliminator') out.push({ id: `ft-${fightId}-elim`, level: 'info', topic: 'titles', title: 'Eliminator', body: 'The winner becomes the mandatory challenger for the belt. Both camps will want this fight to count.' })
+  if (st.kind === 'title' || st.kind === 'unification') out.push({ id: `ft-${fightId}-title`, level: 'info', topic: 'titles', title: st.kind === 'unification' ? 'Unification fight' : 'Title fight', body: 'A belt is on the line. Expect a bigger purse and a harder negotiation.' })
+  const warn = planWarning(state, fight)
+  if (warn) out.push({ id: `ft-${fightId}-plan`, level: 'caution', topic: 'growth', title: 'Off plan', body: warn })
+  const t = expectedFightTerms(state, fightId)
+  if (t?.economics) out.push({ id: `ft-${fightId}-econ`, level: 'caution', topic: 'finance', title: 'Economics', body: t.economics })
+  return out
+}
+
+/** Advice shown while making a contract offer (public ranges only). */
+export function contractTalkAdvice(state: GameState, fighterId: Id, offer: Offer, kind: 'signing' | 'renewal'): Advice[] {
+  const t = expectedContractTerms(state, fighterId, kind, offer)
+  const f = state.fighters[fighterId]
+  if (!t || !f) return []
+  const out: Advice[] = []
+  if (t.assessment === 'Lowball') out.push({ id: `ct-${fighterId}-low`, level: 'caution', topic: 'contract', title: 'This looks like a lowball', body: 'Against the market ranges, this offer is well short. Their camp may take offence — repeated lowballs end talks.' })
+  else if (t.assessment === 'Generous offer') out.push({ id: `ct-${fighterId}-gen`, level: 'tip', topic: 'contract', title: 'A generous offer', body: 'This is above the usual range. You may be able to keep more of it.' })
+  if (offer.pathway) out.push({ id: `ct-${fighterId}-path`, level: 'caution', topic: 'titles', title: 'Only promise what you can deliver', body: `${pathwayText(offer.pathway)} will be tracked. If it does not happen by the deadline, morale, trust and your reputation suffer.` })
+  if (t.confidence.level === 'LOW') out.push({ id: `ct-${fighterId}-conf`, level: 'info', topic: 'contract', title: 'Low confidence', body: 'You do not know this camp yet. Ask what they are looking for before you commit.' })
+  return out
+}
+
 /** Everything the advisor has to say right now (unfiltered, sorted). The desk picks from this. */
 export function allAdvice(state: GameState): Advice[] {
   const out: Advice[] = []
   for (const ev of Object.values(state.events)) out.push(...eventAdvice(state, ev.id))
   const fin = financeAdvisor(state)
   if (fin.level !== 'info' && !out.some((a) => a.topic === 'event' && LEVEL_RANK[a.level] >= LEVEL_RANK[fin.level])) out.push({ id: 'finance-standing', level: fin.level, topic: 'finance', title: fin.standing, body: fin.reasons[0], link: { kind: 'screen', screen: 'finances' }, actionLabel: 'Open finances' })
-  out.push(...sponsorAdvice(state), ...tierAdvice(state))
+  out.push(...sponsorAdvice(state), ...tierAdvice(state), ...businessAdvice(state))
   // Roster items are rolled up so the desk never lists a fighter at a time.
   const roster = rosterAdvice(state)
   const expiring = roster.filter((a) => a.id.endsWith('-expiry') && a.level === 'caution')

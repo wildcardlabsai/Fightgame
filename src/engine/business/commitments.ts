@@ -14,6 +14,7 @@
 import { WEIGHT_CLASSES } from '../../data/weightClasses'
 import { fighterName, totalFights } from '../fighters'
 import { postMessage } from '../messages'
+import { addCareer } from '../media/career'
 import { rankIn } from '../media/rankings'
 import { titleKey } from '../media/titles'
 import type { Fight, Fighter, GameState, Id } from '../types'
@@ -129,6 +130,7 @@ function kept(state: GameState, c: Commitment, f: Fighter): void {
   f.promoRelations[state.playerPromotionId] = Math.min(100, (f.promoRelations[state.playerPromotionId] ?? 0) + 12)
   const rec = (biz(state).neg[f.id] ??= { talks: 0, agreed: 0, lowballs: 0, walkouts: 0, lastDay: state.today, kept: 0, broken: 0 })
   rec.kept = (rec.kept ?? 0) + 1
+  if (state.media) addCareer(state.media, f.id, { d: state.today, k: 'PROMISE_KEPT', a: pathwayText({ kind: c.kind, weeks: 0, maxRank: c.maxRank ?? undefined }) })
   postMessage(state, {
     from: 'Agent', category: 'fighter', priority: 'normal', key: `kept-${c.id}`, cooldownWeeks: 9999,
     subject: `${fighterName(f)}’s camp: promise kept`, body: `You promised ${f.firstName} ${pathwayText({ kind: c.kind, weeks: 0, maxRank: c.maxRank ?? undefined })} and delivered. The camp has noticed.`,
@@ -145,6 +147,7 @@ function broke(state: GameState, c: Commitment, f: Fighter): void {
   if (promo) promo.reputation = Math.max(0, promo.reputation - 1.2)
   const rec = (biz(state).neg[f.id] ??= { talks: 0, agreed: 0, lowballs: 0, walkouts: 0, lastDay: state.today, kept: 0, broken: 0 })
   rec.broken = (rec.broken ?? 0) + 1
+  if (state.media) addCareer(state.media, f.id, { d: state.today, k: 'PROMISE_BROKEN', a: pathwayText({ kind: c.kind, weeks: 0, maxRank: c.maxRank ?? undefined }) })
   // The rest of the roster notices how promises are treated.
   for (const ct of Object.values(state.contracts)) {
     if (ct.promotionId !== pid || ct.fighterId === f.id) continue

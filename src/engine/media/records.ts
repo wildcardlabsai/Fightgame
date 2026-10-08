@@ -21,7 +21,9 @@ export function flushRecords(m: MediaState): void {
   for (const [id, entries] of p.career) m.career[id] = edit<CareerEntry[]>(m.career[id], [], (list) => { for (const e of entries) addEntry(list, e) })
 }
 
-const KEEP: Partial<Record<CareerEntry['k'], number>> = { START: 9, TITLE_WON: 9, NO1: 8, TITLE_LOST: 7, TITLE_DEFENCE: 6, AWARD: 7, RETIRED: 9, UPSET: 5, FIRST_LOSS: 6, TOP5: 5, VIRAL: 4, RANKED: 3, MAIN_EVENT: 2, SIGNED: 3, KO_STREAK: 4, UNBEATEN: 5, COMEBACK: 4, RIVALRY: 4, RELEASED: 2 }
+const KEEP: Partial<Record<CareerEntry['k'], number>> = { START: 9, TITLE_WON: 9, NO1: 8, TITLE_LOST: 7, TITLE_DEFENCE: 6, AWARD: 7, RETIRED: 9, UPSET: 5, FIRST_LOSS: 6, TOP5: 5, VIRAL: 4, RANKED: 3, MAIN_EVENT: 2, SIGNED: 3, KO_STREAK: 4, UNBEATEN: 5, COMEBACK: 4, RIVALRY: 4, RELEASED: 2, ELIM_WON: 6, MANDATORY: 5, UNIFIED: 8, UNDISPUTED: 9, VACATED: 5, STRIPPED: 6, DIVISION_MOVE: 5, PROMISE_KEPT: 3, PROMISE_BROKEN: 4 }
+
+const KIND_CAP: Partial<Record<CareerEntry['k'], number>> = { MAIN_EVENT: 3, UPSET: 4, SIGNED: 3, RELEASED: 2, TITLE_LOST: 4, TITLE_WON: 6, ELIM_WON: 3, VACATED: 3, STRIPPED: 2, DIVISION_MOVE: 3, PROMISE_KEPT: 2, PROMISE_BROKEN: 2 }
 
 /** Insert a career entry keeping the line short: duplicates are ignored and the least important lines are dropped first. */
 export function addEntry(list: CareerEntry[], e: CareerEntry): void {
@@ -31,6 +33,12 @@ export function addEntry(list: CareerEntry[], e: CareerEntry): void {
   if (e.k === 'TITLE_DEFENCE') { const i = list.findIndex((x) => x.k === 'TITLE_DEFENCE' && x.a === e.a); if (i >= 0 && (list[i].n ?? 0) < (e.n ?? 0) && !list.some((x) => x.k === 'TITLE_LOST' && x.a === e.a && x.d > list[i].d)) list.splice(i, 1) }
   list.push(e)
   list.sort((a, b) => a.d - b.d)
+  // A career line keeps the latest few of each recurring kind (the first signing and the first title stay).
+  const cap = KIND_CAP[e.k]
+  if (cap !== undefined) {
+    const same = list.filter((x) => x.k === e.k)
+    if (same.length > cap) { const drop = e.k === 'SIGNED' || e.k === 'TITLE_WON' ? same[1] : same[0]; list.splice(list.indexOf(drop), 1) }
+  }
   while (list.length > LIMITS.career) {
     let worst = 0, wv = 99
     list.forEach((x, i) => { const v = KEEP[x.k] ?? 1; if (v < wv || (v === wv && i < worst)) { wv = v; worst = i } })

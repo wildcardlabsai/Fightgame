@@ -443,6 +443,7 @@ export interface YearLog {
 export type CareerCode =
   | 'START' | 'SIGNED' | 'RANKED' | 'TOP5' | 'NO1' | 'UPSET' | 'KO_STREAK' | 'TITLE_WON' | 'TITLE_DEFENCE' | 'TITLE_LOST'
   | 'FIRST_LOSS' | 'UNBEATEN' | 'COMEBACK' | 'RETIRED' | 'AWARD' | 'RIVALRY' | 'VIRAL' | 'MAIN_EVENT' | 'RELEASED'
+  | 'ELIM_WON' | 'MANDATORY' | 'UNIFIED' | 'UNDISPUTED' | 'VACATED' | 'STRIPPED' | 'DIVISION_MOVE' | 'PROMISE_KEPT' | 'PROMISE_BROKEN'
 export interface CareerEntry { d: Day; k: CareerCode; /** text fragment (opponent / title / award name) */ a?: string; /** number (rank, streak, defences) */ n?: number }
 
 // -------------------------------------------------------------------- State
@@ -478,6 +479,8 @@ export interface MediaState {
   rankings: Record<string, Partial<Record<WeightClassId, string>>>
   titles: Record<string, TitleRec>
   titleFights: Record<Id, string[]>
+  /** Title-world events raised by other systems (a champion moving division, …), drained by the next media pass. */
+  queue?: import('./titles').TitleEvent[]
   /** Phase 5.4: fights flagged as eliminators → the title key they decide. */
   elimFights?: Record<Id, string>
   /** Packed JSON: Reign[] newest first. */

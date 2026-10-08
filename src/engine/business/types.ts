@@ -117,6 +117,8 @@ export interface BusinessState {
   /** Agreements the player has reached (rough experience: improves expected-terms confidence). */
   exp: number
   titleHist: Record<Id, TitleHistory>
+  /** Day each fighter last changed division (one move a year). */
+  moved?: Record<Id, Day>
 }
 
 export const BUSINESS_LIMITS = { talks: 16, commitments: 60, log: 26, learnedPerFighter: 8 }

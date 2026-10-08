@@ -231,6 +231,15 @@ const CAREER_TEXT = (k: string, a: string | undefined, n: number | undefined): s
     case 'MAIN_EVENT': return `Headlined ${a}`
     case 'VIRAL': return `A clip of ${a} went viral`
     case 'RIVALRY': return `Rivalry with ${a}`
+    case 'ELIM_WON': return `Won the ${a} eliminator`
+    case 'MANDATORY': return `Named mandatory challenger for the ${a}`
+    case 'UNIFIED': return `Unified the ${a} titles`
+    case 'UNDISPUTED': return `Became undisputed ${a} champion`
+    case 'VACATED': return `Gave up the ${a}`
+    case 'STRIPPED': return `Stripped of the ${a}`
+    case 'DIVISION_MOVE': return `Moved to ${a}`
+    case 'PROMISE_KEPT': return `Promise kept by their promoter: ${a}`
+    case 'PROMISE_BROKEN': return `Promise to them went unmet: ${a}`
     default: return `${k}`
   }
 }

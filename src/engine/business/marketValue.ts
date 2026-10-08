@@ -77,6 +77,8 @@ function titleStanding(state: GameState, f: Fighter): number {
   const media = state.media
   let best = 0
   if (media?.effects) for (const t of titlesHeldBy(media, f.id)) best = Math.max(best, LEVEL_STAKES[levelOf(t.body)].value)
+  // Several world belts at once (unified), or all of them (undisputed), is worth more than any single belt.
+  if (media?.effects && best > 0) { const wb = titlesHeldBy(media, f.id).filter((t) => t.wc === f.weightClass && levelOf(t.body) === 'world').length; if (wb >= 2) best = Math.min(100, best + 4 + 3 * (wb - 2)) }
   const past = media?.effects ? state.business?.titleHist[f.id] : undefined
   if (past?.best && best === 0) best = LEVEL_STAKES[past.best].value * 0.35
   return Math.max(best, clamp((f.reputation - 60) * 2, 0, 50))
