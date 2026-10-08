@@ -27,6 +27,8 @@ const KEEP: Partial<Record<CareerEntry['k'], number>> = { START: 9, TITLE_WON: 9
 export function addEntry(list: CareerEntry[], e: CareerEntry): void {
   if (list.some((x) => x.k === e.k && x.d === e.d && x.a === e.a && x.n === e.n)) return
   if ((e.k === 'RANKED' || e.k === 'TOP5' || e.k === 'NO1') && list.some((x) => x.k === e.k && x.a === e.a)) return
+  // Successive defences of one belt are one milestone line carrying the running count.
+  if (e.k === 'TITLE_DEFENCE') { const i = list.findIndex((x) => x.k === 'TITLE_DEFENCE' && x.a === e.a); if (i >= 0 && (list[i].n ?? 0) < (e.n ?? 0) && !list.some((x) => x.k === 'TITLE_LOST' && x.a === e.a && x.d > list[i].d)) list.splice(i, 1) }
   list.push(e)
   list.sort((a, b) => a.d - b.d)
   while (list.length > LIMITS.career) {
@@ -62,4 +64,14 @@ export function pushCareer(m: MediaState, id: Id, e: CareerEntry): void {
 export const getList = (m: MediaState, org: string, wc: WeightClassId): RankList | undefined => {
   const s = m.rankings[org]?.[wc]
   return s ? unpack<RankList | undefined>(s, undefined) : undefined
+}
+
+/** Retired for two years: keep the milestones that make a legacy (belts, number-one runs, retirement), drop the passing detail. */
+const LEGACY_KEEP = 8
+export function pruneRetiredCareer(m: MediaState, id: Id): void {
+  const list = unpack<CareerEntry[]>(m.career[id], [])
+  if (list.length <= LEGACY_KEEP) return
+  const rank = (x: CareerEntry): number => KEEP[x.k] ?? 1
+  const keep = list.map((x, i) => ({ x, i })).sort((a, b) => rank(b.x) - rank(a.x) || b.i - a.i).slice(0, LEGACY_KEEP).sort((a, b) => a.i - b.i).map((r) => r.x)
+  m.career[id] = edit<CareerEntry[]>(m.career[id], [], (l) => { l.length = 0; l.push(...keep) })
 }

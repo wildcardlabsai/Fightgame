@@ -199,7 +199,8 @@ export function maintainTitles(state: GameState, media: MediaState): TitleEvent[
     if (idle > WEEKS(d.inactiveStripWeeks) && !f.activeFightId) { vacate(state, media, body, wc, rec, 'inactivity', ev, 'STRIPPED'); continue }
     // A champion holding three or more world belts cannot defend them all: from time to time one is relinquished (the one with a
     // mandatory order pending first, otherwise the lowest-ranked body's), which keeps the world titles from collapsing into one fighter.
-    if (d.level === 'world' && worldBeltsOf(media, rec.c, wc) >= 3 && keyedFloat(state.seed, 'relinquish', rec.c, wc, Math.floor(week / 13)) < 0.35) {
+    // A new champion is given eight weeks before any belt is given up, so a belt just won is never handed straight back.
+    if (d.level === 'world' && state.today - rec.since >= WEEKS(8) && worldBeltsOf(media, rec.c, wc) >= 3 && keyedFloat(state.seed, 'relinquish', rec.c, wc, Math.floor(week / 13)) < 0.35) {
       const held = titlesHeldBy(media, rec.c).filter((t) => t.wc === wc && levelOf(t.body) === 'world')
       const pending = held.find((t) => t.rec.mand)
       const pick = pending ?? held.slice().sort((a, b) => (SANCTIONING.find((o) => o.id === a.body)?.authority ?? 0) - (SANCTIONING.find((o) => o.id === b.body)?.authority ?? 0))[0]

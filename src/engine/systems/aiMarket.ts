@@ -121,8 +121,10 @@ export function aiSigning(state: GameState, rng: Rng, ids: IdSource): void {
 
   for (const promo of promos) {
     const ai = promo.ai!
-    if (state.today < ai.cooldownUntil || rosterFull(state, promo.id) || !behaviour(promo).signing || ai.fin.collapsing) continue
     const count = Object.values(state.contracts).filter((c) => c.promotionId === promo.id).length
+    // A struggling rival that is still solvent cannot run shows with a skeleton roster: below half its target it signs again.
+    const skeleton = ai.fin.state === 'struggling' && count < Math.floor(B.ai.rosterTarget[promo.tier] * 0.5) && promo.cash > 0
+    if (state.today < ai.cooldownUntil || rosterFull(state, promo.id) || !(behaviour(promo).signing || skeleton) || ai.fin.collapsing) continue
     const needs = count < B.ai.rosterTarget[promo.tier]
     // A champion or a title contender with no promotion is a priority signing: belts cannot be defended from the free-agent pool.
     const titled = market.filter((f) => holdsOrChases(state, f))

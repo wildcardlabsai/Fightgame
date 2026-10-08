@@ -9,6 +9,10 @@ import { player } from './selectors'
 import { boundedPurse, careerValue, commercialAppeal, fightValue, marketPurse, purseBounds, type FightContext } from './business/marketValue'
 import { confidenceFor, expectedContractTerms } from './business/terms'
 import { ambitionOf, managerOf } from './business/manager'
+import { advanceOneWeek } from './tick'
+import { newLog, playWeek, STRATEGIES } from './sim/strategies'
+import { getReigns } from './media/records'
+import { levelOf } from './business/titleDefs'
 import type { Fighter, GameState } from './types'
 
 const logo = { monogram: 'P', color: '#fff', emblem: 'bolt' as const }
@@ -158,4 +162,46 @@ describe('managers and ambitions are hidden, deterministic truths', () => {
     expect(new Set(fs.map((f) => managerOf(base, f).archetype)).size).toBeGreaterThanOrEqual(6)
     expect(new Set(fs.map((f) => ambitionOf(base, f).kind)).size).toBeGreaterThanOrEqual(5)
   })
+})
+
+describe('title integrity under the full ladder (3-year bot world)', () => {
+  it('every vacancy has an explicit cause; a relinquishing champion held three world belts; reigns are chronological and never overlap', () => {
+    let s = fresh('p54-integrity')
+    const log = newLog()
+    let prev: Record<string, string | null> = {}
+    const heldBefore: Record<string, number> = {}
+    const relinquished: { key: string; holder: string; worldBelts: number }[] = []
+    for (let w = 0; w < 156; w++) {
+      s = playWeek(s, STRATEGIES.balanced, log)
+      const before = prev
+      s = advanceOneWeek(s)
+      const m = s.media!
+      const now: Record<string, string | null> = {}
+      for (const [k, t] of Object.entries(m.titles)) now[k] = t.c
+      for (const [k, c] of Object.entries(before)) {
+        if (c && now[k] === null) {
+          const [body, wc] = k.split('|')
+          const reign = getReigns(m).find((r) => r.b === body && r.wc === wc && r.f === c && r.to !== null)
+          expect(reign, `${k} vacated by ${c} without a recorded reign`).toBeTruthy()
+          expect(reign!.how, k).toMatch(/retired|inactivity|refusing a mandatory|relinquished|lost to|moved/)
+          if (/relinquished/.test(reign!.how)) {
+            const world = (rec: Record<string, string | null>) => Object.entries(rec).filter(([kk, cc]) => cc === c && kk.endsWith(`|${wc}`) && levelOf(kk.split('|')[0]) === 'world').length
+            // The belts held when it was given up: last week's, or this week's plus the one given up (a belt may have been won in between).
+            const belts = Math.max(world(before), world(now) + 1)
+            relinquished.push({ key: k, holder: c, worldBelts: belts })
+          }
+        }
+      }
+      void heldBefore
+      prev = now
+    }
+    for (const r of relinquished) expect(r.worldBelts, `${r.key} relinquished by ${r.holder}`).toBeGreaterThanOrEqual(3)
+    const m = s.media!
+    const byKey = new Map<string, ReturnType<typeof getReigns>[number][]>()
+    for (const r of getReigns(m)) { const k = `${r.b}|${r.wc}`; (byKey.get(k) ?? byKey.set(k, []).get(k)!).push(r) }
+    for (const [k, rs] of byKey) {
+      const asc = rs.slice().sort((a, b) => a.from - b.from)
+      asc.forEach((r, i) => { expect(r.to!, k).toBeGreaterThanOrEqual(r.from); if (i) expect(r.from, k).toBeGreaterThanOrEqual(asc[i - 1].to!) })
+    }
+  }, 300000)
 })

@@ -25,13 +25,15 @@ export function behaviour(p: Promotion) {
   return X.behaviour[p.ai?.fin.state ?? 'healthy']
 }
 
-function classify(p: Promotion, fixed: number): PromoFinState {
+function classify(p: Promotion, fixed: number, today: number): PromoFinState {
   const fin = p.ai!.fin
   if (fin.collapsing) return 'insolvent'
   const runwayWeeks = fixed > 0 ? p.cash / fixed : 999
   if (p.cash < -8 * fixed) return 'insolvent'
   const q = fin.quarters
   // A young promotion has no track record yet (shows settle weeks after the bills start): judge it on cash alone.
+  // Just rescued by its owners: it is trading again but still rebuilding (signing allowed only to refill a skeleton roster).
+  if (runwayWeeks >= 10 && fin.bailoutDays.some((d) => today - d < 26 * 7)) return 'struggling'
   if (q.length < 3 || p.stats.events < 3) return runwayWeeks < 10 ? 'critical' : 'established'
   const n4 = q.slice(-4).reduce((a, b) => a + b, 0) * (4 / Math.min(4, q.length))
   const r = n4 / Math.max(1, fixed * 52)
@@ -67,7 +69,7 @@ export function aiFinances(state: GameState): void {
         p.cash -= take; p.accounting.distributions += take
       }
     }
-    const next = classify(p, fixed)
+    const next = classify(p, fixed, state.today)
     if (next !== fin.state) {
       const worse = STATE_ORDER.indexOf(next) > STATE_ORDER.indexOf(fin.state)
       fin.state = next; fin.since = state.today
@@ -110,6 +112,7 @@ function react(state: GameState, p: Promotion, fixed: number): void {
         p.reputation = Math.max(1, p.reputation - X.rescue.repHit)
         const rosterN = Object.values(state.contracts).filter((c) => c.promotionId === p.id).length
         releaseExpensive(state, p, Math.ceil(rosterN * X.rescue.shedShare))
+        p.ai!.urgency = 3 // a rescued promotion restocks as a priority once it is trading again
         fin.state = 'critical'; fin.since = state.today; fin.quarters = []; fin.snap = p.accounting!.revenue - p.accounting!.costs - p.accounting!.overhead
         postNews(state, { headline: `${p.name} rescued by owners, cuts roster`, category: 'event', importance: 40 })
       } else {

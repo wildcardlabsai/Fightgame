@@ -8,7 +8,7 @@ export const MEDIA_FORMAT = 1
 
 export const LIMITS = {
   stories: 80, history: 120, narratives: 90, narrativesDone: 70, videos: 60, viral: 24, requests: 30, pressers: 12, offers: 24, awards: 160,
-  reigns: 160, career: 28, seenFights: 90, seenEvents: 30, fighters: 400, rel: 160,
+  reigns: 1200, career: 22, seenFights: 90, seenEvents: 30, fighters: 400, rel: 160,
 } as const
 
 export function freshYearLog(year: number): YearLog {

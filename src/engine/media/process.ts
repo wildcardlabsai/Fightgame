@@ -29,7 +29,7 @@ import { clampTo, fname, pushCapped, totalFightsOf, weekIndex } from './util'
 import { bodyIdentity } from '../../data/mediaIdentity'
 import { formatDay } from '../calendar'
 import { runExtensions } from './extensions'
-import { flushRecords, getReigns } from './records'
+import { flushRecords, getReigns, pruneRetiredCareer } from './records'
 
 /** Build the media world for a game that has none: rankings, inaugural champions, profiles, opening career lines. */
 export function initMediaWorld(state: GameState): MediaState {
@@ -176,7 +176,7 @@ function titleEventToWorld(state: GameState, te: TitleEvent): WorldEvent | null 
   })
   if (te.kind === 'MANDATORY' && f && te.o) {
     const ch = state.fighters[te.o]
-    return { kind: 'MANDATORY', day: state.today, fighters: [f.id, te.o], names: [fighterName(f), fighterName(ch)], promotions: [], facts: { body: body.shortName, c: fighterName(f), ch: fighterName(ch), div, due: formatDay(state.today + 26 * 7, false), title }, sig: Math.round(clampTo(26 + lvlSig + f.popularity * 0.3 + f.reputation * 0.2)), parts: { champion: f.popularity * 0.3 }, tags: ['mandatory'] }
+    return { kind: 'MANDATORY', day: state.today, fighters: [f.id, te.o], names: [fighterName(f), fighterName(ch)], promotions: [], facts: { body: body.shortName, c: fighterName(f), ch: fighterName(ch), div, due: formatDay(state.today + 26 * 7, false), title }, sig: Math.round(clampTo(14 + lvlSig + f.popularity * 0.3 + f.reputation * 0.2)), parts: { champion: f.popularity * 0.3 }, tags: ['mandatory'] }
   }
   if ((te.kind === 'STRIPPED' || te.kind === 'TITLE_VACANT') && te.f) {
     const n = f ? fighterName(f) : 'The champion'
@@ -205,6 +205,8 @@ function moveToWorld(state: GameState, _media: MediaState, mv: RankMove): WorldE
 
 function weekly(state: GameState, media: MediaState, week: number, ingested: Ingested): void {
   /** Whole weeks since the last full pass (the tick runs the media pipeline every second week). */
+  // Once a quarter, retired fighters shrink to a legacy line (bounded state).
+  if (week % 13 === 0) for (const id of Object.keys(media.career)) { const f = state.fighters[id]; if (f?.status === 'retired' && f.retiredDay !== null && state.today - f.retiredDay > 2 * 365) pruneRetiredCareer(media, id) }
   const steps = Math.max(1, week - Math.max(media.week, week - 8))
   const lastDay = state.startDay + Math.max(media.week, -1) * 7
   const out: WorldEvent[] = []
