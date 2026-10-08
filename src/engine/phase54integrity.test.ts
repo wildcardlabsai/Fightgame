@@ -5,6 +5,8 @@
  * only from the live belts, former titles only from closed reigns; (4) old saves are repaired without rewriting history.
  */
 import { describe, expect, it } from 'vitest'
+import { readdirSync, readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { createNewGame } from './worldgen'
 import { advanceOneWeek } from './tick'
 import { clone } from './media/testing'
@@ -149,6 +151,35 @@ describe('one authoritative fight length', () => {
   })
 })
 
+describe('the playable game always enforces the championship distance', () => {
+  it('media coupling is on in every shipped game: new games, loaded saves and migrated old saves; nothing outside tests ever turns it off', () => {
+    const fresh = mk('p54-effects')
+    expect(fresh.media!.effects).toBe(true)
+    const raw = JSON.parse(serialiseGame(clone(world()))); raw.version = 9
+    expect(deserialiseGame(JSON.stringify(raw))!.media!.effects).toBe(true)
+    const roundTrip = deserialiseGame(serialiseGame(clone(world())))!
+    expect(roundTrip.media!.effects).toBe(true)
+    // A save from before the media world existed gets one built with coupling on.
+    const old = JSON.parse(serialiseGame(clone(world()))); delete old.media; old.version = 4
+    expect(deserialiseGame(JSON.stringify(old))?.media?.effects).toBe(true)
+    const dirs = ['.', 'business', 'media', 'systems', 'events', 'fight', 'sim']
+    for (const d of dirs) for (const f of readdirSync(join(__dirname, d)).filter((x) => x.endsWith('.ts') && !x.includes('.test.'))) {
+      expect(readFileSync(join(__dirname, d, f), 'utf8'), `${d}/${f}`).not.toMatch(/effects\s*(=|:)\s*false/)
+    }
+  })
+  it('with coupling on a short fight with a belt on the line is lengthened to the championship distance; only the test-only diagnostic mode (media observes) leaves it alone', () => {
+    const s = clone(world())
+    expect(s.media!.effects).toBe(true)
+    const c = contest(s, (b) => levelOf(b) === 'world')!
+    const f = agreedFight(s, c.challenger, c.champ)
+    f.scheduledRounds = 6
+    expect(settleRounds(s, f)).toBe(12)
+    s.media!.effects = false // the test-only diagnostic mode: media observes, titles do not shape the sport
+    f.scheduledRounds = 6
+    expect(settleRounds(s, f)).toBe(6)
+  })
+})
+
 describe('the ladder of levels', () => {
   const setup = () => {
     const s = clone(world())
@@ -277,6 +308,47 @@ describe('saves from before the fix are repaired, not rewritten', () => {
     expect(back.fights[f.id].scheduledRounds).toBe(12)
     const again = normaliseTitles(back)
     expect(again).toEqual({ closed: 0, vacated: 0, flagsFixed: 0, roundsFixed: 0 })                      // idempotent
+  })
+})
+
+describe('migration touches only what is inconsistent', () => {
+  it('completed fights, careers, awards, stories, ratings and healthy belts are byte-identical after v9 → v10; only the double holder, its booked fight and the version change', () => {
+    const s = clone(world())
+    const wc = 'superFeatherweight' as const
+    const x = Object.values(s.fighters).find((f) => f.status === 'active' && f.weightClass === wc && !titlesHeldBy(s.media!, f.id).length)!
+    s.media!.titles[titleKey('atlas', wc)] = { c: x.id, cn: 'X', since: s.today - 60, defences: 0, lastFight: s.today - 20 }
+    s.media!.titles[titleKey('european', wc)] = { c: x.id, cn: 'X', since: s.today - 300, defences: 3, lastFight: s.today - 60 }
+    touchTitles(s.media!)
+    // An old completed title fight fought over 10 rounds stays exactly as it was (it is history).
+    const done = Object.values(s.fights).filter((f) => f.result && f.title)
+    expect(done.length).toBeGreaterThan(5)
+    const shortHistoric = done.find((f) => f.scheduledRounds < 12)
+    const c = contest(s, (b) => levelOf(b) === 'world')!
+    const booked = agreedFight(s, c.challenger, c.champ); flagFight(s, booked); booked.scheduledRounds = 10
+    const snapshot = JSON.parse(JSON.stringify(s))
+    const raw = JSON.parse(serialiseGame(s)); raw.version = 9
+    const back = JSON.parse(JSON.stringify(deserialiseGame(JSON.stringify(raw))!))
+    // Completed fights: identical, including the distance they were fought over.
+    for (const f of Object.values(snapshot.fights) as Fight[]) if (f.result) expect(back.fights[f.id], f.id).toEqual(f)
+    if (shortHistoric) expect(back.fights[shortHistoric.id].scheduledRounds).toBe(shortHistoric.scheduledRounds)
+    // Everything that is not title state or a booked title fight is untouched.
+    for (const key of ['fighters', 'contracts', 'promotions', 'events', 'ledger', 'venues', 'knowledge', 'idCounter', 'rngState']) expect(back[key], key).toEqual(snapshot[key])
+    expect(back.media.stories).toEqual(snapshot.media.stories)
+    expect(back.media.rankings).toEqual(snapshot.media.rankings)
+    expect(back.media.awards).toEqual(snapshot.media.awards)
+    expect(back.media.career).toEqual(snapshot.media.career)
+    // Healthy belts are untouched; the only belt records that changed are the double holder's lower belt.
+    const changed = Object.keys(snapshot.media.titles).filter((k) => JSON.stringify(back.media.titles[k]) !== JSON.stringify(snapshot.media.titles[k]))
+    expect(changed).toEqual([titleKey('european', wc)])
+    // Old reigns are all still there, in order, untouched (the newest reign comes first, so the new one is added at the front).
+    const oldReigns = getReigns(snapshot.media as never), newReigns = getReigns(back.media as never)
+    expect(newReigns.length).toBe(oldReigns.length + 1)
+    expect(newReigns.slice(1).map((r) => JSON.stringify(r))).toEqual(oldReigns.map((r) => JSON.stringify(r)))
+    expect(newReigns[0]).toMatchObject({ f: x.id, b: 'european', wc })
+    // The booked fight is the only unfought fight that changed, and only in its length.
+    for (const f of Object.values(snapshot.fights) as Fight[]) if (!f.result && f.id !== booked.id) expect(back.fights[f.id], f.id).toEqual(f)
+    expect(back.fights[booked.id].scheduledRounds).toBe(12)
+    expect({ ...back.fights[booked.id], scheduledRounds: 10 }).toEqual(snapshot.fights[booked.id])
   })
 })
 

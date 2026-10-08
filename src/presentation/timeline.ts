@@ -42,6 +42,8 @@ export interface TimelineInput {
   result: ResultView
   names: Names
   title?: { label: string; titleName: string } | null
+  /** The fight's scheduled distance (`Fight.scheduledRounds`). Counters show this, never the number of rounds that happened to be fought. */
+  scheduledRounds?: number
   reduced?: boolean
 }
 
@@ -60,9 +62,10 @@ export function buildTimeline(inp: TimelineInput): TlEvent[] {
 
   let prevControl: number | null = rounds[0]?.control ? rounds[0].control[0] : null
   const lastIdx = rounds.length - 1
+  const scheduled = inp.scheduledRounds ?? rounds.length
   rounds.forEach((rd, i) => {
     const rn = rd.n
-    add({ type: 'roundStart', round: rn, key: false, title: `ROUND ${rn}`, detail: `Round ${rn} of ${rounds.length}`, ms: MS.roundStart, during: i, reveal: i, sfx: 'round' })
+    add({ type: 'roundStart', round: rn, key: false, title: `ROUND ${rn}`, detail: `Round ${rn} of ${scheduled}`, ms: MS.roundStart, during: i, reveal: i, sfx: 'round' })
     // notable action: a clear power-punch advantage recorded for the round
     const pa = rd.a.power, pb = rd.b.power
     if (!hasKnockdown(rd) && Math.max(pa, pb) >= 6 && Math.max(pa, pb) >= 1.5 * Math.min(pa, pb) + 1) {

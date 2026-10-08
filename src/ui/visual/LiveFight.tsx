@@ -38,6 +38,8 @@ const mmss = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, 
 export function LiveFight({ fv, r, live, onDone }: { fv: FightView; r: ResultView; live: boolean; onDone: () => void }) {
   const rounds = r.rounds!
   const total = rounds.length
+  /** What the fight was scheduled for: every counter shows this, so the screen never reveals that a fight will end early. */
+  const scheduled = fv.rounds
   const reduced = useReducedMotion()
   const navigate = useGame((s) => s.navigate)
   const prefMode = usePrefs((s) => s.fightMode)
@@ -45,7 +47,7 @@ export function LiveFight({ fv, r, live, onDone }: { fv: FightView; r: ResultVie
   const a = fv.a.fighter, b = fv.b.fighter
   const names = useMemo(() => ({ a: a.lastName, b: b.lastName }), [a.lastName, b.lastName])
 
-  const fullTl = useMemo(() => buildTimeline({ fightId: fv.id, result: r, names, title: fv.title, reduced }), [fv.id, r, names, fv.title, reduced])
+  const fullTl = useMemo(() => buildTimeline({ fightId: fv.id, result: r, names, title: fv.title, scheduledRounds: fv.rounds, reduced }), [fv.id, r, names, fv.title, fv.rounds, reduced])
   const keyTl = useMemo(() => keyEvents(fullTl), [fullTl])
 
   const [overlay, setOverlay] = useState(live)
@@ -139,12 +141,12 @@ export function LiveFight({ fv, r, live, onDone }: { fv: FightView; r: ResultVie
   const won = roundsWon(rounds, shown)
   const last = shown > 0 ? rounds[shown - 1] : null
   const fin = finishCard(r, names)
-  const feed = useMemo(() => rounds.slice(0, shown).flatMap((rd) => roundCommentary(rd, names, total)), [rounds, shown, names, total])
+  const feed = useMemo(() => rounds.slice(0, shown).flatMap((rd) => roundCommentary(rd, names, scheduled)), [rounds, shown, names, scheduled])
   const heavy = (side: 0 | 1) => rounds.slice(0, shown).filter((rd) => rd.punish[side] === 'Heavy punishment').length
   const crowd = last && last.kd[0] + last.kd[1] > 0 ? 'ROARING' : last && (last.punish[0] === 'Heavy punishment' || last.punish[1] === 'Heavy punishment') ? 'ON ITS FEET' : shown > 0 ? 'ENGAGED' : 'EXPECTANT'
   const edge = ctrl === null ? 'Not recorded for this fight' : shown === 0 ? 'Waiting for the bell' : ctrl >= 58 ? `${names.a} on top` : ctrl <= 42 ? `${names.b} on top` : 'Even'
   const clockSec = finished ? (r.stoppage ? r.seconds : 180) : clockNow(cur, pb.acc)
-  const roundNo = finished ? (r.stoppage ? r.round : total) : Math.max(1, cur?.round || 1)
+  const roundNo = finished ? (r.stoppage ? r.round : scheduled) : Math.max(1, cur?.round || 1)
   const inMoment = cur?.type === 'knockdown' || cur?.type === 'decision'
   const keyIdx = stage === 'key' && cur ? pb.pos : -1
   const elapsed = Math.round(tl.slice(0, Math.min(pb.pos, tl.length)).reduce((m, e) => m + e.ms, 0) + pb.acc)
@@ -184,7 +186,7 @@ export function LiveFight({ fv, r, live, onDone }: { fv: FightView; r: ResultVie
         <div><span className="caps">Winner</span><b>{fin.winnerName ?? '—'}</b></div>
         <div><span className="caps">Loser</span><b>{fin.loserName ?? '—'}</b></div>
         <div><span className="caps">Method</span><b>{r.methodLabel}</b></div>
-        <div><span className="caps">Round</span><b>{r.round}{r.stoppage ? ` · ${mmss(r.seconds)}` : ` of ${total}`}</b></div>
+        <div><span className="caps">Round</span><b>{r.round}{r.stoppage ? ` · ${mmss(r.seconds)}` : ` of ${scheduled}`}</b></div>
         <div><span className="caps">Knockdowns</span><b>{names.a} {r.kd[0]} · {names.b} {r.kd[1]}</b></div>
         <div><span className="caps">Punches landed</span><b>{r.stats.landed[0]}–{r.stats.landed[1]} ({r.stats.acc[0]}% / {r.stats.acc[1]}%)</b></div>
         <div><span className="caps">Power punches</span><b>{r.stats.power[0]}–{r.stats.power[1]}</b></div>
@@ -218,7 +220,7 @@ export function LiveFight({ fv, r, live, onDone }: { fv: FightView; r: ResultVie
     <>
       <div className="lf-bar">
         <span className="lf-live"><i aria-hidden />FIGHT EMPIRE • {finished ? 'FIGHT NIGHT' : 'LIVE'}</span>
-        <span className="lf-round" aria-live="polite" data-testid="lf-round">{finished && r.stoppage ? `ENDED R${r.round}` : `ROUND ${roundNo} / ${total}`}</span>
+        <span className="lf-round" aria-live="polite" data-testid="lf-round">{finished && r.stoppage ? `ENDED R${r.round}` : `ROUND ${roundNo} / ${scheduled}`}</span>
         <span className="fn-clock num" data-testid="lf-clock" aria-label="Round clock">{mmss(clockSec)}</span>
         <span className="fn-crowd" data-testid="lf-crowd">CROWD · {crowd}</span>
         {fv.title && <span className="lf-title" data-testid="lf-title">{fv.title.label} · {fv.title.titleName}</span>}
@@ -234,7 +236,7 @@ export function LiveFight({ fv, r, live, onDone }: { fv: FightView; r: ResultVie
       {finished ? resultPanel : (
         <>
           {cur?.type === 'intro' && <div className="fn-intro" role="status"><div className="display">{cur.title}</div><div>{cur.detail}</div></div>}
-          {cur?.type === 'roundStart' && <div className="lf-bellcard" role="status" key={`b-${run}-${cur.id}`}><span className="display">{cur.title} OF {total}</span></div>}
+          {cur?.type === 'roundStart' && <div className="lf-bellcard" role="status" key={`b-${run}-${cur.id}`}><span className="display">{cur.title} OF {scheduled}</span></div>}
           {cur && cur.type !== 'knockdown' && cur.type !== 'decision' && ['action', 'hurt', 'momentum', 'standout', 'stoppage'].includes(cur.type) && <div className="fn-callout" role="status" key={cur.id}><div className="display">{cur.title}</div><div>{cur.detail}</div></div>}
           {inMoment && step.step && <div className={`lf-moment${cur?.type === 'decision' ? ' decision' : ''}`} role="alert" key={`${cur!.id}-${step.index}`}><div className="display">{step.step.text}</div><div>{step.step.sub}</div></div>}
         </>

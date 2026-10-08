@@ -112,7 +112,7 @@ export function FighterProfile({ id }: { id: string }) {
                   <tr key={h.fightId} className="row" onClick={() => navigate('fight', h.fightId)}>
                     <td className="num dim">{formatDay(h.day, true)}</td>
                     <td><b className={h.result === 'W' ? 'good' : h.result === 'L' ? 'red' : ''}>{h.result}</b> <span className="dim">{h.method}{h.method !== 'UD' && h.method !== 'MD' && h.method !== 'SD' && h.method !== 'Draw' ? ` R${h.round}` : ''}</span></td>
-                    <td>vs {h.opponentName}</td>
+                    <td>vs {h.opponentName} <span className="dim">· {h.rounds} rds</span></td>
                   </tr>))}</tbody>
               </table></div>
             )}

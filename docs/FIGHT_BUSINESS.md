@@ -312,3 +312,13 @@ already fought are history and are not touched. Idempotent.
 
 **Tests / audits.** `phase54integrity.test.ts` (lengths for each level and the full lifecycle, the ladder, unified/undisputed, division
 moves, current vs former, migration, a 3-year audit) and `scripts/audit/phase54-integrity.ts` (multi-seed, 5 and 10 years).
+
+**Why the distance rule sits behind `media.effects`.** Titles live in the media world, so a title fight cannot exist without it. The flag
+`media.effects` is `true` in every game the player can start, load or migrate (new games, saves, pre-media saves), and nothing outside
+tests sets it to `false` (a test scans the engine sources). It exists only for one diagnostic mode in which the media world is switched
+to "observe only", to prove the rest of the engine does not depend on it. The playable game therefore always enforces the championship
+distance; the Fight Night counter and every "of N" label read `Fight.scheduledRounds`, not the number of rounds that were fought.
+
+**Browser proof.** `scripts/browser/phase54-championship.mjs` drives a new world title fight through the real screens (Titles →
+Request title fight → negotiation → schedule → advance weeks → Fight Night → result → history) and repeats until it has seen both a full
+12-round decision and an early KO.

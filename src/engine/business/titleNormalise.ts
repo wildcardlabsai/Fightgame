@@ -5,6 +5,7 @@
  * British and Commonwealth together, stay exactly as they are). Idempotent: a healthy state is returned unchanged.
  */
 import { settleRounds } from './fightRounds'
+import { flushRecords } from '../media/records'
 import { enforceHierarchy, higherBeltOf, vacateTitle } from '../media/titles'
 import { levelOf, levelRank } from './titleDefs'
 import type { GameState } from '../types'
@@ -48,5 +49,6 @@ export function normaliseTitles(state: GameState): NormaliseReport {
       if (fight.scheduledRounds !== before) rep.roundsFixed++
     }
   }
+  flushRecords(media) // closed reigns are written into the save now, not at the next weekly pass
   return rep
 }

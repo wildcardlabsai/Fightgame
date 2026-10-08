@@ -23,9 +23,9 @@ const logo = { monogram: 'P', color: '#fff', emblem: 'bolt' as const }
 const fresh = (seed: string) => createNewGame({ seed, promotionName: 'P51', promoterName: 'T', homeCountry: 'ENG', difficulty: 'standard', logo }, 1_700_000_000_000)
 const SANCTIONING = RANKING_ORGS.filter((o) => o.sanctions).map((o) => o.id)
 
-interface Watch { stories: Map<string, { k: string; i: number }>; jumps: number[]; changes: { key: string; from: string | null; to: string | null; day: number }[]; badTransition: string[]; weeks: number }
+interface Watch { factChecked: number; factBad: string[]; stories: Map<string, { k: string; i: number }>; jumps: number[]; changes: { key: string; from: string | null; to: string | null; day: number }[]; badTransition: string[]; weeks: number }
 let world: GameState
-const watch: Watch = { stories: new Map(), jumps: [], changes: [], badTransition: [], weeks: 0 }
+const watch: Watch = { factChecked: 0, factBad: [], stories: new Map(), jumps: [], changes: [], badTransition: [], weeks: 0 }
 
 beforeAll(() => {
   let s = fresh('p51-world')
@@ -42,7 +42,19 @@ beforeAll(() => {
       if (was !== undefined && was !== t.c) watch.changes.push({ key: k, from: was, to: t.c, day: s.today })
       prevChamp[k] = t.c
     }
-    for (const st of m.stories) if (!watch.stories.has(st.id)) watch.stories.set(st.id, { k: st.k, i: st.i })
+    for (const st of m.stories) if (!watch.stories.has(st.id)) {
+      watch.stories.set(st.id, { k: st.k, i: st.i })
+      // Check every fight story AS IT IS CREATED (the live feed only holds the last few weeks): it must name the real winner, loser, method and knockdowns.
+      const fight = st.ft ? s.fights[st.ft] : undefined
+      const fx = m.fx[st.fx]
+      if (fight?.result && fx && fx.wid !== undefined) {
+        watch.factChecked++
+        const win = fight.result.winner === null ? null : fight.result.winner === 0 ? fight.sideA.fighterId : fight.sideB.fighterId
+        if (win && (fx.wid !== win || fx.lid !== (win === fight.sideA.fighterId ? fight.sideB.fighterId : fight.sideA.fighterId))) watch.factBad.push(`${st.id} names the wrong winner/loser`)
+        if (!win && !fx.draw) watch.factBad.push(`${st.id} names a winner for a draw`)
+        if (fx.mc !== fight.result.method || fx.kd !== fight.result.kd[0] + fight.result.kd[1]) watch.factBad.push(`${st.id} method/knockdowns differ from the result`)
+      }
+    }
     if (w % 4 === 0) {
       for (const org of RANKING_ORGS) for (const wc of WEIGHT_CLASSES) {
         const l = getList(m, org.id, wc.id)
@@ -97,6 +109,10 @@ describe('event → fight → world → media: stories contain only what happene
     }
     // A vacuity guard, not a quality bar: the feed holds the last few weeks, so the count follows how busy the final weeks of this world were.
     expect(checked).toBeGreaterThanOrEqual(15)
+  })
+  it('every fight story, checked when it was created across the whole 3-year run, names the real winner, loser, method and knockdowns — and fights do get covered', () => {
+    expect(watch.factChecked).toBeGreaterThan(300)
+    expect(watch.factBad).toEqual([])
   })
   it('a drawn fight never names a winner in any headline or body', () => {
     const draws = Object.values(world.fights).filter((f) => f.result && f.result.winner === null)
