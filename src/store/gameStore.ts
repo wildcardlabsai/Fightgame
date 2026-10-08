@@ -95,6 +95,8 @@ interface GameStore {
   /** Fight whose result was just produced (drives the fight-night reveal). */
   justRan: string | null
   approachOpponent: (myId: Id, oppId: Id) => string | null
+  /** Ask for a title fight for one of your fighters; opens the negotiation and returns the fight id. */
+  requestTitleFight: (fighterId: Id, body: string) => string | null
   offerFight: (fightId: Id, offer: FightOffer) => 'accept' | 'counter' | 'reject' | 'error'
   withdrawFight: (fightId: Id) => void
   scheduleFight: (fightId: Id, day: number) => boolean
@@ -382,6 +384,14 @@ export const useGame = create<GameStore>((set, get) => {
       const g = get().game
       if (!g) return null
       const r = commands.approach(g, myId, oppId)
+      if (!r.ok) { get().notify(r.error ?? 'They will not take that call.', 'bad'); return null }
+      set({ game: r.state })
+      return r.fightId ?? null
+    },
+    requestTitleFight: (fighterId, body) => {
+      const g = get().game
+      if (!g) return null
+      const r = commands.requestTitleFight(g, fighterId, body)
       if (!r.ok) { get().notify(r.error ?? 'They will not take that call.', 'bad'); return null }
       set({ game: r.state })
       return r.fightId ?? null

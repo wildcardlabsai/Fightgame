@@ -92,6 +92,7 @@ export function releaseFighter(state: GameState, fighterId: Id): CommandResult {
 // ---------------------------------------------------------------- Phase 3
 
 export const approach = approachOpponent
+export { requestTitleFight } from './business/titlePath'
 export const offerFight = submitFightOffer
 export const withdraw = withdrawFight
 export const schedule = ev.scheduleFightQuick

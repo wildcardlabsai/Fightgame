@@ -128,7 +128,7 @@ for (const w of [1280, 1024, 390]) {
   await go(page, `#/rankings/atlas/${ids.div}`)
   await page.screenshot({ path: `${shots}/rankings-world-${w}.png`, fullPage: true })
   check('rankings: world list shows a champion row or a vacant reason', (await page.locator('[data-testid=rank-row].champ').count()) === 1 || (await page.getByTestId('rank-vacant').count()) === 1)
-  check('rankings: eligibility/territory line', /Only the top \d+/.test(await visibleText(page, '[data-testid=rank-eligibility]')))
+  check('rankings: eligibility/territory line', /top \d+ can challenge/.test(await visibleText(page, '[data-testid=rank-eligibility]')))
   await go(page, `#/rankings/european/${ids.div}`)
   const eu = await page.getByTestId('rank-row').count()
   check('rankings: european list rows (rank-row) with real reasons', eu === 0 || (await page.locator('.rk-why').first().innerText()).length > 5)
@@ -136,7 +136,7 @@ for (const w of [1280, 1024, 390]) {
   check('rankings: challenger-limit marker visible when list is long enough', (await page.getByTestId('challenger-limit').count()) >= (eu > 5 ? 1 : 0))
   // any list with mandatory/eliminator tag, anywhere
   await go(page, '#/rankings/ringside')
-  check('rankings: media list has no belt line', /No belt is attached/.test(await visibleText(page, '[data-testid=rank-eligibility]')))
+  check('rankings: media list has no belt line', /no belt is attached/i.test(await visibleText(page, '[data-testid=rank-eligibility]')))
   await page.getByTestId('rank-division').selectOption({ index: 3 }); await page.waitForTimeout(300)
   check('rankings: division select changes the route', /#\/rankings\/ringside\//.test(await page.evaluate(() => location.hash)))
   await go(page, '#/rankings/area/' + ids.div)
@@ -145,7 +145,7 @@ for (const w of [1280, 1024, 390]) {
   check('rankings: default screen has no hidden-term leaks', leaks(await page.locator('main').innerText()).length === 0)
 
   // ---------------- titles
-  await go(page, '#/titles')
+  await go(page, '#/titles/world')
   check('titles: four level tabs', (await page.getByTestId('title-level-tab').count()) === 4)
   check('titles: division select', (await page.getByTestId('title-division').count()) === 1)
   for (const lvl of ['area', 'domestic', 'european', 'world']) {
@@ -160,12 +160,22 @@ for (const w of [1280, 1024, 390]) {
   }
   await go(page, `#/titles/european/${ids.div}`)
   const eucard = await page.locator('[data-testid=belt-card][data-body=european]').innerText().catch(() => '')
-  check('titles: european belt card shows territory rule', /Territory:/.test(eucard))
+  check('titles: european belt card shows its territory and challenger range', /can challenge/.test(eucard))
   await go(page, '#/titles/atlas')
   check('titles: old #/titles/<body> URL selects that level', (await page.locator('[data-testid=title-level-tab][data-level=world][aria-selected=true]').count()) === 1)
-  check('titles: your fighters’ title paths box with a line per fighter linking to profile', (await page.locator('[data-testid=title-paths] li button').count()) >= 1)
-  await page.locator('[data-testid=title-paths] li button').first().click(); await page.waitForTimeout(400)
-  check('titles: path line opens the profile', /#\/fighter\//.test(await page.evaluate(() => location.hash)))
+  await go(page, '#/titles')
+  check('titles: opens on My fighters with one card per active fighter', (await page.getByTestId('path-card').count()) >= 1 && (await page.getByTestId('title-paths').count()) === 1)
+  check('titles: my fighters has no overflow', (await overflow(page)) <= 1, String(await overflow(page)))
+  check('titles: every card says what is possible or what is missing', (await page.locator('[data-testid=path-card]').evaluateAll((els) => els.every((e) => /Request title fight|Can challenge now|Next belt|Cannot ask yet/i.test(e.textContent || '') || e.querySelector('[data-testid=path-none]')))))
+  await page.screenshot({ path: `${shots}/titles-mine-${w}.png`, fullPage: true })
+  await page.locator('[data-testid=path-card] .bz-pname').first().click(); await page.waitForTimeout(400)
+  check('titles: card name opens the profile', /#\/fighter\//.test(await page.evaluate(() => location.hash)))
+  await go(page, '#/titles')
+  const req = page.getByTestId('request-title-fight').first()
+  if (await req.count()) {
+    await req.click(); await page.waitForTimeout(500)
+    check('titles: Request title fight opens the fight negotiation', /#\/deal\//.test(await page.evaluate(() => location.hash)), await page.evaluate(() => location.hash))
+  } else console.log('INFO  no fighter can request a title fight in this fixture')
   await go(page, '#/titles')
   check('titles: no hidden-term leaks', leaks(await page.locator('main').innerText()).length === 0)
 

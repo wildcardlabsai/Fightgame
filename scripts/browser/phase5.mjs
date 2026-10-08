@@ -108,7 +108,7 @@ const FORBIDDEN = ['potential', 'discipline', 'composure', 'injury risk', 'prosp
   check('6 switching list and division works', /#\/rankings\/atlas\/heavyweight/.test(await page.evaluate(() => location.hash)))
   await page.screenshot({ path: `${shots}/p5-rankings-1280.png` })
   void first
-  await go(page, '#/titles'); check('7 titles: belts for the division', (await page.getByTestId('title-row').count()) >= 1)
+  await go(page, '#/titles/world'); check('7 titles: belts for the division', (await page.getByTestId('title-row').count()) >= 1)
   await page.getByTestId('title-level-tab').nth(2).click(); await page.waitForTimeout(300)
   check('7 level tabs switch', /titles\/(area|domestic|european|world)/.test(await page.evaluate(() => location.hash)))
 
@@ -148,7 +148,7 @@ const FORBIDDEN = ['potential', 'discipline', 'composure', 'injury risk', 'prosp
   await load(page, 'p5-new')
   await go(page, '#/media'); check('14 a brand-new world has an honest, working Media screen', (await page.locator('main').innerText()).length > 60)
   await go(page, '#/rankings'); check('14 new world rankings exist from the start', (await page.getByTestId('rank-row').count()) > 0)
-  await go(page, '#/titles'); check('14 new world titles exist from the start', (await page.getByTestId('title-row').count()) >= 1)
+  await go(page, '#/titles/world'); check('14 new world titles exist from the start', (await page.getByTestId('title-row').count()) >= 1)
   await page.getByRole('button', { name: /Advance week/i }).first().click().catch(() => {})
   await page.waitForTimeout(500)
   await ctx.close()

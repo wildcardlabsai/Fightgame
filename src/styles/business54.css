@@ -74,3 +74,31 @@
   .bz-segbtn { padding: 8px 10px; font-size: 15px; }
   .rk-controls { flex-wrap: wrap; } .rk-controls .select { min-width: 0; flex: 1 1 100%; width: 100%; }
 }
+
+/* ---- Titles: my fighters, compact belts; Rankings: compact rows (Phase 5.4 UX pass) */
+.bz-lead { margin: 4px 0 10px; font-size: 16px; }
+.bz-pgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 380px), 1fr)); gap: 12px; margin-bottom: 8px; }
+.bz-pcard { border: 1px solid var(--line); border-left: 4px solid var(--line-strong); background: var(--bg-2); padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.bz-pcard.ready { border-left-color: var(--good); } .bz-pcard.blocked { border-left-color: var(--gold); }
+.bz-phead { display: flex; justify-content: space-between; gap: 10px; align-items: flex-start; }
+.bz-pname { font-size: 24px; font-weight: 800; text-transform: uppercase; background: none; border: 0; color: var(--text); padding: 0; text-align: left; cursor: pointer; line-height: 1.1; } .bz-pname:hover { color: var(--gold); }
+.bz-best { padding: 8px 10px; background: rgba(255,255,255,.035); display: flex; flex-direction: column; gap: 4px; overflow-wrap: anywhere; }
+.bz-best-t { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; } .bz-best-act { margin-top: 4px; }
+.bz-needs { margin: 2px 0 0; padding-left: 18px; font-size: 14px; } .bz-needs li { margin: 2px 0; }
+.bz-tgts { list-style: none; margin: 0; padding: 0; } .bz-tgt { padding: 8px 0; border-top: 1px solid var(--line); } .bz-tgt-head { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; } .bz-tgt-line { font-size: 14px; margin-top: 2px; } .bz-tgt-act { margin-top: 6px; }
+.bz-blocked { font-size: 13.5px; }
+.btn.small { min-height: 36px; padding: 6px 12px; font-size: 14px; }
+.bz-meta { margin: 4px 0 6px; }
+.bz-crow { grid-template-columns: 38px minmax(0, 1fr) auto; padding: 6px 0; } .bz-crow > .bz-req { grid-column: 3; grid-row: 1; } .bz-who { display: flex; gap: 6px 8px; align-items: baseline; flex-wrap: wrap; } .bz-req { justify-self: end; }
+.bz-crow .bz-why { grid-column: 2 / -1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 13px; }
+.bz-hist { margin-top: 18px; } .bz-hist summary { cursor: pointer; min-height: 44px; display: flex; align-items: center; }
+.rk-wrap { max-width: 1100px; }
+.rk-top { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; } .rk-top .rk-name { font-size: clamp(24px, 2.4vw, 34px); }
+.rk-how { margin-top: 4px; font-size: 13.5px; } .rk-how summary { cursor: pointer; color: var(--dim); min-height: 32px; display: flex; align-items: center; }
+.rk-row { grid-template-columns: 46px minmax(0, 1.4fr) 54px minmax(0, 1.6fr); gap: 4px 12px; padding: 7px 6px; }
+.rk-row .rk-mark { min-width: 40px; height: 40px; font-size: 24px; } .rk-n { font-size: 20px; } .rk-sub { font-size: 13px; }
+.rk-why { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 13.5px; }
+.rk-row.champ { background: linear-gradient(90deg, rgba(212,162,76,.22), rgba(212,162,76,.03) 70%); border-left: 3px solid var(--gold); }
+.rk-holds { grid-column: 2 / -1; display: flex; gap: 6px; align-items: center; flex-wrap: wrap; font-size: 13.5px; } .rk-holds b { font-family: var(--display); letter-spacing: .08em; text-transform: uppercase; color: var(--gold); }
+.rk-req { grid-column: 2 / -1; }
+@media (max-width: 1024px) { .rk-row { grid-template-columns: 44px minmax(0, 1fr) 50px; } .rk-why { grid-column: 2 / -1; } }

@@ -184,4 +184,14 @@ export function fighterBusinessView(state: GameState, id: Id): FighterBusinessVi
   }
 }
 
+export { myTitlePaths, titlePathFor } from './titlePath'
+export type { TitlePathView, TitleTarget } from './titlePath'
+
+/** Short names of every belt a fighter holds, any level (for the rankings champion row). */
+export function beltsHeld(state: GameState, id: Id): { short: string; title: string; level: TitleLevel }[] {
+  const media = state.media
+  if (!media) return []
+  return titlesHeldBy(media, id).map((h) => ({ short: bodyIdentity(h.body).shortName, title: titleName(h.body, h.wc), level: levelOf(h.body) })).sort((a, b) => LEVEL_ORDER.indexOf(a.level) - LEVEL_ORDER.indexOf(b.level))
+}
+
 export { ambitionLabel, ambitionOf, getReigns, rankIn }
