@@ -152,7 +152,7 @@ export function chooseVenue(state: GameState, fight: Fight): void {
   const country = pref === 'A' ? venueCountryFor(a.nationality) : pref === 'B' ? venueCountryFor(b.nationality) : venueCountryFor(org?.homeCountry ?? a.nationality)
   const rep = Math.max(a.reputation, b.reputation)
   const want = rep < 20 ? 1 : rep < 35 ? 2 : rep < 50 ? 3 : rep < 70 ? 4 : 5
-  const venues = Object.values(state.venues)
+  const venues = Object.values(state.venues).filter((v) => !v.legacy)
   const inCountry = venues.filter((v) => v.country === country)
   const pool = inCountry.length ? inCountry : venues
   pool.sort((x, y) => Math.abs(x.prestige - want) - Math.abs(y.prestige - want) || x.capacity - y.capacity)

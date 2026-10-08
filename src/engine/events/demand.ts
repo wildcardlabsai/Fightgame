@@ -7,6 +7,7 @@
  *   'actual'  — the same model times hidden factors (true marketability of the headliners, a keyed noise draw).
  *               This is what actually happens, so forecasts can miss.
  */
+import { cardFighterIds, fighterDistanceKm, travelCost } from '../business/venues'
 import { marketingBonus } from '../sponsorCatalog'
 import { tierAllowsBroadcast } from '../tiers'
 import { regionOf } from '../../data/nations'
@@ -112,7 +113,9 @@ function localTies(state: GameState, ev: BoxingEvent): number {
     const w = i === fights.length - 1 ? 0.5 : i === fights.length - 2 ? 0.2 : 0.3 / Math.max(1, fights.length - 2)
     for (const side of [f.sideA, f.sideB]) {
       const fighter = state.fighters[side.fighterId]
-      const tie = fighter.hometown === v.city ? 1 : fighter.nationality === v.country ? 0.75 : regionOf(fighter.nationality) === regionOf(v.country) ? 0.25 : 0
+      // A real venue has coordinates: the nearer a fighter lives, the more of a home crowd they bring.
+      const km = fighterDistanceKm(state, side.fighterId, v)
+      const tie = fighter.hometown === v.city ? 1 : km !== null && km < 80 ? 0.92 : km !== null && km < 200 ? 0.8 : fighter.nationality === v.country ? (km !== null ? 0.68 : 0.75) : regionOf(fighter.nationality) === regionOf(v.country) ? 0.25 : 0
       sum += tie * w * (0.5 + fighter.popularity / 100); wsum += w * (0.5 + fighter.popularity / 100)
     }
   })
@@ -388,7 +391,7 @@ export function forecastEvent(state: GameState, ev: BoxingEvent): Forecast {
   const bR: Range = ev.broadcast.kind === 'streaming' ? { lo: viewersR.lo * E.tv.streaming.perViewer, hi: viewersR.hi * E.tv.streaming.perViewer } : ev.broadcast.kind === 'none' || ev.broadcast.kind === 'ppv' ? { lo: 0, hi: 0 } : { lo: bt.fee, hi: bt.fee }
   const revenue = addR(addR(addR(ticketR, sponsorR), bR), ev.broadcast.kind === 'ppv' ? ppvRev : { lo: 0, hi: 0 })
   const c = purseCommitments(state, ev)
-  const fixed = hireFor(state, v, ev.promotionId) + productionCost(v) + bt.production + officialsCost(fights.length) + c.purses + ev.marketing.budget
+  const fixed = hireFor(state, v, ev.promotionId) + productionCost(v) + bt.production + officialsCost(fights.length) + travelCost(state, cardFighterIds(fights), v) + c.purses + ev.marketing.budget
   const variable = { lo: attR.lo * E.costs.securityPerHead + ticketR.lo * E.costs.sanctionShare + c.bonusesExpected * 0.7, hi: attR.hi * E.costs.securityPerHead + ticketR.hi * E.costs.sanctionShare + c.bonusesMax }
   const costs: Range = { lo: fixed + variable.lo, hi: fixed + variable.hi }
   const profit: Range = { lo: revenue.lo - costs.hi, hi: revenue.hi - costs.lo }

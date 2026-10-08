@@ -125,7 +125,7 @@ describe('creating events', () => {
     const poor = structuredClone(s)
     poor.promotions[poor.playerPromotionId].cash = 100
     poor.promotions[poor.playerPromotionId].tier = 'National' // arenas are only open to National promotions (Phase 4.6c)
-    const big = venueByName(poor, 'Meridian Arena')
+    const big = venueByName(poor, 'AO Arena') // a large real arena a National promotion may book
     expect(createEvent(poor, { name: 'Dreams', day: satIn(poor, 8), venueId: big.id }).error).toMatch(/bank/)
   })
 })

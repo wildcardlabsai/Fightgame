@@ -480,7 +480,7 @@ export const UK_VENUES: RealVenueDefinition[] = [
     latitude: 51.469,
     longitude: -3.169,
     capacity: 3250,
-    boxingCapacity: 3300,
+    boxingCapacity: 3250,
     boxingCapacitySource: 'estimated',
     kind: 'arena',
     indoor: true,

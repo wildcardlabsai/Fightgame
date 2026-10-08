@@ -2,6 +2,8 @@
 import { clamp, fighterRating, hiddenBase, PERSONALITY_LINES } from './fighters'
 import { keyedNormal } from './rng'
 import { createStartingScout } from './scouting'
+import { emptyBusiness } from './business/types'
+import { migrateVenues } from './business/venues'
 import { GAME_STATE_VERSION, type AiStrategy, type GameState } from './types'
 import { freshSponsorBook } from './sponsors'
 import { freshTierProgress, highestQualifyingTier } from './tierProgress'
@@ -118,6 +120,7 @@ export function migrate(data: unknown): GameState | null {
   if (s.version < 6) migrateV5toV6(s as never)
   if (s.version < 7) migrateV6toV7(s as never)
   if (s.version < 8) migrateV7toV8(s as never)
+  if (s.version < 9) migrateV8toV9(s as never)
   return s as GameState
 }
 
@@ -257,4 +260,24 @@ function migrateV6toV7(s: any): void {
 function migrateV7toV8(s: any): void {
   s.version = 8
   if (!s.media) initMediaWorld(s)
+}
+
+/**
+ * v8 → v9 (Phase 5.4): the fight business. Real venues are added (the old fictional ladder is kept for history), an empty business
+ * record is created (conversations, promises and plans start empty — nothing in the existing career changes), and the media world is
+ * given the Phase 5.4 ladder: the new title bodies and rating lists appear as the weekly passes reach them, with no champion crowned
+ * without a fight. Existing stories, careers, awards, rivalries and reigns are untouched; the RNG and id counter are untouched.
+ */
+function migrateV8toV9(s: any): void {
+  migrateVenues(s)
+  if (!s.business) s.business = emptyBusiness()
+  if (s.media) {
+    s.media.queue ??= []
+    s.media.elimFights ??= {}
+    for (const rec of Object.values<any>(s.media.titles ?? {})) {
+      if (rec && rec.defences === undefined) rec.defences = 0
+      if (rec && rec.lastFight === undefined) rec.lastFight = rec.since ?? s.today
+    }
+  }
+  s.version = 9
 }

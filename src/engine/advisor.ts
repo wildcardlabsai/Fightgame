@@ -360,7 +360,7 @@ export function sponsorAdvice(state: GameState): Advice[] {
     if (d.needed > 0 && d.weeksLeftInYear > 0) {
       const pace = d.needed * 5 > d.weeksLeftInYear
       // What it costs to put on the cheapest qualifying show you may book (hire + staging; purses come on top).
-      const cheapest = Math.min(...Object.values(state.venues).filter((v) => VENUE_RANK.indexOf(v.tier) >= VENUE_RANK.indexOf(d.minVenue) && tierAllowsVenue(player(state).tier, v)).map((v) => hireFor(state, v, state.playerPromotionId) + productionCost(v)), Infinity)
+      const cheapest = Math.min(...Object.values(state.venues).filter((v) => !v.legacy && VENUE_RANK.indexOf(v.tier) >= VENUE_RANK.indexOf(d.minVenue) && tierAllowsVenue(player(state).tier, v)).map((v) => hireFor(state, v, state.playerPromotionId) + productionCost(v)), Infinity)
       if (pace && Number.isFinite(cheapest) && cash < d.needed * cheapest * 1.5) out.push({ id: `${id}-cash`, level: 'highRisk', topic: 'sponsor', title: 'Sponsor commitments', body: `${d.name} needs ${d.needed} more qualifying show${d.needed === 1 ? '' : 's'} this contract year. Your current cash position may make that hard to deliver.`, link, actionLabel: 'Sponsors' })
       else if (pace) out.push({ id: `${id}-pace`, level: 'caution', topic: 'sponsor', title: 'Sponsor expectations', body: `${d.name} requires ${d.minEvents} qualifying events this contract year and you have promoted ${d.eventsThisYear}.`, link, actionLabel: 'Sponsors' })
     }

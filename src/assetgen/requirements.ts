@@ -25,7 +25,9 @@ export function buildRequirements(state: GameState, scenario = 'groundUp'): { ma
     if (p.isPlayer) continue
     assets.push(make('promotion.logo', 'promotion', p.id, 'STANDARD', promotionPrompt(p, 'logo'), seed), make('promotion.mark', 'promotion', p.id, 'STANDARD', promotionPrompt(p, 'mark'), seed))
   }
-  for (const v of Object.values(state.venues)) assets.push(make('venue', 'venue', v.id, 'STANDARD', venuePrompt(v, venueKind({ name: v.name, tier: v.tier, capacity: v.capacity, city: v.city, country: v.country })), seed))
+  // Real venues never go to the image generator: a generated picture of a real building would misrepresent it. They use the venue-kind
+  // art or an approved asset (see assets/venueAssets.ts); only the generic placeholder halls are generated.
+  for (const v of Object.values(state.venues).filter((x) => !x.realId && !x.legacy)) assets.push(make('venue', 'venue', v.id, 'STANDARD', venuePrompt(v, venueKind({ name: v.name, tier: v.tier, capacity: v.capacity, city: v.city, country: v.country })), seed))
   for (const k of NEWS_KINDS) assets.push(make('news', 'news', k, 'STANDARD', newsPrompt(k), seed))
   for (const t of POSTER_TEMPLATES) assets.push(make('eventTemplate', 'eventTemplate', t, 'STANDARD', templatePrompt(t), seed))
   assets.sort(order)

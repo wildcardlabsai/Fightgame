@@ -2,6 +2,7 @@
  * EVENT OPERATIONS: create, build the card, price, promote, sell, run the night, settle, cancel.
  * Money moves only through eventFinance.receive/spend (→ ledger.post for the player).
  */
+import { cardFighterIds, travelCost } from '../business/venues'
 import { dealFor, settleDeal, voidBroadcast } from '../media/broadcast'
 import { weightClassLabel } from '../../data/weightClasses'
 import { SPONSOR_BRANDS } from '../../data/sponsors'
@@ -488,6 +489,7 @@ export function finishEvent(state: GameState, ev: BoxingEvent): void {
 
   spend(state, ev, 'security', attendance * E.costs.securityPerHead, `Security & stewarding — ${ev.name}`)
   spend(state, ev, 'officials', officialsCost(fights.length), `Officials, medical & insurance — ${ev.name}`)
+  spend(state, ev, 'officials', travelCost(state, cardFighterIds(fights), v), `Travel & accommodation — ${ev.name}`)
   // Sanctioning body, licensing and insurance levy on the gate.
   spend(state, ev, 'officials', ev.finance.revenue.tickets * E.costs.sanctionShare, `Sanctioning & licensing levy — ${ev.name}`)
 

@@ -291,11 +291,12 @@ describe('generation requirements and prompts', () => {
     }
   })
 
-  it('counts: rival promotions only, one image per venue entity, sixteen news, eight templates', () => {
+  it('counts: rival promotions only, one image per generic hall (real venues are never generated), sixteen news, eight templates', () => {
     const c = countAssets(manifest.assets).byType
     expect(c['promotion.logo']).toBe(Object.values(world.promotions).filter((p) => !p.isPlayer).length)
     expect(c['promotion.mark']).toBe(c['promotion.logo'])
-    expect(c.venue).toBe(Object.keys(world.venues).length)
+    expect(c.venue).toBe(Object.values(world.venues).filter((v) => !v.realId && !v.legacy).length)
+    expect(manifest.assets.some((a) => a.entityType === 'venue' && !!world.venues[a.entityId]?.realId)).toBe(false)
     expect(c.news).toBe(16); expect(c.eventTemplate).toBe(8)
     expect(manifest.assets.some((a) => a.entityId === world.playerPromotionId)).toBe(false)
   })

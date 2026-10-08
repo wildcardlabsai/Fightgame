@@ -167,7 +167,7 @@ function pickVenue(state: GameState, promo: Promotion, fights: Fight[], day: num
   const capIdx = Math.max(0, Math.min(MAX_TIER[promo.tier], STRATEGY_TIER_CAP[ai.strategy] ?? 3) - b.tierDrop)
   const budget = Math.max(0, promo.cash - committed * 1.3) * (0.1 + 0.08 * ai.risk)
   let options = Object.values(state.venues)
-    .filter((v) => TIER_ORDER.indexOf(v.tier) <= capIdx && v.minFights <= n && v.hireCost <= budget && !venueBookedOn(state, v.id, day))
+    .filter((v) => !v.legacy && TIER_ORDER.indexOf(v.tier) <= capIdx && v.minFights <= n && v.hireCost <= budget && !venueBookedOn(state, v.id, day))
   if (ai.strategy === 'regional') { const home = options.filter((v) => v.country === promo.homeCountry); if (home.length) options = home }
   if (options.length === 0) return null
   const want = 0.95 - 0.45 * ai.risk

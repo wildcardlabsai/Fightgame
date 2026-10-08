@@ -1,5 +1,5 @@
 import { initMediaWorld } from './media/process'
-import { VENUE_SEEDS, venueFields } from '../data/venues'
+import { buildWorldVenues } from './business/venues'
 import { dayFromIso } from './calendar'
 import { generateFighter, publicFacts, visibility } from './fighters'
 import { BALANCE as B } from './balance'
@@ -71,11 +71,8 @@ export function createNewGame(opts: NewGameOptions, now = Date.now()): GameState
   const contracts: Record<Id, Contract> = {}
   const venues: Record<Id, Venue> = {}
 
-  // Venues
-  for (const v of VENUE_SEEDS) {
-    const id = ids.next('v')
-    venues[id] = { id, name: v.name, city: v.city, country: v.country, capacity: v.capacity, hireCost: v.hireCost, prestige: v.prestige, ...venueFields(v) }
-  }
+  // Venues: the real-world venues plus a few generic halls (see business/venues.ts).
+  Object.assign(venues, buildWorldVenues((p) => ids.next(p)))
 
   // Player promotion
   const playerId = ids.next('p')

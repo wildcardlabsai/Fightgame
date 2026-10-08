@@ -26,7 +26,7 @@ import { settleTitleFight, titleKey } from './media/titles'
 import { newLog, playWeek, STRATEGIES } from './sim/strategies'
 import { viewsOf } from './view'
 import { playedShow } from './testShow'
-import type { GameState } from './types'
+import { GAME_STATE_VERSION, type GameState } from './types'
 import { WEIGHT_CLASSES } from '../data/weightClasses'
 import { clone } from './media/testing'
 import { LIMITS } from './media/state'
@@ -394,7 +394,7 @@ describe('saves and migration', () => {
     const old = JSON.parse(serialiseGame(s))
     delete old.media; old.version = 7
     const loaded = deserialiseGame(JSON.stringify(old))!
-    expect(loaded.version).toBe(8)
+    expect(loaded.version).toBe(GAME_STATE_VERSION)
     expect(loaded.media!.titles).toBeTruthy()
     expect(Object.keys(loaded.media!.rankings).length).toBe(RANKING_ORGS.length)
     for (const k of ['rngState', 'idCounter', 'today', 'seed'] as const) expect(loaded[k]).toBe(s[k])

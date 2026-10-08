@@ -212,7 +212,7 @@ export function playWeek(input: GameState, st0: Strategy, log: StrategyLog): Gam
   const evaluate = (ids: Id[], relax: boolean) => {
     const fights = ids.map((id) => state.fights[id])
     const out: { v: Venue; mid: number; cap: number; fill: number; pm: number }[] = []
-    for (const v of Object.values(state.venues)) {
+    for (const v of Object.values(state.venues).filter((x) => !x.legacy)) {
       const maxTier = relax ? 'regional' : st.maxTier
       const rej = (k: string) => { log.why[k] = (log.why[k] ?? 0) + 1 }
       if (!tierAllowsVenue(state.promotions[state.playerPromotionId].tier, v)) { rej('tier'); continue }

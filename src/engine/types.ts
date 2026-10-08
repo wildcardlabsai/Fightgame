@@ -334,6 +334,20 @@ export interface Venue {
   /** Smallest / largest card the venue will host. */
   minFights: number
   maxFights: number
+  /** Phase 5.4 — real-world venues (all optional so older saves load). `capacity` is the BOXING capacity. */
+  realId?: string
+  region?: string
+  lat?: number
+  lon?: number
+  /** Audience pools (0.4–1.8): the city, the nation, the world. `market` is their blend. */
+  pools?: { local: number; national: number; international: number }
+  broadcast?: number
+  ppv?: number
+  history?: 'major' | 'regular' | 'occasional' | 'none'
+  /** A game placeholder for the many unnamed halls boxing is staged in — not a real building. */
+  generic?: boolean
+  /** An older fictional venue kept only so past events still point somewhere; never offered for new bookings. */
+  legacy?: boolean
 }
 
 // ------------------------------------------------------------------- Events
@@ -801,4 +815,4 @@ export interface GameState {
   business?: import('./business/types').BusinessState
 }
 
-export const GAME_STATE_VERSION = 8
+export const GAME_STATE_VERSION = 9

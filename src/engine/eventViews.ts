@@ -18,6 +18,7 @@ import {
 import { cardProblems, eventAcceptsFight, isSaturday, playerOpenEvents, venueBookedOn } from './events/events'
 import { EVENT_STATUS_LABEL, isEventOpen } from './events/lifecycle'
 import { viewsOf } from './view'
+import { cardFighterIds, fighterDistanceKm, realDefinition, travelCost } from './business/venues'
 import { weightClassLabel } from '../data/weightClasses'
 import type { BoxingEvent, BroadcastKind, EventFinance, GameState, Id, SponsorOffer, TicketPrices, Venue } from './types'
 
@@ -54,7 +55,7 @@ export function venueView(state: GameState, v: Venue, from = state.today): Venue
 }
 
 export function venueViews(state: GameState): VenueView[] {
-  return Object.values(state.venues).sort((a, b) => a.capacity - b.capacity).map((v) => venueView(state, v))
+  return Object.values(state.venues).filter((v) => !v.legacy).sort((a, b) => a.capacity - b.capacity).map((v) => venueView(state, v))
 }
 
 export interface EventListItem {
@@ -229,17 +230,37 @@ export function eventView(state: GameState, id: Id): EventView | null {
   }
 }
 
-export interface VenueFit { venueId: Id; name: string; city: string; tierLabel: string; capacity: number; hireCost: number; fill: { lo: number; hi: number }; profit: { lo: number; hi: number }; verdict: 'too small' | 'good fit' | 'too big' | 'loses money'; free: boolean }
+export interface VenueFit {
+  /** Real-world venue facts (null for generic halls). */
+  place: { real: boolean; generic: boolean; region: string | null; countryName: string | null; kind: string | null; capacityNote: string; sourceCount: number; verification: string | null } | null
+  /** Expected attendance (people), the attendance at which the show breaks even, the booking cost, and the travel bill for this card. */
+  attendance: { lo: number; hi: number }; breakEven: number | null; travel: number; risk: 'safe' | 'watch' | 'highRisk'
+  /** Home-crowd note from the card's fighters' hometowns (distance based). */
+  homeNote: string | null
+  venueId: Id; name: string; city: string; tierLabel: string; capacity: number; hireCost: number; fill: { lo: number; hi: number }; profit: { lo: number; hi: number }; verdict: 'too small' | 'good fit' | 'too big' | 'loses money'; free: boolean }
 
 /** How would THIS card do in each venue? Public forecast only. */
 export function venueFits(state: GameState, eventId: Id): VenueFit[] {
   const ev = state.events[eventId]
   if (!ev) return []
-  return Object.values(state.venues).sort((a, b) => a.capacity - b.capacity).map((v) => {
+  return Object.values(state.venues).filter((v) => !v.legacy).sort((a, b) => a.capacity - b.capacity).map((v) => {
     const alt = { ...ev, venueId: v.id, city: v.city, country: v.country }
     const f = forecastEvent(state, alt)
     const mid = (f.fill.lo + f.fill.hi) / 2
+    const def = realDefinition(v)
+    const fighters = cardFighterIds(cardFights(state, alt))
+    const near = fighters.filter((id) => { const km = fighterDistanceKm(state, id, v); return km !== null && km < 80 }).length
+    const attMid = (f.attendance.lo + f.attendance.hi) / 2
+    const ticketPer = attMid > 0 ? (f.ticketRevenue.lo + f.ticketRevenue.hi) / 2 / attMid : 0
+    const other = (f.revenue.lo + f.revenue.hi) / 2 - (f.ticketRevenue.lo + f.ticketRevenue.hi) / 2
+    const costMid = (f.costs.lo + f.costs.hi) / 2
     return {
+      place: v.generic ? { real: false, generic: true, region: null, countryName: null, kind: null, capacityNote: 'Generic hall — a game placeholder, not a real building', sourceCount: 0, verification: null }
+        : def ? { real: true, generic: false, region: def.region, countryName: def.countryName, kind: def.kind.replace('_', ' '), capacityNote: def.boxingCapacitySource === 'published' ? 'Boxing capacity (published)' : 'Boxing capacity (estimated)', sourceCount: def.sources.length, verification: def.verificationStatus } : null,
+      attendance: { lo: Math.round(f.attendance.lo), hi: Math.round(f.attendance.hi) },
+      breakEven: ticketPer > 0 ? Math.max(0, Math.round((costMid - other) / ticketPer)) : null,
+      travel: travelCost(state, fighters, v), risk: f.risk,
+      homeNote: near > 0 ? `${near} fighter${near === 1 ? '' : 's'} on the card live${near === 1 ? 's' : ''} within 80 km — a home crowd` : null,
       venueId: v.id, name: v.name, city: v.city, tierLabel: TIER_LABEL[v.tier], capacity: v.capacity, hireCost: hireFor(state, v, state.playerPromotionId), fill: f.fill, profit: f.profit,
       verdict: mid > 0.97 ? 'too small' : mid < 0.5 ? 'too big' : f.profit.hi < 0 ? 'loses money' : 'good fit', free: !venueBookedOn(state, v.id, ev.day, ev.id),
     }
