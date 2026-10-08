@@ -199,6 +199,8 @@ export interface Offer {
   titleBonus: number
   ppvShare: number
   titlePromise: boolean
+  /** Phase 5.4: a concrete pathway promised in the talks (tracked as a commitment). */
+  pathway?: import('./business/types').PathwayOffer | null
 }
 
 export type NegotiationKind = 'signing' | 'renewal'
@@ -611,6 +613,10 @@ export interface FightOffer {
   rematch: boolean
   venuePref: 'A' | 'B' | 'neutral'
   fights: 1 | 2
+  /** Phase 5.4 extras (all optional): scheduled rounds, what is at stake, and a broadcast slot offered. */
+  rounds?: number
+  stake?: 'standard' | 'eliminator' | 'title'
+  exposure?: boolean
 }
 
 export interface FightTerms extends FightOffer {
@@ -686,7 +692,14 @@ export interface FightResult {
 }
 
 /** Title metadata. Nothing sets this before the rankings phase; the presentation only reads it. */
-export interface FightTitle { name: string; tier: 'regional' | 'national' | 'international' | 'world' }
+export interface FightTitle {
+  name: string
+  tier: 'regional' | 'national' | 'international' | 'world'
+  /** Phase 5.4: the ladder level, what is at stake and which bodies' belts are on the line. Optional so older saves load. */
+  level?: import('./business/titleDefs').TitleLevel
+  kind?: 'title' | 'eliminator' | 'unification'
+  bodies?: string[]
+}
 
 export interface Fight {
   id: Id
@@ -782,6 +795,8 @@ export interface GameState {
   /** Phase 5: the living media world (see engine/media). Optional so pre-Phase-5 saves load; migration creates it. */
   media?: import('./media/types').MediaState
   scenario?: { id: 'groundUp' | 'regional' | 'national' | 'champion'; done: Record<string, number> }
+  /** Phase 5.4: the fight business — conversations, promises, development plans (see engine/business). Created by migration. */
+  business?: import('./business/types').BusinessState
 }
 
 export const GAME_STATE_VERSION = 8

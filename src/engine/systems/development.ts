@@ -96,10 +96,10 @@ export function updateCondition(f: Fighter, today: number): void {
 
   const cool = B.fights.popularityCool
   const excess = f.popularity - (cool.slope * f.reputation + cool.base)
-  if (excess > 0) f.popularity = clamp(f.popularity - excess * cool.rate, Math.round(f.reputation * 0.4), 100)
+  if (excess > 0) f.popularity = clamp(f.popularity - excess * cool.rate, Math.max(1, Math.round(f.reputation * 0.4)), 100)
 
   if (FEATURES.fightsImplemented && f.lastFightDay !== null && (today - f.lastFightDay) / 7 > 26) {
-    f.popularity = clamp(f.popularity - 0.04, Math.round(f.reputation * 0.4), 100)
+    f.popularity = clamp(f.popularity - 0.04, Math.max(1, Math.round(f.reputation * 0.4)), 100)
   }
 }
 

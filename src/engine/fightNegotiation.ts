@@ -12,6 +12,7 @@ import { clearBookings } from './fights'
 import { transition } from './fight/lifecycle'
 import { stateIds } from './ids'
 import { baseMoney, normaliseOffer as _n, appraise, valueOf } from './market'
+import { boundedPurse, careerValue, contextFor, eventRevenueMid } from './business/marketValue'
 import { postMessage } from './messages'
 import { TIER_ORDER } from './promotions'
 import { player } from './selectors'
@@ -42,7 +43,9 @@ export function fightAsk(state: GameState, fight: Fight): FightOffer {
   const me = state.fighters[fight.sideA.fighterId], opp = state.fighters[fight.sideB.fighterId]
   const promo = judgingPromo(state, fight.sideB.promotionId)
   const pl = player(state)
-  const base = baseMoney(valueOf(state, opp)).purse * 0.85
+  // What this bout is worth to this fighter: market rate shaped by opponent, stakes, platform and venue, held inside what the show can carry.
+  const ev = fight.eventId ? state.events[fight.eventId] : undefined
+  const base = boundedPurse(careerValue(state, opp), careerValue(state, me), contextFor(state, fight, 1, ev, eventRevenueMid(state, ev))) * 0.85
   // The camp's own read of how dangerous you are (noisy, tier-dependent), versus what they know about their man.
   const myStrength = appraise(state, promo, me).rating
   const theirStrength = appraise({ ...state }, { ...promo, tier: 'Global' }, opp).rating // they know their own fighter well

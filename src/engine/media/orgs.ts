@@ -1,5 +1,6 @@
 /** MEDIA_BEHAVIOUR: how each organisation acts. Keyed by id, never by brand. Identity lives in data/mediaIdentity.ts. */
 import { mediaIdentity } from '../../data/mediaIdentity'
+import { TITLE_DEFS } from '../business/titleDefs'
 import type { BroadcastBehaviour, MediaBehaviour, MediaOrganisation, MediaState, RankingOrg, RelationState } from './types'
 
 const B = (b: MediaBehaviour): MediaBehaviour => b
@@ -80,11 +81,33 @@ export const BROADCAST_ORDER = Object.keys(BROADCAST_BEHAVIOURS)
 
 const W = (o: Partial<RankingOrg['methodology']>): RankingOrg['methodology'] => ({ opposition: 1, recent: 1, activity: 0.5, streak: 0.3, titles: 0.5, popularity: 0, losses: 1, idleWeeks: 40, ...o })
 
-/** Three fictional sanctioning bodies, one media ratings list and one independent index. Each ranks differently. */
+/** Methodology (how each body weighs results) — distinct per body so the lists disagree like real lists do. Game abstractions. */
+const METHOD: Record<string, Partial<RankingOrg['methodology']>> = {
+  atlas: { opposition: 0.9, recent: 1.1, activity: 0.9, streak: 0.4, titles: 0.8, losses: 1.0, idleWeeks: 36 },
+  pioneer: { opposition: 0.7, recent: 0.9, activity: 1.2, streak: 0.8, titles: 0.7, popularity: 0.3, losses: 0.8, idleWeeks: 30 },
+  crown: { opposition: 1.1, recent: 0.8, activity: 0.5, streak: 0.5, titles: 1.0, popularity: 0.2, losses: 1.1, idleWeeks: 48 },
+  apex: { opposition: 1.0, recent: 1.0, activity: 0.7, streak: 0.5, titles: 0.9, popularity: 0.3, losses: 1.0, idleWeeks: 44 },
+  european: { opposition: 1.0, recent: 1.0, activity: 0.9, streak: 0.5, titles: 0.8, popularity: 0.2, losses: 1.0, idleWeeks: 40 },
+  british: { opposition: 0.8, recent: 1.1, activity: 1.1, streak: 0.6, titles: 0.8, popularity: 0.3, losses: 0.9, idleWeeks: 36 },
+  commonwealth: { opposition: 0.9, recent: 1.0, activity: 1.0, streak: 0.5, titles: 0.7, popularity: 0.2, losses: 1.0, idleWeeks: 40 },
+}
+const AREA_METHOD: Partial<RankingOrg['methodology']> = { opposition: 0.6, recent: 1.1, activity: 1.3, streak: 0.8, titles: 0.6, popularity: 0.4, losses: 0.8, idleWeeks: 30 }
+const AUTHORITY: Record<string, number> = { atlas: 78, pioneer: 70, crown: 66, apex: 64, european: 58, british: 52, commonwealth: 48 }
+/** Update cadence: (every N weeks, offset). Spread so the lists do not all recompute in the same week. */
+const CADENCE: Record<string, [number, number]> = {
+  atlas: [4, 0], pioneer: [8, 4], crown: [8, 6], apex: [8, 2], european: [8, 1], british: [8, 3], commonwealth: [8, 5],
+  area_wal: [12, 1], area_eng: [12, 3], area_nor: [12, 5], area_cen: [12, 7], area_mid: [12, 9], area_sou: [12, 11],
+}
+
+/** The sanctioning bodies come from the title definitions (data); one media ratings list and one independent index sit beside them. */
+const SANCTIONING_ORGS: RankingOrg[] = TITLE_DEFS.map((d) => ({
+  id: d.id, mediaOrgId: null, kind: 'OFFICIAL_BODY' as const, authority: AUTHORITY[d.id] ?? 40, methodology: W(METHOD[d.id] ?? AREA_METHOD),
+  updateEveryWeeks: (CADENCE[d.id] ?? [12, 0])[0], offset: (CADENCE[d.id] ?? [12, 0])[1], rankingCount: d.rankingCount, active: true, sanctions: true, challengerLimit: d.challengerLimit,
+  level: d.level, minPool: d.minPool, minFights: d.minFights,
+}))
+
 export const RANKING_ORGS: RankingOrg[] = [
-  { id: 'atlas', mediaOrgId: null, kind: 'OFFICIAL_BODY', authority: 78, methodology: W({ opposition: 0.9, recent: 1.1, activity: 0.9, streak: 0.4, titles: 0.8, losses: 1.0, idleWeeks: 36 }), updateEveryWeeks: 4, offset: 0, rankingCount: 10, active: true, sanctions: true, challengerLimit: 8 },
-  { id: 'pioneer', mediaOrgId: null, kind: 'OFFICIAL_BODY', authority: 70, methodology: W({ opposition: 0.7, recent: 0.9, activity: 1.2, streak: 0.8, titles: 0.7, popularity: 0.3, losses: 0.8, idleWeeks: 30 }), updateEveryWeeks: 8, offset: 4, rankingCount: 10, active: true, sanctions: true, challengerLimit: 6 },
-  { id: 'crown', mediaOrgId: null, kind: 'OFFICIAL_BODY', authority: 66, methodology: W({ opposition: 1.1, recent: 0.8, activity: 0.5, streak: 0.5, titles: 1.0, popularity: 0.2, losses: 1.1, idleWeeks: 48 }), updateEveryWeeks: 8, offset: 6, rankingCount: 10, active: true, sanctions: true, challengerLimit: 8 },
+  ...SANCTIONING_ORGS,
   { id: 'ringside', mediaOrgId: 'ringside', kind: 'MEDIA', authority: 92, methodology: W({ opposition: 1.8, recent: 1.0, activity: 0.35, streak: 0.2, titles: 0.6, popularity: 0, losses: 0.9, idleWeeks: 52 }), updateEveryWeeks: 4, offset: 2, rankingCount: 10, active: true, sanctions: false, challengerLimit: 0 },
   { id: 'index', mediaOrgId: 'boxingindex', kind: 'INDEPENDENT', authority: 55, methodology: W({ opposition: 1.2, recent: 1.4, activity: 0.7, streak: 0.6, titles: 0.2, popularity: 0.6, losses: 1.0, idleWeeks: 40 }), updateEveryWeeks: 12, offset: 8, rankingCount: 10, active: true, sanctions: false, challengerLimit: 0 },
 ]

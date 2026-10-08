@@ -43,7 +43,7 @@ function titlePromiseWeight(f: Fighter): number {
   return FEATURES.titlesImplemented ? v : v * B.negotiation.titlePromiseDiscount
 }
 
-interface Score {
+export interface Score {
   ratio: number
   ask: Offer
   vAsk: number
@@ -52,7 +52,7 @@ interface Score {
 }
 
 /** The single source of truth for how a camp values an offer. */
-function scoreOffer(state: GameState, f: Fighter, promo: Promotion, offer: Offer, kind: NegotiationKind): Score {
+export function scoreOffer(state: GameState, f: Fighter, promo: Promotion, offer: Offer, kind: NegotiationKind): Score {
   const age = fighterAge(f, state.today)
   const ask = askTerms(state, f, promo, kind)
   const vAsk = offerValue(ask, f.popularity)
@@ -172,6 +172,22 @@ export function renewalWindowOpen(state: GameState, c: Contract): boolean {
   return Math.floor((c.endDay - state.today) / 7) <= B.contracts.approachingWeeks
 }
 
+/** The agreed deal: the contract, the messages and the news. Shared by the offer flow and the conversational talks. */
+export function concludeSigning(state: GameState, f: Fighter, promo: Promotion, offer: Offer, kind: NegotiationKind): Contract {
+  const name = fighterName(f)
+  const signed = completeSigning(state, f, offer, kind)
+  postMessage(state, {
+    from: 'Legal', category: 'contract', priority: 'important',
+    subject: kind === 'renewal' ? `${name} signs a new deal` : `${name} signs with ${promo.name}`,
+    body: `${name} has agreed a ${offer.years}-year contract: ${offer.fights} fights, £${offer.weeklyRetainer.toLocaleString('en-GB')} a week, £${offer.basePurse.toLocaleString('en-GB')} base purse${offer.titlePromise ? ', and a promised title opportunity' : ''}. Signing bonus paid: £${offer.signingBonus.toLocaleString('en-GB')}.`,
+    link: { kind: 'fighter', id: f.id },
+  })
+  if (kind === 'signing' && (f.reputation >= 40 || f.popularity >= 40)) {
+    postNews(state, { headline: `${promo.name} sign ${name} (${f.record.wins}-${f.record.losses}-${f.record.draws})`, category: 'signing', fighterId: f.id })
+  }
+  return signed
+}
+
 /** Present an offer to a fighter (new signing or renewal). Returns a NEW state. */
 export function submitOffer(input: GameState, fighterId: Id, rawOffer: Offer, kind: NegotiationKind): NegotiationOutcome {
   const f0 = input.fighters[fighterId]
@@ -215,16 +231,7 @@ export function submitOffer(input: GameState, fighterId: Id, rawOffer: Offer, ki
   const name = fighterName(f)
   if (ev.verdict === 'accept') {
     if (kind === 'signing' && rosterFull(state, promo.id)) return fail(input, 'Your roster is full.')
-    const signed = completeSigning(state, f, offer, kind)
-    postMessage(state, {
-      from: 'Legal', category: 'contract', priority: 'important',
-      subject: kind === 'renewal' ? `${name} signs a new deal` : `${name} signs with ${promo.name}`,
-      body: `${name} has agreed a ${offer.years}-year contract: ${offer.fights} fights, £${offer.weeklyRetainer.toLocaleString('en-GB')} a week, £${offer.basePurse.toLocaleString('en-GB')} base purse${offer.titlePromise ? ', and a promised title opportunity' : ''}. Signing bonus paid: £${offer.signingBonus.toLocaleString('en-GB')}.`,
-      link: { kind: 'fighter', id: f.id },
-    })
-    if (kind === 'signing' && (f.reputation >= 40 || f.popularity >= 40)) {
-      postNews(state, { headline: `${promo.name} sign ${name} (${f.record.wins}-${f.record.losses}-${f.record.draws})`, category: 'signing', fighterId: f.id })
-    }
+    const signed = concludeSigning(state, f, promo, offer, kind)
     return { ok: true, state, round, signed }
   }
 

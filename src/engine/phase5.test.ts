@@ -396,7 +396,7 @@ describe('saves and migration', () => {
     const loaded = deserialiseGame(JSON.stringify(old))!
     expect(loaded.version).toBe(8)
     expect(loaded.media!.titles).toBeTruthy()
-    expect(Object.keys(loaded.media!.rankings).length).toBe(5)
+    expect(Object.keys(loaded.media!.rankings).length).toBe(RANKING_ORGS.length)
     for (const k of ['rngState', 'idCounter', 'today', 'seed'] as const) expect(loaded[k]).toBe(s[k])
     expect(JSON.stringify(loaded.fighters)).toBe(JSON.stringify(s.fighters))
     expect(JSON.stringify(loaded.ledger)).toBe(JSON.stringify(s.ledger))

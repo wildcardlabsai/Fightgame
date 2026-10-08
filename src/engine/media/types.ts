@@ -253,6 +253,10 @@ export interface RankingOrg {
   sanctions: boolean
   /** Rank limit for a title challenge (champion defends against a contender at or above this). */
   challengerLimit: number
+  /** Phase 5.4: the ladder level, and the smallest eligible pool / fewest fights for the list to exist (see business/titleDefs). */
+  level?: import('../business/titleDefs').TitleLevel
+  minPool?: number
+  minFights?: number
 }
 
 export type RankReasonKind = 'beat' | 'lost' | 'drew' | 'inactive' | 'new' | 'rose' | 'fell' | 'title' | 'stripped' | 'vacated' | 'same'
@@ -268,8 +272,11 @@ export interface TitleRec {
   since: Day
   defences: number
   lastFight: Day
-  /** Mandatory challenge ordered by the body. */
-  mand?: { challenger: Id; cn: string; ordered: Day; due: Day }
+  /** Mandatory challenge ordered by the body. `ext` is set once the deadline has been extended for a valid reason. */
+  mand?: { challenger: Id; cn: string; ordered: Day; due: Day; ext?: boolean }
+  /** Phase 5.4: an eliminator ordered between two contenders; its winner becomes the mandatory challenger. */
+  elim?: { a: Id; b: Id; ordered: Day; due: Day; fightId?: Id }
+  lastElim?: Day
   vacantSince?: Day
 }
 
@@ -471,6 +478,8 @@ export interface MediaState {
   rankings: Record<string, Partial<Record<WeightClassId, string>>>
   titles: Record<string, TitleRec>
   titleFights: Record<Id, string[]>
+  /** Phase 5.4: fights flagged as eliminators → the title key they decide. */
+  elimFights?: Record<Id, string>
   /** Packed JSON: Reign[] newest first. */
   reigns: string
   videos: MediaVideo[]

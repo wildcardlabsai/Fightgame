@@ -11,7 +11,8 @@ import {
   broadcastTerms, cardQuality, demandFor, eventInterest, forecastEvent, hireFor, officialsCost, ppvBuysFor, productionCost, refPrices, soldFromDemand, viewersFor,
 } from '../events/demand'
 import { BALANCE as B } from '../balance'
-import { baseMoney, valueOf } from '../market'
+import { baseMoney, marketValue } from '../market'
+import { publicFacts } from '../fighters'
 import type { BoxingEvent, BroadcastKind, GameState, VenueTier } from '../types'
 import { createNewGame } from '../worldgen'
 
@@ -22,6 +23,9 @@ export const PROFILES: Record<Profile, { pop: number; rep: number; wins: number;
   high: { pop: 70, rep: 68, wins: 28, under: 35 },
   superstar: { pop: 86, rep: 82, wins: 36, under: 50 },
 }
+
+/** Synthetic cards price purses from the profile's fame and reputation (the audit's own assumption), independent of the live valuation engine. */
+const legacyPurse = (state: GameState, f: GameState['fighters'][string]): number => baseMoney(marketValue(publicFacts(f, state.today), f.reputation)).purse
 
 export interface Show { state: GameState; ev: BoxingEvent }
 
@@ -52,7 +56,7 @@ export function buildShow(opts: { profile: Profile; tier: VenueTier; promoRep?: 
       f.momentum = opts.form === 'hot' ? 70 : opts.form === 'cold' ? -60 : 0
       f.status = 'active'
     }
-    const fight = createFight(state, a.id, b.id, promo.id, 'player', { purseA: baseMoney(valueOf(state, a)).purse, purseB: baseMoney(valueOf(state, b)).purse, winBonusA: 0, winBonusB: 0 })
+    const fight = createFight(state, a.id, b.id, promo.id, 'player', { purseA: legacyPurse(state, a), purseB: legacyPurse(state, b), winBonusA: 0, winBonusB: 0 })
     transition(fight, 'agreed')
     attachFight(state, ev, fight)
   }

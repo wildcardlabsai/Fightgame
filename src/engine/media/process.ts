@@ -13,6 +13,7 @@ import { rosterOf } from './requests'
 import { rankingIdentity } from '../../data/mediaIdentity'
 import { weightClassLabel } from '../../data/weightClasses'
 import type { BoxingEvent, Fight, Fighter, GameState, Id, WeightClassId } from '../types'
+import { levelOf } from '../business/titleDefs'
 import { addCareer, seedCareers } from './career'
 import { narrativesFromFight, narrativesFromRetirement, narrativesFromTitle, weeklyNarratives } from './narratives'
 import { addInterest, decayProfiles, profileOf } from './popularity'
@@ -20,7 +21,7 @@ import { RANK_ORG_BY_ID } from './orgs'
 import { rankIn, reseatLists, updateRankings, type RankMove } from './rankings'
 import { freshMedia, LIMITS } from './state'
 import { coverEvent, pruneStories } from './stories'
-import { flagTitleFights, installChampions, maintainTitles, settleTitleFight, titleName, type TitleEvent } from './titles'
+import { activateTitles, flagTitleFights, installChampions, maintainTitles, settleTitleFight, titleName, type TitleEvent } from './titles'
 import type { MediaState } from './types'
 import { koCompilations, applyViral, unwindViral, videosFromFight } from './videos'
 import { announcedFight, cancelledEvent, eventFromFight, eventsFromShow, primaryRank, type WorldEvent } from './worldEvents'
@@ -163,17 +164,29 @@ function promoCoverage(_state: GameState, media: MediaState, ev: BoxingEvent, ou
 
 function titleEventToWorld(state: GameState, te: TitleEvent): WorldEvent | null {
   const f = te.f ? state.fighters[te.f] : undefined
+  const o = te.o ? state.fighters[te.o] : undefined
   const body = bodyIdentity(te.body)
   const div = weightClassLabel(te.wc)
   const title = titleName(te.body, te.wc)
+  const lvl = levelOf(te.body)
+  const lvlSig = lvl === 'world' ? 14 : lvl === 'european' ? 9 : lvl === 'domestic' ? 6 : 2
+  const feature = (h: string, sub: string, text: string, sig: number, fighters: Id[], tags: string[]): WorldEvent => ({
+    kind: 'FEATURE', day: state.today, fighters, names: fighters.map((id) => fighterName(state.fighters[id])), promotions: [], facts: { h, s: sub, body: text },
+    sig: Math.round(clampTo(sig)), parts: { title: lvlSig }, tags,
+  })
   if (te.kind === 'MANDATORY' && f && te.o) {
     const ch = state.fighters[te.o]
-    return { kind: 'MANDATORY', day: state.today, fighters: [f.id, te.o], names: [fighterName(f), fighterName(ch)], promotions: [], facts: { body: body.shortName, c: fighterName(f), ch: fighterName(ch), div, due: formatDay(state.today + 26 * 7, false), title }, sig: Math.round(clampTo(26 + f.popularity * 0.3 + f.reputation * 0.2)), parts: { champion: f.popularity * 0.3 }, tags: ['mandatory'] }
+    return { kind: 'MANDATORY', day: state.today, fighters: [f.id, te.o], names: [fighterName(f), fighterName(ch)], promotions: [], facts: { body: body.shortName, c: fighterName(f), ch: fighterName(ch), div, due: formatDay(state.today + 26 * 7, false), title }, sig: Math.round(clampTo(26 + lvlSig + f.popularity * 0.3 + f.reputation * 0.2)), parts: { champion: f.popularity * 0.3 }, tags: ['mandatory'] }
   }
   if ((te.kind === 'STRIPPED' || te.kind === 'TITLE_VACANT') && te.f) {
     const n = f ? fighterName(f) : 'The champion'
-    return { kind: te.kind === 'STRIPPED' ? 'STRIPPED' : 'TITLE_VACANT', day: state.today, fighters: [te.f], names: [n], promotions: [], facts: { n, title, body: body.shortName, div, how: te.how ?? '' }, sig: Math.round(clampTo(34 + (f?.popularity ?? 20) * 0.3 + (f?.reputation ?? 20) * 0.2)), parts: { vacancy: 30 }, tags: ['vacancy'] }
+    return { kind: te.kind === 'STRIPPED' ? 'STRIPPED' : 'TITLE_VACANT', day: state.today, fighters: [te.f], names: [n], promotions: [], facts: { n, title, body: body.shortName, div, how: te.how ?? '' }, sig: Math.round(clampTo(30 + lvlSig + (f?.popularity ?? 20) * 0.3 + (f?.reputation ?? 20) * 0.2)), parts: { vacancy: 30 }, tags: ['vacancy'] }
   }
+  if (te.kind === 'ELIM_ORDERED' && f && o) return feature(`${body.shortName} order ${div} eliminator: ${fighterName(f)} v ${fighterName(o)}`, 'The winner becomes the mandatory challenger', `${body.name} have ordered an eliminator between ${fighterName(f)} and ${fighterName(o)}, two of the leading ${div} contenders. The winner will be named mandatory challenger for the ${title}.`, 24 + lvlSig + (f.popularity + o.popularity) * 0.15, [f.id, o.id], ['eliminator'])
+  if (te.kind === 'ELIM_RESULT' && f && o) return feature(`${fighterName(f)} wins the ${body.shortName} ${div} eliminator`, `Now mandatory challenger for the ${title}`, `${fighterName(f)} beat ${fighterName(o)} in the ${body.name} ${div} eliminator and has been named mandatory challenger for the ${title}.`, 28 + lvlSig + f.popularity * 0.2, [f.id, o.id], ['eliminator'])
+  if (te.kind === 'MANDATORY_EXTENDED' && f && o) return feature(`${body.shortName} extend the deadline for ${fighterName(f)} v ${fighterName(o)}`, te.how ?? 'Deadline extended', `${body.name} have given the ${div} champion and challenger eight more weeks to make the mandatory defence: ${te.how ?? 'a valid delay'}.`, 18 + lvlSig, [f.id, o.id], ['mandatory'])
+  if (te.kind === 'TITLE_OPEN' && lvl !== 'area') return feature(`The ${title} is vacant and open to contenders`, `${div} · ${body.shortName}`, `The ${title} has no champion. The leading ${body.name} ${div} contenders are expected to meet for it.`, 14 + lvlSig, [], ['vacancy'])
+  if ((te.kind === 'UNIFIED' || te.kind === 'UNDISPUTED') && f) return feature(te.kind === 'UNDISPUTED' ? `${fighterName(f)} is the undisputed ${div} champion` : `${fighterName(f)} unifies the ${div} titles`, te.kind === 'UNDISPUTED' ? 'Every world title in the division' : 'More than one world belt', `${fighterName(f)} now holds ${te.kind === 'UNDISPUTED' ? 'every world title in the division' : 'more than one world title'} at ${div}.`, 52 + f.popularity * 0.3, [f.id], ['unification'])
   return null
 }
 
@@ -198,7 +211,7 @@ function weekly(state: GameState, media: MediaState, week: number, ingested: Ing
 
   // Rankings and titles
   const moves = updateRankings(state, media)
-  const titleEvs = [...maintainTitles(state, media), ...flagTitleFights(state, media)]
+  const titleEvs = [...activateTitles(state, media), ...maintainTitles(state, media), ...flagTitleFights(state, media)]
   // A belt vacated, or a fighter retired, since the lists were last published: keep every list truthful.
   const touched = new Set<WeightClassId>(titleEvs.filter((t) => t.kind === 'TITLE_VACANT' || t.kind === 'STRIPPED').map((t) => t.wc))
   for (const f of Object.values(state.fighters)) if (f.status === 'retired' && f.retiredDay !== null && f.retiredDay > lastDay) touched.add(f.weightClass)

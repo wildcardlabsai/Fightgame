@@ -4,6 +4,7 @@
  * for young prospects. Asking terms add the fighter's personality and relationship with the
  * promotion — which is exactly what the player has to discover through negotiation.
  */
+import { careerValue } from './business/marketValue'
 import { playerRosterCap } from './tiers'
 import { BALANCE as B } from './balance'
 import { ageOn, weeksBetween } from './calendar'
@@ -30,10 +31,12 @@ export function marketValue(p: PublicFacts, buzzValue: number): number {
   return clamp(mv, 3, 99)
 }
 
-/** Value of a fighter on the open market (0–100). */
+/**
+ * Value of a fighter on the open market (0–100). Since Phase 5.4 this is the career market value of the Market Value Engine
+ * (public facts only: record, opposition, ranking, belts, form, activity, age and fame). The old `buzz` that peeked at potential is gone.
+ */
 export function valueOf(state: GameState, f: Fighter): number {
-  const p = publicFacts(f, state.today)
-  return marketValue(p, p.age <= 25 ? buzz(state, f) : p.reputation)
+  return careerValue(state, f)
 }
 
 export function ageValueMult(age: number): number {

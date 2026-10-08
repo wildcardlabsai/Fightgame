@@ -14,6 +14,8 @@ import { weeksBetween } from '../calendar'
 import { fighterAge, fighterName } from '../fighters'
 import type { IdSource } from '../ids'
 import { appraise, askTerms, aiLuck, normaliseOffer, valueOf } from '../market'
+import { titleObligation } from '../business/titleEco'
+import { titlesHeldBy } from '../media/titles'
 import { postMessage, postNews } from '../messages'
 import { archiveContract, becomeFreeAgent, buildContract, pushHistory, rosterFull } from '../roster'
 import type { Rng } from '../rng'
@@ -105,6 +107,11 @@ export function aiReleases(state: GameState, rng: Rng): void {
 
 interface Bid { promo: Promotion; fit: number }
 
+/** A belt-holder, or a fighter an eliminator / mandatory order is waiting for. */
+function holdsOrChases(state: GameState, f: Fighter): boolean {
+  return !!state.media?.effects && (titlesHeldBy(state.media, f.id).length > 0 || titleObligation(state, f.id) !== null)
+}
+
 /** Rivals scout the market and bid; contested fighters go to the most attractive suitor. */
 export function aiSigning(state: GameState, rng: Rng, ids: IdSource): void {
   const market = Object.values(state.fighters).filter((f) => f.status === 'active' && f.contractId === null)
@@ -117,13 +124,16 @@ export function aiSigning(state: GameState, rng: Rng, ids: IdSource): void {
     if (state.today < ai.cooldownUntil || rosterFull(state, promo.id) || !behaviour(promo).signing || ai.fin.collapsing) continue
     const count = Object.values(state.contracts).filter((c) => c.promotionId === promo.id).length
     const needs = count < B.ai.rosterTarget[promo.tier]
-    const p = needs ? (ai.urgency > 0 ? B.ai.urgentSignChance : B.ai.signChance) : 0.04
+    // A champion or a title contender with no promotion is a priority signing: belts cannot be defended from the free-agent pool.
+    const titled = market.filter((f) => holdsOrChases(state, f))
+    const p = Math.max(needs ? (ai.urgency > 0 ? B.ai.urgentSignChance : B.ai.signChance) : 0.04, titled.length > 0 ? 0.3 : 0)
     if (!rng.chance(p)) continue
     let best: { f: Fighter; fit: number } | null = null
     for (const f of market) {
-      const { fit, eligible } = aiFit(state, promo, f)
+      const { fit: baseFit, eligible } = aiFit(state, promo, f)
       if (!eligible) continue
       if (!affordable(promo, askTerms(state, f, promo, 'signing'))) continue
+      const fit = baseFit + (titled.includes(f) ? 40 : 0)
       if (!best || fit > best.fit) best = { f, fit }
     }
     if (!best) continue

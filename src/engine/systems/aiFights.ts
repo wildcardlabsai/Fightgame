@@ -15,6 +15,7 @@ import { transition } from '../fight/lifecycle'
 import { chooseVenue, createFight, fightAvailability, lockKey, restUntil } from '../fights'
 import { appraise, baseMoney, valueOf } from '../market'
 import { titleBonus, titlePartners } from '../media/titles'
+import { titleObligation, unificationPartner } from '../business/titleEco'
 import type { Rng } from '../rng'
 import type { Contract, Fighter, GameState, Id, Promotion } from '../types'
 
@@ -45,13 +46,22 @@ export function aiMatchmaking(state: GameState, rng: Rng): void {
     const needy = contracts
       .map((c) => ({ c, f: state.fighters[c.fighterId] }))
       .filter((x) => x.f && bookable(state, x.f, day))
-      .sort((a, b) => weeksSince(state, b.f) - weeksSince(state, a.f))
+      .sort((a, b) => (titleObligation(state, b.f.id) ? 1000 : 0) + weeksSince(state, b.f) - ((titleObligation(state, a.f.id) ? 1000 : 0) + weeksSince(state, a.f)))
       .slice(0, 4)
     if (needy.length === 0) continue
     const { c, f: x } = needy[Math.min(needy.length - 1, rng.int(0, 1))]
     if (weeksSince(state, x) < B.fights.restWeeks + 2) continue
 
-    const opp = pickOpponent(state, promo, x, day, playerRoster, rng)
+    // A title obligation (mandatory defence, eliminator, a vacant belt) is honoured first when the other side can be booked — the same rules the player faces.
+    const ob = titleObligation(state, x.id)
+    const obOpp = ob ? state.fighters[ob.partner] : undefined
+    // While a mandatory defence is pending, neither man takes an unrelated fight if the order can still be met.
+    if (ob && ob.kind === 'mandatory' && (!obOpp || playerRoster.has(obOpp.id) || !bookable(state, obOpp, day))) continue
+    const uniId = ob ? null : unificationPartner(state, x.id)
+    const uni = uniId ? state.fighters[uniId] : undefined
+    const opp = obOpp && !playerRoster.has(obOpp.id) && bookable(state, obOpp, day) && !(state.fightLocks[lockKey(x.id, obOpp.id)] > state.today) && !rng.chance(0.2) ? obOpp
+      : uni && !playerRoster.has(uni.id) && bookable(state, uni, day) && !(state.fightLocks[lockKey(x.id, uni.id)] > state.today) ? uni
+      : pickOpponent(state, promo, x, day, playerRoster, rng)
     if (!opp) continue
     // Cost
     const ct = opp.contractId ? state.contracts[opp.contractId] : null
@@ -75,6 +85,12 @@ export function aiMatchmaking(state: GameState, rng: Rng): void {
   }
 }
 
+/** A fighter whose mandatory defence is pending is not offered unrelated fights by other promoters. */
+function reservedForMandatory(state: GameState, id: Id, withId: Id): boolean {
+  const ob = titleObligation(state, id)
+  return !!ob && ob.kind === 'mandatory' && ob.partner !== withId
+}
+
 export function pickOpponent(state: GameState, promo: Promotion, x: Fighter, day: number, playerRoster: Set<Id>, rng: Rng): Fighter | null {
   const strat = promo.ai!.strategy
   const aX = appraise(state, promo, x).rating
@@ -85,7 +101,7 @@ export function pickOpponent(state: GameState, promo: Promotion, x: Fighter, day
   }
   const pool = Object.values(state.fighters).filter((o) =>
     o.id !== x.id && o.status === 'active' && !playerRoster.has(o.id) && weightCompatible(x.weightClass, o.weightClass) !== 'no' && bookable(state, o, day) &&
-    !(state.fightLocks[lockKey(x.id, o.id)] > state.today))
+    !(state.fightLocks[lockKey(x.id, o.id)] > state.today) && !reservedForMandatory(state, o.id, x.id))
   if (pool.length === 0) return null
   const sample = rng.shuffle(pool).slice(0, 60)
   // A body's champion, mandatory challenger or the top two for a vacant belt are always worth a look (no extra randomness used).

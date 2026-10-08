@@ -5,13 +5,17 @@
  */
 import { WEIGHT_CLASSES } from '../../data/weightClasses'
 import type { Day, Fighter, GameState, Id, WeightClassId } from '../types'
+import { TITLE_DEF_BY_ID, isEligibleFor } from '../business/titleDefs'
 import { RANKING_ORGS, RANK_ORG_BY_ID } from './orgs'
 import { pack } from './packed'
 import { getList } from './records'
 import type { MediaState, RankEntry, RankList, RankingMethod, RankingOrg, RankReason } from './types'
 import { totalFightsOf, weekIndex } from './util'
 
+/** Media lists and the index rate fighters with this many bouts; title bodies set their own minimum (business/titleDefs). */
 export const MIN_FIGHTS_TO_RANK = 5
+/** Everyone any list could rate gets a context (the smallest minimum of any body). */
+const MIN_CONTEXT_FIGHTS = 3
 
 export const encodeWhy = (w: RankReason): string => (w.o ? `${w.k}:${w.o}:${w.or ?? ''}` : w.k)
 export function decodeWhy(s: string): RankReason {
@@ -44,7 +48,7 @@ export function buildContexts(state: GameState, media: MediaState): Map<Id, RecC
   for (const f of Object.values(state.fighters)) {
     if (f.status !== 'active') continue
     const total = totalFightsOf(f)
-    if (total < MIN_FIGHTS_TO_RANK) continue
+    if (total < MIN_CONTEXT_FIGHTS) continue
     const fights: FightRec[] = []
     for (let i = f.recentFights.length - 1; i >= Math.max(0, f.recentFights.length - 8); i--) {
       const ft = state.fights[f.recentFights[i]]
@@ -104,10 +108,15 @@ export function rankIn(media: MediaState, orgId: string, wc: WeightClassId, id: 
   return l?.e.find((e) => e.f === id)?.r ?? null
 }
 
-function computeList(state: GameState, media: MediaState, org: RankingOrg, wc: WeightClassId, ctx: Map<Id, RecCtx>, pool: Fighter[], first: boolean): RankList | null {
+function computeList(state: GameState, media: MediaState, org: RankingOrg, wc: WeightClassId, ctx: Map<Id, RecCtx>, everyone: Fighter[], first: boolean): RankList | null {
   const prev = getList(media, org.id, wc)
-  if (pool.length < MIN_DIVISION_SIZE) return prev ? { u: state.today, e: [] } : null
   const champId = org.sanctions ? media.titles[`${org.id}|${wc}`]?.c ?? null : null
+  // Who may be on this list: every eligible, active fighter with enough fights (title bodies carry their own territory rule).
+  const def = TITLE_DEF_BY_ID[org.id]
+  const minFights = def?.minFights ?? MIN_FIGHTS_TO_RANK
+  const pool = everyone.filter((f) => totalFightsOf(f) >= minFights && (!def || isEligibleFor(def, f)))
+  const minPool = def?.minPool ?? MIN_DIVISION_SIZE
+  if (pool.length < minPool && !(champId && ctx.has(champId))) return prev ? { u: state.today, e: [] } : null
   const scored = pool.map((f) => ({ f, s: rankScore(f, ctx.get(f.id)!, org.methodology) })).sort((a, b) => b.s - a.s || (a.f.id < b.f.id ? -1 : 1))
   const prevRankOf = (id: Id): number | null => prev?.e.find((e) => e.f === id)?.r ?? null
   const entries: RankEntry[] = []

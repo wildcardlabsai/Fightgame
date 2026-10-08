@@ -4,7 +4,10 @@
  * by id. Replacing this pack (see docs/MEDIA_WORLD.md → Licensed Media Integration) renames the whole media world without
  * touching a line of simulation code.
  *
- * Every organisation below is FICTIONAL. None of them is, represents, or is endorsed by a real company.
+ * The media outlets and broadcasters below are FICTIONAL: none of them is, represents, or is endorsed by a real company.
+ * CHAMPIONSHIP NAMES (Phase 5.4) are real title names (WBC, WBA, IBF, WBO, European, British, Commonwealth and the area titles), used
+ * only to NAME titles in the game. Every rule attached to them is a game abstraction (see engine/business/titleDefs.ts); the game is
+ * not affiliated with, endorsed by or licensed by any sanctioning body or governing board, and uses no logos or organisational branding.
  */
 import type { MediaIdentity } from '../engine/media/types'
 
@@ -50,14 +53,34 @@ export const DEFAULT_PACK: IdentityPack = {
     globeintl: { id: 'globeintl', name: 'Globe International Sports', shortName: 'GLOBE', tagline: 'Sport without borders', colour: '#7d3cff', logoAsset: null },
   },
   bodies: {
-    atlas: { id: 'atlas', name: 'Atlas Boxing Council', shortName: 'ATLAS', titleName: 'Atlas World', colour: '#0f7a4a', logoAsset: null },
-    pioneer: { id: 'pioneer', name: 'Pioneer Boxing Federation', shortName: 'PIONEER', titleName: 'Pioneer World', colour: '#b3202a', logoAsset: null },
-    crown: { id: 'crown', name: 'Crown Boxing Association', shortName: 'CROWN', titleName: 'Crown World', colour: '#d4a24c', logoAsset: null },
+    atlas: { id: 'atlas', name: 'WBC', shortName: 'WBC', titleName: 'WBC', colour: '#0f7a4a', logoAsset: null },
+    pioneer: { id: 'pioneer', name: 'WBA', shortName: 'WBA', titleName: 'WBA', colour: '#b3202a', logoAsset: null },
+    crown: { id: 'crown', name: 'IBF', shortName: 'IBF', titleName: 'IBF', colour: '#d4a24c', logoAsset: null },
+    apex: { id: 'apex', name: 'WBO', shortName: 'WBO', titleName: 'WBO', colour: '#2a7fba', logoAsset: null },
+    european: { id: 'european', name: 'European', shortName: 'EUROPEAN', titleName: 'European', colour: '#3b82f6', logoAsset: null },
+    british: { id: 'british', name: 'British', shortName: 'BRITISH', titleName: 'British', colour: '#8d1f2b', logoAsset: null },
+    commonwealth: { id: 'commonwealth', name: 'Commonwealth', shortName: 'COMMONWEALTH', titleName: 'Commonwealth', colour: '#1b8f5a', logoAsset: null },
+    area_wal: { id: 'area_wal', name: 'Welsh Area', shortName: 'WELSH AREA', titleName: 'Welsh Area', colour: '#c8102e', logoAsset: null },
+    area_eng: { id: 'area_eng', name: 'English Area', shortName: 'ENGLISH AREA', titleName: 'English Area', colour: '#7d3cff', logoAsset: null },
+    area_nor: { id: 'area_nor', name: 'Northern Area', shortName: 'NORTHERN AREA', titleName: 'Northern Area', colour: '#5fd1c9', logoAsset: null },
+    area_cen: { id: 'area_cen', name: 'Central Area', shortName: 'CENTRAL AREA', titleName: 'Central Area', colour: '#f0a23a', logoAsset: null },
+    area_mid: { id: 'area_mid', name: 'Midlands Area', shortName: 'MIDLANDS AREA', titleName: 'Midlands Area', colour: '#ff6a1a', logoAsset: null },
+    area_sou: { id: 'area_sou', name: 'Southern Area', shortName: 'SOUTHERN AREA', titleName: 'Southern Area', colour: '#8d8b95', logoAsset: null },
   },
   rankings: {
-    atlas: { id: 'atlas', name: 'Atlas Boxing Council Rankings', shortName: 'ATLAS', colour: '#0f7a4a', logoAsset: null },
-    pioneer: { id: 'pioneer', name: 'Pioneer Boxing Federation Rankings', shortName: 'PIONEER', colour: '#b3202a', logoAsset: null },
-    crown: { id: 'crown', name: 'Crown Boxing Association Rankings', shortName: 'CROWN', colour: '#d4a24c', logoAsset: null },
+    atlas: { id: 'atlas', name: 'WBC Rankings', shortName: 'WBC', colour: '#0f7a4a', logoAsset: null },
+    pioneer: { id: 'pioneer', name: 'WBA Rankings', shortName: 'WBA', colour: '#b3202a', logoAsset: null },
+    crown: { id: 'crown', name: 'IBF Rankings', shortName: 'IBF', colour: '#d4a24c', logoAsset: null },
+    apex: { id: 'apex', name: 'WBO Rankings', shortName: 'WBO', colour: '#2a7fba', logoAsset: null },
+    european: { id: 'european', name: 'European Rankings', shortName: 'EUROPEAN', colour: '#3b82f6', logoAsset: null },
+    british: { id: 'british', name: 'British Rankings', shortName: 'BRITISH', colour: '#8d1f2b', logoAsset: null },
+    commonwealth: { id: 'commonwealth', name: 'Commonwealth Rankings', shortName: 'COMMONWEALTH', colour: '#1b8f5a', logoAsset: null },
+    area_wal: { id: 'area_wal', name: 'Welsh Area Rankings', shortName: 'WELSH AREA', colour: '#c8102e', logoAsset: null },
+    area_eng: { id: 'area_eng', name: 'English Area Rankings', shortName: 'ENGLISH AREA', colour: '#7d3cff', logoAsset: null },
+    area_nor: { id: 'area_nor', name: 'Northern Area Rankings', shortName: 'NORTHERN AREA', colour: '#5fd1c9', logoAsset: null },
+    area_cen: { id: 'area_cen', name: 'Central Area Rankings', shortName: 'CENTRAL AREA', colour: '#f0a23a', logoAsset: null },
+    area_mid: { id: 'area_mid', name: 'Midlands Area Rankings', shortName: 'MIDLANDS AREA', colour: '#ff6a1a', logoAsset: null },
+    area_sou: { id: 'area_sou', name: 'Southern Area Rankings', shortName: 'SOUTHERN AREA', colour: '#8d8b95', logoAsset: null },
     ringside: { id: 'ringside', name: 'Ringside Magazine Ratings', shortName: 'RINGSIDE RATINGS', colour: '#b3202a', logoAsset: null },
     index: { id: 'index', name: 'The Boxing Index', shortName: 'BOXING INDEX', colour: '#5fd1c9', logoAsset: null },
   },

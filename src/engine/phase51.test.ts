@@ -13,7 +13,7 @@ import { getAwards, getCareer, getDone, getList, getReigns } from './media/recor
 import { eventFromFight } from './media/worldEvents'
 import { compose } from './media/copy'
 import { reseatLists } from './media/rankings'
-import { settleTitleFight, titleName } from './media/titles'
+import { settleTitleFight, titleName, touchTitles } from './media/titles'
 import { expandStory } from './media/stories'
 import { clone } from './media/testing'
 import { WEIGHT_CLASSES } from '../data/weightClasses'
@@ -65,8 +65,8 @@ beforeAll(() => {
           else if (c.from && ![fight.sideA.fighterId, fight.sideB.fighterId].includes(c.from)) watch.badTransition.push(`${c.key}: ${c.to} beat someone other than ${c.from}`)
         } else if (c.from) {
           const f = s.fighters[c.from]
-          const reign = getReigns(m).find((r) => r.b === body && r.wc === wc && r.f === c.from && r.to !== null)
-          if (!reign || !/retired|inactivity|refusing/.test(reign.how)) if (f && f.status !== 'retired') watch.badTransition.push(`${c.key}: ${c.from} left the belt vacant without a reason`)
+          const reign = getReigns(m).filter((r) => r.b === body && r.wc === wc && r.f === c.from && r.to !== null).pop()
+          if (!reign || !/retired|inactivity|refusing|relinquished|lost to/.test(reign.how)) if (f && f.status !== 'retired') watch.badTransition.push(`${c.key}: ${c.from} left the belt vacant without a reason`)
         }
       }
     }
@@ -187,7 +187,7 @@ describe('ranking integrity (five lists)', () => {
     const [body, wc] = key!.split('|')
     const list = getList(m, body, wc as never)!
     const contender = list.e.find((e) => e.r === 2)!
-    m.titles[key!].c = contender.f
+    m.titles[key!].c = contender.f; touchTitles(m)
     const retiree = list.e.find((e) => e.r === 4)!
     s.fighters[retiree.f].status = 'retired'
     reseatLists(s, m, [wc as never])
