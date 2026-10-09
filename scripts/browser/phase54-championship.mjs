@@ -121,7 +121,7 @@ async function attempt(label, reqIdx, schedIdx, viaEvent) {
   await page.getByTestId('lf-skip').click().catch(() => {}); await page.waitForTimeout(500)
   const fin = await page.getByTestId('lf-finish').innerText()
   f = await fightOf(page, id)
-  const stopped = !['UD', 'SD', 'MD', 'DRAW'].includes(f.result.method)
+  const stopped = !['UD', 'SD', 'MD', 'DRAW', 'MDRAW', 'SDRAW'].includes(f.result.method)
   const endText = await page.getByTestId('lf-round').first().innerText()
   if (stopped) {
     check(`${label} a stoppage ends it early: ${f.result.method} in round ${f.result.round} of 12`, f.result.round >= 1 && f.result.round <= 12 && /ENDED R\d+/.test(endText) && f.result.recorded === f.result.round, `${endText} ${JSON.stringify(f.result)}`)
