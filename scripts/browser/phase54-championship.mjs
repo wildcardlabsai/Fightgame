@@ -1,18 +1,19 @@
 // Phase 5.4 integrity: a NEW championship fight driven through the playable build, start to finish, through the real screens.
 // Titles -> Request title fight -> negotiation -> schedule (or add to a show) -> advance weeks -> Fight Night -> result -> history.
-// Usage: node scripts/browser/phase54-championship.mjs <baseUrl> <fixturesDir> [shotsDir]
+// Usage: node scripts/browser/phase54-championship.mjs <baseUrl> <fixturesDir> [shotsDir] [fixture=p54-ordered]
+// p54-ordered: the board has ordered the world title challenges the player's fighters can ask for, so a request cannot be turned down.
 import { createRequire } from 'node:module'
 import { readFileSync, mkdirSync } from 'node:fs'
 const require = createRequire(import.meta.url)
 let chromium
 try { ({ chromium } = require('playwright')) } catch { ({ chromium } = require('/opt/node-tools/node_modules/playwright')) }
-const [base = 'http://localhost:4180/play', fx = '/tmp/e2e', shots = '/tmp/e2e-shots-champ'] = process.argv.slice(2)
+const [base = 'http://localhost:4180/play', fx = '/tmp/e2e', shots = '/tmp/e2e-shots-champ', fixtureName = 'p54-ordered'] = process.argv.slice(2)
 mkdirSync(shots, { recursive: true })
 const errors = []
 let passes = 0, fails = 0
 const check = (name, ok, detail = '') => { if (ok) passes++; else fails++; console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${ok ? '' : `  -> ${detail}`}`) }
 const browser = await chromium.launch()
-const fixture = readFileSync(`${fx}/p54-played.json`, 'utf8')
+const fixture = readFileSync(`${fx}/${fixtureName}.json`, 'utf8')
 const WORLD = ':is([data-body=atlas],[data-body=pioneer],[data-body=crown],[data-body=apex])'
 
 const hash = (p) => p.evaluate(() => location.hash)
@@ -38,6 +39,7 @@ async function playTalks(page) {
 }
 
 const results = []
+let declines = 0
 async function attempt(label, reqIdx, schedIdx, viaEvent) {
   const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 } })
   const page = await ctx.newPage()
@@ -51,13 +53,20 @@ async function attempt(label, reqIdx, schedIdx, viaEvent) {
   if (reqIdx >= (await btns.count())) { await ctx.close(); return null }
   await btns.nth(reqIdx).scrollIntoViewIfNeeded(); await btns.nth(reqIdx).click(); await page.waitForTimeout(600)
   const m = /#\/deal\/(\w+)/.exec(await hash(page))
+  if (!m) {
+    // Not every challenge is accepted: the champion's camp can turn a voluntary one down, and says so.
+    const toast = await page.locator('.toasts').innerText().catch(() => '')
+    check(`${label} a request is either opened or turned down with a reason`, /turned the challenge down/.test(toast), toast)
+    console.log(`INFO  ${label} declined: ${toast.replace(/\s+/g, ' ').slice(0, 120)}`)
+    declines++
+    await ctx.close(); return null
+  }
   check(`${label} Request title fight opens the fight negotiation`, !!m, await hash(page))
-  if (!m) { await ctx.close(); return null }
   const id = m[1]
   let f = await fightOf(page, id)
   check(`${label} a WORLD title fight is 12 rounds the moment it is created`, f.rounds === 12 && f.status === 'negotiating', JSON.stringify(f))
   const talked = await playTalks(page)
-  if (!talked) { console.log(`INFO  ${label} the camp did not agree terms (a legitimate outcome of the talks) — skipped`); await ctx.close(); return null }
+  if (!talked) { console.log(`INFO  ${label} the camp did not agree terms (a legitimate outcome of the talks) — skipped`); declines++; await ctx.close(); return null }
   check(`${label} the camp agrees terms`, talked, await hash(page))
   f = await fightOf(page, id)
   check(`${label} agreed fight is still 12 rounds`, f.rounds === 12, JSON.stringify(f))
@@ -83,6 +92,7 @@ async function attempt(label, reqIdx, schedIdx, viaEvent) {
     await page.getByRole('button', { name: /Advance Week/ }).first().click(); await page.waitForTimeout(350)
   }
   f = await fightOf(page, id)
+  if (f.status === 'cancelled') { console.log(`INFO  ${label} the booked fight was called off by the world (${guard} weeks in) — skipped`); await ctx.close(); return null }
   check(`${label} reaches fight night with 12 rounds (after ${guard} weeks)`, f.status === 'fightNight' && f.rounds === 12, JSON.stringify(f))
   if (f.status !== 'fightNight') { await ctx.close(); return null }
   // Fight Night
@@ -136,17 +146,24 @@ async function attempt(label, reqIdx, schedIdx, viaEvent) {
   return { label, method: f.result.method, stopped, round: f.result.round }
 }
 
-const plan = [[0, 0, false], [1, 1, false], [2, 2, false], [3, 0, false], [0, 3, true], [1, 4, false], [2, 5, true], [0, 6, false], [1, 7, false], [3, 2, false], [2, 8, false], [0, 9, false]]
+const declinedReq = new Set()
 let n = 0
-for (const [r, s, ev] of plan) {
-  const out = await attempt(`#${++n}${ev ? '(show)' : ''}`, r, s, ev)
-  if (out) results.push(out)
-  const dist = results.some((x) => !x.stopped), stop = results.some((x) => x.stopped)
-  if (dist && stop && results.length >= 3) break
+outer: for (let r = 0; r < 8; r++) {
+  for (let sc = 0; sc < 9; sc++) {
+    if (declinedReq.has(r)) break
+    const ev = sc === 6 // one attempt per request goes through a show
+    const before = declines
+    const out = await attempt(`#${++n}(req ${r}, date ${sc})${ev ? '(show)' : ''}`, r, sc, ev)
+    if (declines > before) declinedReq.add(r)
+    if (out) results.push(out)
+    if (results.some((x) => !x.stopped) && results.some((x) => x.stopped) && results.length >= 3) break outer
+    if (n >= 24) break outer
+  }
 }
 console.log('\nFights run:', results.map((x) => `${x.label} ${x.method}${x.stopped ? ' R' + x.round : ' (12 rounds)'}`).join('; '))
 check('at least one championship fight went the full 12 rounds', results.some((x) => !x.stopped))
 check('at least one championship fight ended early by KO/TKO/stoppage', results.some((x) => x.stopped))
+console.log(`Requests declined by the champion's camp: ${declines}`)
 check('no console, page or network errors', errors.length === 0, errors.slice(0, 4).join(' | '))
 console.log(`\n${passes} passed, ${fails} failed`)
 await browser.close()

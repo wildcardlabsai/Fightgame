@@ -16,7 +16,8 @@ import { DAYS_PER_WEEK } from '../calendar'
 import { fighterName } from '../fighters'
 import { keyedFloat, keyedRng } from '../rng'
 import type { Day, Fight, FightTitle, GameState, Id, WeightClassId } from '../types'
-import { TITLE_DEF_BY_ID, LEVEL_LABEL, LEVEL_ORDER, levelOf, levelRank, type TitleDef, type TitleLevel } from '../business/titleDefs'
+import { championCampResponse } from '../business/titleCamp'
+import { challengerShortfall, TITLE_DEF_BY_ID, LEVEL_LABEL, LEVEL_ORDER, levelOf, levelRank, type TitleDef, type TitleLevel } from '../business/titleDefs'
 import { noteDefence, noteTitleWon, noteUnified } from '../business/titleHistory'
 import { SANCTIONING } from './orgs'
 import { rankIn } from './rankings'
@@ -177,11 +178,15 @@ export function activateTitles(state: GameState, media: MediaState): TitleEvent[
     for (const w of WEIGHT_CLASSES) {
       const k = titleKey(org.id, w.id)
       const rec = media.titles[k]
-      const depth = (getList(media, org.id, w.id)?.e ?? []).filter((e) => e.r >= 1).length
-      if (!rec && depth >= d.minPool) {
+      const entries = (getList(media, org.id, w.id)?.e ?? []).filter((e) => e.r >= 1)
+      const depth = entries.length
+      // A belt is contested only when the division has enough fighters with the record of a credible challenger, not merely enough rated ones.
+      const credible = entries.filter((e) => qualifiesFor(state, org.id, e.f)).length
+      const need = d.level === 'world' ? 4 : 3
+      if (!rec && depth >= d.minPool && credible >= need) {
         media.titles[k] = { c: null, since: state.today, defences: 0, lastFight: state.today, vacantSince: state.today }
         ev.push({ kind: 'TITLE_OPEN', body: org.id, wc: w.id })
-      } else if (rec && !rec.c && !rec.elim && depth < d.minPool && rec.vacantSince !== undefined && state.today - rec.vacantSince > WEEKS(52)) {
+      } else if (rec && !rec.c && !rec.elim && (depth < d.minPool || credible < 2) && rec.vacantSince !== undefined && state.today - rec.vacantSince > WEEKS(52)) {
         delete media.titles[k]
       }
     }
@@ -254,7 +259,7 @@ export function maintainTitles(state: GameState, media: MediaState): TitleEvent[
     const list = getList(media, body, wc)
     if (!rec.elim && idle >= WEEKS(d.mandatoryAfterWeeks)) {
       // The leading contender who is still active in this division (a list may not yet have dropped someone who retired or moved this week).
-      const top = list?.e.find((e) => e.r >= 1 && e.f !== rec.c && state.fighters[e.f]?.status === 'active' && state.fighters[e.f].weightClass === wc)
+      const top = list?.e.find((e) => e.r >= 1 && e.f !== rec.c && state.fighters[e.f]?.status === 'active' && state.fighters[e.f].weightClass === wc && qualifiesFor(state, body, e.f))
       if (top) {
         rec.mand = { challenger: top.f, cn: fighterName(state.fighters[top.f]), ordered: state.today, due: state.today + WEEKS(d.mandatoryWindowWeeks) }
         ev.push({ kind: 'MANDATORY', body, wc, f: rec.c, o: top.f })
@@ -264,7 +269,7 @@ export function maintainTitles(state: GameState, media: MediaState): TitleEvent[
     // An eliminator: two real contenders, both free and unbooked, ordered rarely and only where the list has depth.
     if (!rec.elim && elimOpen < ELIM_MAX_OPEN && idle >= WEEKS(14) && state.today - (rec.lastElim ?? -1e9) >= WEEKS(ELIM_GAP_WEEKS) && list && list.e.filter((e) => e.r >= 1).length >= Math.max(5, d.minPool)) {
       if (keyedFloat(state.seed, 'elim', k, week) < ELIM_GATE) {
-        const pool = list.e.filter((e) => e.r >= 1 && e.r <= Math.min(5, d.challengerLimit) && e.f !== rec.c && free(state, e.f))
+        const pool = list.e.filter((e) => e.r >= 1 && e.r <= Math.min(5, d.challengerLimit) && e.f !== rec.c && free(state, e.f) && qualifiesFor(state, body, e.f))
         const x = pool[0], y = pool[1]
         if (x && y && state.fighters[x.f].weightClass === wc) {
           rec.elim = { a: x.f, b: y.f, ordered: state.today, due: state.today + WEEKS(ELIM_WINDOW_WEEKS) }
@@ -277,8 +282,30 @@ export function maintainTitles(state: GameState, media: MediaState): TitleEvent[
   return ev
 }
 
-/** Which bodies recognise this pairing as a title fight right now? */
-export function bodiesFor(media: MediaState, aId: Id, bId: Id, wc: WeightClassId): string[] {
+/** Does this fighter's record make them a credible challenger for this body's belt? (Being rated is not enough.) */
+export function qualifiesFor(state: GameState, body: string, id: Id): boolean {
+  const f = state.fighters[id]
+  const d = def(body)
+  return !!f && !!d && challengerShortfall(d, f.record) === null
+}
+
+/** Position among the QUALIFIED fighters on a body's list (1 = best qualified), or null when unlisted or not qualified. Used for vacant belts. */
+export function qualifiedRank(state: GameState, body: string, wc: WeightClassId, id: Id): number | null {
+  const l = state.media ? getList(state.media, body, wc) : null
+  if (!l) return null
+  let n = 0
+  for (const e of l.e) {
+    if (e.r < 1) continue
+    if (!qualifiesFor(state, body, e.f)) continue
+    n++
+    if (e.f === id) return n
+  }
+  return null
+}
+
+/** Which bodies recognise this pairing as a title fight right now? A challenger must have the record for the belt, unless the body ordered the fight. */
+export function bodiesFor(state: GameState, aId: Id, bId: Id, wc: WeightClassId): string[] {
+  const media = state.media!
   const out: string[] = []
   for (const org of SANCTIONING) {
     const rec = media.titles[titleKey(org.id, wc)]
@@ -288,11 +315,12 @@ export function bodiesFor(media: MediaState, aId: Id, bId: Id, wc: WeightClassId
     // A fighter who already holds a higher level of belt in this division does not contest a lower one (the ladder of levels).
     if (higherBeltOf(media, aId, wc, lvl) || higherBeltOf(media, bId, wc, lvl)) continue
     if (rec.c) {
-      if (rec.c === aId && rB !== null && rB >= 1 && rB <= org.challengerLimit) out.push(org.id)
-      else if (rec.c === bId && rA !== null && rA >= 1 && rA <= org.challengerLimit) out.push(org.id)
-    } else if (rA !== null && rB !== null && rA >= 1 && rB >= 1 && rA <= vacantLimit(org.id) && rB <= vacantLimit(org.id)) {
+      if (rec.c === aId && rB !== null && rB >= 1 && rB <= org.challengerLimit && (rec.mand?.challenger === bId || qualifiesFor(state, org.id, bId))) out.push(org.id)
+      else if (rec.c === bId && rA !== null && rA >= 1 && rA <= org.challengerLimit && (rec.mand?.challenger === aId || qualifiesFor(state, org.id, aId))) out.push(org.id)
+    } else if (rA !== null && rB !== null && rA >= 1 && rB >= 1 && (qualifiedRank(state, org.id, wc, aId) ?? 99) <= vacantLimit(org.id) && (qualifiedRank(state, org.id, wc, bId) ?? 99) <= vacantLimit(org.id)) {
       // A vacant WORLD belt is contested by contenders, not by another body's champion (that is the unification route).
       if (levelOf(org.id) === 'world' && (holdsWorldBelt(media, aId, wc) || holdsWorldBelt(media, bId, wc))) continue
+      if (!qualifiesFor(state, org.id, aId) || !qualifiesFor(state, org.id, bId)) continue
       out.push(org.id)
     }
   }
@@ -316,7 +344,7 @@ function flagOne(state: GameState, media: MediaState, fight: Fight): TitleEvent 
   if (fight.result || media.titleFights[fight.id] || elimFights[fight.id]) return null
   const a = state.fighters[fight.sideA.fighterId], b = state.fighters[fight.sideB.fighterId]
   if (!a || !b) return null
-  const bodies = bodiesFor(media, a.id, b.id, fight.weightClass)
+  const bodies = bodiesFor(state, a.id, b.id, fight.weightClass)
   if (bodies.length > 0) {
     media.titleFights[fight.id] = bodies
     const worlds = bodies.filter((x) => levelOf(x) === 'world')
@@ -481,12 +509,15 @@ export function titleBonus(state: GameState, x: Id, o: Id, wc: WeightClassId): n
     if (rec.c) {
       if ((rec.c === x && rO >= 1 && rO <= org.challengerLimit) || (rec.c === o && rX >= 1 && rX <= org.challengerLimit)) {
         const mand = rec.mand && (rec.mand.challenger === x || rec.mand.challenger === o)
+        // A challenger needs the record for the belt (unless the body ordered the fight) and the champion's camp has to want the fight.
+        const chall = rec.c === x ? o : x
+        if (!mand && (!qualifiesFor(state, org.id, chall) || !championCampResponse(state, rec.c, chall, wc, [org.id]).accept)) continue
         // Two champions of different world bodies meeting is a unification: it is made by intent (see unificationPartner), not by drift.
         const other = rec.c === x ? o : x
         if (!mand && levelOf(org.id) === 'world' && holdsWorldBelt(media, other, wc)) { best = Math.max(best, 6); continue }
         best = Math.max(best, mand ? 32 : 20)
       } else if (rX >= 1 && rO >= 1 && rX <= 6 && rO <= 6) best = Math.max(best, 3)
-    } else if (rX >= 1 && rO >= 1 && rX <= vacantLimit(org.id) && rO <= vacantLimit(org.id)) best = Math.max(best, 26)
+    } else if (rX >= 1 && rO >= 1 && (qualifiedRank(state, org.id, wc, x) ?? 99) <= vacantLimit(org.id) && (qualifiedRank(state, org.id, wc, o) ?? 99) <= vacantLimit(org.id)) best = Math.max(best, 26)
   }
   return best
 }

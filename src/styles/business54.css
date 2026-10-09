@@ -114,3 +114,5 @@
 .bz-best.champ { border-left: 3px solid var(--gold); background: linear-gradient(90deg, rgba(212,162,76,.16), transparent 70%); }
 .bz-head .chip { white-space: nowrap; flex: none; font-size: 12px; letter-spacing: .06em; }
 @media (max-width: 700px) { .btn.small { min-height: 44px; } }
+
+.bz-outlook { margin-left: 8px; } .bz-outlook.strong { color: var(--good); border-color: var(--good); } .bz-outlook.weak { color: var(--warn, #e0a030); border-color: var(--warn, #e0a030); }

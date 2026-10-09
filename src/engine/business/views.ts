@@ -23,12 +23,14 @@ import { planChoices, toldSummary } from './talkViews'
 import { negStage, STAGE_LABEL } from './stage'
 import { expectedContractTerms, type ExpectedContractTerms } from './terms'
 import { LADDER, STATUS_LABEL, currentTitleLabel, allEligibility, championObligations, contenderStatus, nextMilestone, titleOpportunities, type ContenderStatus, type Eligibility, type Opportunity } from './titleEco'
-import { LEVEL_LABEL, LEVEL_ORDER, TITLE_DEF_BY_ID, levelOf, type TitleLevel } from './titleDefs'
+import { challengerShortfall, LEVEL_LABEL, LEVEL_ORDER, TITLE_DEF_BY_ID, levelOf, type TitleLevel } from './titleDefs'
 import { planOf } from './plans'
 
 // ------------------------------------------------------------------ title boards (Titles screen)
 
-export interface ContenderRow { rank: number; id: Id; name: string; record: string; mine: boolean; reason: string; inChallengeRange: boolean; tag: 'mandatory' | 'eliminator' | null }
+export interface ContenderRow { rank: number; id: Id; name: string; record: string; mine: boolean; reason: string; inChallengeRange: boolean; tag: 'mandatory' | 'eliminator' | null
+  /** Inside the challenger range AND the record of a credible challenger (or ordered by the body). `need` says what is missing. */
+  qualified: boolean; need: string | null }
 export interface BeltCard {
   body: string
   bodyName: string
@@ -79,7 +81,8 @@ export function titleBoard(state: GameState, level: TitleLevel, wc: WeightClassI
     const contenders: ContenderRow[] = (list?.e ?? []).filter((e) => e.r >= 1).map((e) => {
       const why = reasonText(decodeWhy(e.why), e.p, e.r, (x) => (state.fighters[x] ? fighterName(state.fighters[x]) : undefined))
       const tag = t?.mand?.challenger === e.f ? 'mandatory' as const : t?.elim && (t.elim.a === e.f || t.elim.b === e.f) ? 'eliminator' as const : null
-      return { rank: e.r, id: e.f, name: nm(e.f), record: rec(e.f), mine: mine.has(e.f), reason: why, inChallengeRange: e.r <= (d?.challengerLimit ?? 0), tag }
+      const need = tag === 'mandatory' || !d || !state.fighters[e.f] ? null : challengerShortfall(d, state.fighters[e.f].record)
+      return { rank: e.r, id: e.f, name: nm(e.f), record: rec(e.f), mine: mine.has(e.f), reason: why, inChallengeRange: e.r <= (d?.challengerLimit ?? 0), tag, qualified: e.r <= (d?.challengerLimit ?? 0) && !need, need }
     })
     let state_: BeltCard['state'] = 'dormant'
     let note = `Not being contested: fewer than ${d?.minPool ?? 4} eligible, rated fighters in ${weightClassLabel(wc)}.`

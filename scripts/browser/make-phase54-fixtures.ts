@@ -5,7 +5,9 @@ import { advanceOneWeek } from '../../src/engine/tick'
 import { createNewGame } from '../../src/engine/worldgen'
 import { serialiseGame } from '../../src/engine/save'
 import { newLog, playWeek, STRATEGIES } from '../../src/engine/sim/strategies'
-import { titleKey, touchTitles } from '../../src/engine/media/titles'
+import { qualifiesFor, titleKey, touchTitles } from '../../src/engine/media/titles'
+import { getList } from '../../src/engine/media/records'
+import { levelOf } from '../../src/engine/business/titleDefs'
 
 const out = process.argv[2] ?? '/tmp/e2e'
 mkdirSync(out, { recursive: true })
@@ -30,4 +32,28 @@ if (mine && g.media) {
   touchTitles(g.media)
 }
 writeFileSync(`${out}/p54-champion.json`, serialiseGame(g))
+// A save where the board has ORDERED every world title challenge the player's fighters could ask for (mandatory challengers): a request cannot be
+// turned down, so the championship browser test can always run a fight through the screens.
+const o = structuredClone(s)
+{
+  // Hand the player the leading qualified contender of several world belts (taking over their own contracts), and have the board order each challenge.
+  const media = o.media!
+  const mineContracts = Object.values(o.contracts).filter((c) => c.promotionId === o.playerPromotionId && c.status === 'active')
+  let used = 0
+  const divisions = new Set<string>()
+  for (const [key, rec] of Object.entries(media.titles)) {
+    const [body, wc] = key.split('|')
+    if (!rec.c || levelOf(body) !== 'world' || rec.mand || divisions.has(wc) || used >= mineContracts.length || used >= 6) continue
+    const f = getList(media, body, wc as never)?.e.find((e) => e.r >= 1 && e.f !== rec.c && o.fighters[e.f].status === 'active' && !o.fighters[e.f].contractId && qualifiesFor(o, body, e.f))
+    if (!f) continue
+    const x = o.fighters[f.f], champ = o.fighters[rec.c]
+    const c = mineContracts[used++]
+    divisions.add(wc)
+    o.fighters[c.fighterId].contractId = null
+    c.fighterId = x.id; x.contractId = c.id
+    for (const id of [x.id, champ.id]) { const q = o.fighters[id]; q.activeFightId = null; q.injury = null; q.suspendedUntil = null; q.lastFightDay = null }
+    rec.mand = { challenger: x.id, cn: `${x.firstName} ${x.lastName}`, ordered: o.today, due: o.today + 26 * 7 }
+  }
+}
+writeFileSync(`${out}/p54-ordered.json`, serialiseGame(o))
 console.log('fixtures written to', out, 'mine', mine?.id, 'roster', Object.values(s.contracts).filter((c) => c.promotionId === s.playerPromotionId).length, 'events', Object.values(s.events).filter((e) => e.promotionId === s.playerPromotionId).length)

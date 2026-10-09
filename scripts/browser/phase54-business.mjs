@@ -171,11 +171,18 @@ for (const w of [1280, 1024, 390]) {
   await page.locator('[data-testid=path-card] .bz-pname').first().click(); await page.waitForTimeout(400)
   check('titles: card name opens the profile', /#\/fighter\//.test(await page.evaluate(() => location.hash)))
   await go(page, '#/titles')
-  const req = page.getByTestId('request-title-fight').first()
-  if (await req.count()) {
-    await req.click(); await page.waitForTimeout(500)
-    check('titles: Request title fight opens the fight negotiation', /#\/deal\//.test(await page.evaluate(() => location.hash)), await page.evaluate(() => location.hash))
-  } else console.log('INFO  no fighter can request a title fight in this fixture')
+  // Requests are not all accepted: the champion's camp may turn a voluntary challenge down (and says so); a board-ordered one cannot be refused.
+  const reqs = page.getByTestId('request-title-fight')
+  const nReq = await reqs.count()
+  let opened = false, declined = 0
+  for (let i = 0; i < nReq && !opened; i++) {
+    await go(page, '#/titles')
+    await page.getByTestId('request-title-fight').nth(i).click(); await page.waitForTimeout(500)
+    if (/#\/deal\//.test(await page.evaluate(() => location.hash))) opened = true
+    else if (/turned the challenge down/.test(await page.locator('.toasts').innerText().catch(() => ''))) declined++
+  }
+  if (nReq) check(`titles: Request title fight opens the negotiation, or the champion's camp says it turned the challenge down (${declined} declined of ${nReq})`, opened || declined === nReq, await page.evaluate(() => location.hash))
+  else console.log('INFO  no fighter can request a title fight in this fixture')
   await go(page, '#/titles')
   check('titles: no hidden-term leaks', leaks(await page.locator('main').innerText()).length === 0)
 

@@ -16,6 +16,9 @@ import { boundedPurse, careerValue, contextFor, eventRevenueMid } from './busine
 import { postMessage } from './messages'
 import { TIER_ORDER } from './promotions'
 import { settleRounds } from './business/fightRounds'
+import { stakesBetween } from './business/stakes'
+import { championCampResponse } from './business/titleCamp'
+import { sizeEdge } from './fight/profile'
 import { player } from './selectors'
 import type { Fight, FightOffer, GameState, Id, Mood, Promotion, Verdict } from './types'
 void _n
@@ -128,6 +131,14 @@ export function approachOpponent(input: GameState, myId: Id, oppId: Id): FightOu
   if (!me || !contract || contract.promotionId !== input.playerPromotionId) return { ok: false, error: 'Choose one of your own fighters.', state: input }
   const check = validateMatch(input, myId, oppId)
   if (!check.ok) return { ok: false, error: check.reason ?? 'That match cannot be made.', state: input }
+  // A voluntary title challenge is the champion's camp's call: it takes a credible, bankable challenger and turns the rest down.
+  // A fight the board has ordered (mandatory, eliminator) is never turned down.
+  const wc = sizeEdge(me.weightClass, input.fighters[oppId].weightClass) >= 0 ? me.weightClass : input.fighters[oppId].weightClass
+  const st = stakesBetween(input, myId, oppId, wc)
+  if (st.kind === 'title' || st.kind === 'unification') {
+    const resp = championCampResponse(input, oppId, myId, wc, st.bodies)
+    if (!resp.accept) return { ok: false, error: resp.reason ?? 'They will not take that fight.', state: input }
+  }
   const state = structuredClone(input)
   const opp = state.fighters[oppId]
   const fight = createFight(state, myId, oppId, state.playerPromotionId, 'player')

@@ -10,15 +10,15 @@ import { keyedFloat } from '../rng'
 import { fighterAge, fighterName } from '../fighters'
 import { SANCTIONING } from '../media/orgs'
 import { rankIn } from '../media/rankings'
-import { bodiesFor, higherBeltOf, holdsWorldBelt, titleKey, titleName, titlesHeldBy } from '../media/titles'
+import { bodiesFor, higherBeltOf, qualifiesFor, holdsWorldBelt, titleKey, titleName, titlesHeldBy } from '../media/titles'
 import { getList } from '../media/records'
 import type { Fight, Fighter, GameState, Id, WeightClassId } from '../types'
 import { bodyIdentity } from '../../data/mediaIdentity'
-import { LEVEL_STAKES, LEVEL_LABEL, LEVEL_ORDER, TITLE_DEF_BY_ID, eligibilityReason, isEligibleFor, levelOf, levelRank, type TitleLevel } from './titleDefs'
+import { challengerShortfall, LEVEL_STAKES, LEVEL_LABEL, LEVEL_ORDER, TITLE_DEF_BY_ID, eligibilityReason, isEligibleFor, levelOf, levelRank, type TitleLevel } from './titleDefs'
 
 const vacantFor = (body: string): number => (TITLE_DEF_BY_ID[body]?.challengerLimit ?? 5) + 1
 
-export type EligibilityStatus = 'champion' | 'mandatory' | 'eliminator' | 'challenger' | 'ranked' | 'unranked' | 'ineligible' | 'dormant'
+export type EligibilityStatus = 'champion' | 'mandatory' | 'eliminator' | 'challenger' | 'unqualified' | 'ranked' | 'unranked' | 'ineligible' | 'dormant'
 export interface Eligibility {
   body: string
   wc: WeightClassId
@@ -60,6 +60,9 @@ export function titleEligibility(state: GameState, f: Fighter, body: string, wc:
   if (rank === null || rank < 1) { reasons.push(`Not in the ${bodyIdentity(body).shortName} top ${d.rankingCount}.`); return { ...base, status: 'unranked', rank: null, champion: rec.c, canChallengeNow: false, reasons } }
   const limit = rec.c ? d.challengerLimit : vacantFor(body)
   if (rank <= limit) {
+    // High enough on the list, but the record is not yet that of a credible challenger.
+    const gap = challengerShortfall(d, f.record)
+    if (gap) { reasons.push(`Ranked #${rank} by ${bodyIdentity(body).shortName}, inside the top ${limit}, but not yet a credible challenger. ${gap}`); return { ...base, status: 'unqualified', rank, champion: rec.c, canChallengeNow: false, reasons, limit } }
     reasons.push(`Ranked #${rank} by ${bodyIdentity(body).shortName}; ${rec.c ? 'challenges are open to the top' : 'the top'} ${limit}.`)
     return { ...base, status: 'challenger', rank, champion: rec.c, canChallengeNow: true, reasons, limit }
   }
@@ -193,8 +196,9 @@ export function nextMilestone(state: GameState, f: Fighter): { text: string; con
   const status = contenderStatus(state, f)
   if (!media) return { text: 'Build a record.', concrete: false }
   const eligibleBodies = allEligibility(state, f).filter((e) => e.status !== 'ineligible' && e.status !== 'dormant')
-  const next = eligibleBodies.filter((e) => e.status === 'ranked' || e.status === 'unranked')
+  const next = eligibleBodies.filter((e) => e.status === 'ranked' || e.status === 'unranked' || e.status === 'unqualified')
   const bestRanked = next.filter((e) => e.rank !== null).sort((a, b) => levelRank(b.level) - levelRank(a.level) || (a.rank ?? 99) - (b.rank ?? 99))[0]
+  if (bestRanked?.status === 'unqualified') return { text: `Ranked #${bestRanked.rank} by ${bodyIdentity(bestRanked.body).shortName}, but not yet a credible challenger for the ${bestRanked.title}. ${bestRanked.reasons[bestRanked.reasons.length - 1].split('. ').pop()}`, concrete: false }
   if (bestRanked) return { text: `Climb to the top ${bestRanked.limit} of the ${bodyIdentity(bestRanked.body).shortName} ratings (now #${bestRanked.rank}) to earn a shot at the ${bestRanked.title}.`, concrete: false }
   const firstRung = eligibleBodies.filter((e) => e.status === 'unranked').sort((a, b) => levelRank(a.level) - levelRank(b.level))[0]
   if (status === 'PROSPECT' || status === 'DEVELOPING' || status === 'JOURNEYMAN') {
@@ -261,7 +265,7 @@ function obligationMap(state: GameState): Map<Id, Obligation> {
     if (rec.mand && rec.c) { put(rec.c, { partner: rec.mand.challenger, kind: 'mandatory', body }, true); put(rec.mand.challenger, { partner: rec.c, kind: 'mandatory', body }, true) }
     if (rec.elim) { put(rec.elim.a, { partner: rec.elim.b, kind: 'eliminator', body }, false); put(rec.elim.b, { partner: rec.elim.a, kind: 'eliminator', body }, false) }
     if (!rec.c) {
-      const top = (getList(media, body, wc as WeightClassId)?.e ?? []).filter((e) => e.r >= 1 && !(levelOf(body) === 'world' && holdsWorldBelt(media, e.f, wc as WeightClassId))).slice(0, 2)
+      const top = (getList(media, body, wc as WeightClassId)?.e ?? []).filter((e) => e.r >= 1 && !(levelOf(body) === 'world' && holdsWorldBelt(media, e.f, wc as WeightClassId)) && qualifiesFor(state, body, e.f)).slice(0, 2)
       if (top.length === 2) { put(top[0].f, { partner: top[1].f, kind: 'vacant', body }, false); put(top[1].f, { partner: top[0].f, kind: 'vacant', body }, false) }
     }
   }

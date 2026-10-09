@@ -18,6 +18,14 @@ export function RequestButton({ fighterId, target, small }: { fighterId: Id; tar
   )
 }
 
+const OUTLOOK = { strong: 'Strong case', fair: 'Fair chance', weak: 'Long shot — the champion’s camp may refuse' } as const
+/** How the champion's camp is likely to see the challenge. A board-ordered fight cannot be refused. */
+function Outlook({ t }: { t: TitleTarget }) {
+  if (t.state !== 'ready') return null
+  if (t.ordered) return <span className="chip gold bz-outlook" data-testid="outlook">Ordered by the board</span>
+  return t.outlook ? <span className={`chip bz-outlook ${t.outlook}`} data-testid="outlook">{OUTLOOK[t.outlook]}</span> : null
+}
+
 function TargetRow({ fighterId, t }: { fighterId: Id; t: TitleTarget }) {
   return (
     <li className={`bz-tgt ${t.state}`} data-testid="path-target" data-state={t.state}>
@@ -28,7 +36,7 @@ function TargetRow({ fighterId, t }: { fighterId: Id; t: TitleTarget }) {
         {t.state === 'building' && <span className="chip">{t.rank ? `#${t.rank}` : 'UNRATED'}</span>}
       </div>
       {t.request ? <div className="bz-tgt-line">{t.request.label} against <b>{t.request.opponentName}</b></div> : <ul className="bz-needs">{t.needs.map((n) => <li key={n}>{n}</li>)}</ul>}
-      {t.request && <div className="bz-tgt-act"><RequestButton fighterId={fighterId} target={t} small /></div>}
+      {t.request && <div className="bz-tgt-act"><RequestButton fighterId={fighterId} target={t} small /><Outlook t={t} /></div>}
     </li>
   )
 }
@@ -56,7 +64,7 @@ export function PathCard({ view }: { view: TitlePathView }) {
           <div className="bz-best" data-testid="path-best">
             <div className="bz-best-t"><span className="caps">{best.state === 'ready' ? 'Can challenge now' : 'Cannot ask yet'}</span> <b>{best.shortName}</b> <span className="dim">{best.levelLabel}</span></div>
             <div>{best.request.label} against <b>{best.request.opponentName}</b></div>
-            <div className="bz-best-act"><RequestButton fighterId={view.id} target={best} /></div>
+            <div className="bz-best-act"><RequestButton fighterId={view.id} target={best} /><Outlook t={best} /></div>
           </div>
         ) : (
           <div className="bz-best" data-testid="path-best">

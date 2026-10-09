@@ -8,6 +8,7 @@ import { weightClassLabel } from '../../data/weightClasses'
 import { bodyIdentity } from '../../data/mediaIdentity'
 import { fighterName } from '../fighters'
 import { validateMatch } from '../fights'
+import { championCampResponse, type Outlook } from './titleCamp'
 import { approachOpponent, type FightOutcome } from '../fightNegotiation'
 import { rosterOf } from '../media/requests'
 import type { Fighter, GameState, Id } from '../types'
@@ -30,6 +31,10 @@ export interface TitleTarget {
   headline: string
   /** Short, concrete things still needed (empty when ready). */
   needs: string[]
+  /** How the champion's camp is likely to see the challenge (never a number): null when it is ordered by the board or there is no champion to ask. */
+  outlook: Outlook | null
+  /** The board has ordered this fight (mandatory challenger / eliminator): it cannot be turned down. */
+  ordered: boolean
   /** The fight the request would open. */
   request: { opponentId: Id; opponentName: string; label: string } | null
   /** Why a ready belt cannot be requested at this moment (injury, booked, talks collapsed...). */
@@ -57,6 +62,7 @@ const REQUEST_KINDS: Record<string, string> = { CHALLENGE: 'Challenge for the ti
 const needsFor = (e: Eligibility, short: string, f: Fighter): string[] => {
   const d = TITLE_DEF_BY_ID[e.body]
   const n = f.record.wins + f.record.losses + f.record.draws
+  if (e.status === 'unqualified') return [`Ranked #${e.rank}, inside the top ${e.limit}, but the record is not yet enough.`, (e.reasons[e.reasons.length - 1].split('. ').pop() ?? '').trim()]
   if (e.status === 'ranked') return [`Reach the top ${e.limit} of the ${short} list (now #${e.rank}).`, 'Win against ranked fighters and keep fighting to climb.']
   if (e.status === 'unranked') {
     if (d && n < d.minFights) return [`Needs ${d.minFights} professional fights to be rated (has ${n}).`]
@@ -76,10 +82,11 @@ function targetFor(state: GameState, f: Fighter, e: Eligibility, opps: Opportuni
     const check = validateMatch(state, f.id, o.opponentId)
     const blocked = hardBlock ?? (check.ok ? null : check.reason)
     const verb = REQUEST_KINDS[o.kind] ?? 'Request the fight'
-    return { ...base, state: blocked ? 'blocked' : 'ready', headline: e.status === 'champion' ? `Holds the ${short} belt` : `${verb} against ${oppName}`, needs: [], request: { opponentId: o.opponentId, opponentName: oppName, label: verb }, blocked }
+    const resp = e.status !== 'champion' && e.champion === o.opponentId ? championCampResponse(state, o.opponentId, f.id, f.weightClass, [e.body]) : null
+    return { ...base, outlook: resp && !resp.ordered ? resp.outlook : null, ordered: !!resp?.ordered || o.kind === 'MANDATORY_SHOT' || o.kind === 'ELIMINATOR', state: blocked ? 'blocked' : 'ready', headline: e.status === 'champion' ? `Holds the ${short} belt` : `${verb} against ${oppName}`, needs: [], request: { opponentId: o.opponentId, opponentName: oppName, label: verb }, blocked }
   }
   if (e.status === 'champion') return null
-  return { ...base, state: 'building', headline: e.status === 'ranked' ? `#${e.rank} with the ${short}, top ${e.limit} can challenge` : e.status === 'eliminator' ? 'Eliminator ordered' : `Not yet rated by ${short}`, needs: needsFor(e, short, f), request: null, blocked: null }
+  return { ...base, state: 'building', headline: e.status === 'unqualified' ? `#${e.rank} with the ${short}: record not yet enough` : e.status === 'ranked' ? `#${e.rank} with the ${short}, top ${e.limit} can challenge` : e.status === 'eliminator' ? 'Eliminator ordered' : `Not yet rated by ${short}`, needs: needsFor(e, short, f), outlook: null, ordered: false, request: null, blocked: null }
 }
 
 /** Every belt a fighter could realistically be aiming at, with the request that is open to them and what is missing for the rest. */

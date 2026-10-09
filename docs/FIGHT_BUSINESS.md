@@ -322,3 +322,24 @@ distance; the Fight Night counter and every "of N" label read `Fight.scheduledRo
 **Browser proof.** `scripts/browser/phase54-championship.mjs` drives a new world title fight through the real screens (Titles →
 Request title fight → negotiation → schedule → advance weeks → Fight Night → result → history) and repeats until it has seen both a full
 12-round decision and an early KO.
+
+## Realistic title challenges (save version 10, same pass)
+
+**Being rated is not enough.** A title challenger needs the record the belt asks for (`CHALLENGER_REQ` in `titleDefs.ts`, public facts only):
+area 8 fights / 5 wins / 58%; domestic 10 / 7 / 60%; European 12 / 8 / 60%; world 15 / 10 / 62%. A 5-2 fighter is a challenger for nothing.
+`qualifiesFor` is applied wherever a title fight can arise: `bodiesFor` (the fight stops being a title fight, and is not offered as one, if
+the challenger is not credible), eligibility and the Titles screens ("Record not yet enough", with exactly what is missing), the weekly
+choice of mandatory challengers and eliminator pairs, and the AI's booking nudges. A fighter the body has ordered (mandatory, or the
+winner of an eliminator) is exempt. Vacant belts go to the best QUALIFIED contenders, and a belt only opens when at least 3 (world: 4)
+credible contenders exist, so fewer belts sit vacant with nobody who could fill them.
+
+**The champion's camp decides a voluntary challenge** (`titleCamp.ts`). It accepts a challenger who is a credible, bankable opponent and
+turns down one who is not, using a deterministic roll against a probability built from public facts (career value against the
+champion's, where the challenger stands on the list, how the records compare, how long the champion has gone without defending). The
+roll is fixed for a quarter so asking again straight away gets the same answer; the player only ever sees an outlook ("Strong case",
+"Fair chance", "Long shot") and, when refused, a reason. A challenge ordered by the board (mandatory defence, eliminator) is never
+refused. The same rule governs the AI promotions, so the world follows the rules the player does.
+
+**Measured effect** (seed `ch-1`, 5 bot-played years, `scripts/audit/phase54-challengers.ts`): title fights fell from 388 to about 160,
+and the weakest world challenger went from 6 wins in 10 fights to 10 wins in 15. Belts vacant at any one time rose from 19% to about 30%
+(more belts wait for credible contenders).

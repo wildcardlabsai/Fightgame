@@ -4,7 +4,7 @@
  */
 import { bodiesFor } from '../media/titles'
 import { levelOf, levelRank, type TitleLevel } from './titleDefs'
-import type { Fight, GameState } from '../types'
+import type { Fight, GameState, WeightClassId } from '../types'
 
 import type { StakeKind } from './rounds'
 export type { StakeKind }
@@ -12,10 +12,15 @@ export interface Stakes { kind: StakeKind; level: TitleLevel | null; bodies: str
 
 /** What a bout between these two would be, according to the title system as it stands right now. Never a promise: it is read, not set. */
 export function fightStakes(state: GameState, fight: Fight): Stakes {
+  return stakesBetween(state, fight.sideA.fighterId, fight.sideB.fighterId, fight.weightClass)
+}
+
+/** The same question for two fighters who are not (yet) a fight: used before the first call is made. */
+export function stakesBetween(state: GameState, a: string, b: string, wcId: WeightClassId): Stakes {
   const media = state.media
   if (!media) return { kind: 'standard', level: null, bodies: [] }
-  const a = fight.sideA.fighterId, b = fight.sideB.fighterId
-  const bodies = bodiesFor(media, a, b, fight.weightClass)
+  const fight = { weightClass: wcId }
+  const bodies = bodiesFor(state, a, b, wcId)
   if (bodies.length) {
     const level = bodies.map(levelOf).sort((x, y) => levelRank(y) - levelRank(x))[0]
     const champs = new Set(bodies.filter((x) => levelOf(x) === 'world').map((x) => media.titles[`${x}|${fight.weightClass}`]?.c).filter(Boolean))

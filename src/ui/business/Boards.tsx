@@ -34,7 +34,7 @@ export function ContenderList({ card, paths }: { card: BeltCard; paths?: Map<str
             <li key={c.id} className="bz-wrap">
               <div className={`bz-crow${c.mine ? ' mine' : ''}${c.inChallengeRange ? '' : ' outside'}`}>
                 <span className="bz-rank num">#{c.rank}</span>
-                <span className="bz-who"><button type="button" className="bz-name" onClick={() => navigate('fighter', c.id)}>{c.name}</button> <span className="dim bz-rec">{c.record}</span>{c.mine && <span className="chip gold">YOURS</span>}<TagChip tag={c.tag} /></span>
+                <span className="bz-who"><button type="button" className="bz-name" onClick={() => navigate('fighter', c.id)}>{c.name}</button> <span className="dim bz-rec">{c.record}</span>{c.mine && <span className="chip gold">YOURS</span>}<TagChip tag={c.tag} />{c.inChallengeRange && !c.qualified && <span className="chip" title={c.need ?? ''} data-testid="not-qualified">RECORD NOT YET ENOUGH</span>}</span>
                 {target ? <span className="bz-req"><RequestButton fighterId={c.id} target={target} small /></span> : null}
                 <span className="dim bz-why" title={c.reason}>{c.reason}</span>
               </div>

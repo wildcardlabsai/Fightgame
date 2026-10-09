@@ -38,12 +38,36 @@ export interface TitleDef {
   inactiveStripWeeks: number
   /** 0–100: how much a belt of this body is worth in market value and fight appeal (a game weighting). */
   prestige: number
+  /**
+   * What a fighter must have on their record to be a credible CHALLENGER (being rated is not enough). Public facts only: professional
+   * fights, wins, and the share of fights won. A challenger ordered by the body (mandatory, or the winner of an eliminator) is exempt.
+   */
+  challenger: { fights: number; wins: number; share: number }
+}
+
+/** The record a challenger needs, by level. Rising with the level: an area title shot needs a proven prospect, a world title shot a proven contender. */
+export const CHALLENGER_REQ: Record<TitleLevel, { fights: number; wins: number; share: number }> = {
+  area: { fights: 8, wins: 5, share: 0.58 },
+  domestic: { fights: 10, wins: 7, share: 0.6 },
+  european: { fights: 12, wins: 8, share: 0.6 },
+  world: { fights: 15, wins: 10, share: 0.62 },
+}
+
+/** Why a record is not yet enough for this belt (null when it is). */
+export function challengerShortfall(def: TitleDef, rec: { wins: number; losses: number; draws: number }): string | null {
+  const n = rec.wins + rec.losses + rec.draws
+  const q = def.challenger
+  const need: string[] = []
+  if (n < q.fights) need.push(`${q.fights} professional fights (has ${n})`)
+  if (rec.wins < q.wins) need.push(`${q.wins} wins (has ${rec.wins})`)
+  if (n >= q.fights && rec.wins >= q.wins && rec.wins / Math.max(1, n) < q.share) need.push(`a better record: ${Math.round(q.share * 100)}% of fights won (has ${Math.round((100 * rec.wins) / Math.max(1, n))}%)`)
+  return need.length ? `Needs ${need.join(', ')}.` : null
 }
 
 const UK = ['ENG', 'SCO', 'WAL']
 const T = (id: string, level: TitleLevel, eligibility: Eligibility, p: Partial<TitleDef> = {}): TitleDef => ({
   id, level, eligibility, rankingCount: 10, challengerLimit: 8, minPool: 4, minFights: 5, minWinShare: 0.3,
-  mandatoryAfterWeeks: 40, mandatoryWindowWeeks: 26, inactiveStripWeeks: 78, prestige: 60, ...p,
+  mandatoryAfterWeeks: 40, mandatoryWindowWeeks: 26, inactiveStripWeeks: 78, prestige: 60, challenger: CHALLENGER_REQ[level], ...p,
 })
 
 export const TITLE_DEFS: TitleDef[] = [

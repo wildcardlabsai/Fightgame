@@ -25,6 +25,7 @@ import { viewsOf } from './view'
 import { serialiseGame, deserialiseGame } from './save'
 import { newLog, playWeek, STRATEGIES } from './sim/strategies'
 import { requestTitleFight } from './business/titlePath'
+import { championCampResponse } from './business/titleCamp'
 import { SANCTIONING } from './media/orgs'
 import { GAME_STATE_VERSION, type Fight, type GameState } from './types'
 
@@ -33,15 +34,15 @@ const mk = (seed: string) => createNewGame({ seed, promotionName: 'P54', promote
 const world = (() => { let s: GameState | null = null; return () => (s ??= (() => { let g = mk('p54-integrity'); for (let i = 0; i < 110; i++) g = advanceOneWeek(g); return g })()) })()
 
 /** A champion of `body` and a ranked challenger inside its challenger range, both free to be matched in a scratch copy. */
-function contest(s: GameState, pick: (body: string) => boolean) {
+function contest(s: GameState, pick: (body: string) => boolean, accepted = false) {
   for (const [key, rec] of Object.entries(s.media!.titles)) {
     const [body, wc] = key.split('|')
     if (!rec.c || !pick(body)) continue
     const d = TITLE_DEF_BY_ID[body]
     const e = getList(s.media!, body, wc as never)?.e.find((x) => x.r >= 1 && x.r <= d.challengerLimit && x.f !== rec.c && s.fighters[x.f].status === 'active')
     if (!e) continue
-    const ids = bodiesFor(s.media!, e.f, rec.c, wc as never)
-    if (ids.includes(body)) return { body, wc, champ: rec.c, challenger: e.f }
+    const ids = bodiesFor(s, e.f, rec.c, wc as never)
+    if (ids.includes(body) && (!accepted || championCampResponse(s, rec.c, e.f, wc as never, [body]).accept)) return { body, wc, champ: rec.c, challenger: e.f }
   }
   return null
 }
@@ -110,13 +111,13 @@ describe('one authoritative fight length', () => {
 
   it('the same 12 rounds survive the whole lifecycle: request → talks → scheduling → fight night → result → history', () => {
     let s = clone(world())
-    const c = contest(s, (b) => levelOf(b) === 'world')!
+    const c = contest(s, (b) => levelOf(b) === 'world', true)!
     // Make the challenger the player's fighter and clear anything that would stop the booking.
     const own = Object.values(s.contracts).find((x) => x.promotionId === s.playerPromotionId && x.status === 'active' && x.fighterId !== c.challenger)!
     s.fighters[own.fighterId].contractId = null
     own.fighterId = c.challenger
     s.fighters[c.challenger].contractId = own.id
-    for (const id of [c.challenger, c.champ]) { s.fighters[id].activeFightId = null; s.fighters[id].injury = null; s.fighters[id].lastFightDay = null }
+    for (const id of [c.challenger, c.champ]) { s.fighters[id].activeFightId = null; s.fighters[id].injury = null; s.fighters[id].suspendedUntil = null; s.fighters[id].lastFightDay = null }
     const req = requestTitleFight(s, c.challenger, c.body)
     expect(req.ok, req.error).toBe(true)
     s = req.state
@@ -251,7 +252,7 @@ describe('the ladder of levels', () => {
     const euroChamp = Object.values(s.fighters).find((f) => f.status === 'active' && f.weightClass === wc && f.id !== x.id)!
     s.media!.titles[titleKey('european', wc)] = { c: euroChamp.id, cn: 'E', since: s.today - 200, defences: 0, lastFight: s.today - 20 }
     touchTitles(s.media!)
-    expect(bodiesFor(s.media!, x.id, euroChamp.id, wc)).not.toContain('european')
+    expect(bodiesFor(s, x.id, euroChamp.id, wc)).not.toContain('european')
   })
 
   it('a division move relinquishes every belt at the old weight with a reason; nothing stays current in the old division', () => {
