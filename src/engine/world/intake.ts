@@ -30,7 +30,7 @@ export const PIPELINE = {
   /** Share of newcomers drawn from the promotions' home countries. */
   local: 0.35,
   /** Share of newcomers drawn from the gifted tail. */
-  gifted: 0.1,
+  gifted: 0.22,
 }
 
 const SUM_W = WEIGHT_CLASSES.reduce((a, w) => a + w.weight, 0)
@@ -70,7 +70,7 @@ export function talentIntake(state: GameState, rng: Rng, ids: IdSource): void {
     const roll = rng.next()
     const origin = roll < PIPELINE.overseas ? 'overseas' : roll < PIPELINE.overseas + PIPELINE.lateArrival ? 'late' : 'amateur'
     // A small tail of genuinely gifted newcomers keeps the top of the sport supplied over long careers (the rest are ordinary club prospects).
-    const base = rng.chance(PIPELINE.gifted) ? rng.clampedNormal(0.6, 0.12, 0.35, 0.97) : rng.clampedNormal(0.3, 0.16, 0.05, 0.9)
+    const base = rng.chance(PIPELINE.gifted) ? rng.clampedNormal(0.62, 0.13, 0.35, 0.97) : rng.clampedNormal(0.3, 0.16, 0.05, 0.9)
     const f = generateFighter(rng, ids, {
       quality: origin === 'overseas' ? clamp(base + 0.06, 0.05, 0.97) : base,
       today: state.today, weightClass: wc,

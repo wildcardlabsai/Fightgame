@@ -67,7 +67,7 @@ export function rivalStandings(state: GameState): RivalStanding[] {
     const ev = eventsBy[p.id] ?? { held: 0, next: null }
     const age = (state.today - p.foundedDay) / 7
     let status: RivalStatus = 'Active', why = `${ev.held} show${ev.held === 1 ? '' : 's'} in six months`
-    if (isDefunct(state, p)) { status = 'Folded'; why = 'Collapsed; no fighters left under contract' }
+    if (isDefunct(state, p)) { status = 'Folded'; why = 'No fighters, no shows; the money has gone' }
     else if (p.ai?.fin.collapsing) { status = 'Folding'; why = 'Backers have withdrawn; the roster is being run down' }
     else if (age < 52 && p.foundedDay > state.startDay) { status = 'New'; why = 'Launched within the last year' }
     else if (departed - signed >= 3) { status = 'Cutting back'; why = `${departed} fighters left, ${signed} signed` }

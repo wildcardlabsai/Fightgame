@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { isDefunct } from './world/lifecycle'
 import { BALANCE as B } from './balance'
 import { freeAgents, rosterOf } from './selectors'
 import { advanceOneWeek } from './tick'
@@ -40,7 +41,10 @@ describe('eight-year world simulation (player passive)', () => {
           // Phase 4.5: a rival in financial distress deliberately sheds fighters (see systems/aiFinance.ts), so the "stocked" floor
           // applies to every rival that is not struggling, critical or insolvent. Negative cash is only possible while distressed.
           const distressed = ['struggling', 'critical', 'insolvent'].includes(p.ai!.fin.state)
-          if (!distressed) expect(n).toBeGreaterThanOrEqual(Math.floor(B.ai.rosterTarget[p.tier] * 0.5))
+          // Phase 5.4B: a promotion founded within the last year is still building its roster, and one that has run out of money and fighters
+          // (isDefunct) is no longer competing; neither is held to the floor.
+          const building = s.today - p.foundedDay < 52 * 7 && p.foundedDay > s.startDay
+          if (!distressed && !building && !isDefunct(s, p)) expect(n).toBeGreaterThanOrEqual(Math.floor(B.ai.rosterTarget[p.tier] * 0.5))
           expect(Number.isFinite(p.cash)).toBe(true)
           if (p.cash < 0) expect(distressed).toBe(true)
         }

@@ -44,7 +44,10 @@ function runTalk(s0: GameState, fid: string, maxTurns = 8) {
 describe('multi-turn contract conversation', () => {
   it('asks reveal things in the camp’s own words; proposals draw counters built from the state; accepting signs the deal', () => {
     const s0 = world()
-    const f = frees(s0).find((x) => (negStage(s0, x) === 'contender' || negStage(s0, x) === 'journeyman') && managerOf(s0, x).archetype !== 'AGGRESSIVE') ?? frees(s0)[0]
+    // someone the promotion can actually afford to sign after a couple of rounds of haggling (the market is whatever the world made it)
+    const cash = s0.promotions[s0.playerPromotionId].cash
+    const cheap = frees(s0).filter((x) => openingOffer(s0, x, 'signing').signingBonus * 3 < cash)
+    const f = cheap.find((x) => (negStage(s0, x) === 'contender' || negStage(s0, x) === 'journeyman') && managerOf(s0, x).archetype !== 'AGGRESSIVE') ?? cheap[0]
     let s = ok(startContractTalk(s0, f.id, 'signing')).state
     const tid = Object.keys(s.business!.talks)[0]
     expect(s.business!.talks[tid].log[0].who).toBe('mgr')

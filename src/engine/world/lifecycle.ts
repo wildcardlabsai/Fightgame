@@ -2,7 +2,7 @@
  * PROMOTION LIFE CYCLE. Promotions fail (see systems/aiFinance.ts: owners rescue a struggling promotion a limited number of times,
  * then stop) and the sport replaces them slowly, so a long career never ends in a world with no competition.
  *
- *   - A failed promotion (collapsing, with no fighters left) stays in the state with all its history; it is simply no longer a
+ *   - A failed promotion (no fighters, no shows, and either abandoned by its backers or out of money) stays in the state with all its history; it is simply no longer a
  *     competitor. Nothing is deleted.
  *   - Once a quarter, if fewer than six rivals are still trading, or the market holds a large pool of credible unsigned fighters that
  *     nobody is hiring while fewer than eight are trading, a new Startup promotion may be founded. Its capital is a fixed, modest
@@ -13,33 +13,37 @@ import { ENTRANTS } from '../../data/entrants'
 import { aiTraits, emptyStats, freshFinance } from '../worldgen'
 import { fighterRating } from '../fighters'
 import type { IdSource } from '../ids'
+import { isEventOpen } from '../events/lifecycle'
 import { postNews } from '../messages'
 import { monogramFor } from '../promotions'
 import { keyedFloat } from '../rng'
 import type { GameState, Promotion } from '../types'
 
-export const LIFECYCLE = { minTrading: 6, maxTrading: 8, capital: 650_000, credibleFreeAgents: 24, cooldownWeeks: 26 }
+export const LIFECYCLE = { minTrading: 6, maxTrading: 8, capital: 650_000, credibleFreeAgents: 36, cooldownWeeks: 26, deadCash: 60_000, graceWeeks: 52, shortOdds: 0.7, idleOdds: 0.12 }
 
-/** A rival that still competes: not collapsing, and either holding fighters or too young to have signed any. */
-export function isTrading(p: Promotion): boolean {
-  if (p.isPlayer || !p.ai || p.ai.fin.collapsing) return false
-  return true
+/** A rival that still competes: not folded, and not being run down. */
+export function isTrading(state: GameState, p: Promotion): boolean {
+  return !p.isPlayer && !!p.ai && !p.ai.fin.collapsing && !isDefunct(state, p)
 }
 
 export function tradingRivals(state: GameState): Promotion[] {
-  return Object.values(state.promotions).filter(isTrading)
+  return Object.values(state.promotions).filter((p) => isTrading(state, p))
 }
 
-/** Failed and finished: collapsing with no one on its books (derived; never stored). */
+/**
+ * Failed and finished: nobody under contract, no show on the calendar, and either backers have withdrawn or the money has run out.
+ * Derived from what anyone could see (empty roster, empty calendar) plus its books; never stored, and nothing is deleted.
+ */
 export function isDefunct(state: GameState, p: Promotion): boolean {
-  if (p.isPlayer || !p.ai?.fin.collapsing) return false
+  if (p.isPlayer || !p.ai) return false
   for (const c of Object.values(state.contracts)) if (c.promotionId === p.id) return false
-  return true
+  for (const e of Object.values(state.events)) if (e.promotionId === p.id && isEventOpen(e)) return false
+  return p.ai.fin.collapsing || p.cash < LIFECYCLE.deadCash
 }
 
 export function processLifecycle(state: GameState, ids: IdSource): void {
   const week = Math.floor((state.today - state.startDay) / 7)
-  if (week % 13 !== 6) return
+  if (week % 13 !== 6 || week < LIFECYCLE.graceWeeks) return // the opening world is left alone for its first year
   const trading = tradingRivals(state)
   const founded = Object.values(state.promotions).filter((p) => !p.isPlayer && p.ai && state.today - p.foundedDay < LIFECYCLE.cooldownWeeks * 7 && p.foundedDay > state.startDay)
   if (founded.length > 0) return
@@ -47,7 +51,7 @@ export function processLifecycle(state: GameState, ids: IdSource): void {
   const shortOfRivals = trading.length < LIFECYCLE.minTrading
   const idleTalent = trading.length < LIFECYCLE.maxTrading && credible >= LIFECYCLE.credibleFreeAgents
   if (!shortOfRivals && !idleTalent) return
-  if (keyedFloat(state.seed, 'found', Math.floor(state.today / 91)) > (shortOfRivals ? 0.7 : 0.35)) return
+  if (keyedFloat(state.seed, 'found', Math.floor(state.today / 91)) > (shortOfRivals ? LIFECYCLE.shortOdds : LIFECYCLE.idleOdds)) return
   const used = new Set(Object.values(state.promotions).map((p) => p.name))
   const seed = ENTRANTS.find((e) => !used.has(e.name))
   if (!seed) return

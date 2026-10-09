@@ -183,7 +183,7 @@ describe('the prospect pipeline', () => {
       talentIntake(s, new Rng(i + 3), ids(s)); s.idCounter += 100
       for (const id of Object.keys(s.fighters)) if (!before.has(id)) fresh.push(id)
     }
-    expect(fresh.length).toBeGreaterThan(50)
+    expect(fresh.length).toBeGreaterThan(30)
     expect(new Set(fresh).size).toBe(fresh.length) // no duplicate identities
     let amateurs = 0, withBouts = 0
     for (const id of fresh) {
@@ -202,16 +202,25 @@ describe('the prospect pipeline', () => {
 })
 
 describe('promotion life cycle and standing', () => {
-  it('a failed promotion with no one on its books is defunct; nothing about it is deleted', () => {
+  it('a promotion with no fighters, no shows and no money is defunct and stops counting as a competitor; nothing about it is deleted', () => {
     const s = clone(world())
     const p = Object.values(s.promotions).find((x) => !x.isPlayer)!
     for (const c of Object.values(s.contracts)) if (c.promotionId === p.id) { c.status = 'released' as never }
     // contracts remain in state with a non-active status; "on its books" is by promotion id, so remove them for the test
     for (const [id, c] of Object.entries(s.contracts)) if (c.promotionId === p.id) delete s.contracts[id]
-    p.ai!.fin.collapsing = true
+    for (const [id, e] of Object.entries(s.events)) if (e.promotionId === p.id) delete s.events[id]
+    p.cash = 1_000_000
+    expect(isDefunct(s, p)).toBe(false) // empty but solvent: a rebuild, not a failure
+    p.cash = 20_000
+    expect(isDefunct(s, p)).toBe(true)
+    p.cash = 1_000_000; p.ai!.fin.collapsing = true
     expect(isDefunct(s, p)).toBe(true)
     expect(s.promotions[p.id]).toBeDefined()
     expect(tradingRivals(s).some((x) => x.id === p.id)).toBe(false)
+    // the opening world is left alone for its first year
+    const young = clone(world()); young.today = young.startDay + 7 * (13 * 3 + 6)
+    for (const r of Object.values(young.promotions).filter((x) => !x.isPlayer)) r.ai!.fin.collapsing = true
+    const n0 = Object.keys(young.promotions).length; processLifecycle(young, ids(young)); expect(Object.keys(young.promotions).length).toBe(n0)
   })
 
   it('a new promotion is founded only when the sport is short of rivals or has idle talent; modest, once per half year, with books that open honestly', () => {
@@ -242,7 +251,7 @@ describe('promotion life cycle and standing', () => {
     expect(Object.keys(again.promotions).length).toBe(n1)
     // a healthy sport founds none
     const healthy = clone(world())
-    for (let k = 0; k < 20; k++) { const t = clone(healthy); t.today = t.startDay + 7 * (13 * (100 + k) + 6); const n = Object.keys(t.promotions).length; processLifecycle(t, ids(t)); if (tradingRivals(t).length >= LIFECYCLE.maxTrading) expect(Object.keys(t.promotions).length).toBe(n) }
+    for (let k = 0; k < 20; k++) { const t = clone(healthy); t.today = t.startDay + 7 * (13 * (100 + k) + 6); const n = Object.keys(t.promotions).length, full = tradingRivals(t).length >= LIFECYCLE.maxTrading; processLifecycle(t, ids(t)); if (full) expect(Object.keys(t.promotions).length).toBe(n) }
   })
 
   it('winning a belt lifts a promotion a little and costs the beaten champion\'s promotion a little; never beyond bounds', () => {

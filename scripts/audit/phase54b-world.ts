@@ -31,6 +31,8 @@ for (let k = 1; k <= seeds; k++) {
   let yEvents = 0, yAiFightsDone = 0, ySignAi = 0, ySignMe = 0, yTurnedPro = 0, yRetired = 0, yExpired = 0, yReleased = 0
   const seenEv = new Set<string>(), seenSign = new Set<string>()
   let minCash = Infinity, negCash = 0
+  const liveP: Record<string, string> = {}
+  const pur = { started: 0, rivalWon: 0, playerWon: 0, lapsed: 0, onRadar: 0 }
   for (let w = 1; w <= years * 52; w++) {
     s = playWeek(s, STRATEGIES.balanced, log); s = advanceOneWeek(s)
     for (const ev of Object.values(s.events)) if (ev.promotionId !== s.playerPromotionId && !seenEv.has(ev.id) && ev.status !== 'planning') { seenEv.add(ev.id); yEvents++ }
@@ -44,6 +46,12 @@ for (let k = 1; k <= seeds; k++) {
         if (h.kind === 'expired') yExpired++
         if (h.kind === 'released') yReleased++
       }
+    }
+    for (const [fid, p] of Object.entries(s.world?.pursuits ?? {})) if (!liveP[fid]) { liveP[fid] = p.promoId; pur.started++; if (s.knowledge[fid]) pur.onRadar++ }
+    for (const fid of Object.keys(liveP)) if (!s.world?.pursuits[fid]) {
+      const c = s.fighters[fid].contractId ? s.contracts[s.fighters[fid].contractId!] : null
+      if (!c) pur.lapsed++; else if (c.promotionId === s.playerPromotionId) pur.playerWon++; else if (c.promotionId === liveP[fid]) pur.rivalWon++; else pur.lapsed++
+      delete liveP[fid]
     }
     for (const p of Object.values(s.promotions)) if (!p.isPlayer) { minCash = Math.min(minCash, p.cash); if (p.cash < 0) negCash++ }
     if (w % 52 === 0) {
@@ -73,6 +81,8 @@ for (let k = 1; k <= seeds; k++) {
   const cash = rivals.map((p) => Math.round(p.cash / 1000))
   console.log(`seed world-${k}: start fighters ${startCount} -> ${Object.keys(s.fighters).length}; rivals ${rivals.length}; rival cash(k) min ${Math.min(...cash)} max ${Math.max(...cash)}; negative-cash promo-weeks ${negCash}; collapsing ${rivals.filter((p) => p.ai!.fin.collapsing).length}`)
   for (const y of yearly) console.log('  ' + y)
+  console.log(`  pursuits ${JSON.stringify(pur)}`)
+  for (const p of rivals.filter((x) => x.foundedDay > s.startDay)) console.log(`  founded: ${p.name} fin ${p.ai!.fin.state}${p.ai!.fin.collapsing ? ' (collapsing)' : ''} tier ${p.tier} roster ${Object.values(s.contracts).filter((c) => c.promotionId === p.id).length} events ${p.stats.events} rep ${p.reputation.toFixed(0)} cash ${Math.round(p.cash / 1000)}k`)
 }
 const avg = (k: string) => (sum(agg[k]) / agg[k].length).toFixed(1)
 console.log(`\nPer seed-year averages: active ${avg('active')} FA ${avg('fa')} rivalEvents ${avg('events')} AIsignings ${avg('signAI')} playerSignings ${avg('signMe')} newPros ${avg('pro')} retirements ${avg('retired')}`)

@@ -2,6 +2,7 @@
  * Phase 5.4 UX pass — "request a title fight". The request is only ever offered where the title rules already allow the fight, it opens
  * the ordinary fight negotiation with the right opponent, and fighters who cannot ask yet are told concretely what is missing.
  */
+import { assessChallenger } from './business/contender'
 import { describe, expect, it } from 'vitest'
 import { createNewGame } from './worldgen'
 import { advanceOneWeek } from './tick'
@@ -37,6 +38,7 @@ function readyContender(s: GameState) {
     const e = getList(s.media!, body, wc as never)?.e.find((x) => x.r >= 1 && x.r <= d.challengerLimit)
     if (!e) continue
     const f = s.fighters[e.f]
+    if (assessChallenger(s, body, e.f).tier !== 'contender') continue // ready means credible on the numbers, not merely listed
     if (f.status !== 'active' || f.activeFightId || f.injury || f.suspendedUntil || e.f === rec.c) continue
     const champ = s.fighters[rec.c]
     if (champ.activeFightId || champ.injury) continue

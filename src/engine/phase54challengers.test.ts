@@ -190,14 +190,14 @@ describe('the champion\'s camp decides a voluntary challenge', () => {
     setRecord(s0, weak, 14, 10) // a long shot: scraped in with a middling record, no name
     s0.fighters[weak].reputation = 8; s0.fighters[weak].popularity = 6
     let ok = { strong: 0, weak: 0 }
-    const N = 120
+    const N = 300
     for (let i = 0; i < N; i++) {
       const s = clone(s0); s.seed = `roll-${i}`
       if (championCampResponse(s, champ, strong, wc, [body]).accept) ok.strong++
       if (championCampResponse(s, champ, weak, wc, [body]).accept) ok.weak++
     }
     expect(ok.strong / N).toBeGreaterThan(0.4)
-    expect(ok.strong / N).toBeLessThan(0.95) // never guaranteed
+    expect(ok.strong / N).toBeLessThan(0.975) // never guaranteed: the probability is capped at 0.92, so 300 draws sit well below certainty
     expect(ok.weak / N).toBeLessThan(0.45)
     expect(ok.strong / N - ok.weak / N).toBeGreaterThan(0.12) // a clear, not absolute, edge: the roll is a coin weighted by the challenger's standing
   })
