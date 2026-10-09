@@ -49,6 +49,8 @@ export interface TitleDef {
 export interface ContenderConfig {
   /** Hard floor: professional fights and wins before the fighter can be assessed at all. */
   floor: { fights: number; wins: number }
+  /** Smallest share of professional fights won: a fighter on a losing or even record is not a title contender at this level. */
+  minShare: number
   /** The all-round score (0–100) a fighter must reach. Rises with the level. */
   bar: number
   /** An opponent counts as credible when their reputation, at the time, was at least this. */
@@ -57,10 +59,10 @@ export interface ContenderConfig {
   credibleWins: number
 }
 export const CONTENDER_CONFIG: Record<TitleLevel, ContenderConfig> = {
-  area: { floor: { fights: 8, wins: 5 }, bar: 30, credibleRep: 20, credibleWins: 0 },
-  domestic: { floor: { fights: 10, wins: 7 }, bar: 38, credibleRep: 30, credibleWins: 0 },
-  european: { floor: { fights: 12, wins: 8 }, bar: 44, credibleRep: 38, credibleWins: 1 },
-  world: { floor: { fights: 15, wins: 10 }, bar: 50, credibleRep: 46, credibleWins: 1 },
+  area: { floor: { fights: 8, wins: 5 }, minShare: 0.55, bar: 30, credibleRep: 20, credibleWins: 0 },
+  domestic: { floor: { fights: 10, wins: 7 }, minShare: 0.6, bar: 38, credibleRep: 30, credibleWins: 0 },
+  european: { floor: { fights: 12, wins: 8 }, minShare: 0.62, bar: 44, credibleRep: 38, credibleWins: 1 },
+  world: { floor: { fights: 15, wins: 10 }, minShare: 0.64, bar: 50, credibleRep: 46, credibleWins: 1 },
 }
 /** How the parts of the case weigh against each other (sums to 1). */
 export const CONTENDER_WEIGHTS = { experience: 0.1, record: 0.17, opposition: 0.18, credibleWins: 0.15, form: 0.1, ranking: 0.15, activity: 0.1, stage: 0.05 }

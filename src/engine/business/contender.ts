@@ -100,6 +100,8 @@ function compute(state: GameState, media: MediaState, f: Fighter, body: string):
   const parts = { experience, record, opposition, credibleWins, form, ranking, activity, stage }
   const W = CONTENDER_WEIGHTS
   const score = (Object.keys(parts) as (keyof typeof parts)[]).reduce((t, k) => t + W[k] * parts[k], 0)
+  const share = f.record.wins / Math.max(1, n)
+  if (share < cfg.minShare) return { tier: 'building', score, step: 'Needs a better record' }
   if (score >= cfg.bar && credible >= cfg.credibleWins) return { tier: 'contender', score, step: null }
 
   // The next credible step is the part of the case that is holding the fighter back most.

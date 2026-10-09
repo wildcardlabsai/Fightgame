@@ -94,7 +94,7 @@ function targetFor(state: GameState, f: Fighter, e: Eligibility, opps: Opportuni
   if (e.status === 'champion') return null
   const tier = e.status === 'unqualified' ? assessChallenger(state, e.body, f.id).tier : e.status === 'unranked' && e.reasons.some((r) => /professional fights/.test(r)) ? 'notEligible' : 'building'
   const standing = e.status === 'eliminator' ? 'eliminator' as const : e.status === 'mandatory' ? 'mandatory' as const : tier === 'notEligible' ? 'notEligible' as const : 'building' as const
-  return { ...base, standing, state: 'building', headline: e.status === 'unqualified' ? `#${e.rank} with the ${short}: record not yet enough` : e.status === 'ranked' ? `#${e.rank} with the ${short}, top ${e.limit} can challenge` : e.status === 'eliminator' ? 'Eliminator ordered' : `Not yet rated by ${short}`, needs: needsFor(e, short, f), outlook: null, ordered: false, request: null, blocked: null }
+  return { ...base, standing, state: 'building', headline: e.status === 'unqualified' ? `#${e.rank} with the ${short}: not yet a credible challenger` : e.status === 'ranked' ? `#${e.rank} with the ${short}, top ${e.limit} can challenge` : e.status === 'eliminator' ? 'Eliminator ordered' : `Not yet rated by ${short}`, needs: needsFor(e, short, f), outlook: null, ordered: false, request: null, blocked: null }
 }
 
 /** Every belt a fighter could realistically be aiming at, with the request that is open to them and what is missing for the rest. */

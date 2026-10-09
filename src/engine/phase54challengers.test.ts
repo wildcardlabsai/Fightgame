@@ -105,6 +105,20 @@ describe('how a challenger is assessed', () => {
     expect(A.step).toBe('Needs a win over a credible contender')
   })
 
+  it('a fighter on a losing record is never a title contender, however many wins or however high the ranking', () => {
+    const s = clone(world())
+    for (const lv of ['area', 'domestic', 'european', 'world'] as const) {
+      const body = TITLE_DEFS.find((d) => d.level === lv)!.id
+      const { list } = worldBelt(s)
+      const x = list[0].f
+      makeContender(s, x)
+      setRecord(s, x, 15, 17)
+      const a = assessChallenger(s, body, x)
+      expect(a.tier, lv).not.toBe('contender')
+      expect(a.step, lv).toMatch(/better record|credible|experience/)
+    }
+  })
+
   it('a lower belt can be within reach of a fighter who is not ready for a world title', () => {
     const s = clone(world())
     const { body, list } = worldBelt(s)
