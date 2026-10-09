@@ -83,9 +83,11 @@ describe('one authoritative fight length', () => {
     const s = clone(world())
     const [key, rec] = Object.entries(s.media!.titles).find(([k, r]) => r.c && levelOf(k.split('|')[0]) === 'world')!
     const [body, wc] = key.split('|')
-    const list = getList(s.media!, body, wc as never)!.e.filter((e) => e.r >= 1 && e.f !== rec.c && s.fighters[e.f].status === 'active')
-    rec.elim = { a: list[0].f, b: list[1].f, ordered: s.today, due: s.today + 180 }
-    const f = agreedFight(s, list[0].f, list[1].f)
+    const list = getList(s.media!, body, wc as never)!.e.filter((e) => e.r >= 1 && e.f !== rec.c && s.fighters[e.f].status === 'active' && !titlesHeldBy(s.media!, e.f).length)
+    // two contenders whose meeting is not itself a title fight for some other (vacant) belt in the division
+    const pair = list.flatMap((x, i) => list.slice(i + 1).map((y) => [x, y])).find(([x, y]) => bodiesFor(s, x.f, y.f, wc as never).length === 0)!
+    rec.elim = { a: pair[0].f, b: pair[1].f, ordered: s.today, due: s.today + 180 }
+    const f = agreedFight(s, pair[0].f, pair[1].f)
     flagFight(s, f)
     expect(f.title?.kind).toBe('eliminator')
     expect(settleRounds(s, f)).toBe(ELIMINATOR_ROUNDS.world)

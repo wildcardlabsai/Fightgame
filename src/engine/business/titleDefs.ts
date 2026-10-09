@@ -59,10 +59,10 @@ export interface ContenderConfig {
   credibleWins: number
 }
 export const CONTENDER_CONFIG: Record<TitleLevel, ContenderConfig> = {
-  area: { floor: { fights: 8, wins: 5 }, minShare: 0.55, bar: 30, credibleRep: 20, credibleWins: 0 },
-  domestic: { floor: { fights: 10, wins: 7 }, minShare: 0.6, bar: 38, credibleRep: 30, credibleWins: 0 },
-  european: { floor: { fights: 12, wins: 8 }, minShare: 0.62, bar: 44, credibleRep: 38, credibleWins: 1 },
-  world: { floor: { fights: 15, wins: 10 }, minShare: 0.64, bar: 50, credibleRep: 46, credibleWins: 1 },
+  area: { floor: { fights: 8, wins: 5 }, minShare: 0.5, bar: 28, credibleRep: 18, credibleWins: 0 },
+  domestic: { floor: { fights: 9, wins: 6 }, minShare: 0.5, bar: 35, credibleRep: 28, credibleWins: 0 },
+  european: { floor: { fights: 11, wins: 7 }, minShare: 0.52, bar: 41, credibleRep: 34, credibleWins: 1 },
+  world: { floor: { fights: 14, wins: 9 }, minShare: 0.55, bar: 47, credibleRep: 40, credibleWins: 1 },
 }
 /** How the parts of the case weigh against each other (sums to 1). */
 export const CONTENDER_WEIGHTS = { experience: 0.1, record: 0.17, opposition: 0.18, credibleWins: 0.15, form: 0.1, ranking: 0.15, activity: 0.1, stage: 0.05 }

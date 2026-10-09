@@ -55,7 +55,9 @@ describe('request a title fight', () => {
     expect(t.state).toBe('ready')
     expect(t.request!.opponentId).toBe(r.champId)
     expect(v.best!.state).toBe('ready')
-    const out = requestTitleFight(s, r.f.id, r.body)
+    // The champion's camp may decline a voluntary ask (covered in phase54challengers); find a quarter in which this one is taken up.
+    let out = requestTitleFight(s, r.f.id, r.body)
+    for (let i = 0; i < 40 && !out.ok; i++) { s.seed = `ask-${i}`; out = requestTitleFight(s, r.f.id, r.body) }
     expect(out.ok, out.error).toBe(true)
     const fight = out.state.fights[out.fightId!]
     expect(fight.status).toBe('negotiating')

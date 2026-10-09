@@ -323,23 +323,34 @@ distance; the Fight Night counter and every "of N" label read `Fight.scheduledRo
 Request title fight → negotiation → schedule → advance weeks → Fight Night → result → history) and repeats until it has seen both a full
 12-round decision and an early KO.
 
-## Realistic title challenges (save version 10, same pass)
+## Title contender calibration (Phase 5.4A, save version 10)
 
-**Being rated is not enough.** A title challenger needs the record the belt asks for (`CHALLENGER_REQ` in `titleDefs.ts`, public facts only):
-area 8 fights / 5 wins / 58%; domestic 10 / 7 / 60%; European 12 / 8 / 60%; world 15 / 10 / 62%. A 5-2 fighter is a challenger for nothing.
-`qualifiesFor` is applied wherever a title fight can arise: `bodiesFor` (the fight stops being a title fight, and is not offered as one, if
-the challenger is not credible), eligibility and the Titles screens ("Record not yet enough", with exactly what is missing), the weekly
-choice of mandatory challengers and eliminator pairs, and the AI's booking nudges. A fighter the body has ordered (mandatory, or the
-winner of an eliminator) is exempt. Vacant belts go to the best QUALIFIED contenders, and a belt only opens when at least 3 (world: 4)
-credible contenders exist, so fewer belts sit vacant with nobody who could fill them.
+**Challenger assessment** (`business/contender.ts`, tuned in `CONTENDER_CONFIG` / `CONTENDER_WEIGHTS` in `titleDefs.ts`). Being rated is not
+enough, and a good record alone is not enough. Each fighter is assessed per level (area < domestic < European < world) from public facts only:
+a hard experience floor (fights and wins), a minimum win share, and a weighted score over experience, record, quality of opposition (the
+standing of the last eight opponents), wins over credible opponents, recent form, ranking and movement, recent activity and career stage.
+To be a CONTENDER a fighter must clear the level's bar AND, for European and world belts, hold at least one recent win over a credible
+opponent - so an unbeaten run against weak opposition does not outrank a fighter who has beaten credible contenders. World is stricter than
+European, which is stricter than domestic, which is stricter than area. Lower-level pathways are legitimate, never compulsory. The score is
+never shown; the UI shows only a tier and the next step: NOT ELIGIBLE (insufficient professional experience), BUILDING (needs stronger
+opposition / a win over a credible contender / a stronger recent run / more activity / a better record), CONTENDER, ELIMINATOR, MANDATORY.
+A 5-2 fighter is eligible for nothing. A fighter named by the board (mandatory, or the winner of an eliminator) is exempt from the
+assessment, and mandatory challengers are drawn only from credible contenders - never from ranking alone.
 
-**The champion's camp decides a voluntary challenge** (`titleCamp.ts`). It accepts a challenger who is a credible, bankable opponent and
-turns down one who is not, using a deterministic roll against a probability built from public facts (career value against the
-champion's, where the challenger stands on the list, how the records compare, how long the champion has gone without defending). The
-roll is fixed for a quarter so asking again straight away gets the same answer; the player only ever sees an outlook ("Strong case",
-"Fair chance", "Long shot") and, when refused, a reason. A challenge ordered by the board (mandatory defence, eliminator) is never
-refused. The same rule governs the AI promotions, so the world follows the rules the player does.
+**Champion's camp** (`titleCamp.ts`). Owed obligations first (a mandatory defence owed, an eliminator pending: the camp declines). An ordered
+challenger is always accepted, whatever the commercial picture. Otherwise a deterministic quarterly roll against a probability built from
+public value, commercial appeal, credibility, rank and how long the champion has been idle. The decline is remembered
+(`business.declines`) until the quarter ends, so asking again gets the same answer; the player sees an outlook (strong / fair / weak) and a
+reason ("TITLE REQUEST DECLINED"). Commercial appeal can never override a mandatory.
 
-**Measured effect** (seed `ch-1`, 5 bot-played years, `scripts/audit/phase54-challengers.ts`): title fights fell from 388 to about 160,
-and the weakest world challenger went from 6 wins in 10 fights to 10 wins in 15. Belts vacant at any one time rose from 19% to about 30%
-(more belts wait for credible contenders).
+**Vacant belts** are filled only from credible contenders within the vacancy limit, a belt opens only with 3 (world: 4) credible
+contenders, and an obligation to fight for a vacant belt is paired once.
+
+**Measured** (`scripts/audit/phase54-contention.ts 5 5 --detail`, seeds contend-1..5, 5 bot-played years each): title fights per seed
+227 / 184 / 213 / 201 / 219 (before calibration ~165; before any restriction ~388); vacant belts 27.7% (30% before calibration, 19% originally).
+By level: area 40.7% vacant, domestic 26.1%, European 37.2%, world 24.9%. The lowest challengers seen: world 14 fights / 9 wins, European 11 / 8,
+domestic 9 / 6, area 9 / 6. 19 area-to-domestic, 10 domestic-to-European and 22 European-to-world routes; 398 mandatory orders, 61 of which went
+ahead although the champion's camp would have refused them as voluntary fights. Round-count and hierarchy invariants: 0 problems.
+
+**Trade-offs.** Vacancy is mostly supply-limited (few credible, unbooked contenders at a division at once), so the remaining 28% is not
+tuned away further without inventing challengers. Area and domestic belts in thin divisions sit vacant longer. Acceptance runs about 50-60%.

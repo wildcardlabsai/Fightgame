@@ -53,7 +53,7 @@ for (let k = 1; k <= seeds; k++) {
       if (!f.title || seen.has(f.id) || f.status === 'negotiating') continue
       seen.add(f.id); titleFights++
       if (f.scheduledRounds <= 4) shortRounds++
-      if (fightRoundsProblem(s, f)) ladder.probs++
+      { const pr = fightRoundsProblem(s, f); if (pr) { ladder.probs++; console.error("ROUNDS PROBLEM", "day", s.today, "status", f.status, "result", !!f.result, "date", f.date, f.id, f.weightClass, f.scheduledRounds, JSON.stringify(f.title), pr) } }
       const ids = [f.sideA.fighterId, f.sideB.fighterId]
       for (const b of f.title.bodies ?? []) {
         const rec = m.titles[`${b}|${f.weightClass}`]
