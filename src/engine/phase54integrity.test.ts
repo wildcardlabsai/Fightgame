@@ -42,7 +42,7 @@ function contest(s: GameState, pick: (body: string) => boolean, accepted = false
     const e = getList(s.media!, body, wc as never)?.e.find((x) => x.r >= 1 && x.r <= d.challengerLimit && x.f !== rec.c && s.fighters[x.f].status === 'active')
     if (!e) continue
     const ids = bodiesFor(s, e.f, rec.c, wc as never)
-    if (ids.includes(body) && (!accepted || championCampResponse(s, rec.c, e.f, wc as never, [body]).accept)) return { body, wc, champ: rec.c, challenger: e.f }
+    if (ids.includes(body) && (!accepted || championCampResponse(s, rec.c, e.f, wc as never, ids).accept)) return { body, wc, champ: rec.c, challenger: e.f }
   }
   return null
 }

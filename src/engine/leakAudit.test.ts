@@ -69,9 +69,9 @@ describe('static scan of the presentation layer', () => {
         const [, isType, names, mod] = m
         const engine = mod.match(/engine\/(.+)$/)?.[1]
         if (!engine) continue
-        const ok = ['view', 'quotes', 'selectors', 'calendar', 'types', 'save', 'worldgen', 'config', 'tick', 'commands', 'scouting', 'fightViews', 'matchmaking', 'eventViews', 'persistence', 'advisor', 'scenarios', 'onboarding', 'preferences', 'sponsors', 'tiers', 'tierProgress', 'eventPoster', 'media/views', 'business/views', 'business/talkViews', 'world/views']
+        const ok = ['view', 'quotes', 'selectors', 'calendar', 'types', 'save', 'worldgen', 'config', 'tick', 'commands', 'scouting', 'fightViews', 'matchmaking', 'eventViews', 'persistence', 'advisor', 'scenarios', 'onboarding', 'preferences', 'sponsors', 'tiers', 'tierProgress', 'eventPoster', 'media/views', 'business/views', 'business/talkViews', 'world/views', 'office/views']
         if (['knowledge', 'market', 'negotiation', 'roster', 'rng', 'balance', 'ledger', 'systems/aiMarket', 'systems/aiFights', 'systems/world', 'ids', 'messages', 'fights', 'fightNegotiation', 'fight/sim', 'fight/profile', 'fight/injuries', 'fight/styles', 'fight/lifecycle'].includes(engine)) bad.push(`${f.path} imports ${engine}`)
-        if (!isType && !ok.includes(engine) && engine !== 'media/commands') {
+        if (!isType && !ok.includes(engine) && engine !== 'media/commands' && engine !== 'office/commands') {
           const allowed = allowedValues[engine] ?? []
           const used = names.replace(/[{}]/g, '').split(',').map((x) => x.trim()).filter(Boolean)
           if (engine === 'fighters' || !allowed.length || used.some((u) => !allowed.includes(u))) bad.push(`${f.path} value-imports ${engine}: ${names}`)
@@ -81,6 +81,8 @@ describe('static scan of the presentation layer', () => {
         if (engine === 'worldgen' && !isType && !f.path.startsWith('store/')) bad.push(`${f.path} value-imports worldgen`)
         if (engine === 'save' && !f.path.startsWith('store/')) bad.push(`${f.path} imports save outside the store`)
         if (engine === 'media/commands' && !f.path.startsWith('store/')) bad.push(`${f.path} imports media commands outside the store`)
+        if (engine === 'office/commands' && !f.path.startsWith('store/')) bad.push(`${f.path} imports office commands outside the store`)
+        if (engine.startsWith('office/') && !['office/views', 'office/commands'].includes(engine)) bad.push(`${f.path} imports office internals: ${engine}`)
         if (engine.startsWith('media/') && !['media/views', 'media/commands'].includes(engine)) bad.push(`${f.path} imports media internals: ${engine}`)
         if (engine === 'commands' && !f.path.startsWith('store/')) bad.push(`${f.path} imports commands outside the store`)
         if (engine === 'tick' && !f.path.startsWith('store/')) bad.push(`${f.path} imports tick outside the store`)

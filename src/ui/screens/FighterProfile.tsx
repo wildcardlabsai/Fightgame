@@ -1,10 +1,10 @@
 import { useMemo, useState } from 'react'
+import { ObjectivePanel } from '../office/ObjectivePanel'
 import '../../styles/world54b.css'
 import { fighterAdvice } from '../../engine/advisor'
 import { formatDay } from '../../engine/calendar'
 import { STAGE_LABEL } from '../../engine/systems/contracts'
-import { FOCUS_BLURBS, FOCUS_LABELS } from '../../engine/systems/development'
-import type { TrainingFocus } from '../../engine/types'
+import type {  } from '../../engine/types'
 import { fightView } from '../../engine/fightViews'
 import { fighterBusinessView } from '../../engine/business/views'
 import { useGame } from '../../store/gameStore'
@@ -21,7 +21,6 @@ import { CareerPanel, CommitmentsPanel, DivisionMove, ExpectedTermsPanel, PlanCh
 
 export function FighterProfile({ id }: { id: string }) {
   const navigate = useGame((s) => s.navigate)
-  const setTraining = useGame((s) => s.setTraining)
   const toggleShortlist = useGame((s) => s.toggleShortlist)
   const views = useViews()
   const v = views.fighter(id)
@@ -92,6 +91,7 @@ export function FighterProfile({ id }: { id: string }) {
             </div>
             <div>
               {bv.expected && <ExpectedTermsPanel t={bv.expected} canNegotiate={(!mine && v.market.signable) || (mine && c.kind === 'own')} onOpen={() => navigate('negotiation', v.id)} />}
+              {mine && <ObjectivePanel id={v.id} />}
               {mine && <PlanChooser bv={bv} />}
               {mine && <DivisionMove bv={bv} divisionName={v.division} />}
               <ToldPanel bv={bv} />
@@ -216,17 +216,15 @@ export function FighterProfile({ id }: { id: string }) {
           </Section>
 
           {v.own && (
-            <Section title="Condition & training">
+            <Section title="Condition & coaching">
               {([['Fitness', v.own.fitness, 'good'], ['Conditioning', v.own.conditioning, 'good'], ['Confidence', v.own.confidence, 'blue'], ['Morale', v.own.morale, undefined]] as const).map(([label, b, tone]) => (
                 <div className="attr-row" key={label}><span>{label}</span><Meter value={b.value} tone={tone} label={label} /><span className="dim" style={{ textAlign: 'right', fontSize: 13 }}>{b.label}</span></div>
               ))}
               <p className="dim" style={{ margin: '6px 0 12px', fontSize: 13 }}>Mood: <b style={{ color: 'var(--text)' }}>{v.own.mood}</b></p>
-              <div className="focus-grid">
-                {(Object.keys(FOCUS_LABELS) as TrainingFocus[]).map((k) => (
-                  <button key={k} className={`focus-opt${v.own!.trainingFocus === k ? ' on' : ''}`} aria-pressed={v.own!.trainingFocus === k} onClick={() => setTraining(v.id, k)}>
-                    <div className="n">{FOCUS_LABELS[k]}</div><div className="d">{FOCUS_BLURBS[k]}</div>
-                  </button>
-                ))}
+              <div className="w54-trainer" data-testid="trainer-focus">
+                <div className="caps">The trainer has {v.firstName} working on</div>
+                <div className="v">{v.own.workingOn}</div>
+                <div className="dim" style={{ fontSize: 13 }}>{v.own.workingWhy}. Technical work, sparring and the fight plan are the trainer’s and the fighter’s call; you set the coaching budget in the <button className="linkbtn" onClick={() => navigate('office')}>Promoter’s Office</button>.</div>
               </div>
             </Section>
           )}

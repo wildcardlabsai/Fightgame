@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { formatDay } from '../../engine/calendar'
 import { eventList } from '../../engine/eventViews'
 import { fightView, type FightSideView, type FightView, type ResultView } from '../../engine/fightViews'
-import type { CampIntensity, FightPlan } from '../../engine/types'
 import { useGame } from '../../store/gameStore'
 import { Section } from '../components/Bits'
 import { RangeText } from '../components/Estimates'
@@ -12,17 +11,6 @@ import { TaleOfTape } from '../components/TaleOfTape'
 import { FightMediaPanel } from '../media/FightMediaPanel'
 import { LiveFight } from '../visual/LiveFight'
 import { money } from '../format'
-
-const INTENSITY: Record<CampIntensity, { n: string; d: string }> = {
-  light: { n: 'Light', d: 'Safer on the body, but less sharpness on the night.' },
-  normal: { n: 'Normal', d: 'A standard camp.' },
-  intense: { n: 'Intense', d: 'Peak sharpness — at a higher risk of camp injury and weight trouble.' },
-}
-const PLAN: Record<FightPlan, { n: string; d: string }> = {
-  balanced: { n: 'Balanced', d: 'Fight to the fighter’s natural style.' },
-  aggressive: { n: 'Aggressive', d: 'Push the pace and hunt the stoppage — but leave gaps.' },
-  cautious: { n: 'Cautious', d: 'Stay safe, protect the chin, win rounds.' },
-}
 
 function Hero({ fv, after, showWinner, hideMatchup }: { fv: FightView; after?: [string, string]; showWinner: boolean; hideMatchup?: boolean }) {
   const r = fv.result
@@ -164,7 +152,6 @@ function FightPageInner({ id }: { id: string }) {
   const ack = useGame((s) => s.ackFight)
   const run = useGame((s) => s.runFightNight)
   const schedule = useGame((s) => s.scheduleFight)
-  const setPrep = useGame((s) => s.setPrep)
   const withdraw = useGame((s) => s.withdrawFight)
   const fv = useMemo(() => fightView(game, id), [game, id])
   const total = fv?.result?.rounds?.length ?? 0
@@ -216,31 +203,25 @@ function FightPageInner({ id }: { id: string }) {
         </Section>
       )}
 
-      {open && myPrep && mySide !== null && (
-        <Section title="Preparation" right={<span className="dim" style={{ fontSize: 13 }}>Camp {Math.min(4, myPrep.campWeeks)}/4 weeks{myPrep.nagging ? ' · nursing a niggle' : ''}{myPrep.weightIssue ? ' · weight trouble' : ''}</span>}>
-          <div className="grid-2">
-            <div>
-              <div className="caps" style={{ marginBottom: 6 }}>Camp intensity</div>
-              <div className="focus-grid">
-                {(Object.keys(INTENSITY) as CampIntensity[]).map((k) => (
-                  <button key={k} className={`focus-opt${myPrep.intensity === k ? ' on' : ''}`} aria-pressed={myPrep.intensity === k} disabled={fv.statusKey === 'fightNight'} onClick={() => setPrep(id, mySide, { intensity: k })}>
-                    <div className="n">{INTENSITY[k].n}</div><div className="d">{INTENSITY[k].d}</div></button>
-                ))}
-              </div>
+      {open && myPrep && mySide !== null && (() => {
+        const tr = (mySide === 0 ? fv.a : fv.b).trainer
+        if (!tr) return null
+        const tone = tr.readiness === 'ready' ? 'good' : tr.readiness === 'concerns' ? 'warn' : 'red'
+        return (
+          <Section title="Trainer’s report" right={<span className="dim" style={{ fontSize: 13 }}>Camp {Math.min(4, myPrep.campWeeks)}/4 weeks</span>}>
+            <div data-testid="trainer-report" data-readiness={tr.readiness}>
+              <p style={{ margin: '0 0 6px' }}><b className={tone}>{tr.readiness === 'ready' ? 'The team reports he is ready.' : tr.readiness === 'concerns' ? 'The team has concerns.' : 'The team says he is not fit to fight.'}</b>{' '}
+                <span className="dim">The trainer has him on {tr.camp}, working {tr.focus.toLowerCase()}, and has told him {tr.plan}.</span></p>
+              {tr.notes.length > 0 && <ul className="w54-notes">{tr.notes.map((n) => <li key={n}>{n}</li>)}</ul>}
+              <p className="dim" style={{ fontSize: 13, margin: '8px 0 0' }}>Preparation and tactics are the trainer’s and the fighter’s decisions. Yours is the business call: go ahead, or pull him out and take the consequences.</p>
+              {tr.readiness !== 'ready' && fv.statusKey !== 'fightNight' && <button className="btn" style={{ marginTop: 10 }} onClick={() => setConfirm(true)}>Pull out of the fight</button>}
+              {confirm && (
+                <p role="alert" style={{ marginTop: 10 }}>Pull this fighter out? The opponent’s camp and the promotion’s name will remember it. <button className="btn primary" onClick={() => { withdraw(id); navigate('fights') }}>Yes, pull out</button> <button className="linkbtn" onClick={() => setConfirm(false)}>No, proceed</button></p>
+              )}
             </div>
-            <div>
-              <div className="caps" style={{ marginBottom: 6 }}>Fight plan</div>
-              <div className="focus-grid">
-                {(Object.keys(PLAN) as FightPlan[]).map((k) => (
-                  <button key={k} className={`focus-opt${myPrep.plan === k ? ' on' : ''}`} aria-pressed={myPrep.plan === k} disabled={fv.statusKey === 'fightNight'} onClick={() => setPrep(id, mySide, { plan: k })}>
-                    <div className="n">{PLAN[k].n}</div><div className="d">{PLAN[k].d}</div></button>
-                ))}
-              </div>
-            </div>
-          </div>
-          <p className="dim" style={{ marginTop: 10, fontSize: 13 }}>Training focus on the fighter’s profile also shapes camp. Fitness, morale, confidence and age all carry into the ring.</p>
-        </Section>
-      )}
+          </Section>
+        )
+      })()}
 
       {fv.matchup && (
         <Section title="Your read on the fight">

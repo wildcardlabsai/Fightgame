@@ -1,0 +1,34 @@
+/* Phase 5.4C - the promoter's office: offers, objectives, campaigns, relationships. */
+.o54-tabs-note { margin: 4px 0 12px; font-size: 13.5px; color: var(--dim); }
+.o54-list { display: grid; gap: 14px; }
+.o54-card { border: 1px solid var(--line-strong); border-left: 3px solid var(--gold); background: var(--bg-2); padding: 14px 16px; display: grid; gap: 10px; clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 0 100%); }
+.o54-card.agreed { border-left-color: var(--good); } .o54-card.closed { border-left-color: var(--line-strong); opacity: .85; }
+.o54-head { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: baseline; justify-content: space-between; }
+.o54-head h3 { margin: 0; font-size: 20px; } .o54-sub { color: var(--dim); font-size: 13px; }
+.o54-vs { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); gap: 12px; align-items: center; }
+.o54-vs .x { color: var(--dim); font-size: 13px; letter-spacing: .12em; }
+.o54-fighter { display: grid; gap: 2px; min-width: 0; } .o54-fighter b { font-size: 17px; overflow-wrap: anywhere; } .o54-fighter span { font-size: 13px; color: var(--dim); }
+.o54-facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px 16px; font-size: 13.5px; }
+.o54-facts .k { display: block; font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--dim); }
+.o54-money { border-top: 1px solid var(--line); padding-top: 8px; display: grid; gap: 4px; font-size: 14px; }
+.o54-money ul { margin: 4px 0 0; padding-left: 18px; color: var(--dim); font-size: 13px; }
+.o54-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.o54-counter { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; align-items: end; border: 1px dashed var(--line-strong); padding: 10px; }
+.o54-counter label { display: grid; gap: 4px; font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--dim); }
+.o54-warn { border-left: 3px solid var(--warn); background: var(--bg); padding: 8px 12px; font-size: 13.5px; }
+.o54-hist { font-size: 13px; color: var(--dim); display: grid; gap: 2px; }
+.o54-chip { display: inline-block; padding: 2px 8px; border: 1px solid var(--line-strong); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; }
+.o54-chip.good { color: var(--good); border-color: var(--good); } .o54-chip.warn { color: var(--warn); border-color: var(--warn); } .o54-chip.red { color: var(--red-hot); border-color: var(--red); } .o54-chip.gold { color: var(--gold); border-color: var(--gold); }
+.o54-steps { list-style: none; padding: 0; margin: 6px 0; display: grid; gap: 6px; }
+.o54-steps li { display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 8px; font-size: 14px; }
+.o54-steps .tick { color: var(--dim); } .o54-steps li.done .tick { color: var(--good); } .o54-steps small { display: block; color: var(--dim); font-size: 12.5px; }
+.o54-bar { height: 6px; background: var(--bg); border: 1px solid var(--line); } .o54-bar i { display: block; height: 100%; background: var(--gold); }
+.o54-choice { text-align: left; border: 1px solid var(--line-strong); background: var(--bg-2); color: var(--text); padding: 10px 12px; min-height: 44px; cursor: pointer; display: grid; gap: 2px; }
+.o54-choice[aria-pressed=true] { border-color: var(--gold); background: var(--bg); } .o54-choice:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.o54-choice b { font-size: 15px; } .o54-choice small { color: var(--dim); font-size: 12.5px; }
+.o54-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 10px; }
+.o54-rel { display: grid; grid-template-columns: 110px minmax(0, 1fr) auto; gap: 8px 14px; align-items: baseline; border-bottom: 1px solid var(--line); padding: 8px 0; font-size: 14px; }
+.o54-rel small { color: var(--dim); display: block; }
+.w54-trainer { border: 1px solid var(--line-strong); padding: 10px 12px; display: grid; gap: 4px; background: var(--bg-2); } .w54-trainer .v { font-size: 20px; }
+.w54-notes { margin: 6px 0; padding-left: 18px; font-size: 14px; }
+@media (max-width: 700px) { .o54-vs { grid-template-columns: minmax(0, 1fr); } .o54-vs .x { justify-self: start; } .o54-rel { grid-template-columns: minmax(0, 1fr); } }

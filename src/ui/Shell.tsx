@@ -1,4 +1,5 @@
 import { formatDay, weekOfYear } from '../engine/calendar'
+import { OfficeScreen } from './screens/OfficeScreen'
 import { cashRunwayWeeks, financialHealth, player, unreadCount } from '../engine/selectors'
 import { lazy, Suspense, useLayoutEffect } from 'react'
 import { useGame } from '../store/gameStore'
@@ -96,6 +97,7 @@ function Screen() {
     case 'calendar': return <CalendarScreen />
     case 'finances': return <FinancesScreen />
     case 'promotions': return <PromotionsScreen />
+    case 'office': return <OfficeScreen />
     case 'venues': return <VenuesScreen />
     case 'sponsors': return <SponsorsScreen />
     case 'news': return <NewsScreen />

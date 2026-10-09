@@ -7,6 +7,9 @@
  *   'actual'  — the same model times hidden factors (true marketability of the headliners, a keyed noise draw).
  *               This is what actually happens, so forecasts can miss.
  */
+import { campaignLuck, campaignPoints } from '../office/promotion'
+import { strategyDemand, strategyMarketing, strategyVenue } from '../office/strategy'
+import { venueTilt } from '../office/relations'
 import { cardFighterIds, fighterDistanceKm, travelCost } from '../business/venues'
 import { marketingBonus } from '../sponsorCatalog'
 import { tierAllowsBroadcast } from '../tiers'
@@ -101,7 +104,7 @@ export function eventInterest(state: GameState, ev: BoxingEvent): number {
   const p = state.promotions[ev.promotionId]
   const v = venueOf(state, ev)
   const w = E.interestWeights
-  return clamp(w.main * q.main + w.coMain * q.coMain + w.depth * q.depth + w.promo * promoStrength(p) + w.importance * v.prestige * 18 + mediaHype(state, ev.id), 0, 100)
+  return clamp(w.main * q.main + w.coMain * q.coMain + w.depth * q.depth + w.promo * promoStrength(p) + w.importance * v.prestige * 18 + mediaHype(state, ev.id) + campaignPoints(state, ev), 0, 100)
 }
 
 /** Share of the card drawn from the venue's home turf. 0–1. */
@@ -186,7 +189,7 @@ function hiddenFactor(state: GameState, ev: BoxingEvent): number {
     keyedNormal(state.seed, 'evlocal', ev.id) * N.local +
     keyedNormal(state.seed, 'economy', year) * N.economy +
     keyedNormal(state.seed, 'weather', ev.id) * (N.weather[v.tier] ?? 0.03)
-  return Math.exp(logNoise * dn) * (1 + 0.12 * ((mk - 50) / 50)) * E.season[month] * competitionFactor(state, ev)
+  return Math.exp(logNoise * dn) * (1 + 0.12 * ((mk - 50) / 50)) * E.season[month] * competitionFactor(state, ev) * campaignLuck(state, ev)
 }
 
 export function demandFor(state: GameState, ev: BoxingEvent, mode: 'public' | 'actual', prices: TicketPrices = ev.prices, spend = ev.marketing.spent): Demand {
@@ -203,10 +206,10 @@ export function demandFor(state: GameState, ev: BoxingEvent, mode: 'public' | 'a
   const aw = awarenessFor(state, ev, spend)
   const starBoost = 1 + strat.star * (q.main / 100)
   const mktLuck = mode === 'actual' ? Math.exp(keyedNormal(state.seed, 'evmkt', ev.id) * E.noise.marketing * B.difficulty[state.settings.difficulty].demandNoise) : 1
-  const mkt = 1 + E.marketing.maxDemandBoost * (aw / 100) * starBoost * mktLuck * (1 + marketingBonus(state, p.isPlayer))
+  const mkt = 1 + E.marketing.maxDemandBoost * (aw / 100) * starBoost * mktLuck * (1 + marketingBonus(state, p.isPlayer)) * (p.isPlayer ? strategyMarketing(state) : 1)
   const base = E.demandScale * Math.pow(Math.max(interest, 1) / 10, E.demandExp)
   const hidden = mode === 'actual' ? hiddenFactor(state, ev) : 1
-  const reach = base * promoF * mkt * hidden
+  const reach = base * promoF * mkt * hidden * strategyDemand(state, ev)
   const stay = E.cannibal[ev.broadcast.kind] ?? 1
   const A0 = reach * v.market * local * foreign * home * stay
   const ref = refPrices(interest)
@@ -296,7 +299,8 @@ export function broadcastTerms(state: GameState, ev: BoxingEvent, kind: Broadcas
 
 /** Venue rental for this promotion. The player pays the difficulty-adjusted price; rivals pay list. */
 export function hireFor(state: GameState, v: Venue, promotionId: string): number {
-  return Math.round(v.hireCost * (promotionId === state.playerPromotionId ? B.difficulty[state.settings.difficulty].venueCost : 1))
+  const mine = promotionId === state.playerPromotionId
+  return Math.round(v.hireCost * (mine ? B.difficulty[state.settings.difficulty].venueCost * strategyVenue(state) * venueTilt(state, v.id) : 1))
 }
 
 export function productionCost(v: Venue): number {

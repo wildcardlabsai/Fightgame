@@ -16,6 +16,9 @@ import { MEDIA_BEHAVIOURS, MEDIA_ORDER, relationOf, shiftRelation } from './orgs
 import { ATTENTION, FLASH, approachFit, personaOf } from './persona'
 import { addInterest, mediaOf, profileOf } from './popularity'
 import { LIMITS } from './state'
+import { pressCost, pressPolitics, pressWorthy } from '../office/press'
+import { spend } from '../eventFinance'
+import { rivalryStrength } from './narratives'
 import type { MediaRequest, MediaState, PressApproach, PressConference, RequestKind, VideoType } from './types'
 import { mediaMessage } from './inbox'
 import { publishVideo } from './videos'
@@ -172,16 +175,21 @@ export function weeklyPressers(state: GameState, media: MediaState, week: number
     if (weeks < 1 || weeks > 5) continue
     const main = state.fights[ev.card[ev.card.length - 1]]
     if (!main || main.status === 'cancelled') continue
+    // Not every show earns a press conference: only fights with something to sell, and not back to back.
+    const why = pressWorthy(state, ev, main)
+    if (!why) continue
+    if (media.pressers.some((p) => week - p.createdWeek < 6) || media.pressers.some((p) => p.status === 'open')) continue
     const roster = new Set(rosterOf(state).map((f) => f.id))
     const ids: [Id, Id] = roster.has(main.sideB.fighterId) && !roster.has(main.sideA.fighterId) ? [main.sideB.fighterId, main.sideA.fighterId] : [main.sideA.fighterId, main.sideB.fighterId]
     const names: [string, string] = [fighterName(state.fighters[ids[0]]), fighterName(state.fighters[ids[1]])]
-    const pc: PressConference = { id: nextId(media, 'pc'), eventId: ev.id, fightId: main.id, fighterIds: ids, names, createdWeek: week, expiresWeek: Math.max(week + 1, week + weeks - 1), status: 'open' }
+    const v = state.venues[ev.venueId]
+    const pc: PressConference = { id: nextId(media, 'pc'), eventId: ev.id, fightId: main.id, fighterIds: ids, names, createdWeek: week, expiresWeek: Math.max(week + 1, week + weeks - 1), status: 'open', why, cost: pressCost(v?.capacity ?? 1000) }
     media.pressers.unshift(pc)
     if (media.pressers.length > LIMITS.pressers) media.pressers.length = LIMITS.pressers
     mediaMessage(state, media, {
       from: 'Press office', category: 'world', priority: 'normal', key: `presser-${pc.id}`,
       subject: `PRESS CONFERENCE: ${names[0]} v ${names[1]}`,
-      body: `The press are gathering for ${ev.name}. How you handle the conference — respectful, confident, aggressive, provocative or diplomatic — sets the tone for the build-up. Choose before the fight week.`,
+      body: `The press are gathering for ${ev.name} (${why.toLowerCase()}). It costs about £${(pc.cost ?? 0).toLocaleString('en-GB')} to stage. How you handle the conference — respectful, confident, aggressive, provocative or diplomatic — sets the tone for the build-up. Choose before the fight week.`,
       link: { kind: 'screen', screen: 'media' },
     })
   }
@@ -195,9 +203,16 @@ export function holdPress(state: GameState, media: MediaState, id: string, appro
   if (!ev || !a || !b) { pc.status = 'expired'; return { ok: false, message: 'The show is no longer on.' } }
   const base = APPROACH[approach]
   const pa = personaOf(a.personality), pb = personaOf(b.personality)
+  const cost = pc.cost ?? pressCost(state.venues[ev.venueId]?.capacity ?? 1000)
+  if (state.promotions[state.playerPromotionId].cash < cost) return { ok: false, message: `You cannot afford the £${cost.toLocaleString('en-GB')} it costs to stage the conference.` }
+  spend(state, ev, 'marketing', cost, `Press conference — ${ev.name}`)
+  const heatBefore = rivalryStrength(media, a.id, b.id)
   const fit = approachFit(approach, pa)
   const oppHeat = ['TRASH_TALKER', 'CONTROVERSIAL', 'EMOTIONAL'].includes(pb) ? 1.3 : 1
-  const hype = Math.round(base.hype * fit * 10) / 10
+  // A feud sold with no history behind it can read as manufactured: the press smell it and the hype is blunted.
+  const manufactured = base.rivalry >= 10 && heatBefore < 10 && !['TRASH_TALKER', 'CONTROVERSIAL', 'EMOTIONAL'].includes(pa) && !['TRASH_TALKER', 'CONTROVERSIAL', 'EMOTIONAL'].includes(pb)
+  const backlash = manufactured && keyedFloat(state.seed, 'pressback', pc.id) < 0.4
+  const hype = Math.round(base.hype * fit * (backlash ? 0.4 : 1) * 10) / 10
   const rivalry = Math.round(base.rivalry * fit * (base.rivalry > 0 ? oppHeat : 1))
   const interest = Math.round(base.interest * fit * ATTENTION[pa])
   const controversy = keyedFloat(state.seed, 'press', pc.id) < base.contro * fit + FLASH[pa] + FLASH[pb] * 0.5 * (base.contro > 0.1 ? 1 : 0)
@@ -210,7 +225,9 @@ export function holdPress(state: GameState, media: MediaState, id: string, appro
   for (const orgId of MEDIA_ORDER) if (MEDIA_BEHAVIOURS[orgId].appetite >= 50) shiftRelation(media, orgId, state.playerPromotionId, relDelta * (MEDIA_BEHAVIOURS[orgId].controversyBias > 60 && relDelta < 0 ? -0.5 : 1))
   const text = `${pc.names[0]} and ${pc.names[1]} faced the press in ${base.tone}. Show hype +${hype}${controversy ? ' (+2 from the flare-up)' : ''}, ${rivalry >= 0 ? 'rivalry' : 'rivalry'} ${rivalry >= 0 ? '+' : ''}${rivalry}, media interest +${interest}.`
   pc.status = 'done'; pc.approach = approach
-  pc.result = { hype, rivalry, interest, relationship: Math.round(relDelta * 10) / 10, controversy, text }
+  if (backlash) { state.promotions[state.playerPromotionId].reputation = Math.max(0, state.promotions[state.playerPromotionId].reputation - 0.3) }
+  pressPolitics(state, pc, approach, a.id, b.id, rivalry, heatBefore)
+  pc.result = { hype, rivalry, interest, relationship: Math.round(relDelta * 10) / 10, controversy, text: backlash ? `${text} The feud rang hollow: the press saw through it and the promotion's name took a small knock.` : text, backlash }
   const pev: WorldEvent = { kind: 'PRESS_CONFERENCE', day: state.today, fighters: [a.id, b.id], names: pc.names, promotions: [state.playerPromotionId], eventId: ev.id, fightId: pc.fightId, facts: { a: pc.names[0], b: pc.names[1], ev: ev.name, what: `${pc.names[0]} and ${pc.names[1]} met the press ahead of ${ev.name} in ${base.tone}${controversy ? ', and the exchange boiled over' : ''}`, div: weightClassLabel(a.weightClass) }, sig: Math.round(clampTo(18 + (media.eventHype[ev.id] ?? 0) * 2 + interest)), parts: {}, tags: controversy ? ['flare'] : [] }
   coverEvent(state, media, pev, `press:${pc.id}`)
   for (const orgId of MEDIA_ORDER) publishVideo(state, media, orgId, 'PRESS_CONFERENCE', pev)

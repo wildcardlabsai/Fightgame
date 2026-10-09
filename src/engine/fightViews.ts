@@ -1,6 +1,7 @@
 /**
  * Player-facing fight views. Only public results and the player's beliefs about fighters appear here.
  */
+import { trainerReport, type TrainerReport } from './office/trainer'
 import { weeksBetween } from './calendar'
 import { BALANCE as B } from './balance'
 import { fighterName } from './fighters'
@@ -93,6 +94,8 @@ export interface FightSideView {
   preRecord: string
   mine: boolean
   prep: FightPrep | null
+  /** The trainer's report on this fighter (own fighters only): what the camp is doing and how ready he is. */
+  trainer: TrainerReport | null
 }
 
 export interface FightNegotiationView {
@@ -185,6 +188,7 @@ export function fightView(state: GameState, id: Id): FightView | null {
   const bMine = fight.sideB.promotionId === state.playerPromotionId
   const mkSide = (side: typeof fight.sideA, v: FighterView, own: boolean): FightSideView => ({
     fighter: v, promotionName: side.promotionId ? state.promotions[side.promotionId]?.name ?? null : null, preRecord: side.preRecord, mine: own, prep: own ? { ...side.prep } : null,
+    trainer: own ? trainerReport(state, fight, side === fight.sideA ? 0 : 1) : null,
   })
   const my = aMine ? va : bMine ? vb : null
   const opp = aMine ? vb : bMine ? va : null

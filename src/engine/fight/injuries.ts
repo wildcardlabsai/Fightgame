@@ -1,4 +1,5 @@
 import { planInjuryMult } from '../business/plans'
+import { coachInjury } from '../office/trainer'
 import { BALANCE as B } from '../balance'
 import { fighterAge, fighterName } from '../fighters'
 import { postMessage } from '../messages'
@@ -41,7 +42,8 @@ export function rollFightInjury(state: GameState, f: Fighter, endDamage: number,
 export function rollCampInjury(state: GameState, f: Fighter, intensity: CampIntensity, rng: Rng): Injury | null {
   const mult = intensity === 'intense' ? 1.8 : intensity === 'light' ? 0.5 : 1
   const age = fighterAge(f, state.today)
-  const p = B.fights.injury.campWeekly * mult * (0.5 + f.injuryRisk / 100) * ageInjuryMult(age)
+  const mine = f.contractId ? state.contracts[f.contractId]?.promotionId === state.playerPromotionId : false
+  const p = B.fights.injury.campWeekly * mult * (0.5 + f.injuryRisk / 100) * ageInjuryMult(age) * (mine ? coachInjury(state) : 1)
   if (!rng.chance(p)) return null
   return makeInjury(rng, state.today, severityFor(rng))
 }

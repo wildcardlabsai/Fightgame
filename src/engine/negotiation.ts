@@ -4,6 +4,7 @@
  * promotion, relationship and the soft terms (fights, length, title promise) all move the verdict.
  * The response — accept / counter / reject — plus plain-language reasons is all the player gets to see.
  */
+import { outbid } from './office/politics'
 import { pursuitOf } from './world/pursuit'
 import { BALANCE as B } from './balance'
 import { FEATURES } from './config'
@@ -181,6 +182,8 @@ export function renewalWindowOpen(state: GameState, c: Contract): boolean {
 
 /** The agreed deal: the contract, the messages and the news. Shared by the offer flow and the conversational talks. */
 export function concludeSigning(state: GameState, f: Fighter, promo: Promotion, offer: Offer, kind: NegotiationKind): Contract {
+  const rival = promo.isPlayer && kind === 'signing' ? pursuitOf(state, f.id) : null
+  if (rival && rival.promoId !== promo.id) outbid(state, f.id, rival.promoId) // beating a rival's standing offer is remembered by that promoter
   const name = fighterName(f)
   const signed = completeSigning(state, f, offer, kind)
   postMessage(state, {

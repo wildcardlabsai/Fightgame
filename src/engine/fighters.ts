@@ -83,7 +83,7 @@ export function potentialBand(potential: number): string {
 
 // ------------------------------------------------------------- Generation
 
-const STYLE_BIAS: Record<FightingStyle, Partial<Record<AttributeKey, number>>> = {
+export const STYLE_BIAS: Record<FightingStyle, Partial<Record<AttributeKey, number>>> = {
   'Pressure Fighter': { aggression: 8, stamina: 6, heart: 4, defence: -5, chin: 2 },
   Boxer: { ringIQ: 6, defence: 3, speed: 2, power: -3 },
   'Counter Puncher': { ringIQ: 8, defence: 6, adaptability: 3, aggression: -8 },

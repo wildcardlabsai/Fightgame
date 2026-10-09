@@ -308,14 +308,14 @@ export function requestsList(state: GameState): RequestView[] {
   }))
 }
 
-export interface PressView { id: string; eventId: Id; eventName: string; names: [string, string]; weeksLeft: number; status: string; approach?: string; result?: string; options: { key: PressApproach; label: string; hint: string }[] }
+export interface PressView { id: string; eventId: Id; eventName: string; names: [string, string]; weeksLeft: number; status: string; approach?: string; result?: string; why: string | null; cost: number; backlash: boolean; options: { key: PressApproach; label: string; hint: string }[] }
 const PRESS_HINT: Record<PressApproach, string> = { RESPECTFUL: 'Warm the press without lighting a fire', CONFIDENT: 'Back yourself and build the show', AGGRESSIVE: 'Raise the temperature: big hype, real risk', CONTROVERSIAL: 'Maximum noise: hype and rivalry, with a real chance it boils over', DIPLOMATIC: 'Calm everyone down and keep the media on side' }
 export function pressList(state: GameState): PressView[] {
   const media = state.media
   if (!media) return []
   const week = weekNow(state)
   return media.pressers.map((p) => ({
-    id: p.id, eventId: p.eventId, eventName: state.events[p.eventId]?.name ?? 'The show', names: p.names, weeksLeft: Math.max(0, p.expiresWeek - week), status: p.status, approach: p.approach, result: p.result?.text,
+    id: p.id, eventId: p.eventId, eventName: state.events[p.eventId]?.name ?? 'The show', names: p.names, weeksLeft: Math.max(0, p.expiresWeek - week), status: p.status, approach: p.approach, result: p.result?.text, why: p.why ?? null, cost: p.cost ?? 0, backlash: !!p.result?.backlash,
     options: (Object.keys(PRESS_HINT) as PressApproach[]).map((k) => ({ key: k, label: k.charAt(0) + k.slice(1).toLowerCase(), hint: `${PRESS_HINT[k]} (hype ${approachInfo(k).hype >= 0 ? '+' : ''}${approachInfo(k).hype}, rivalry ${approachInfo(k).rivalry >= 0 ? '+' : ''}${approachInfo(k).rivalry})` })),
   }))
 }

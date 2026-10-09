@@ -476,7 +476,7 @@ export type FinancialHealth = 'healthy' | 'concern' | 'critical' | 'insolvent'
 
 export type TransactionCategory =
   | 'startingFunds' | 'office' | 'staff' | 'gym' | 'insurance' | 'retainers'
-  | 'purses' | 'tickets' | 'sponsorship' | 'standingSponsor' | 'ppv' | 'venue' | 'marketing' | 'production' | 'broadcast' | 'officials' | 'security' | 'scouting' | 'signingBonus' | 'releaseFees' | 'other'
+  | 'purses' | 'tickets' | 'sponsorship' | 'standingSponsor' | 'ppv' | 'venue' | 'marketing' | 'production' | 'broadcast' | 'officials' | 'security' | 'scouting' | 'signingBonus' | 'releaseFees' | 'loanFee' | 'coaching' | 'other'
 
 export interface Transaction {
   id: Id
@@ -815,6 +815,8 @@ export interface GameState {
   business?: import('./business/types').BusinessState
   /** Phase 5.4B: the living boxing world - contested signings and the prospect pipeline (see engine/world). Created by migration. */
   world?: import('./world/types').WorldState
+  /** Phase 5.4C: the promoter's office - incoming offers, career objectives, relationships, campaigns, strategy (see engine/office). Created by migration. */
+  office?: import('./office/types').OfficeState
 }
 
-export const GAME_STATE_VERSION = 11
+export const GAME_STATE_VERSION = 12

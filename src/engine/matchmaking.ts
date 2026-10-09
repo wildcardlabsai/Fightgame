@@ -4,6 +4,7 @@
  * fighter is judged on the player's belief too. The simulation will use the TRUE attributes, so assessments can be wrong
  * — that gap is the game.
  */
+import { opponentFit, type OpponentFit } from './office/goals'
 import { weeksBetween } from './calendar'
 import { baseMoney, valueOf } from './market'
 import { weightCompatible } from './fight/profile'
@@ -90,6 +91,8 @@ export interface OpponentCandidate {
   recentOpponent: boolean
   /** Public geography hint. */
   home: 'Their home turf' | 'Neutral' | 'Your region'
+  /** How the opponent sits against the fighter's risk appetite (the promoter's plan for him). */
+  fit: OpponentFit
 }
 
 export function opponentCandidates(state: GameState, myId: Id, f: OpponentFilters = {}): OpponentCandidate[] {
@@ -127,7 +130,7 @@ export function opponentCandidates(state: GameState, myId: Id, f: OpponentFilter
       purseLo: Math.round(base * 0.85 * 0.8 / 100) * 100, purseHi: Math.round(base * 0.85 * 1.35 / 100) * 100,
       canApproach: check.ok, blockedReason: check.reason, earliestWeeks: Math.max(1, weeksBetween(state.today, av.earliestDay)),
       previousMeetings: prev.length, rematch: prev.length > 0, rivalry: Math.min(5, heat), recentOpponent: !!lastPrev && state.today - lastPrev.day < 365,
-      home: raw.nationality === mine.nationality ? 'Your region' : 'Neutral',
+      home: raw.nationality === mine.nationality ? 'Your region' : 'Neutral', fit: opponentFit(state, mine, raw),
     })
   }
   return out

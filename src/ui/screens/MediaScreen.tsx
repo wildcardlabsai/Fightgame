@@ -139,7 +139,7 @@ function PressCard({ p }: { p: PressView }) {
     <div className="m-req press" data-testid="media-press">
       <div className="caps">Press conference · {p.weeksLeft} wk left</div>
       <div className="m-req-t display">{p.names[0]} <i>v</i> {p.names[1]}</div>
-      <div className="dim">{p.eventName} — choose how you handle the press. <button className="linkbtn" onClick={() => navigate('event', p.eventId)}>Open the show ▸</button></div>
+      <div className="dim">{p.eventName}{p.why ? ` — ${p.why.toLowerCase()}` : ''}. Staging it costs about {money(p.cost, false)}. Choose how you handle the press. <button className="linkbtn" onClick={() => navigate('event', p.eventId)}>Open the show ▸</button></div>
       <div className="m-approach">
         {p.options.map((o) => <button key={o.key} className="btn small" title={o.hint} onClick={() => mediaDo('press', p.id, o.key)} data-testid={`press-${o.key.toLowerCase()}`}><b>{o.label}</b><small>{o.hint}</small></button>)}
       </div>

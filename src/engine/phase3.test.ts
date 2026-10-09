@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { approach, offerFight, prepare, runFightNight, schedule, withdraw, releaseFighter, commissionReport } from './commands'
+import * as commands from './commands'
+import { approach, offerFight, runFightNight, schedule, withdraw, releaseFighter, commissionReport } from './commands'
 import { fighterAge, fighterName } from './fighters'
 import { suggestedFightOffer, fightAsk, evaluateFightOffer } from './fightNegotiation'
 import { fightAvailability, scheduleOptions, validateMatch, resolveFight, lockKey } from './fights'
@@ -509,16 +510,22 @@ describe('a full player fight', () => {
 })
 
 describe('preparation', () => {
-  it('lets you set intensity and plan before the fight and changes the camp', () => {
+  it('belongs to the trainer: the camp and the plan are set from the fighter, and the promoter has no command for either', () => {
+    expect('prepare' in commands).toBe(false)
+    expect('setTrainingFocus' in commands).toBe(false)
     const s0 = fresh('prep')
     const my = playerRoster(s0)[0]
     const a = agree(s0, my.id, pickOpponent(s0, my.id).view.id)
     const sch = schedule(a.state, a.fightId, scheduleOptions(a.state, a.fightId)[0].day)
-    const p = prepare(sch.state, a.fightId, 0, { intensity: 'intense', plan: 'aggressive' })
-    expect(p.ok).toBe(true)
-    expect(p.state.fights[a.fightId].sideA.prep.intensity).toBe('intense')
-    expect(prepare(p.state, a.fightId, 1, { plan: 'cautious' }).ok).toBe(false) // not your fighter
-    let t = p.state
+    let t = sch.state
+    // the trainer sets the camp on the first weekly pass after the fight is scheduled, from style, age, fitness and discipline
+    t = advanceOneWeek(t)
+    const f = t.fights[a.fightId]
+    if (f.status !== 'cancelled') {
+      const aggressive = ['Pressure Fighter', 'Swarmer', 'Power Puncher'].includes(t.fighters[my.id].style)
+      const cautious = ['Defensive Specialist', 'Counter Puncher'].includes(t.fighters[my.id].style)
+      expect(f.sideA.prep.plan).toBe(aggressive ? 'aggressive' : cautious ? 'cautious' : 'balanced')
+    }
     for (let i = 0; i < 60 && t.fights[a.fightId].status !== 'fightNight' && t.fights[a.fightId].status !== 'cancelled'; i++) t = advanceOneWeek(t)
     if (t.fights[a.fightId].status === 'fightNight') expect(t.fights[a.fightId].sideA.prep.campWeeks).toBeGreaterThanOrEqual(3)
   })

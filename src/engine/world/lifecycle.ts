@@ -2,7 +2,7 @@
  * PROMOTION LIFE CYCLE. Promotions fail (see systems/aiFinance.ts: owners rescue a struggling promotion a limited number of times,
  * then stop) and the sport replaces them slowly, so a long career never ends in a world with no competition.
  *
- *   - A failed promotion (no fighters, no shows, and either abandoned by its backers or out of money) stays in the state with all its history; it is simply no longer a
+ *   - A failed promotion (no fighters, no shows, and either abandoned by its backers, out of money, or in a financial state that rules out rebuilding) stays in the state with all its history; it is simply no longer a
  *     competitor. Nothing is deleted.
  *   - Once a quarter, if fewer than six rivals are still trading, or the market holds a large pool of credible unsigned fighters that
  *     nobody is hiring while fewer than eight are trading, a new Startup promotion may be founded. Its capital is a fixed, modest
@@ -38,7 +38,7 @@ export function isDefunct(state: GameState, p: Promotion): boolean {
   if (p.isPlayer || !p.ai) return false
   for (const c of Object.values(state.contracts)) if (c.promotionId === p.id) return false
   for (const e of Object.values(state.events)) if (e.promotionId === p.id && isEventOpen(e)) return false
-  return p.ai.fin.collapsing || p.cash < LIFECYCLE.deadCash
+  return p.ai.fin.collapsing || p.cash < LIFECYCLE.deadCash || p.ai.fin.state === 'critical' || p.ai.fin.state === 'insolvent'
 }
 
 export function processLifecycle(state: GameState, ids: IdSource): void {

@@ -124,6 +124,7 @@ export function migrate(data: unknown): GameState | null {
   if (s.version < 9) migrateV8toV9(s as never)
   if (s.version < 10) migrateV9toV10(s as never)
   if (s.version < 11) migrateV10toV11(s as never)
+  if (s.version < 12) migrateV11toV12(s as never)
   return s as GameState
 }
 
@@ -303,4 +304,14 @@ function migrateV9toV10(s: any): void {
 function migrateV10toV11(s: any): void {
   if (!s.world) s.world = { v: 1, pursuits: {}, intake: { windowStart: s.today ?? 0, admitted: 0 } }
   s.version = 11
+}
+
+/**
+ * v11 -> v12 (the promoter's office): adds the office record (incoming offers, career objectives, relationships, campaigns, strategy,
+ * coaching level). Everything starts empty and neutral - no strategy chosen (so no modifiers apply), standard coaching (what the gym
+ * lease already covered) - so a migrated career plays exactly as before until the player makes a choice. Nothing else is touched.
+ */
+function migrateV11toV12(s: any): void {
+  if (!s.office) s.office = { v: 1, n: 0, offers: {}, goals: {}, decisions: {}, rel: {}, applied: [], campaigns: {}, strategy: { focus: null, stance: null, since: s.today ?? 0, changes: 0 }, coach: 'standard', rivalNotes: {}, recent: {} }
+  s.version = 12
 }

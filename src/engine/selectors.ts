@@ -1,4 +1,6 @@
 import { TIER_DEFS } from './tiers'
+import { strategyOverhead } from './office/strategy'
+import { coachWeekly } from './office/trainer'
 import { DAYS_PER_WEEK, weeksBetween } from './calendar'
 import { WEEKLY_COSTS } from './config'
 import { BALANCE } from './balance'
@@ -35,18 +37,19 @@ export function promotionOf(state: GameState, f: Fighter): Promotion | null {
 }
 
 /** Total weekly running costs of the player's promotion. */
-export function weeklyBurn(state: GameState): { overheads: number; scouting: number; retainers: number; total: number } {
+export function weeklyBurn(state: GameState): { overheads: number; scouting: number; retainers: number; coaching: number; total: number } {
   const retainers = Object.values(state.contracts)
     .filter((c) => c.promotionId === state.playerPromotionId)
     .reduce((s, c) => s + c.weeklyRetainer, 0)
   const overheads = overheadCost(state)
   const scouting = state.scouts.reduce((n, x) => n + x.weeklyWage, 0)
-  return { overheads, scouting, retainers, total: overheads + scouting + retainers }
+  const coaching = coachWeekly(state)
+  return { overheads, scouting, retainers, coaching, total: overheads + scouting + retainers + coaching }
 }
 
 export function overheadCost(state: GameState): number {
   const mult = state.settings.difficulty === 'brutal' ? 1.2 : state.settings.difficulty === 'forgiving' ? 0.85 : 1
-  return Math.round((WEEKLY_COSTS.office + WEEKLY_COSTS.staff + WEEKLY_COSTS.gym + WEEKLY_COSTS.insurance) * mult * TIER_DEFS[player(state).tier].overheadMult)
+  return Math.round((WEEKLY_COSTS.office + WEEKLY_COSTS.staff + WEEKLY_COSTS.gym + WEEKLY_COSTS.insurance) * mult * TIER_DEFS[player(state).tier].overheadMult * strategyOverhead(state))
 }
 
 export function cashRunwayWeeks(state: GameState): number | null {

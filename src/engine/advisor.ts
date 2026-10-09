@@ -415,6 +415,15 @@ export function businessAdvice(state: GameState): Advice[] {
     const plan = state.business?.plans[f.id]
     if (plan && planFit(state, f, plan, !!amb).score <= -0.4) out.push({ id: `plan-${f.id}`, level: 'info', topic: 'growth', title: 'Development plan', body: `${f.firstName}’s ${plan} plan no longer suits where the career is — consider changing it.`, link: { kind: 'fighter', id: f.id } })
   }
+  // Phase 5.4C: the promoter's office. Offers are time-limited; a direction is a choice the promotion has not made.
+  const open = Object.values(state.office?.offers ?? {}).filter((o) => o.status === 'open')
+  if (open.length > 0) {
+    const soonest = Math.min(...open.map((o) => Math.ceil((o.expiresDay - state.today) / 7)))
+    out.push({ id: 'offers-waiting', level: soonest <= 1 ? 'caution' : 'tip', topic: 'matchmaking', title: open.length === 1 ? 'A promoter has a fight offer for you' : `${open.length} fight offers are waiting`, body: `${soonest <= 0 ? 'One runs out this week.' : `The soonest runs out in ${soonest} week${soonest === 1 ? '' : 's'}.`} Accept, counter or decline: unanswered offers cost goodwill.`, link: { kind: 'screen', screen: 'fights/offers' }, actionLabel: 'Open offers' })
+  }
+  if (state.office && !state.office.strategy.focus && !state.office.strategy.stance && (state.promotions[state.playerPromotionId].stats.events ?? 0) >= 3) {
+    out.push({ id: 'strategy-unset', level: 'info', topic: 'growth', title: 'Choose a direction for the promotion', body: 'You have run a few shows. Deciding what kind of promotion you are building changes what draws, what costs and what comes your way.', link: { kind: 'screen', screen: 'office' }, actionLabel: 'Promoter’s Office' })
+  }
   return out.slice(0, 12)
 }
 

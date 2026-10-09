@@ -22,6 +22,8 @@ import { birthdayMessages, developFighter, updateCondition } from './systems/dev
 import { processWeeklyFinance } from './systems/finance'
 import { processRetirements } from './systems/world'
 import { talentIntake } from './world/intake'
+import { processTrainers } from './office/trainer'
+import { processOffice } from './office/weekly'
 import { processLifecycle } from './world/lifecycle'
 import { PASS_EVERY, processMedia } from './media/process'
 import { planGrowthMult, processPlans } from './business/plans'
@@ -53,6 +55,7 @@ export function advanceOneWeek(input: GameState, opts: { media?: boolean } = {})
     developFighter(f, state.today, rng, planGrowthMult(state, f))
     updateCondition(f, state.today)
   }
+  processTrainers(state) // the trainers review their fighters' work (the promoter does not set it)
   for (const f of playerRoster(state)) {
     observeRoster(state, f) // the gym learns about its own fighters
     birthdayMessages(state, f)
@@ -87,6 +90,7 @@ export function advanceOneWeek(input: GameState, opts: { media?: boolean } = {})
   aiSigning(state, rng, ids)
   aiFinances(state)
   processLifecycle(state, ids)
+  processOffice(state) // incoming offers, career objectives, relationships
   processObligations(state)
   processPlans(state)
   processBusiness(state)

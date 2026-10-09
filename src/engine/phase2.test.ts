@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { isDefunct } from './world/lifecycle'
 import { BALANCE as B } from './balance'
 import { endNegotiation, makeOffer, releaseFighter, commissionReport, commissionSearch, toggleShortlist } from './commands'
 import { fighterAge } from './fighters'
@@ -532,8 +533,10 @@ describe('integrity over time', () => {
     }
     for (const p of Object.values(s.promotions)) expect(Number.isFinite(p.cash)).toBe(true)
     ledgerBalanced(s) // every pound is accounted for, including entries that aged out of the visible ledger
-    const rosters = Object.values(s.promotions).map((p) => rosterOf(s, p.id).length)
-    expect(Math.min(...rosters.filter((_, i) => i > 0))).toBeGreaterThan(3)
+    // Rivals that are still competing keep a roster. (A promotion founded in the last year is still building one, and one with no fighters, shows or
+    // money - see world/lifecycle.ts - has failed and is no longer competing; neither is held to the floor.)
+    const rosters = Object.values(s.promotions).filter((p) => !p.isPlayer && !isDefunct(s, p) && !(p.foundedDay > s.startDay && s.today - p.foundedDay < 52 * 7)).map((p) => rosterOf(s, p.id).length)
+    expect(Math.min(...rosters)).toBeGreaterThan(3)
     expect(Number.isFinite(cashRunwayWeeks(s) ?? 0)).toBe(true)
   }, 120_000)
 

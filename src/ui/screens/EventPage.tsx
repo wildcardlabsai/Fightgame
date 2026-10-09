@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { CampaignPanel } from '../office/CampaignPanel'
 import { formatDay } from '../../engine/calendar'
 import { eventView, type CardSlot, type EventView } from '../../engine/eventViews'
 import { eventAdvice, needsConfirmation, visibleAdvice } from '../../engine/advisor'
@@ -145,6 +146,7 @@ export function EventPage({ id }: { id: string }) {
                       onClick={() => act('setMarketing', v.id, { strategy: l.k })}><div className="n">{l.n}</div><div className="d">{l.d}</div></button>
                   ))}
                 </div>
+                {v.mine && <CampaignPanel eventId={v.id} />}
                 <p className="dim" style={{ fontSize: 13, marginTop: 8 }}>Budget {money(v.marketing.budget, false)} · spent so far {money(v.marketing.spent, false)}. Marketing is paid in weekly instalments and its effect shrinks as spend grows: a big building needs a big campaign.</p>
               </Section>
 

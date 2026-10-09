@@ -1,28 +1,29 @@
 import { create } from 'zustand'
+import { OFFICE_COMMANDS, type OfficeCmd, type OfficeOutcome } from '../engine/office/commands'
 import * as commands from '../engine/commands'
 import * as mediaCommands from '../engine/media/commands'
 import { browserStorage, deserialiseGame, serialiseGame } from '../engine/save'
 import { openBestBackend, SaveVault, type SlotMeta } from '../engine/persistence'
 import { advanceWeeks } from '../engine/tick'
-import type { GameState, Id, NegotiationKind, Offer, ScoutDepth, TrainingFocus, WeightClassId } from '../engine/types'
+import type { GameState, Id, NegotiationKind, Offer, ScoutDepth, WeightClassId } from '../engine/types'
 import type { ContractMove } from '../engine/business/contractTalks'
 import type { FightMove } from '../engine/business/fightTalks'
 import type { DevPlan } from '../engine/business/types'
 import type { SearchSpec } from '../engine/scouting'
-import type { FightOffer, FightPrep } from '../engine/types'
+import type { FightOffer } from '../engine/types'
 import { createNewGame, type NewGameOptions } from '../engine/worldgen'
 import { emitGameEvent } from './gameEvents'
 
 export type ScreenId =
   | 'dashboard' | 'fighters' | 'fighter' | 'calendar' | 'inbox' | 'finances' | 'promotions'
-  | 'venues' | 'settings' | 'scouting' | 'contracts' | 'negotiation' | 'matchmaking' | 'fights' | 'fight' | 'deal' | 'events' | 'event' | 'sponsors' | 'news' | 'advisor' | 'media' | 'rankings' | 'titles' | 'assets'
+  | 'venues' | 'settings' | 'scouting' | 'contracts' | 'negotiation' | 'matchmaking' | 'fights' | 'fight' | 'deal' | 'events' | 'event' | 'sponsors' | 'news' | 'advisor' | 'media' | 'rankings' | 'titles' | 'office' | 'assets'
 
 export interface Route {
   screen: ScreenId
   param?: string
 }
 
-const SCREENS: ScreenId[] = ['dashboard', 'fighters', 'fighter', 'calendar', 'inbox', 'finances', 'promotions', 'venues', 'settings', 'scouting', 'contracts', 'negotiation', 'matchmaking', 'fights', 'fight', 'deal', 'events', 'event', 'sponsors', 'news', 'advisor', 'media', 'rankings', 'titles', ...(import.meta.env.DEV ? (['assets'] as ScreenId[]) : [])]
+const SCREENS: ScreenId[] = ['dashboard', 'fighters', 'fighter', 'calendar', 'inbox', 'finances', 'promotions', 'venues', 'settings', 'scouting', 'contracts', 'negotiation', 'matchmaking', 'fights', 'fight', 'deal', 'events', 'event', 'sponsors', 'news', 'advisor', 'media', 'rankings', 'titles', 'office', ...(import.meta.env.DEV ? (['assets'] as ScreenId[]) : [])]
 
 export function parseHash(hash: string): Route {
   const [, screen, param, extra] = hash.replace(/^#/, '').split('/')
@@ -58,7 +59,6 @@ interface GameStore {
   removeSave: (id: string) => Promise<void>
   quitToMenu: () => Promise<void>
   advance: (weeks: number) => void
-  setTraining: (fighterId: Id, focus: TrainingFocus) => void
   orderReport: (fighterId: Id, depth: ScoutDepth, scoutId: Id) => boolean
   orderSearch: (spec: SearchSpec, scoutId: Id) => boolean
   toggleShortlist: (fighterId: Id) => void
@@ -88,19 +88,20 @@ interface GameStore {
   createEvent: (spec: { name: string; day: number; venueId: Id }) => string | null
   /** Run a named event command against the current game; toasts the engine's error or a short success note. */
   eventDo: <K extends EventCmd>(name: K, ...args: Rest<Parameters<(typeof EVENT_COMMANDS)[K]>>) => boolean
+  /** Phase 5.4C: a promoter's-office decision (answer an offer, set an objective, choose a campaign or strategy). Toasts the outcome; resolves to the engine's result. */
+  officeDo: <K extends OfficeCmd>(name: K, ...args: Rest<Parameters<(typeof OFFICE_COMMANDS)[K]>>) => { ok: boolean; needsOverride?: boolean; error?: string; fightId?: string }
   runNextEventFight: (eventId: Id) => Id | null
   /** Event whose night is running (drives the reveal screen). */
   nightFight: string | null
   // ---- Phase 3: fights ----
   /** Fight whose result was just produced (drives the fight-night reveal). */
   justRan: string | null
-  approachOpponent: (myId: Id, oppId: Id) => string | null
+  approachOpponent: (myId: Id, oppId: Id, override?: boolean) => string | null
   /** Ask for a title fight for one of your fighters; opens the negotiation and returns the fight id. */
   requestTitleFight: (fighterId: Id, body: string) => string | null
   offerFight: (fightId: Id, offer: FightOffer) => 'accept' | 'counter' | 'reject' | 'error'
   withdrawFight: (fightId: Id) => void
   scheduleFight: (fightId: Id, day: number) => boolean
-  setPrep: (fightId: Id, side: 0 | 1, patch: Partial<Pick<FightPrep, 'intensity' | 'plan'>>) => void
   runFightNight: (fightId: Id) => boolean
   ackFight: () => void
   readMessage: (id: Id, read?: boolean) => void
@@ -139,8 +140,11 @@ const EVENT_COMMANDS = {
   quickSim: commands.quickSimEvent, runToEnd: commands.runEventToEnd, cancel: commands.cancelEvent,
 } as const
 export type EventCmd = keyof typeof EVENT_COMMANDS
+export type OfficeCmdName = OfficeCmd
 type Rest<T extends unknown[]> = T extends [unknown, ...infer R] ? R : never
 const EVENT_OK: Partial<Record<EventCmd, string>> = { addFight: 'Added to the card.', putOnSale: 'Tickets are on sale!', cancel: 'Show cancelled.' }
+
+const OFFICE_OK: Partial<Record<OfficeCmd, string>> = { accept: 'Offer accepted: the fight is agreed.', reject: 'Offer turned down.', counter: 'Counter sent. They will reply within a week.', goal: 'Career objective saved.', campaign: 'Campaign set.', strategy: 'Direction set.', coaching: 'Coaching staff updated.' }
 
 /** The save vault opens asynchronously (IndexedDB); everything waits on this promise. */
 let vaultPromise: Promise<SaveVault> | null = null
@@ -281,7 +285,6 @@ export const useGame = create<GameStore>((set, get) => {
       if (m) get().notify(m.subject, 'neutral')
     },
     sponsorDecline: (offerId) => update((g) => { const r = commands.declineSponsorOffer(g, offerId); return r.ok ? r.state : g }),
-    setTraining: (fighterId, focus) => update((g) => commands.setTrainingFocus(g, fighterId, focus)),
 
     orderReport: (fighterId, depth, scoutId) => {
       const g = get().game
@@ -380,10 +383,10 @@ export const useGame = create<GameStore>((set, get) => {
       get().notify('Fighter released.', 'neutral')
       return true
     },
-    approachOpponent: (myId, oppId) => {
+    approachOpponent: (myId, oppId, override = false) => {
       const g = get().game
       if (!g) return null
-      const r = commands.approach(g, myId, oppId)
+      const r = commands.approach(g, myId, oppId, override)
       if (!r.ok) { if (r.state !== g) set({ game: r.state }); get().notify(r.error ?? 'They will not take that call.', 'bad'); return null }
       set({ game: r.state })
       return r.fightId ?? null
@@ -423,13 +426,6 @@ export const useGame = create<GameStore>((set, get) => {
       emitGameEvent({ type: 'fight.scheduled' })
       return true
     },
-    setPrep: (fightId, side, patch) => {
-      const g = get().game
-      if (!g) return
-      const r = commands.prepare(g, fightId, side, patch)
-      if (!r.ok) { get().notify(r.error ?? 'Could not change preparation.', 'bad'); return }
-      set({ game: r.state })
-    },
     ackFight: () => set({ justRan: null }),
     runFightNight: (fightId) => {
       const g = get().game
@@ -460,6 +456,17 @@ export const useGame = create<GameStore>((set, get) => {
       if (name === 'quickSim' || name === 'runToEnd') announceFinish(g, r.state, args[0] as string)
       if (EVENT_OK[name]) get().notify(EVENT_OK[name]!, 'good')
       return true
+    },
+    officeDo: (name, ...args) => {
+      const g = get().game
+      if (!g) return { ok: false }
+      const fn = OFFICE_COMMANDS[name] as unknown as (g: GameState, ...a: unknown[]) => OfficeOutcome
+      const r = fn(g, ...args)
+      if (!r.ok) { if (!r.needsOverride) get().notify(r.error ?? 'That did not work.', 'bad'); if (r.state !== g) set({ game: r.state }); return { ok: false, needsOverride: r.needsOverride, error: r.error } }
+      set({ game: r.state })
+      const msg = OFFICE_OK[name]
+      if (msg) get().notify(msg, 'good')
+      return { ok: true, fightId: r.fightId }
     },
     mediaDo: (name, ...args) => {
       const g = get().game

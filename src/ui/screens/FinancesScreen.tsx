@@ -15,7 +15,7 @@ import { money } from '../format'
 
 const CAT_LABEL: Record<TransactionCategory, string> = {
   startingFunds: 'Capital', office: 'Office', staff: 'Staff', gym: 'Gym', insurance: 'Insurance', retainers: 'Retainers',
-  purses: 'Purses', tickets: 'Tickets', sponsorship: 'Event sponsorship', standingSponsor: 'Standing sponsors', ppv: 'PPV', venue: 'Venue', scouting: 'Scouting', signingBonus: 'Signing bonus', releaseFees: 'Release fee', other: 'Other',
+  purses: 'Purses', tickets: 'Tickets', sponsorship: 'Event sponsorship', standingSponsor: 'Standing sponsors', ppv: 'PPV', venue: 'Venue', scouting: 'Scouting', signingBonus: 'Signing bonus', releaseFees: 'Release fee', loanFee: 'Loan fees', coaching: 'Coaching staff', other: 'Other',
   broadcast: 'Broadcast', marketing: 'Marketing', officials: 'Officials & medical', production: 'Production', security: 'Security',
 }
 

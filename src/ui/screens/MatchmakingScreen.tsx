@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { matchmakingAdvice } from '../../engine/advisor'
 import { opponentCandidates, type OpponentCandidate, type OpponentFilters } from '../../engine/matchmaking'
 import { useGame } from '../../store/gameStore'
+import '../../styles/office54c.css'
 import { useViews } from '../../store/hooks'
 import { AdvicePanel } from '../components/Advice'
 import { Avatar, Flag, Section } from '../components/Bits'
@@ -17,6 +18,7 @@ export function MatchmakingScreen({ fighterId }: { fighterId?: string }) {
   const views = useViews()
   const navigate = useGame((s) => s.navigate)
   const approach = useGame((s) => s.approachOpponent)
+  const [overrideFor, setOverrideFor] = useState<string | null>(null)
   const mine = views.mine()
   const [myId, setMyId] = useState<string | null>(fighterId ?? mine.find((m) => m.availability.status === 'available')?.id ?? mine[0]?.id ?? null)
   const [filters, setFilters] = useState<OpponentFilters & { q: string }>({ q: '', contract: '', showUnavailable: false })
@@ -105,11 +107,15 @@ export function MatchmakingScreen({ fighterId }: { fighterId?: string }) {
                       <td data-label="Reward"><StarRating n={c.assessment.reward} label="Reward" /></td>
                       <td data-label="Win chance"><span title={`${c.assessment.winLo}–${c.assessment.winHi}%`}>{c.assessment.winLabel}</span> <small className="dim">{c.assessment.winLo}–{c.assessment.winHi}%</small><div><VerdictChip v={c.assessment.verdict} /></div></td>
                       <td data-label="KO risk" className={c.assessment.koRisk === 'High' ? 'red' : c.assessment.koRisk === 'Moderate' ? 'warn' : 'good'}>{c.assessment.koRisk}</td>
-                      <td data-label="Status" className="dim" style={{ fontSize: 13 }}>{c.canApproach ? (v.contract.kind === 'none' ? 'Free agent' : v.contract.kind === 'rival' ? v.contract.promotionName : '') : c.blockedReason}</td>
+                      <td data-label="Status" className="dim" style={{ fontSize: 13 }}>{c.canApproach ? (v.contract.kind === 'none' ? 'Free agent' : v.contract.kind === 'rival' ? v.contract.promotionName : '') : c.blockedReason}{c.canApproach && c.fit.label !== 'No plan set' && <div><span className={`o54-chip ${c.fit.label === 'Suits the plan' ? 'good' : c.fit.objection ? 'red' : c.fit.label === 'A soft touch' || c.fit.label === 'A step up' ? 'gold' : 'warn'}`} data-testid="opponent-fit" title={c.fit.note ?? undefined}>{c.fit.label}</span></div>}</td>
                       <td className="actions" onClick={(e) => e.stopPropagation()}>
                         <span className="action-row">
                           <button className="btn small ghost" onClick={() => setScouting(v.id)}>Scout</button>
-                          <button className="btn small primary" disabled={!c.canApproach || !!open} onClick={() => { const id = approach(me.id, v.id); if (id) navigate('deal', id) }}>Approach</button>
+                          {overrideFor === v.id ? (
+                            <span role="alert" className="o54-warn" style={{ fontSize: 12.5 }}>{me.firstName}'s camp objects to this one. <button className="btn small primary" onClick={() => { const id = approach(me.id, v.id, true); setOverrideFor(null); if (id) navigate('deal', id) }} data-testid="approach-override">Overrule them</button> <button className="linkbtn" onClick={() => setOverrideFor(null)}>Cancel</button></span>
+                          ) : (
+                            <button className="btn small primary" disabled={!c.canApproach || !!open} onClick={() => { if (c.fit.objection) { setOverrideFor(v.id); return } const id = approach(me.id, v.id); if (id) navigate('deal', id) }}>Approach</button>
+                          )}
                         </span>
                       </td>
                     </tr>

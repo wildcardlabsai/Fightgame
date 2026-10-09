@@ -12,6 +12,8 @@
  *
  * Everything is bounded and deterministic; nothing here reads potential (it is judged on public stage, age and ambition).
  */
+import { coachGrowth } from '../office/trainer'
+import { strategyGrowth } from '../office/strategy'
 import { fighterAge, totalFights } from '../fighters'
 import type { Fighter, GameState, Id } from '../types'
 import { ambitionOf, type AmbitionKind } from './manager'
@@ -104,9 +106,12 @@ export function planFightFactors(state: GameState, id: Id): { fame: number; loss
 
 /** Development multiplier for a fighter on the roster with a plan (1 for everyone else). */
 export function planGrowthMult(state: GameState, f: Fighter): number {
+  const c = f.contractId ? state.contracts[f.contractId] : null
+  const mine = c?.promotionId === state.playerPromotionId
+  const staff = mine ? coachGrowth(state) * strategyGrowth(state, f) : 1 // the coaching staff the promoter pays for, and the promotion's chosen direction
   const p = state.business?.plans[f.id]
-  if (!p) return 1
-  return planFactors(p).growth(fighterAge(f, state.today) <= 24)
+  if (!p) return staff
+  return planFactors(p).growth(fighterAge(f, state.today) <= 24) * staff
 }
 
 /** Injury multiplier on a settled result. */

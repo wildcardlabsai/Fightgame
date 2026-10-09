@@ -2,6 +2,7 @@
  * FIGHTS: creation, availability, scheduling, camp, fight night and post-fight processing.
  * The Fight entity is the system of record; fighters only hold `activeFightId` and a short `recentFights` list.
  */
+import { trainerPrep } from './office/trainer'
 import { planFightFactors } from './business/plans'
 import { VENUE_SEEDS } from '../data/venues'
 import { regionOf } from '../data/nations'
@@ -212,16 +213,6 @@ export function scheduleFight(input: GameState, fightId: Id, day: Day): OpResult
   return { ok: true, state }
 }
 
-export function setPrep(input: GameState, fightId: Id, side: 0 | 1, patch: Partial<Pick<FightPrep, 'intensity' | 'plan'>>): OpResult {
-  const fight = input.fights[fightId]
-  if (!fight || !['scheduled', 'training'].includes(fight.status)) return { ok: false, error: 'Preparation can only be changed before fight night.', state: input }
-  const promoId = (side === 0 ? fight.sideA : fight.sideB).promotionId
-  if (promoId !== input.playerPromotionId) return { ok: false, error: 'You can only prepare your own fighters.', state: input }
-  const state = structuredClone(input)
-  Object.assign((side === 0 ? state.fights[fightId].sideA : state.fights[fightId].sideB).prep, patch)
-  return { ok: true, state }
-}
-
 // -------------------------------------------------------------- Cancellation
 
 export function clearBookings(state: GameState, fight: Fight): void {
@@ -272,6 +263,7 @@ export function processFights(state: GameState, rng: Rng): void {
       if (side.promotionId !== null && nowPromo !== side.promotionId) side.promotionId = nowPromo
     }
     if (fight.status === 'scheduled' && fight.day - state.today <= B.fights.campWeeks * 7) transition(fight, 'training')
+    if (fight.status === 'scheduled' || fight.status === 'training') trainerPrep(state, fight) // the trainer sets (and adjusts) the camp and the plan; the promoter does not
     if (fight.status === 'training' && fight.day - state.today >= 7) {
       for (const [side, f] of [[fight.sideA, a], [fight.sideB, b]] as [FightSide, Fighter][]) {
         side.prep.campWeeks++
@@ -464,6 +456,27 @@ function newsImportance(fight: Fight, fs: Fighter[]): number {
   return Math.round(clamp(8 + 0.4 * stand + 0.25 * pop + 50 * r.upset + (unbeatenFell ? 15 : 0) + (r.method === 'KO' ? 8 : 0) + 4 * (r.kd[0] + r.kd[1]), 0, 100))
 }
 
+/**
+ * Phase 5.4C: when the player's fighter appears on a rival's show, the host's purse for that fighter is a fee to the player's promotion
+ * (the host's own books already carry it as a cost); the promotion pays the fighter their contract purse, and their win bonus if they won.
+ * Both go through the ledger. Called once per fight (inside the `paid` guard).
+ */
+function payVisitor(state: GameState, fight: Fight, fs: Fighter[]): void {
+  if (fight.organiserId === state.playerPromotionId) return
+  const r = fight.result!
+  const org = state.promotions[fight.organiserId]
+  ;([[fight.sideA, 0], [fight.sideB, 1]] as [FightSide, 0 | 1][]).forEach(([side, i]) => {
+    if (side.promotionId !== state.playerPromotionId) return
+    const f = fs[i]
+    const fee = i === 0 ? fight.terms.purseA : fight.terms.purseB
+    const bonus = r.winner === i ? (i === 0 ? fight.terms.winBonusA : fight.terms.winBonusB) : 0
+    const c = f.contractId ? state.contracts[f.contractId] : null
+    if (fee + bonus > 0) post(state, 'loanFee', fee + bonus, `Loan fee from ${org?.name ?? 'the host'} — ${fighterName(f)}`)
+    if (c && c.basePurse > 0) post(state, 'purses', -c.basePurse, `Purse — ${fighterName(f)}`)
+    if (c && r.winner === i && c.winBonus > 0) post(state, 'purses', -c.winBonus, `Win bonus — ${fighterName(f)}`)
+  })
+}
+
 function payPurses(state: GameState, fight: Fight, fs: Fighter[]): void {
   if (fight.paid) return
   fight.paid = true // set first: the single guard against double payment
@@ -476,6 +489,7 @@ function payPurses(state: GameState, fight: Fight, fs: Fighter[]): void {
   if (r.winner === 1 && t.winBonusB) lines.push([`Win bonus — ${fighterName(fs[1])}`, t.winBonusB])
   const total = lines.reduce((n, l) => n + l[1], 0)
   const ev = fight.eventId ? state.events[fight.eventId] : null
+  payVisitor(state, fight, fs) // a fighter of ours on someone else's show: the host pays our promotion a fee, we pay our fighter
   if (ev) {
     lines.forEach(([d, amt], i) => { if (amt > 0) spend(state, ev, i < 2 ? 'purses' : 'bonuses', amt, d) })
     return

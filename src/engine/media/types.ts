@@ -347,8 +347,12 @@ export interface PressConference {
   createdWeek: number
   expiresWeek: number
   status: 'open' | 'done' | 'expired'
+  /** Why this fight warrants a conference (public: championship, rivalry, rematch, prospect, ...). */
+  why?: string
+  /** What holding it costs the promotion (hall, hospitality, staff). */
+  cost?: number
   approach?: PressApproach
-  result?: { hype: number; rivalry: number; interest: number; relationship: number; controversy: boolean; text: string }
+  result?: { hype: number; rivalry: number; interest: number; relationship: number; controversy: boolean; text: string; backlash?: boolean }
 }
 
 // ------------------------------------------------------------- Broadcast

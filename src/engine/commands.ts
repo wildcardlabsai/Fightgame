@@ -1,7 +1,7 @@
 import { submitOffer, walkAway as walkAwayState, type NegotiationOutcome } from './negotiation'
 import { releaseFromPlayer } from './roster'
 import { approachOpponent, submitFightOffer, withdrawFight } from './fightNegotiation'
-import { fightInvolvesPlayer, resolveFight, setPrep } from './fights'
+import { fightInvolvesPlayer, resolveFight } from './fights'
 import * as ev from './events/events'
 import { processMedia } from './media/process'
 import { orderReport, orderSearch, toggleShortlist as toggleShortlistState, type SearchSpec } from './scouting'
@@ -11,7 +11,7 @@ import { fightMove, openFightTalk, type FightMove, type FightTalkOutcome } from 
 import { setPlan } from './business/plans'
 import { applyDivisionMove, campAgrees } from './business/divisions'
 import type { DevPlan } from './business/types'
-import type { GameState, Id, NegotiationKind, Offer, ScoutDepth, TrainingFocus } from './types'
+import type { GameState, Id, NegotiationKind, Offer, ScoutDepth } from './types'
 
 export interface CommandResult {
   ok: boolean
@@ -23,14 +23,6 @@ export interface CommandResult {
  * Player actions. Each command validates against game rules and returns a new
  * state (or the same state if the action is not allowed). UI never edits state directly.
  */
-
-export function setTrainingFocus(state: GameState, fighterId: Id, focus: TrainingFocus): GameState {
-  if (!playerRoster(state).some((f) => f.id === fighterId)) return state
-  if (state.fighters[fighterId].trainingFocus === focus) return state
-  const next = structuredClone(state)
-  next.fighters[fighterId].trainingFocus = focus
-  return next
-}
 
 export function markMessageRead(state: GameState, messageId: Id, read = true): GameState {
   const msg = state.inbox.find((m) => m.id === messageId)
@@ -96,7 +88,6 @@ export { requestTitleFight } from './business/titlePath'
 export const offerFight = submitFightOffer
 export const withdraw = withdrawFight
 export const schedule = ev.scheduleFightQuick
-export const prepare = setPrep
 
 /** Ring the bell on one of your fights. The result is deterministic for this fight and this game state. */
 export function runFightNight(state: GameState, fightId: Id): CommandResult {

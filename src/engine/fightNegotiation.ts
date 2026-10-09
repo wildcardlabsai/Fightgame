@@ -5,6 +5,8 @@
  * one- or two-fight deal. The opponent's camp judges risk from THEIR view of your fighter (an appraisal with
  * noise), then personality, promotion clout, reward and form.
  */
+import { rivalryStrength } from './media/narratives'
+import { applyOverride, opponentFit } from './office/goals'
 import { BALANCE as B } from './balance'
 import { fighterName, publicFacts } from './fighters'
 import { createFight, fightAvailability, lockKey, validateMatch, cancelFight, defaultPrep } from './fights'
@@ -79,6 +81,9 @@ function thresholdFor(state: GameState, fight: Fight): { thr: number; reasons: s
   if (promo.ai?.strategy === 'prospectFactory' && publicFacts(opp, state.today).age <= 24 && appraise(state, promo, me).rating > appraise(state, promo, opp).rating + 8) {
     thr *= 1.35; reasons.push('they are protecting a prospect and see this as too big a risk')
   }
+  // A rivalry the public has built makes both camps keener: the fight is worth more to them than the purse alone says.
+  const heat = state.media ? rivalryStrength(state.media, me.id, opp.id) : 0
+  if (heat >= 25) thr *= 1 - Math.min(0.05, (heat - 25) * 0.001)
   return { thr, reasons }
 }
 
@@ -123,15 +128,18 @@ export function suggestedFightOffer(state: GameState, oppId: Id): FightOffer {
 
 // ------------------------------------------------------------- Commands
 
-export interface FightOutcome { ok: boolean; error?: string; state: GameState; fightId?: Id }
+export interface FightOutcome { ok: boolean; error?: string; state: GameState; fightId?: Id; needsOverride?: boolean }
 
 /** Approach an opponent: opens a negotiation (a Fight in the NEGOTIATING state). */
-export function approachOpponent(input: GameState, myId: Id, oppId: Id): FightOutcome {
+export function approachOpponent(input: GameState, myId: Id, oppId: Id, override = false): FightOutcome {
   const me = input.fighters[myId]
   const contract = me?.contractId ? input.contracts[me.contractId] : null
   if (!me || !contract || contract.promotionId !== input.playerPromotionId) return { ok: false, error: 'Choose one of your own fighters.', state: input }
   const check = validateMatch(input, myId, oppId)
   if (!check.ok) return { ok: false, error: check.reason ?? 'That match cannot be made.', state: input }
+  // The fighter's camp holds the promoter to the plan: a fight far beyond a protected plan needs the promoter to override them, at a price.
+  const fit = opponentFit(input, me, input.fighters[oppId])
+  if (fit.objection && !override) return { ok: false, needsOverride: true, error: `${fit.note} Taking it over their objection costs morale and the camp's trust.`, state: input }
   // A voluntary title challenge is the champion's camp's call: it takes a credible, bankable challenger and turns the rest down.
   // A fight the board has ordered (mandatory, eliminator) is never turned down.
   const wc = sizeEdge(me.weightClass, input.fighters[oppId].weightClass) >= 0 ? me.weightClass : input.fighters[oppId].weightClass
@@ -158,6 +166,7 @@ export function approachOpponent(input: GameState, myId: Id, oppId: Id): FightOu
   const opp = state.fighters[oppId]
   const fight = createFight(state, myId, oppId, state.playerPromotionId, 'player')
   fight.negotiation = { patience: B.negotiation.startingPatience[opp.personality] ?? 3, rounds: [], lastCounter: null, status: 'open' }
+  if (override && fit.objection) applyOverride(state, state.fighters[myId], opp, fight.id)
   return { ok: true, state, fightId: fight.id }
 }
 

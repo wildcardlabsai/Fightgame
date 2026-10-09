@@ -8,6 +8,7 @@
  * The UI must not import `Fighter`, read `state.fighters` or `state.knowledge` directly.
  * (Enforced by src/engine/leakAudit.test.ts.)
  */
+import { FOCUS_WORK, trainerFocus } from './office/trainer'
 import { rivalOfferFor, type RivalOffer } from './world/views'
 import { nation } from '../data/nations'
 import { weightClassLabel } from '../data/weightClasses'
@@ -28,7 +29,7 @@ import { fightAvailability, publicStanding } from './fights'
 import { METHOD_SHORT } from './fight/narrative'
 import { headlineRank } from './media/views'
 import type {
-  Estimate, Fighter, GameState, Id, Personality, ReportLogEntry, TraitKey, TrainingFocus, WeightClassId,
+  Estimate, Fighter, GameState, Id, Personality, ReportLogEntry, TraitKey, WeightClassId,
 } from './types'
 
 export interface RangeView { lo: number; hi: number; mid: number; label: TraitLabel }
@@ -158,7 +159,9 @@ export interface FighterView {
   activeFightId: Id | null
   /** Only for fighters on the player's roster. */
   own: null | {
-    trainingFocus: TrainingFocus
+    /** What the trainer has the fighter working on, and why (the promoter does not set this). */
+    workingOn: string
+    workingWhy: string
     fitness: BandView
     conditioning: BandView
     confidence: BandView
@@ -382,7 +385,7 @@ function buildView(state: GameState, f: Fighter): FighterView {
     notes: scoutNotes({ physical: [power, speed, stamina, chin, defence], technical: [ringIQ, adaptability, technique, counter, pressure], mental: [discipline, heart, aggression, composure] }, !!(entry?.reports.length) || mine, f),
     activeFightId: f.activeFightId,
     own: mine ? {
-      trainingFocus: f.trainingFocus, fitness: band(f.fitness), conditioning: band(f.conditioning), confidence: band(f.confidence), morale: band(f.morale),
+      workingOn: FOCUS_WORK[f.trainingFocus], workingWhy: trainerFocus(state, f).why, fitness: band(f.fitness), conditioning: band(f.conditioning), confidence: band(f.confidence), morale: band(f.morale),
       mood: f.morale >= 80 ? 'Fired up' : f.morale >= 62 ? 'Content' : f.morale >= 45 ? 'Restless' : f.morale >= 30 ? 'Unhappy' : 'Miserable',
     } : null,
   }

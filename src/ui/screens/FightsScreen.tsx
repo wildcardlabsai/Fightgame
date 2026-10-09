@@ -2,8 +2,10 @@ import { useEffect, useState } from 'react'
 import { formatDay } from '../../engine/calendar'
 import { fightList, type FightListItem } from '../../engine/fightViews'
 import { useGame } from '../../store/gameStore'
+import { OffersPanel } from '../office/OffersPanel'
+import { offersWaiting } from '../../engine/office/views'
 
-type Tab = 'open' | 'mine' | 'world'
+type Tab = 'open' | 'mine' | 'world' | 'offers'
 
 function Row({ f }: { f: FightListItem }) {
   const navigate = useGame((s) => s.navigate)
@@ -26,10 +28,11 @@ export function FightsScreen() {
   const game = useGame((s) => s.game)!
   const navigate = useGame((s) => s.navigate)
   const routeParam = useGame((s) => s.route.param)
-  const [tab, setTab] = useState<Tab>(routeParam === 'world' || routeParam === 'mine' ? routeParam : 'open')
-  useEffect(() => { if (routeParam === 'world' || routeParam === 'mine' || routeParam === 'open') setTab(routeParam) }, [routeParam])
+  const [tab, setTab] = useState<Tab>(routeParam === 'world' || routeParam === 'mine' || routeParam === 'offers' ? routeParam : 'open')
+  useEffect(() => { if (routeParam === 'world' || routeParam === 'mine' || routeParam === 'open' || routeParam === 'offers') setTab(routeParam) }, [routeParam])
   const lists = { open: fightList(game, 'mine-open'), mine: fightList(game, 'mine-results'), world: fightList(game, 'world-results', 40) }
-  const rows = lists[tab]
+  const rows = tab === 'offers' ? [] : lists[tab]
+  const waiting = offersWaiting(game)
   return (
     <>
       <div className="page-head">
@@ -40,11 +43,11 @@ export function FightsScreen() {
         <button className="btn primary" onClick={() => navigate('matchmaking')}>Make a fight ▸</button>
       </div>
       <div className="tabs" role="tablist">
-        {([['open', 'My Fights'], ['mine', 'My Results'], ['world', 'World Results']] as const).map(([k, l]) => (
-          <button key={k} role="tab" aria-selected={tab === k} className={`tab${tab === k ? ' active' : ''}`} onClick={() => setTab(k)}>{l}<span className="count">{lists[k].length}</span></button>
+        {([['open', 'My Fights'], ['offers', 'Offers'], ['mine', 'My Results'], ['world', 'World Results']] as const).map(([k, l]) => (
+          <button key={k} role="tab" aria-selected={tab === k} className={`tab${tab === k ? ' active' : ''}`} onClick={() => setTab(k)}>{l}<span className="count">{k === 'offers' ? waiting : lists[k].length}</span></button>
         ))}
       </div>
-      {rows.length === 0 ? (
+      {tab === 'offers' ? <OffersPanel /> : rows.length === 0 ? (
         <p className="empty">{tab === 'open' ? 'Nothing booked. Open Matchmaking, pick a fighter and find an opponent.' : tab === 'mine' ? 'No completed fights yet.' : 'No results yet — advance time and the sport moves without you.'}</p>
       ) : (
         <div className="table-wrap"><table className="table stack">

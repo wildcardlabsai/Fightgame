@@ -2,6 +2,7 @@
  * EVENT OPERATIONS: create, build the card, price, promote, sell, run the night, settle, cancel.
  * Money moves only through eventFinance.receive/spend (→ ledger.post for the player).
  */
+import { afterEventCancelled, afterShowSettled } from '../office/politics'
 import { settleRounds } from '../business/fightRounds'
 import { flagFight } from '../media/titles'
 import { cardFighterIds, travelCost } from '../business/venues'
@@ -595,6 +596,7 @@ export function finishEvent(state: GameState, ev: BoxingEvent): void {
   }
   ev.settled = true
   eventTransition(ev, 'settled')
+  afterShowSettled(state, ev, fill)
   if (mine) sponsorsOnEvent(state, ev)
   eventNews(state, ev, p.name, attendance, ppvBuys, profit, fill)
   if (mine) {
@@ -642,6 +644,7 @@ export function cancelEvent(state: GameState, ev: BoxingEvent, reason: string): 
   ev.card = []
   if (mine) postMessage(state, { from: 'Events', category: 'world', priority: 'important', subject: `${ev.name} cancelled`, body: `${ev.name} will not go ahead: ${reason}. Ticket-holders were refunded${refund > 0 ? ` and £${refund.toLocaleString('en-GB')} of the venue fee came back` : ''}.`, link: { kind: 'event', id: ev.id } })
   else postNews(state, { headline: `${state.promotions[ev.promotionId].name} cancel ${ev.name}`, category: 'event', eventId: ev.id, importance: 25 })
+  afterEventCancelled(state, ev)
 }
 
 export function cancelEventCommand(input: GameState, eventId: Id): EvResult {

@@ -33,7 +33,7 @@ export interface PathwayChoice {
 const LEVEL_FOR: Partial<Record<PathwayKind, TitleLevel>> = { areaShot: 'area', domesticShot: 'domestic', europeanRoute: 'european', worldIfRanked: 'world', eliminator: 'world' }
 
 /** The best-placed body of a level the fighter could actually challenge for now (dormant belts and ineligible bodies are excluded). */
-function bodyFor(state: GameState, f: Fighter, level: TitleLevel): { id: string; rank: number | null } | null {
+export function bodyFor(state: GameState, f: Fighter, level: TitleLevel): { id: string; rank: number | null } | null {
   const media = state.media
   if (!media) return null
   let best: { id: string; rank: number | null } | null = null

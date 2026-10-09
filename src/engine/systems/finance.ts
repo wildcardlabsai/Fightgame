@@ -1,4 +1,5 @@
 import { MAX_FINANCE_HISTORY, WEEKLY_COSTS } from '../config'
+import { coachWeekly } from '../office/trainer'
 import { post as record } from '../ledger'
 import { postMessage } from '../messages'
 import { cashRunwayWeeks, financialHealth, overheadCost, player } from '../selectors'
@@ -17,9 +18,11 @@ export function processWeeklyFinance(state: GameState): void {
   record(state, 'gym', -Math.round(WEEKLY_COSTS.gym * scale), 'Gym lease')
   record(state, 'insurance', -Math.round(WEEKLY_COSTS.insurance * scale), 'Insurance')
   for (const sc of state.scouts) record(state, 'staff', -sc.weeklyWage, `Scout — ${sc.name}`)
+  const coaching = coachWeekly(state)
+  if (coaching > 0) record(state, 'coaching', -coaching, 'Coaching staff')
   record(state, 'retainers', -retainers, 'Fighter retainers')
 
-  const expenses = overheadCost(state) + retainers + state.scouts.reduce((n, x) => n + x.weeklyWage, 0)
+  const expenses = overheadCost(state) + retainers + coaching + state.scouts.reduce((n, x) => n + x.weeklyWage, 0)
   state.financeHistory.push({ day: state.today, cash: p.cash, income: 0, expenses })
   if (state.financeHistory.length > MAX_FINANCE_HISTORY) state.financeHistory.shift()
 

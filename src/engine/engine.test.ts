@@ -144,7 +144,8 @@ describe('weekly simulation', () => {
   })
   it('training focus changes where gains land', () => {
     const base = fresh()
-    const id = playerRoster(base).sort((a, b) => fighterAge(a, base.today) - fighterAge(b, base.today))[0].id
+    // A fighter on a rival's roster: the player's own fighters' work is chosen by their trainers (office/trainer.ts), so the development mechanic is tested directly here.
+    const id = Object.values(base.fighters).filter((f) => f.status === 'active' && f.contractId && base.contracts[f.contractId].promotionId !== base.playerPromotionId).sort((a, b) => fighterAge(a, base.today) - fighterAge(b, base.today))[0].id
     const run = (focus: 'power' | 'stamina') => {
       let s = structuredClone(base)
       s.fighters[id].trainingFocus = focus
