@@ -66,7 +66,8 @@ export function scoreOffer(state: GameState, f: Fighter, promo: Promotion, offer
   // A rival's offer on the table: the camp knows it has options, so a free agent costs a little more than the same fighter with none.
   const rival = kind === 'signing' ? pursuitOf(state, f.id) : null
   const contested = !!rival && rival.promoId !== promo.id
-  if (contested) thr += 0.04
+  // The bigger the name making the other offer, relative to the promotion across the table, the more it costs to win the fighter (2%-9%).
+  if (contested) thr += Math.max(0.02, Math.min(0.09, 0.03 + 0.06 * ((state.promotions[rival!.promoId]?.reputation ?? promo.reputation) - promo.reputation) / 100))
 
   // Soft terms, expressed as a fraction of the ask value.
   let credit = 0

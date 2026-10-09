@@ -117,7 +117,15 @@ describe('contested signings', () => {
     startPursuit(s, f.id, rival.id, s.today + 14)
     const after = scoreOffer(s, f, player, offer, 'signing')
     expect(after.ratio).toBeLessThan(before.ratio)
-    expect(after.ratio / before.ratio).toBeGreaterThan(0.9) // a nudge, not a wall
+    expect(after.ratio / before.ratio).toBeGreaterThan(0.89) // a nudge, not a wall
+    // a bigger name across the table costs more than a smaller one
+    const r0 = rival.reputation, p0 = player.reputation
+    rival.reputation = 100; player.reputation = 10
+    const big = scoreOffer(s, f, player, offer, 'signing').ratio
+    rival.reputation = 10; player.reputation = 100
+    const small = scoreOffer(s, f, player, offer, 'signing').ratio
+    expect(big).toBeLessThan(small)
+    rival.reputation = r0; player.reputation = p0
     expect(before.reasons).not.toContain('has another offer on the table')
     const low = scoreOffer(s, f, player, { ...offer, basePurse: 1, signingBonus: 0, weeklyRetainer: 0 }, 'signing')
     expect(low.reasons).toContain('has another offer on the table')
