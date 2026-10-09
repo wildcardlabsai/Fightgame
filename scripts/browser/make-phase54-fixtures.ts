@@ -7,6 +7,7 @@ import { serialiseGame } from '../../src/engine/save'
 import { newLog, playWeek, STRATEGIES } from '../../src/engine/sim/strategies'
 import { qualifiesFor, titleKey, touchTitles } from '../../src/engine/media/titles'
 import { getList } from '../../src/engine/media/records'
+import { reseatLists } from '../../src/engine/media/rankings'
 import { levelOf } from '../../src/engine/business/titleDefs'
 import { cancelEventCommand, createEvent, createEventInternal, venueBookedOn } from '../../src/engine/events/events'
 import { venueViews } from '../../src/engine/eventViews'
@@ -49,6 +50,7 @@ if (mine && g.media) {
   const k = titleKey(body, mine.weightClass)
   g.media.titles[k] = { c: mine.id, cn: `${mine.firstName} ${mine.lastName}`, since: g.today - 20 * 7, defences: 1, lastFight: g.today - 6 * 7 }
   touchTitles(g.media)
+  reseatLists(g, g.media, [mine.weightClass]) // the published lists must show the champion first, as they would after the next pass
 }
 writeFileSync(`${out}/p54-champion.json`, serialiseGame(g))
 // A save where the board has ORDERED every world title challenge the player's fighters could ask for (mandatory challengers): a request cannot be

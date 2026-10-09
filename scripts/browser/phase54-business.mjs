@@ -37,7 +37,8 @@ for (const w of [1280, 1024, 390]) {
   await load(page, 'p54-champion')
   const ids = await game(page, (g) => {
     const mineIds = Object.values(g.contracts).filter((c) => c.promotionId === g.playerPromotionId).map((c) => c.fighterId)
-    const champ = mineIds.find((id) => Object.values(g.media.titles).some((t) => t.c === id))
+    // the fixture's own European champion (the bot-played world may also have given the player other title-holders)
+    const champ = mineIds.find((id) => Object.entries(g.media.titles).some(([k, t]) => t.c === id && k.startsWith('european|'))) ?? mineIds.find((id) => Object.values(g.media.titles).some((t) => t.c === id))
     const free = Object.values(g.fighters).find((f) => f.status === 'active' && !f.contractId)?.id
     return { mineIds, champ, free, div: g.fighters[champ]?.weightClass, today: g.today }
   })

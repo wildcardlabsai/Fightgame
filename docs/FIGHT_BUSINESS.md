@@ -539,3 +539,7 @@ coherence audit clean; fighters idle over a year among those under contract 1.7-
 belts 30% (as accepted in 5.4A); 39-40% of young low-fight debutants reach contender level within eleven years and 35-36% world level; 18% never get a contract (free agents,
 they retire by age); retired fighters keep their record and reigns. Bot promotions: the balanced bot goes bankrupt in roughly half of worlds in every version back to 5.3
 (roster attrition then fixed overheads; see the report), so this is not a regression of this phase.
+
+**Phase 5.5 verification.** Unit/integration 647 passed, 5 skipped (env-gated e2e/careers/bench suites), 0 failed; browser suites all green (championship 158/0 with the distance path reported as
+not exercised by that run; venues 113/0 with the previously skipped check now running; business 221/0). Weekly tick 8.3-9.0x (limit 10x). Balanced-bot viability at year 8 (8 seeds each):
+5.3 6/8 solvent, 5.4A 2/8, now 3/8 - a bimodal outcome (roster attrition, then fixed overheads of about 217k a year) that pre-dates this phase and is a candidate for the next one.
