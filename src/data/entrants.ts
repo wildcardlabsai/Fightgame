@@ -4,7 +4,7 @@ import type { AiStrategy, Promotion } from '../engine/types'
 export interface EntrantSeed { name: string; promoter: string; country: string; strategy: AiStrategy; color: string; emblem: Promotion['logo']['emblem'] }
 
 export const ENTRANTS: EntrantSeed[] = [
-  { name: 'Harbour Lights Boxing', promoter: 'Gareth Pryce', country: 'WAL', strategy: 'regional', color: '#2bb0c4', emblem: 'bolt' },
+  { name: 'Harbour Lights Boxing', promoter: 'Gareth Pryce', country: 'WAL', strategy: 'traditional', color: '#2bb0c4', emblem: 'bolt' },
   { name: 'Iron Gate Promotions', promoter: 'Declan Murphy', country: 'IRL', strategy: 'prospectFactory', color: '#8f9aa8', emblem: 'shield' },
   { name: 'Sunbelt Boxing Club', promoter: 'Marisol Vega', country: 'MEX', strategy: 'regional', color: '#e8892b', emblem: 'star' },
   { name: 'Red Tide Fight Co.', promoter: 'Tomasz Nowak', country: 'POL', strategy: 'traditional', color: '#d6334a', emblem: 'glove' },

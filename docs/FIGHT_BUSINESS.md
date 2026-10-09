@@ -388,4 +388,19 @@ rankings, reputations and title histories through the same code paths as the pla
 **Persistent state**: `GameState.world = { v, pursuits, intake }` and nothing else. v10 -> v11 only adds it (empty pursuits, the pipeline window
 starting on the save's own date); every other field is untouched and the career carries on through further ticks (tested).
 
-**Measured** (`scripts/audit/phase54b-world.ts`, seeds `world-1..N`, balanced bot): see the Phase 5.4B report for tables.
+**Measured** (`scripts/audit/phase54b-world.ts [years] [seeds] [--react] [--rich]`, seeds `world-1..N`, balanced bot; before = the 5.4A code):
+
+| 12 years, 2-3 seeds | before | after |
+|---|---|---|
+| active fighters | 287-314 | 309-321 |
+| smallest division as a share of its target | 0.40-0.61 | 0.71-0.94 |
+| active fighters rated 65+ (year 1 -> year 12) | 74 -> 39 | 79-91 -> 76-79 |
+| rivals still competing (year 12) | 5 (one zombie, negative cash for 4 years) | 8-9 |
+| rival shows / year | 41-48 | 47-51 |
+| rival signings / year | 33-50 | 55-65 |
+| new professionals / retirements per year | 21 / 20 | 21 / 20 |
+
+Contested signings: about 25 offers a year per world, 97% on fighters the player knows; a player who answers each affordable, signable
+offer wins about 20-34 fighters in eight years (never beaten when affordable; the rest go to the rival because the player's roster was full
+or the price out of reach). Rival books: no rival's cash ever exceeds start + revenue + bailouts. Title audit after the changes (5 seeds x 5 years):
+191-244 title fights per seed, 30% of belts vacant, 0 round-count problems (5.4A: 184-227, 28%).
