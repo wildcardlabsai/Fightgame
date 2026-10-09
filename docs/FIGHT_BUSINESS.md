@@ -460,3 +460,54 @@ wall 30-38 ms vs 34-43 ms at 5.4B in the same loaded conditions; the ratio test 
 
 **Known limitations**: offer volume is limited by free fighters for a busy promoter; sanctioning-body relationships beyond the media outlets are not modelled; manager
 relationships are derived from negotiation memory; a rival-hosted fight pays through a fee line rather than a shared-revenue split.
+
+## Fight night, career consequences and long-term play (Phase 5.4D, no schema version change)
+
+**Baseline report (from the code and `scripts/audit/phase54d-consequences.ts`, 6 seeds x 10 years passive and 4 seeds x 8 years with the balanced bot).**
+
+| Stage of the lifecycle | Finding | Evidence |
+|---|---|---|
+| Records, reputation, popularity, morale, confidence, momentum, injuries, suspension, development | **Worked.** All scale with the public pre-fight expectation, so an upset moves far more than an expected win | `fights.ts` `processResult`; audit: winner's reputation gain 1.6 (expected) / 2.7 (even) / 3.9 (upset) |
+| Same result for different fighters | **Incomplete.** Prospect, prime and veteran got near-identical effects | audit: an upset win paid +4.0 / +3.9 / +3.9 reputation; a shock defeat -3.5 / -3.8 / -3.9 |
+| Streaks | **Disconnected.** Nothing read a run of results | no reader of the win/loss run in `fights.ts`, `offers.ts`, `goals.ts` |
+| Rankings, titles, media stories, career lines | **Worked** (5.4A, 5.1-5.3): upset, first loss, KO streak, unbeaten, comeback, title changes | `media/process.ts`, `media/narratives.ts`. Missing only: a slump and being stopped |
+| Offers and rival behaviour after a result | **Disconnected.** Offers ignored form | audit: offered fighters' momentum -4.5 vs -1.9 roster average |
+| Camp, manager and rival-promoter reactions | **Disconnected.** Relationships changed only for shows, cancellations and contested signings | `office/politics.ts` had no result hook |
+| Post-fight player decisions | **Missing.** Only a "Result" message; the objective's Rebuilding goal was *suggested* but nothing prompted it | `office/goals.ts` |
+| Retirement | **Age-only.** Nobody retired before 33 whatever their record; 9% of retirees had lost their last four | `systems/world.ts`; audit: 108 of 1,234 |
+
+**Reused**: `processResult`, the media world's career entries and stories, `DevPlan`, career objectives and `opponentFit`, the fight negotiation (`approachOpponent`), the 5.4C offer generator, the relationship book, `promoRelations`, the weekly retirement draw, the office weekly pass and `once` guards. No second event processor, no new source of truth.
+
+**Implemented**
+
+- **Career context** (`fight/context.ts`). Small bounded multipliers (0.7-1.35) on the reputation, popularity, morale and confidence effects already computed, plus an additive momentum term, each with a plain reason: a prospect beating a stronger name; a veteran beating the odds (credited in standing) or winning as expected (little gain); an unbeaten fighter's first defeat; a heavy favourite beaten by a lesser name; a young fighter losing to a better one (softened); a veteran's defeat (morale softer, a famous name's fall costs standing); three wins or three defeats in a row. The reasons are stored on the result for the player's fights and shown on the fight page ("In context").
+- **Offers follow form.** A player fighter on a strong run (momentum 50+) who fought in the last 14 weeks can draw an *Opportunity after a big win* proposal; any such fighter lifts rivals' chance of writing by 20%. A fighter on a bad run makes development-style step-up proposals more attractive to rivals. Both are tilts on the existing keyed roll, never guarantees.
+- **Matchmaking after a setback.** A fighter with momentum -35 or worse has his camp object to a much bigger step up whatever his plan (unless on the accelerated plan); overriding it costs morale and trust as before.
+- **Camp and rival reactions** (`office/politics.ts` `afterFightResult`, once per fight). A win in a real test warms the fighter's camp; a defeat in an obvious mismatch cools it. A rival promotion cools slightly when its favourite is beaten and warms to a close, well-matched fight; the reason is on the relationship.
+- **Post-fight decisions** (`office/reviews.ts`, `ReviewsPanel`). Three kinds, only when their conditions hold: *breakout* (young fighter beat a clear favourite: fast-track or keep building), *setback* (heavy favourite lost, stopped, or a third defeat in a row: rebuild or back him), *rematch* (draw, split or majority decision: opens the ordinary fight negotiation or lets it go). At most one per fighter, six live, six-week expiry without penalty, recorded in the fighter's decisions. They act through the development plan, the Rebuilding objective, `approachOpponent`, morale and the camp relationship. They appear in the Office, on the fighter's profile and as one inbox message.
+- **Careers that stop working** (`wornDownChance`). From 30, with 8+ fights and a rating under 55, four or more defeats in a row (or two years without a contract and without a fight) add a small weekly chance of retiring, inside the existing draw. Rated 55+ and champions are untouched; records, history, reigns and fights are kept as before.
+- **Stories.** New career lines *Slump* (a third and fifth defeat in a row) and *Stopped by X* (a stoppage loss that mattered), derived from the record and the result.
+
+**Save/migration**: no version change (still 12). `office.reviews` and `FightResult.notes` are optional and absent in older saves, read as empty, and created only by writes (tested: a v12 save without them loads and plays on).
+
+**Measured** (before = 5.4C commit ed178cc; after = this phase; same seeds):
+
+| | before | after |
+|---|---|---|
+| Passive worlds, 6 seeds x 10 years: retirements | 1,234 | 1,278 |
+| ...mean retirement age (youngest) | 35.8 (33) | 35.4 (30) |
+| ...retired aged under 35 and rated 60+ | 111 | 97 |
+| ...retired after losing their last four | 108 | 135 |
+| ...mean rating of the retired | 57.3 | 56.6 |
+| Upset win, reputation / popularity gained (prospect, prime, veteran) | 4.0/5.8, 3.9/6.1, 3.9/6.2 | 4.3/6.6, 3.9/6.3, 4.3/6.4 |
+| Shock defeat, reputation lost (prospect, prime, veteran) | 3.5, 3.8, 3.9 | 4.1, 4.4, 4.7 |
+| Rated pool and activity (world audit, 5 seeds x 12 years) | 320 active, 8 rivals, 22 retire/yr | 319 active, 8 rivals, 23 retire/yr |
+| Title audit (`phase54-contention.ts 5 5`) | problems 0 | problems 0 |
+| Title and 12-round fights that go the distance (3 seeds x 6 years) | 152 of 830 | 142 of 818 |
+| Offers per seed-year, balanced bot answering | 1.5 | 3.3 (the world also differs: 18% more rival-weeks traded and more rolls; the form tilt is capped at +20%) |
+| Weekly tick (unit benchmark, limit 10x) | 8.5-9.4x | 8.5-9.7x (four idle runs; wall 22-39 ms per week) |
+
+Honest reading: the stage-aware effects are deliberately modest (about 10-20% either way) because the underlying expectation-based model was already
+sound. The retirement change moves the careers of modest, beaten fighters, not the top of the sport. Title fights going the distance only 17-18% of the
+time is a property of the existing sim (unchanged by this phase), which is why the championship browser suite's "at least one fight went 12 rounds" check
+can fail on a fixture whose few distinct pairings are all stopped (it did, on both fixture worlds tried, with 300/301 and 155/156 other checks passing).

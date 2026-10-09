@@ -22,7 +22,7 @@ const logo = { monogram: 'P', color: '#d4a24c', emblem: 'bolt' as const }
 const make = (seed: string, scenario?: 'regional') => createNewGame({ seed, promotionName: 'Phase Fifty-Four Promotions', promoterName: 'Tester', homeCountry: 'ENG', difficulty: 'standard', logo, scenario }, 1_700_000_000_000)
 
 writeFileSync(`${out}/p54-new.json`, serialiseGame(make('p54-new')))
-let s = make('p54-played', 'regional')
+let s = make(process.env.P54_SEED ?? 'p54-played', 'regional')
 const log = newLog()
 for (let w = 1; w <= 100; w++) {
   s = playWeek(s, STRATEGIES.balanced, log)
@@ -54,7 +54,7 @@ const o = structuredClone(sOrd)
   for (const [key, rec] of Object.entries(media.titles)) {
     const [body, wc] = key.split('|')
     if (!rec.c || levelOf(body) !== 'world' || rec.mand || divisions.has(wc) || used >= mineContracts.length || used >= 6) continue
-    const f = getList(media, body, wc as never)?.e.find((e) => e.r >= 1 && e.f !== rec.c && o.fighters[e.f].status === 'active' && !o.fighters[e.f].contractId && qualifiesFor(o, body, e.f))
+    const f = getList(media, body, wc as never)?.e.find((e) => e.r >= 1 && e.r <= 6 && e.f !== rec.c && o.fighters[e.f].status === 'active' && !o.fighters[e.f].contractId && qualifiesFor(o, body, e.f))
     if (!f) continue
     const x = o.fighters[f.f], champ = o.fighters[rec.c]
     const c = mineContracts[used++]
@@ -102,9 +102,9 @@ console.log('fixtures written to', out, 'mine', mine?.id, 'roster', Object.value
 }
 
 // Phase 5.4C: a played world with two live rival offers (one on the player's show, one on a rival's show), a career objective and a show with a card.
-{
-  let w = make('p54c-passive')
-  for (let i = 0; i < 104; i++) w = advanceOneWeek(w)
+for (const seedName of ['p54c-passive', 'p54c-b', 'p54c-c', 'p54c-d', 'p54c-e', 'p54c-f', 'p54c-g', 'p54c-h']) {
+  let w = make(seedName)
+  for (let i = 0; i < 80; i++) w = advanceOneWeek(w)
   w.promotions[w.playerPromotionId].cash = Math.max(w.promotions[w.playerPromotionId].cash, 1_500_000)
   const o = officeOf(w)
   o.offers = {}
@@ -130,6 +130,7 @@ console.log('fixtures written to', out, 'mine', mine?.id, 'roster', Object.value
       break themLoop
     }
   }
+  if (process.env.DBG) console.log('roster', roster.length, 'rivals', rivals.length, 'offers', Object.keys(o.offers))
   const star = roster[roster.length - 1]
   if (star) setGoal(w, star.id, 'regional')
   {
@@ -144,8 +145,10 @@ console.log('fixtures written to', out, 'mine', mine?.id, 'roster', Object.value
     }
   }
   const ev = Object.values(w.events).find((e) => e.promotionId === w.playerPromotionId && e.status === 'scheduled')
+  if (!(o.offers.of_f1 && o.offers.of_f2)) continue // a world that cannot show both kinds of offer is not a useful fixture: try the next seed
   writeFileSync(`${out}/p54c-office.json`, serialiseGame(w))
   console.log('p54c-office: offers', Object.keys(o.offers).join(','), 'objective on', star?.id, 'event', ev?.id)
+  break
 }
 
 // Phase 5.4D: a played-out result and the decisions it opens: a breakout win (open decision), plus a setback decision on another fighter.

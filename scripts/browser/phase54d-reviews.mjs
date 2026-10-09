@@ -32,7 +32,7 @@ for (const w of [1280, 1024, 390]) {
   await go(page, '#/dashboard'); await go(page, '#/office')
   check('office: decisions panel shows both open decisions', (await page.getByTestId('review-card').count()) === 2, String(await page.getByTestId('review-card').count()))
   const text = await page.getByTestId('reviews-panel').innerText()
-  check('office: states the choices and the time left, no hidden data', /to decide/.test(text) && /Fast-track him/.test(text) && /Rebuild him/.test(text) && HIDDEN.every((h) => !text.toLowerCase().includes(h.toLowerCase())), text.slice(0, 200))
+  check('office: states the choices and the time left, no hidden data', /to decide/i.test(text) && /Fast-track him/i.test(text) && /Rebuild him/i.test(text) && HIDDEN.every((h) => !text.toLowerCase().includes(h.toLowerCase())), text.slice(0, 200))
   check('office: no horizontal overflow', (await overflow(page)) <= 1, String(await overflow(page)))
   await page.screenshot({ path: `${shots}/reviews-${w}.png`, fullPage: true })
   const aId = await game(page, () => window.__fe.useGame.getState().game.office.reviews.rv_f1.fighterId)

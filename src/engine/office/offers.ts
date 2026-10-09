@@ -109,7 +109,7 @@ function reasonFor(state: GameState, promoId: Id, x: Fighter, y: Fighter): { rea
   }
   if (st.kind === 'eliminator') return null // an ordered eliminator is staged by the bodies' rules, not by an invitation
   // Phase 5.4D: a fighter riding a big win draws attention; rivals who want a name to beat (or to build on) write about them.
-  if (y.momentum >= 45 && weeksSince(state, y) <= 14 && diff <= 10 && diff >= -14) return { reason: 'opportunity', score: 50 + Math.min(10, (y.momentum - 45) / 3) - Math.abs(diff) * 0.5 }
+  if (y.momentum >= 50 && weeksSince(state, y) <= 14 && diff <= 10 && diff >= -14) return { reason: 'opportunity', score: 50 + Math.min(10, (y.momentum - 50) / 3) - Math.abs(diff) * 0.5 }
   if (met && heat >= 18) return { reason: 'rematch', score: 60 + heat * 0.4 + (focus === 'regional' ? 6 : 0) }
   if (heat >= 30) return { reason: 'rivalry', score: 55 + heat * 0.4 + (focus === 'headline' ? 10 : 0) }
   const young = x.record.wins + x.record.losses + x.record.draws <= 12
@@ -162,7 +162,7 @@ export function generateOffers(state: GameState): void {
   let made = 0
   let mine: Fighter[] | null = null
   // A fighter of yours in form (a recent big win) makes the phone ring a little more often. Not a guarantee: the roll below is still a roll.
-  const inForm = Object.values(state.contracts).some((c) => c.promotionId === state.playerPromotionId && c.status === 'active' && (state.fighters[c.fighterId]?.momentum ?? 0) >= 45)
+  const inForm = Object.values(state.contracts).some((c) => c.promotionId === state.playerPromotionId && c.status === 'active' && (state.fighters[c.fighterId]?.momentum ?? 0) >= 55)
   for (const promo of rivals) {
     if (made >= MAX_NEW_PER_WEEK) break
     const ai = promo.ai!
@@ -171,7 +171,7 @@ export function generateOffers(state: GameState): void {
     if (!b.signing && ai.fin.state !== 'healthy' && ai.fin.state !== 'established' && ai.fin.state !== 'growing') continue // a promotion in trouble is not proposing fights
     const rel = relation(state, 'promoter', promo.id)
     // How often this rival writes: more for bigger, active, friendlier promotions; less for hostile ones; none while its roster is thin.
-    const p = 0.15 * (promo.tier === 'Global' || promo.tier === 'Major' ? 1.3 : promo.tier === 'National' ? 1.1 : 0.9) * tilt(rel, 0.5) * (rel <= -45 ? 0.3 : 1) * (inForm ? 1.3 : 1)
+    const p = 0.15 * (promo.tier === 'Global' || promo.tier === 'Major' ? 1.3 : promo.tier === 'National' ? 1.1 : 0.9) * tilt(rel, 0.5) * (rel <= -45 ? 0.3 : 1) * (inForm ? 1.2 : 1)
     if (keyedFloat(state.seed, 'offer', promo.id, wk) >= p) continue
     dg('rolled')
     mine ??= myFree(state, day)

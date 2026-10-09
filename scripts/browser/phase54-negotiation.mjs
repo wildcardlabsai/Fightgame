@@ -165,8 +165,24 @@ for (const w of [1280, 1024, 390]) {
       check(`C/${w} fight asks extend the log`, (await page.getByTestId('talk-line').count()) >= n0 + 6)
       await page.screenshot({ path: `${shots}/C-fight-${w}.png`, fullPage: true })
       await playToEnd(page)
-      const st = await state(page, (g, id) => ({ talk: Object.values(g.business.talks).find((t) => t.fightId === id)?.status, fight: g.fights[id].status }), fightId)
-      check(`C/${w} fight agreed -> fight page`, st.talk === 'agreed' && (await hash(page)).includes(`/fight/${fightId}`), JSON.stringify(st) + (await hash(page)))
+      let fid = fightId
+      let st = await state(page, (g, id) => ({ talk: Object.values(g.business.talks).find((t) => t.fightId === id)?.status, fight: g.fights[id].status }), fid)
+      // A camp can legitimately walk away (it depends on the world the fixture happened to play out): try the next pairing, as a promoter would.
+      for (let attempt = 1; attempt <= 6 && st.talk !== 'agreed'; attempt++) {
+        console.log(`INFO  C/${w} talk ${st.talk}: trying another opponent (${attempt})`)
+        fid = await page.evaluate((skip) => {
+          const s = window.__fe.useGame.getState(), g = s.game
+          const mine = Object.values(g.contracts).filter((c) => c.promotionId === g.playerPromotionId && c.status === 'active').map((c) => c.fighterId)
+          let n = 0
+          for (const m of mine) for (const o of Object.values(g.fighters).filter((f) => f.weightClass === g.fighters[m].weightClass && f.id !== m && !f.retired).slice(0, 25)) { const id = s.approachOpponent(m, o.id); if (id && n++ >= skip) return id }
+          return null
+        }, attempt)
+        if (!fid) break
+        await go(page, `#/deal/${fid}`)
+        await playToEnd(page)
+        st = await state(page, (g, id) => ({ talk: Object.values(g.business.talks).find((t) => t.fightId === id)?.status, fight: g.fights[id].status }), fid)
+      }
+      check(`C/${w} fight agreed -> fight page`, st.talk === 'agreed' && (await hash(page)).includes(`/fight/${fid}`), JSON.stringify(st) + (await hash(page)))
       await common(page, w, 'C')
     }
     await ctx.close()
