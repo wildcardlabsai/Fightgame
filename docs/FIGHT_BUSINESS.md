@@ -354,3 +354,38 @@ ahead although the champion's camp would have refused them as voluntary fights. 
 
 **Trade-offs.** Vacancy is mostly supply-limited (few credible, unbooked contenders at a division at once), so the remaining 28% is not
 tuned away further without inventing challengers. Area and domestic belts in thin divisions sit vacant longer. Acceptance runs about 50-60%.
+
+## The living boxing world (Phase 5.4B, save version 11)
+
+**What already existed and was reused** (not rebuilt): rival promotions with a strategy, competence and risk appetite (`systems/aiMarket.ts`),
+a financial life cycle from healthy to insolvent with rare owner rescues (`systems/aiFinance.ts`), rival event planning, venues, pricing and
+settlement through the same event engine as the player (`events/ai.ts`), rival matchmaking against real opponents, contract renewals and
+releases, retirement, and the title system. Rival fights and shows are real entities in the normal game state; they update records,
+rankings, reputations and title histories through the same code paths as the player's.
+
+**What 5.4B adds** (`src/engine/world/`):
+
+- **Contested signings** (`pursuit.ts`, `systems/aiMarket.ts`). A rival that picks a free agent who matters (a name, or anyone the player
+  is following) now makes an *offer* and the fighter answers in one to three weeks, instead of signing instantly. In that window the
+  player can still sign them; if the player does, the offer lapses. At the deadline the rival must still afford the deal and have room, or
+  nothing happens. One pending offer per fighter and per promotion, and nobody shops a fighter with an offer out. While an offer is out the
+  camp costs the player slightly more and says so ("has another offer on the table"). The player hears of an offer only for fighters they
+  know about: the profile, a market tab ("Offers Pending"), the conversation header, and an inbox message for shortlisted fighters.
+- **A prospect pipeline that follows need** (`intake.ts`). Each division has a head-count target from the weight-class mix. Weekly intake
+  follows the total shortfall, divisions are drawn from the shortfalls, a yearly cap applies, and newcomers are amateur graduates (most),
+  late arrivals or experienced overseas professionals, with a share drawn from the promotions' home countries and a small gifted tail that
+  keeps the top of the sport supplied over decades. Potential stays hidden; nobody is deleted.
+- **Promotion life cycle** (`lifecycle.ts`). A promotion with no fighters, no shows and no money (or whose backers withdrew) is *defunct*
+  (derived, never stored, history kept) and no longer counts as a competitor. In a world short of rivals, or with idle talent, a new Startup
+  promotion may be founded: after the first year, at most one per half year, with a fixed £650k opening capital recorded as its `startCash`,
+  and no further help. Some succeed and some fail on their own competence.
+- **Standing** (`standing.ts`). A title change lifts the champion's promotion and costs the beaten champion's promotion a little reputation
+  (symmetric, bounded, off when the media world only observes).
+- **Public views** (`views.ts`). Each rival's standing (Expanding / Active / Cutting back / Quiet / Folding / Folded / New) is derived only
+  from things anyone could see: shows held and announced, signings and departures, collapse news. Rival shows near a date are shown in the show
+  planner (the demand model already splits the audience between shows in the same country within two days). Cash, appraisals and plans are never exposed.
+
+**Persistent state**: `GameState.world = { v, pursuits, intake }` and nothing else. v10 -> v11 only adds it (empty pursuits, the pipeline window
+starting on the save's own date); every other field is untouched and the career carries on through further ticks (tested).
+
+**Measured** (`scripts/audit/phase54b-world.ts`, seeds `world-1..N`, balanced bot): see the Phase 5.4B report for tables.

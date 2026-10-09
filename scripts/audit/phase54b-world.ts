@@ -9,6 +9,10 @@ import { newLog, playWeek, STRATEGIES } from '../../src/engine/sim/strategies'
 import { fighterAge, fighterRating } from '../../src/engine/fighters'
 import { WEIGHT_CLASSES } from '../../src/data/weightClasses'
 import type { GameState } from '../../src/engine/types'
+import { evaluateOffer, submitOffer, suggestedOffer } from '../../src/engine/negotiation'
+import { availabilityFor } from '../../src/engine/market'
+import { fighterRating as rating } from '../../src/engine/fighters'
+const react = process.argv.includes('--react'), rich = process.argv.includes('--rich') // rich: the player has a war chest, to isolate the contest itself from affordability
 
 const years = Number(process.argv[2] ?? 5), seeds = Number(process.argv[3] ?? 5)
 const logo = { monogram: 'P', color: '#fff', emblem: 'bolt' as const }
@@ -32,6 +36,7 @@ for (let k = 1; k <= seeds; k++) {
   const seenEv = new Set<string>(), seenSign = new Set<string>()
   let minCash = Infinity, negCash = 0
   const liveP: Record<string, string> = {}
+  const react1 = { tried: 0, won: 0, cantAfford: 0, refused: 0, skipped: 0 }
   const pur = { started: 0, rivalWon: 0, playerWon: 0, lapsed: 0, onRadar: 0 }
   for (let w = 1; w <= years * 52; w++) {
     s = playWeek(s, STRATEGIES.balanced, log); s = advanceOneWeek(s)
@@ -45,6 +50,23 @@ for (let k = 1; k <= seeds; k++) {
         if (h.kind === 'retired') yRetired++
         if (h.kind === 'expired') yExpired++
         if (h.kind === 'released') yReleased++
+      }
+    }
+    if (react) {
+      // A player who watches the market: answer a rival's offer on a credible fighter by bidding what their camp will accept, if affordable.
+      for (const [fid, p] of Object.entries(s.world?.pursuits ?? {})) {
+        const f = s.fighters[fid]
+        if (!f || f.contractId || rating(f) < 50 || !s.knowledge[fid] || p.decide < s.today) continue
+        if (!availabilityFor(s, f).signable) { react1.skipped++; continue }
+        const me = s.promotions[s.playerPromotionId]
+        if (rich && me.cash < 3_000_000) me.cash = 3_000_000
+        const base = suggestedOffer(s, f, 'signing')
+        const ev = evaluateOffer(s, f, me, base, 'signing')
+        const offer = ev.verdict === 'accept' ? base : ev.counter
+        react1.tried++
+        if (!offer || offer.signingBonus * 2 > me.cash) { react1.cantAfford++; continue }
+        const out = submitOffer(s, fid, offer, 'signing')
+        if (out.ok && out.signed) { s = out.state; react1.won++ } else react1.refused++
       }
     }
     for (const [fid, p] of Object.entries(s.world?.pursuits ?? {})) if (!liveP[fid]) { liveP[fid] = p.promoId; pur.started++; if (s.knowledge[fid]) pur.onRadar++ }
@@ -81,7 +103,7 @@ for (let k = 1; k <= seeds; k++) {
   const cash = rivals.map((p) => Math.round(p.cash / 1000))
   console.log(`seed world-${k}: start fighters ${startCount} -> ${Object.keys(s.fighters).length}; rivals ${rivals.length}; rival cash(k) min ${Math.min(...cash)} max ${Math.max(...cash)}; negative-cash promo-weeks ${negCash}; collapsing ${rivals.filter((p) => p.ai!.fin.collapsing).length}`)
   for (const y of yearly) console.log('  ' + y)
-  console.log(`  pursuits ${JSON.stringify(pur)}`)
+  console.log(`  pursuits ${JSON.stringify(pur)}${react ? ` reacting-player ${JSON.stringify(react1)}` : ''}`)
   for (const p of rivals.filter((x) => x.foundedDay > s.startDay)) console.log(`  founded: ${p.name} fin ${p.ai!.fin.state}${p.ai!.fin.collapsing ? ' (collapsing)' : ''} tier ${p.tier} roster ${Object.values(s.contracts).filter((c) => c.promotionId === p.id).length} events ${p.stats.events} rep ${p.reputation.toFixed(0)} cash ${Math.round(p.cash / 1000)}k`)
 }
 const avg = (k: string) => (sum(agg[k]) / agg[k].length).toFixed(1)

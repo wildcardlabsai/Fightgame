@@ -8,7 +8,9 @@ import { newLog, playWeek, STRATEGIES } from '../../src/engine/sim/strategies'
 import { qualifiesFor, titleKey, touchTitles } from '../../src/engine/media/titles'
 import { getList } from '../../src/engine/media/records'
 import { levelOf } from '../../src/engine/business/titleDefs'
-import { createEvent } from '../../src/engine/events/events'
+import { createEvent, createEventInternal, venueBookedOn } from '../../src/engine/events/events'
+import { venueViews } from '../../src/engine/eventViews'
+import { startPursuit } from '../../src/engine/world/pursuit'
 
 const out = process.argv[2] ?? '/tmp/e2e'
 mkdirSync(out, { recursive: true })
@@ -69,3 +71,21 @@ for (const v of Object.values(o.venues).sort((a, b) => a.capacity - b.capacity))
 }
 writeFileSync(`${out}/p54-ordered.json`, serialiseGame(ordered))
 console.log('fixtures written to', out, 'mine', mine?.id, 'roster', Object.values(s.contracts).filter((c) => c.promotionId === s.playerPromotionId).length, 'events', Object.values(s.events).filter((e) => e.promotionId === s.playerPromotionId).length)
+
+// Phase 5.4B: a world with a rival offer on a fighter the player is following, and a rival show on a date the player might pick.
+{
+  const w = structuredClone(s)
+  const rival = Object.values(w.promotions).find((p) => !p.isPlayer && p.ai && !p.ai.fin.collapsing && p.tier !== 'Startup')!
+  rival.cash = Math.max(rival.cash, 3_000_000)
+  const ff = Object.values(w.fighters).filter((f) => f.status === 'active' && f.contractId === null && f.record.wins >= 5).sort((a, b) => b.reputation - a.reputation)[0]
+  if (!w.knowledge[ff.id]) w.knowledge[ff.id] = { fighterId: ff.id, discoveredDay: w.today, source: 'tip', est: {}, insight: 0, reports: [], observations: 0 }
+  if (!w.shortlist.includes(ff.id)) w.shortlist.push(ff.id)
+  startPursuit(w, ff.id, rival.id, w.today + 14)
+  const venues = venueViews(w)
+  const v = venues.find((x) => !x.locked && x.tier === 'regional') ?? venues.find((x) => !x.locked)!
+  const day = v.freeDates[0]
+  const other = Object.values(w.venues).find((x) => x.country === v.country && x.id !== v.id && !x.legacy && !venueBookedOn(w, x.id, day))
+  if (other) createEventInternal(w, rival.id, { name: 'Rival Night', day, venueId: other.id }, 'ai')
+  writeFileSync(`${out}/p54b-world.json`, serialiseGame(w))
+  console.log('p54b-world: offer on', ff.id, 'from', rival.name, '; rival show', other ? other.city : 'none', 'on', day)
+}

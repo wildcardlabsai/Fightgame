@@ -8,11 +8,11 @@ import { FighterTable, type SortKey } from '../components/FighterTable'
 import { applyFilter, EMPTY_FILTER, sortRows, type FighterFilter } from '../fighterFilters'
 import { FilterBar } from './ScoutingScreen'
 
-type Tab = 'roster' | 'free' | 'expiring' | 'signed' | 'released' | 'known'
+type Tab = 'roster' | 'free' | 'expiring' | 'signed' | 'released' | 'known' | 'offers'
 const RECENT_DAYS = 12 * 7
 
 const TABS: { key: Tab; label: string }[] = [
-  { key: 'roster', label: 'My Roster' }, { key: 'free', label: 'Free Agents' }, { key: 'expiring', label: 'Expiring Contracts' },
+  { key: 'roster', label: 'My Roster' }, { key: 'free', label: 'Free Agents' }, { key: 'offers', label: 'Offers Pending' }, { key: 'expiring', label: 'Expiring Contracts' },
   { key: 'signed', label: 'Recently Signed' }, { key: 'released', label: 'Recently Released' }, { key: 'known', label: 'All Known' },
 ]
 
@@ -34,6 +34,7 @@ export function FightersScreen() {
     switch (tab) {
       case 'roster': return views.mine()
       case 'free': return views.freeAgents().filter((v) => v.status === 'active')
+      case 'offers': return views.freeAgents().filter((v) => v.status === 'active' && v.market.rivalOffer)
       case 'expiring': return views.mine().filter((v) => v.contract.kind === 'own' && v.contract.stage !== 'healthy')
       case 'signed': return views.known().filter((v) => recent(v, 'signed', false) || recent(v, 'renewed', false)).filter((v) => v.status === 'active')
       case 'released': return views.known().filter((v) => (recent(v, 'released', false) || recent(v, 'expired', false)) && v.contract.kind === 'none' && v.status === 'active')
@@ -43,7 +44,7 @@ export function FightersScreen() {
 
   const counts: Record<Tab, number> = {
     roster: views.mine().length, free: views.freeAgents().length, expiring: views.mine().filter((v) => v.contract.kind === 'own' && v.contract.stage !== 'healthy').length,
-    signed: 0, released: 0, known: 0,
+    signed: 0, released: 0, known: 0, offers: views.freeAgents().filter((v) => v.status === 'active' && v.market.rivalOffer).length,
   }
 
   const rows = useMemo(() => sortRows(applyFilter(base, filter), sort, dir), [base, filter, sort, dir])
@@ -74,7 +75,7 @@ export function FightersScreen() {
 
       <FilterBar f={filter} set={(f) => { setFilter(f); setShown(50) }} />
       <FighterTable rows={rows.slice(0, shown)} cols={[...cols]} sort={sort} dir={dir} onSort={onSort}
-        emptyText={tab === 'roster' ? 'No fighters match.' : tab === 'expiring' ? 'No contracts need attention right now.' : tab === 'signed' ? 'No notable signings in the last 12 weeks that you know about.' : tab === 'released' ? 'Nobody you know of has hit the market in the last 12 weeks.' : 'No fighters match those filters.'} />
+        emptyText={tab === 'roster' ? 'No fighters match.' : tab === 'offers' ? 'No rival has an offer out for a fighter you know about right now.' : tab === 'expiring' ? 'No contracts need attention right now.' : tab === 'signed' ? 'No notable signings in the last 12 weeks that you know about.' : tab === 'released' ? 'Nobody you know of has hit the market in the last 12 weeks.' : 'No fighters match those filters.'} />
       {rows.length > shown && <div style={{ textAlign: 'center', padding: 16 }}><button className="btn ghost" onClick={() => setShown((n) => n + 50)}>Show more ({rows.length - shown} left)</button></div>}
     </>
   )
