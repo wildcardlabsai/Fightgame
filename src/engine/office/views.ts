@@ -15,12 +15,27 @@ import { GOAL_INFO, GOAL_ORDER, goalProgress, opponentFit, suggestedGoal, type G
 import { OFFER_REASON_LABEL, isLive, offerProblem, stakesLabel } from './offers'
 import { CAMPAIGN_INFO, CAMPAIGN_ORDER, campaignFee, campaignPoints, campaignSuitability } from './promotion'
 import { relation, standingOf } from './relations'
+import { openReviews, REVIEW_CHOICES, reviewText } from './reviews'
 export { relationRows, type RelationRow } from './relations'
 import { cardProfile, FOCUS_INFO, FOCUS_ORDER, STANCE_INFO, STANCE_ORDER, strategyNote, strategyOf, strategyWeight } from './strategy'
 import { COACH, COACH_ORDER, coachWeekly } from './trainer'
 import type { CampaignKind, CoachLevel, FightProposal, GoalKind, StrategyFocus, StrategyStance } from './types'
 
 const WEEK = 7
+
+export interface ReviewView { id: Id; kind: 'breakout' | 'setback' | 'rematch'; fighterId: Id; fighter: string; opponent: string; title: string; text: string; weeksLeft: number; choices: { key: string; label: string; detail: string }[] }
+const REVIEW_TITLE = { breakout: 'Breakout win', setback: 'Setback', rematch: 'Rematch' } as const
+/** The post-fight decisions waiting for the promoter (optionally only those about one fighter). */
+export function reviewsView(state: GameState, fighterId?: Id): ReviewView[] {
+  const out: ReviewView[] = []
+  for (const rv of openReviews(state)) {
+    if (fighterId && rv.fighterId !== fighterId) continue
+    const f = state.fighters[rv.fighterId], o = state.fighters[rv.oppId]
+    if (!f || !o) continue
+    out.push({ id: rv.id, kind: rv.kind, fighterId: f.id, fighter: fighterName(f), opponent: fighterName(o), title: `${REVIEW_TITLE[rv.kind]}: ${fighterName(f)}`, text: reviewText(state, rv), weeksLeft: Math.max(0, Math.ceil((rv.expiresDay - state.today) / WEEK)), choices: REVIEW_CHOICES[rv.kind] })
+  }
+  return out
+}
 
 export interface FighterLine { id: Id; name: string; record: string; rank: string; belts: string[]; age: number; division: string; popularity: number }
 export interface OfferView {

@@ -144,7 +144,7 @@ export type OfficeCmdName = OfficeCmd
 type Rest<T extends unknown[]> = T extends [unknown, ...infer R] ? R : never
 const EVENT_OK: Partial<Record<EventCmd, string>> = { addFight: 'Added to the card.', putOnSale: 'Tickets are on sale!', cancel: 'Show cancelled.' }
 
-const OFFICE_OK: Partial<Record<OfficeCmd, string>> = { accept: 'Offer accepted: the fight is agreed.', reject: 'Offer turned down.', counter: 'Counter sent. They will reply within a week.', goal: 'Career objective saved.', campaign: 'Campaign set.', strategy: 'Direction set.', coaching: 'Coaching staff updated.' }
+const OFFICE_OK: Partial<Record<OfficeCmd, string>> = { accept: 'Offer accepted: the fight is agreed.', reject: 'Offer turned down.', counter: 'Counter sent. They will reply within a week.', goal: 'Career objective saved.', review: 'Decision made.', campaign: 'Campaign set.', strategy: 'Direction set.', coaching: 'Coaching staff updated.' }
 
 /** The save vault opens asynchronously (IndexedDB); everything waits on this promise. */
 let vaultPromise: Promise<SaveVault> | null = null

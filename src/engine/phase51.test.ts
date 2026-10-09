@@ -78,7 +78,9 @@ beforeAll(() => {
         } else if (c.from) {
           const f = s.fighters[c.from]
           const reign = getReigns(m).find((r) => r.b === body && r.wc === wc && r.f === c.from && r.to !== null)
-          if (!reign || !/retired|inactivity|refusing|relinquished/.test(reign.how)) if (f && f.status !== 'retired') watch.badTransition.push(`${c.key}: ${c.from} left the belt vacant without a reason`)
+          // A champion beaten by a fighter who already holds a higher belt sees the lower one closed in the same transition (hierarchy): the reign says "lost to", and a real defeat must be on record.
+          const lostRecently = !!reign && /^lost to/.test(reign.how) && Object.values(s.fights).some((x) => x.result && s.today - x.day <= 28 && x.result.winner !== null && [x.sideA.fighterId, x.sideB.fighterId].includes(c.from!) && (x.result.winner === 0 ? x.sideA.fighterId : x.sideB.fighterId) !== c.from)
+          if (!lostRecently && (!reign || !/retired|inactivity|refusing|relinquished/.test(reign.how))) if (f && f.status !== 'retired') watch.badTransition.push(`${c.key}: ${c.from} left the belt vacant without a reason`)
         }
       }
     }

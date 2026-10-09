@@ -84,6 +84,8 @@ export interface ResultView {
   after: [string, string]
   dRep: [number, number]
   dPop: [number, number]
+  /** Why this result mattered more or less to each of your fighters than the bare expectation (empty for fights that are not yours). */
+  context?: [string[], string[]]
   injuries: [{ kind: string; severity: string; weeks: number } | null, { kind: string; severity: string; weeks: number } | null]
   money: { label: string; amount: number }[]
 }
@@ -262,7 +264,7 @@ function buildResult(fight: NonNullable<GameState['fights'][string]>, nA: string
     assessment: [performanceNote(sA, t[1], t[0], t[5], t[3], r.kd[0], wA === null ? null : wA), performanceNote(sB, t[5], t[4], t[1], t[7], r.kd[1], wA === null ? null : !wA)],
     upsetLabel: r.upset > 0.62 ? 'Major upset' : r.upset > 0.45 ? 'Upset' : null,
     after: [afterRecord(fight.sideA.preRecord, 0, r), afterRecord(fight.sideB.preRecord, 1, r)],
-    dRep: r.dRep, dPop: r.dPop, injuries: [inj(r.injuries[0]), inj(r.injuries[1])], money,
+    dRep: r.dRep, dPop: r.dPop, context: r.notes ?? [[], []], injuries: [inj(r.injuries[0]), inj(r.injuries[1])], money,
   }
 }
 import type { Injury } from './types'

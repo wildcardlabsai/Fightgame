@@ -7,7 +7,7 @@ import type { Day, Id } from '../types'
 
 // ---------------------------------------------------------------- Incoming fight offers
 
-export type OfferReason = 'development' | 'competitive' | 'commercial' | 'eliminator' | 'title' | 'rematch' | 'replacement' | 'rivalry' | 'regional'
+export type OfferReason = 'development' | 'competitive' | 'commercial' | 'eliminator' | 'title' | 'rematch' | 'replacement' | 'rivalry' | 'regional' | 'opportunity'
 export type OfferStatus = 'open' | 'countered' | 'agreed' | 'rejected' | 'expired' | 'withdrawn'
 
 /** Money for the bout, in the currency the host pays it in: the purse of the visitor, a fee to the other promotion, a win bonus. */
@@ -75,6 +75,13 @@ export type CoachLevel = 'standard' | 'quality' | 'elite'
 /** `null` = not chosen yet: no effect either way (a new career, and every migrated save, starts undirected). */
 export interface Strategy { focus: StrategyFocus | null; stance: StrategyStance | null; since: Day; changes: number }
 
+/** Phase 5.4D: a decision that a significant result genuinely opens up. Created from an authoritative result, resolved once, lapses without penalty. */
+export type ReviewKind = 'breakout' | 'setback' | 'rematch'
+export interface CareerReview {
+  id: Id; kind: ReviewKind; fighterId: Id; oppId: Id; fightId: Id; createdDay: Day; expiresDay: Day
+  status: 'open' | 'resolved' | 'lapsed'; choice?: string; closedDay?: Day
+}
+
 export interface OfficeState {
   v: 1
   /** Own id counter: this layer never touches the engine's id counter or RNG. */
@@ -93,9 +100,11 @@ export interface OfficeState {
   rivalNotes: Record<string, { day: Day; why: string }[]>
   /** Offers made by each rival promotion lately (fighter pair keys -> day): no repeated proposals without a reason. */
   recent: Record<string, Day>
+  /** Phase 5.4D: post-fight decisions (bounded). Absent in saves written before 5.4D; read as empty. */
+  reviews?: Record<Id, CareerReview>
 }
 
-export const OFFICE_LIMITS = { offers: 36, decisions: 6, rel: 60, relLog: 5, applied: 90, rivalNotes: 24, recent: 80, openOffers: 4 }
+export const OFFICE_LIMITS = { offers: 36, decisions: 6, rel: 60, relLog: 5, applied: 90, rivalNotes: 24, recent: 80, openOffers: 4, reviewsLive: 6, reviewsKept: 14 }
 
 export function emptyOffice(): OfficeState {
   return { v: 1, n: 0, offers: {}, goals: {}, decisions: {}, rel: {}, applied: [], campaigns: {}, strategy: { focus: null, stance: null, since: 0, changes: 0 }, coach: 'standard', rivalNotes: {}, recent: {} }

@@ -1,6 +1,7 @@
 import { weekIndex } from '../media/util'
 import type { GameState } from '../types'
 import { processGoals } from './goals'
+import { processReviews } from './reviews'
 import { generateOffers, processOffers } from './offers'
 import { easeRelations } from './relations'
 import { officeOf } from './state'
@@ -11,5 +12,6 @@ export function processOffice(state: GameState): void {
   processOffers(state)
   generateOffers(state)
   processGoals(state)
+  processReviews(state)
   if (weekIndex(state) % 13 === 0) easeRelations(state)
 }

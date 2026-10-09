@@ -447,7 +447,7 @@ export interface YearLog {
 export type CareerCode =
   | 'START' | 'SIGNED' | 'RANKED' | 'TOP5' | 'NO1' | 'UPSET' | 'KO_STREAK' | 'TITLE_WON' | 'TITLE_DEFENCE' | 'TITLE_LOST'
   | 'FIRST_LOSS' | 'UNBEATEN' | 'COMEBACK' | 'RETIRED' | 'AWARD' | 'RIVALRY' | 'VIRAL' | 'MAIN_EVENT' | 'RELEASED'
-  | 'ELIM_WON' | 'MANDATORY' | 'UNIFIED' | 'UNDISPUTED' | 'VACATED' | 'STRIPPED' | 'DIVISION_MOVE' | 'PROMISE_KEPT' | 'PROMISE_BROKEN'
+  | 'ELIM_WON' | 'MANDATORY' | 'UNIFIED' | 'UNDISPUTED' | 'VACATED' | 'STRIPPED' | 'DIVISION_MOVE' | 'PROMISE_KEPT' | 'PROMISE_BROKEN' | 'SLUMP' | 'STOPPED'
 export interface CareerEntry { d: Day; k: CareerCode; /** text fragment (opponent / title / award name) */ a?: string; /** number (rank, streak, defences) */ n?: number }
 
 // -------------------------------------------------------------------- State

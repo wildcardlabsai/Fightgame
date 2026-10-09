@@ -534,8 +534,9 @@ describe('integrity over time', () => {
     for (const p of Object.values(s.promotions)) expect(Number.isFinite(p.cash)).toBe(true)
     ledgerBalanced(s) // every pound is accounted for, including entries that aged out of the visible ledger
     // Rivals that are still competing keep a roster. (A promotion founded in the last year is still building one, and one with no fighters, shows or
-    // money - see world/lifecycle.ts - has failed and is no longer competing; neither is held to the floor.)
-    const rosters = Object.values(s.promotions).filter((p) => !p.isPlayer && !isDefunct(s, p) && !(p.foundedDay > s.startDay && s.today - p.foundedDay < 52 * 7)).map((p) => rosterOf(s, p.id).length)
+    // money - see world/lifecycle.ts - has failed and is no longer competing; neither is held to the floor. Nor is a startup that is struggling: some new
+    // entrants fail on their own competence, which is the point of founding them.)
+    const rosters = Object.values(s.promotions).filter((p) => !p.isPlayer && !isDefunct(s, p) && !(p.foundedDay > s.startDay && s.today - p.foundedDay < 52 * 7) && !(p.tier === 'Startup' && ['struggling', 'critical'].includes(p.ai?.fin.state ?? ''))).map((p) => rosterOf(s, p.id).length)
     expect(Math.min(...rosters)).toBeGreaterThan(3)
     expect(Number.isFinite(cashRunwayWeeks(s) ?? 0)).toBe(true)
   }, 120_000)

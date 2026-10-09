@@ -179,6 +179,9 @@ export function opponentFit(state: GameState, f: Fighter, opp: Fighter): Opponen
   const gap = careerValue(state, opp) - careerValue(state, f)
   const tol = planFactors(plan).oppTolerance
   const hasGoal = !!goalOf(state, f.id)
+  // Phase 5.4D: a fighter coming off a bad run is not thrown in against a much stronger man without the camp saying so, whatever the plan.
+  const shaken = f.momentum <= -35 && plan !== 'accelerated'
+  if (shaken && gap > tol * 1.8) return { label: 'A big step up', gap, objection: true, note: `${f.firstName} is coming off a bad run and the camp objects: this is far too big a step up right now.` }
   if (plan === 'normal' && !hasGoal) return { label: 'No plan set', gap, objection: false, note: null }
   if (gap > tol * 1.8 && plan === 'protected') return { label: 'A big step up', gap, objection: true, note: `${f.firstName}'s camp objects: this is far beyond the protected plan.` }
   if (gap > tol) return { label: 'A big step up', gap, objection: false, note: plan === 'protected' ? 'A big step up for a protected plan.' : 'A big step up from his usual level.' }

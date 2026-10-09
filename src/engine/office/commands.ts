@@ -7,6 +7,7 @@ import type { GameState, Id } from '../types'
 import { clearGoal, setGoal } from './goals'
 import * as offers from './offers'
 import { setCampaign } from './promotion'
+import { resolveReview } from './reviews'
 import { officeOf } from './state'
 import { setStrategy } from './strategy'
 import { COACH, coachWeekly } from './trainer'
@@ -47,8 +48,15 @@ export const chooseCoaching = (s: GameState, level: CoachLevel): OfficeOutcome =
     return { ok: true }
   })
 
+/** Answer a post-fight decision (see reviews.ts). The rematch choice opens the ordinary fight negotiation. */
+export const answerReview = (input: GameState, id: Id, choice: string): OfficeOutcome => {
+  const state = structuredClone(input)
+  const r = resolveReview(state, id, choice)
+  return { ...r, state: r.ok ? state : input }
+}
+
 export const OFFICE_COMMANDS = {
   accept: acceptIncomingOffer, reject: rejectIncomingOffer, counter: counterIncomingOffer, withdrawCounter: withdrawOfferCounter, pullOut: pullOutOfAgreedOffer,
-  goal: chooseGoal, campaign: chooseCampaign, strategy: chooseStrategy, coaching: chooseCoaching,
+  review: answerReview, goal: chooseGoal, campaign: chooseCampaign, strategy: chooseStrategy, coaching: chooseCoaching,
 } as const
 export type OfficeCmd = keyof typeof OFFICE_COMMANDS

@@ -3,6 +3,7 @@ import { formatDay } from '../../engine/calendar'
 import { useGame } from '../../store/gameStore'
 import { Section } from '../components/Bits'
 import { money } from '../format'
+import { ReviewsPanel } from '../office/ReviewsPanel'
 import '../../styles/office54c.css'
 
 export function OfficeScreen() {
@@ -23,6 +24,8 @@ export function OfficeScreen() {
         </div>
         <button className="btn primary" onClick={() => navigate('fights', 'offers')}>Fight offers{waiting > 0 ? ` (${waiting})` : ''} ▸</button>
       </div>
+
+      <ReviewsPanel />
 
       <Section title="Direction" right={<span className="dim" style={{ fontSize: 13 }}>{s.focus || s.stance ? (s.weight === 'turning' ? 'Recently changed: half effect for eight weeks' : 'In full effect') : 'Not chosen yet: no effect either way'}</span>}>
         <p className="o54-tabs-note">A tendency, not a class: change it whenever you like. Every direction has a price somewhere else, and none is best in every situation.</p>

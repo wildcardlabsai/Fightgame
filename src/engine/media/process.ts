@@ -15,6 +15,7 @@ import { weightClassLabel } from '../../data/weightClasses'
 import type { BoxingEvent, Fight, Fighter, GameState, Id, WeightClassId } from '../types'
 import { levelOf } from '../business/titleDefs'
 import { addCareer, seedCareers } from './career'
+import { streakBefore } from '../fight/context'
 import { narrativesFromFight, narrativesFromRetirement, narrativesFromTitle, weeklyNarratives } from './narratives'
 import { addInterest, decayProfiles, profileOf } from './popularity'
 import { RANK_ORG_BY_ID } from './orgs'
@@ -92,6 +93,12 @@ function careerFromFight(state: GameState, media: MediaState, ev: WorldEvent, fi
   const W = r.winner === 0 ? A : B, L = r.winner === 0 ? B : A
   if (ev.tags.includes('upset')) addCareer(media, W.id, { d: day, k: 'UPSET', a: fighterName(L), n: Number(ev.facts.lrank ?? 0) || undefined })
   if (ev.tags.includes('unbeaten-fell')) addCareer(media, L.id, { d: day, k: 'FIRST_LOSS', a: fighterName(W) })
+  // Phase 5.4D: the setbacks that shape a career: a third defeat in a row, and being stopped when it mattered.
+  {
+    const st = streakBefore(state, L, '')
+    if (st.kind === 'loss' && (st.n === 3 || st.n === 5)) addCareer(media, L.id, { d: day, k: 'SLUMP', n: st.n })
+    if (['KO', 'TKO'].includes(r.method) && r.importance >= 45 && !ev.tags.includes('unbeaten-fell')) addCareer(media, L.id, { d: day, k: 'STOPPED', a: fighterName(W), n: r.round })
+  }
   if (W.record.losses === 0 && W.record.draws === 0 && totalFightsOf(W) >= 10 && totalFightsOf(W) % 5 === 0) addCareer(media, W.id, { d: day, k: 'UNBEATEN', n: W.record.wins })
   for (const te of titleEvs) {
     const t = titleName(te.body, fight.weightClass)

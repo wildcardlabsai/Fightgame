@@ -3,6 +3,9 @@
  * The Fight entity is the system of record; fighters only hold `activeFightId` and a short `recentFights` list.
  */
 import { trainerPrep } from './office/trainer'
+import { afterFightResult } from './office/politics'
+import { processReviewsFor } from './office/reviews'
+import { resultContext, streakBefore } from './fight/context'
 import { planFightFactors } from './business/plans'
 import { VENUE_SEEDS } from '../data/venues'
 import { regionOf } from '../data/nations'
@@ -364,6 +367,8 @@ function processResult(state: GameState, fight: Fight, endDamage: [number, numbe
     const f = fs[i]
     const won = w === i, lost = w === 1 - i
     const pWin = pExp[i]
+    const prior = streakBefore(state, f, fight.id)
+    const ctx = resultContext(state, f, fs[1 - i], won ? 'win' : lost ? 'loss' : 'draw', pWin, prior)
     // Record
     if (won) { f.record.wins++; if (stoppage) f.record.koWins++ }
     else if (lost) { f.record.losses++; if (stoppage) f.record.koLosses++ }
@@ -385,7 +390,8 @@ function processResult(state: GameState, fight: Fight, endDamage: [number, numbe
       dRep = (0.5 - pWin) * 1.4
       dPop = excitement * 0.8 - 0.2
     }
-    dRep *= B.fights.reputationK
+    dRep *= B.fights.reputationK * ctx.rep
+    dPop *= ctx.pop
     if (dPop > 0) dPop *= B.fights.popularityGainK
     dPop *= exposureFor(state, fight, dPop)
     const pk = planFightFactors(state, f.id)
@@ -396,9 +402,10 @@ function processResult(state: GameState, fight: Fight, endDamage: [number, numbe
     f.popularity = clamp(f.popularity + dPop, 1, 100)
     // Morale, confidence, career momentum
     const ko = lost && (r.method === 'KO' || r.method === 'TKO')
-    f.morale = clamp(f.morale + (won ? 6 + 5 * r.upset : lost ? -(7 + 6 * pWin + (ko ? 6 : 0)) * pk.lossMorale : 0), 1, 100)
-    f.confidence = clamp(f.confidence + (won ? 5 + 8 * r.upset + 6 * (r.perf[i] - 0.5) : lost ? -(6 + 8 * pWin + (ko ? 8 : 0)) : 0), 1, 100)
-    f.momentum = clamp(0.65 * f.momentum + (won ? 30 + 25 * r.upset : lost ? -(25 + 25 * pWin) : 0), -100, 100)
+    f.morale = clamp(f.morale + (won ? (6 + 5 * r.upset) * (ctx.morale > 1 ? ctx.morale : 1) : lost ? -(7 + 6 * pWin + (ko ? 6 : 0)) * pk.lossMorale * ctx.morale : 0), 1, 100)
+    f.confidence = clamp(f.confidence + (won ? (5 + 8 * r.upset + 6 * (r.perf[i] - 0.5)) * ctx.conf : lost ? -(6 + 8 * pWin + (ko ? 8 : 0)) * ctx.conf : 0), 1, 100)
+    f.momentum = clamp(0.65 * f.momentum + (won ? 30 + 25 * r.upset : lost ? -(25 + 25 * pWin) : 0) + (won || lost ? ctx.mom : 0), -100, 100)
+    if (ctx.notes.length && fightInvolvesPlayer(state, fight)) (r.notes ??= [[], []])[i] = ctx.notes
     f.fitness = clamp(f.fitness - 5 - 6 * Math.min(1, endDamage[i]), 20, 100)
     // Rest and medical suspension
     if (stoppage && lost) f.suspendedUntil = fight.day + (B.fights.suspension[r.method] ?? 4) * 7
@@ -532,6 +539,8 @@ function postFight(state: GameState, fight: Fight): void {
     postNews(state, { headline: text, category: 'result', fighterId: w?.id ?? fs[0].id, fightId: fight.id, importance: imp })
   }
   if (mine) {
+    afterFightResult(state, fight.id)
+    processReviewsFor(state, fight.id)
     postMessage(state, {
       from: 'Matchmaking', category: 'fighter', priority: r.winner === null ? 'normal' : 'important',
       subject: `Result: ${headline}`, body: `${resultSummary(fight, names[0], names[1])} ${r.injuries.some(Boolean) ? 'There were injuries — check the report.' : ''}`.trim(),

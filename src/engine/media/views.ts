@@ -223,6 +223,8 @@ const CAREER_TEXT = (k: string, a: string | undefined, n: number | undefined): s
     case 'TITLE_WON': return `Won the ${a}`
     case 'TITLE_DEFENCE': return `Defended the ${a}${n ? ` (defence ${n})` : ''}`
     case 'TITLE_LOST': return `Lost the ${a}`
+    case 'SLUMP': return `${n} defeats in a row`
+    case 'STOPPED': return `Stopped by ${a}${n ? ` in round ${n}` : ''}`
     case 'FIRST_LOSS': return `First professional defeat, to ${a}`
     case 'UNBEATEN': return `Unbeaten after ${n} wins`
     case 'COMEBACK': return `Staged a comeback`

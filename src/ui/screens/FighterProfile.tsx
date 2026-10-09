@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { ObjectivePanel } from '../office/ObjectivePanel'
+import { ReviewsPanel } from '../office/ReviewsPanel'
 import '../../styles/world54b.css'
 import { fighterAdvice } from '../../engine/advisor'
 import { formatDay } from '../../engine/calendar'
@@ -91,6 +92,7 @@ export function FighterProfile({ id }: { id: string }) {
             </div>
             <div>
               {bv.expected && <ExpectedTermsPanel t={bv.expected} canNegotiate={(!mine && v.market.signable) || (mine && c.kind === 'own')} onOpen={() => navigate('negotiation', v.id)} />}
+              {mine && <ReviewsPanel fighterId={v.id} />}
               {mine && <ObjectivePanel id={v.id} />}
               {mine && <PlanChooser bv={bv} />}
               {mine && <DivisionMove bv={bv} divisionName={v.division} />}

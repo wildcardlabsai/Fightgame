@@ -9,6 +9,7 @@ import { weeksBetween } from '../calendar'
 import type { BoxingEvent, GameState, Id } from '../types'
 import { campaignPoints, settleCampaign } from './promotion'
 import { shiftRelation } from './relations'
+import { once } from './state'
 
 const live = (s: string) => s !== 'cancelled' && s !== 'planning'
 const hostsMyFighter = (state: GameState, ev: BoxingEvent): boolean =>
@@ -46,3 +47,37 @@ export function outbid(state: GameState, fighterId: Id, rivalPromoId: Id): void 
 }
 
 void campaignPoints
+
+/**
+ * Phase 5.4D: what a result of ours does to the people around it, once per fight. A fighter's camp remembers whether the promoter put
+ * them in a fair fight (a win in a real test warms them; a defeat in an obvious mismatch cools them); a rival promotion remembers being
+ * beaten as the favourite, and respects a close, well-matched fight. Bounded, explained, and never touching contracts or eligibility.
+ */
+export function afterFightResult(state: GameState, fightId: Id): void {
+  const fight = state.fights[fightId]
+  const r = fight?.result
+  if (!fight || !r) return
+  const me = state.playerPromotionId
+  const sides = [fight.sideA, fight.sideB] as const
+  for (const i of [0, 1] as const) {
+    const side = sides[i], other = sides[1 - i]
+    if (side.promotionId !== me) continue
+    const f = state.fighters[side.fighterId]
+    const opp = state.fighters[other.fighterId]
+    if (!f || !opp) continue
+    const pWin = i === 0 ? r.pExpA : 1 - r.pExpA
+    const won = r.winner === i, lost = r.winner === 1 - i
+    // The camp
+    if (won && pWin < 0.45 && once(state, `camp:${fightId}:${f.id}`)) {
+      f.promoRelations[me] = Math.min(100, (f.promoRelations[me] ?? 0) + 1 + 3 * (0.45 - pWin))
+    } else if (lost && pWin < 0.3 && once(state, `camp:${fightId}:${f.id}`)) {
+      f.promoRelations[me] = Math.max(-100, (f.promoRelations[me] ?? 0) - (1 + 3 * (0.3 - pWin)))
+    }
+    // The other promotion
+    const rival = other.promotionId && other.promotionId !== me ? other.promotionId : null
+    if (!rival || !state.promotions[rival]) continue
+    const name = `${opp.firstName} ${opp.lastName}`
+    if (won && pWin < 0.4) shiftRelation(state, 'promoter', rival, -1.5, `${f.firstName} ${f.lastName} beat their man ${name}, who was favoured`, `rival:${fightId}`)
+    else if (Math.abs(r.pExpA - 0.5) < 0.2 && (r.winner === null || ['UD', 'SD', 'MD'].includes(r.method))) shiftRelation(state, 'promoter', rival, 1, `A close, well-matched fight with ${name}`, `rival:${fightId}`)
+  }
+}

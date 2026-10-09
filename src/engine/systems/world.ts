@@ -5,6 +5,7 @@ import type { Rng } from '../rng'
 import type { Fighter, GameState } from '../types'
 import { archiveContract, pushHistory } from '../roster'
 import { titlesHeldBy } from '../media/titles'
+import { streakBefore } from '../fight/context'
 
 /** Weekly chance a fighter calls it a day. Rises steeply after 33. */
 export function retirementChance(f: Fighter, age: number): number {
@@ -13,6 +14,20 @@ export function retirementChance(f: Fighter, age: number): number {
   const base = Math.pow(age - 32, 1.6) * 0.0012
   const fading = rating < 48 ? 0.003 : 0
   return Math.min(0.2, base + fading) + (age >= 41 ? 0.05 : 0)
+}
+
+/**
+ * Phase 5.4D: a career can also end because it has stopped working, not only because of age. A fighter of 30 or more with a long
+ * record and a modest rating who has lost four or more in a row, or who has been without a contract and out of the ring for two years,
+ * has a small weekly chance of calling it a day. Anyone rated 55+ or holding a belt is untouched, so the rated pool does not shrink.
+ */
+export function wornDownChance(state: GameState, f: Fighter, age: number): number {
+  if (age < 30 || f.record.wins + f.record.losses + f.record.draws < 8 || fighterRating(f) >= 55) return 0
+  let p = 0
+  const st = streakBefore(state, f, '')
+  if (st.kind === 'loss' && st.n >= 4) p += 0.004 * Math.min(3, st.n - 3)
+  if (!f.contractId && f.lastFightDay !== null && (state.today - f.lastFightDay) / 7 > 104) p += 0.006
+  return p
 }
 
 /** Holds a belt won in the last eight weeks, or has just won a title fight the media world has not yet settled. */
@@ -29,7 +44,7 @@ export function processRetirements(state: GameState, rng: Rng): void {
   for (const f of Object.values(state.fighters)) {
     if (f.status !== 'active') continue
     const age = fighterAge(f, state.today)
-    if (!rng.chance(retirementChance(f, age))) continue
+    if (!rng.chance(Math.min(0.25, retirementChance(f, age) + wornDownChance(state, f, age)))) continue
     // A fighter who has just won a belt takes a first defence before calling it a day (the draw above is spent either way).
     if (state.media?.effects && recentlyCrowned(state, f)) continue
     retire(state, f)

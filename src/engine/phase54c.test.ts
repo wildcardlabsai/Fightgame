@@ -77,6 +77,7 @@ function withOffers(): { s: GameState; you: string; them: string } {
     const ev = createEventInternal(s, t.p.id, { name: 'Test Night', day, venueId: venue.id }, 'ai')
     t.p.cash = Math.max(t.p.cash, 5_000_000)
     them = mkOffer(2, 'them', t.p.id, t.f.id, m.id, ev.id)
+    if (offerProblem(s, o.offers[them])) { delete o.offers[them]; them = ''; used.add(t.f.id); continue } // a fixture must be a valid offer: try the next pairing
     break
   }
   expect(them, 'a host-them offer').not.toBe('')

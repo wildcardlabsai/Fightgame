@@ -44,7 +44,7 @@ import { OFFICE_LIMITS, type FightProposal, type OfferReason, type OfferTerms } 
 
 export const OFFER_REASON_LABEL: Record<OfferReason, string> = {
   development: 'A development bout', competitive: 'A competitive matchup', commercial: 'A commercially attractive fight', eliminator: 'A title eliminator', title: 'A title opportunity',
-  rematch: 'A rematch', replacement: 'A replacement opponent', rivalry: 'A rivalry fight', regional: 'A regional matchup',
+  rematch: 'A rematch', opportunity: 'An opportunity after a big win', replacement: 'A replacement opponent', rivalry: 'A rivalry fight', regional: 'A regional matchup',
 }
 
 const WEEK = 7
@@ -108,10 +108,12 @@ function reasonFor(state: GameState, promoId: Id, x: Fighter, y: Fighter): { rea
     return null
   }
   if (st.kind === 'eliminator') return null // an ordered eliminator is staged by the bodies' rules, not by an invitation
+  // Phase 5.4D: a fighter riding a big win draws attention; rivals who want a name to beat (or to build on) write about them.
+  if (y.momentum >= 45 && weeksSince(state, y) <= 14 && diff <= 10 && diff >= -14) return { reason: 'opportunity', score: 50 + Math.min(10, (y.momentum - 45) / 3) - Math.abs(diff) * 0.5 }
   if (met && heat >= 18) return { reason: 'rematch', score: 60 + heat * 0.4 + (focus === 'regional' ? 6 : 0) }
   if (heat >= 30) return { reason: 'rivalry', score: 55 + heat * 0.4 + (focus === 'headline' ? 10 : 0) }
   const young = x.record.wins + x.record.losses + x.record.draws <= 12
-  if ((young || promo.ai?.strategy === 'prospectFactory') && diff <= 4 && diff >= -16) return { reason: 'development', score: 42 + (focus === 'prospects' ? 14 : 0) - Math.abs(diff + 4) }
+  if ((young || promo.ai?.strategy === 'prospectFactory') && diff <= 4 && diff >= -16) return { reason: 'development', score: 42 + (focus === 'prospects' ? 14 : 0) - Math.abs(diff + 4) + (y.momentum <= -25 ? 8 : 0) }
   const rankedX = !!state.media && ['atlas', 'pioneer', 'crown', 'apex'].some((b) => rankIn(state.media!, b, x.weightClass, x.id) !== null)
   const rankedY = !!state.media && ['atlas', 'pioneer', 'crown', 'apex'].some((b) => rankIn(state.media!, b, y.weightClass, y.id) !== null)
   if (rankedX && rankedY && Math.abs(diff) <= 9) return { reason: 'competitive', score: 52 - Math.abs(diff) + (focus === 'contender' ? 12 : 0) }
@@ -130,6 +132,7 @@ function proposalMessage(state: GameState, o: FightProposal): string {
     case 'development': return `${promo.name} want a step-up test for ${nx} (${rec(x)}) and see ${ny} (${rec(y)}) as the right opponent.`
     case 'competitive': return `${promo.name} think ${nx} (${rec(x)}) and ${ny} (${rec(y)}) are well matched, and that the fight would mean something in the division.`
     case 'commercial': return `${promo.name} believe ${nx} against ${ny} would sell: two names the public already know.`
+    case 'opportunity': return `${promo.name} have noticed ${ny}'s recent win (${rec(y)}) and want ${nx} (${rec(x)}) to take on a fighter in form.`
     case 'rematch': return `${promo.name} want the rematch: ${nx} and ${ny} fought before and the public never got a conclusion.`
     case 'rivalry': return `${promo.name} want to feed the rivalry between ${nx} and ${ny}.`
     case 'title': return `${promo.name} are offering a championship fight between ${nx} and ${ny}.`
@@ -158,6 +161,8 @@ export function generateOffers(state: GameState): void {
   const rivals = Object.values(state.promotions).filter((p) => !p.isPlayer && p.ai && isTrading(state, p)).sort((a, b) => (a.id < b.id ? -1 : 1))
   let made = 0
   let mine: Fighter[] | null = null
+  // A fighter of yours in form (a recent big win) makes the phone ring a little more often. Not a guarantee: the roll below is still a roll.
+  const inForm = Object.values(state.contracts).some((c) => c.promotionId === state.playerPromotionId && c.status === 'active' && (state.fighters[c.fighterId]?.momentum ?? 0) >= 45)
   for (const promo of rivals) {
     if (made >= MAX_NEW_PER_WEEK) break
     const ai = promo.ai!
@@ -166,7 +171,7 @@ export function generateOffers(state: GameState): void {
     if (!b.signing && ai.fin.state !== 'healthy' && ai.fin.state !== 'established' && ai.fin.state !== 'growing') continue // a promotion in trouble is not proposing fights
     const rel = relation(state, 'promoter', promo.id)
     // How often this rival writes: more for bigger, active, friendlier promotions; less for hostile ones; none while its roster is thin.
-    const p = 0.15 * (promo.tier === 'Global' || promo.tier === 'Major' ? 1.3 : promo.tier === 'National' ? 1.1 : 0.9) * tilt(rel, 0.5) * (rel <= -45 ? 0.3 : 1)
+    const p = 0.15 * (promo.tier === 'Global' || promo.tier === 'Major' ? 1.3 : promo.tier === 'National' ? 1.1 : 0.9) * tilt(rel, 0.5) * (rel <= -45 ? 0.3 : 1) * (inForm ? 1.3 : 1)
     if (keyedFloat(state.seed, 'offer', promo.id, wk) >= p) continue
     dg('rolled')
     mine ??= myFree(state, day)

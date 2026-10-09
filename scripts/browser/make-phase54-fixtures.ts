@@ -147,3 +147,19 @@ console.log('fixtures written to', out, 'mine', mine?.id, 'roster', Object.value
   writeFileSync(`${out}/p54c-office.json`, serialiseGame(w))
   console.log('p54c-office: offers', Object.keys(o.offers).join(','), 'objective on', star?.id, 'event', ev?.id)
 }
+
+// Phase 5.4D: a played-out result and the decisions it opens: a breakout win (open decision), plus a setback decision on another fighter.
+{
+  let w = make('p54d-passive')
+  for (let i = 0; i < 104; i++) w = advanceOneWeek(w)
+  w.promotions[w.playerPromotionId].cash = Math.max(w.promotions[w.playerPromotionId].cash, 1_500_000)
+  const o = officeOf(w)
+  const roster = Object.values(w.contracts).filter((c) => c.promotionId === w.playerPromotionId && c.status === 'active').map((c) => w.fighters[c.fighterId]).filter((f) => f && f.status === 'active')
+  const opp = (f: (typeof roster)[number]) => Object.values(w.fighters).find((x) => x.status === 'active' && x.id !== f.id && x.weightClass === f.weightClass && x.contractId && !w.contracts[x.contractId].promotionId.startsWith(w.playerPromotionId))!
+  o.reviews = {}
+  const [a, b] = roster
+  o.reviews.rv_f1 = { id: 'rv_f1', kind: 'breakout', fighterId: a.id, oppId: opp(a).id, fightId: 'none', createdDay: w.today, expiresDay: w.today + 42, status: 'open' }
+  o.reviews.rv_f2 = { id: 'rv_f2', kind: 'setback', fighterId: b.id, oppId: opp(b).id, fightId: 'none', createdDay: w.today, expiresDay: w.today + 42, status: 'open' }
+  writeFileSync(`${out}/p54d-reviews.json`, serialiseGame(w))
+  console.log('p54d-reviews: decisions on', a.id, b.id)
+}

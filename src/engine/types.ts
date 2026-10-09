@@ -705,6 +705,8 @@ export interface FightResult {
   /** 0–100: how surprising and big the result was. */
   importance: number
   upset: number
+  /** Phase 5.4D: why this result meant more (or less) to each fighter than the bare expectation says; only kept for the player's fights. */
+  notes?: [string[], string[]]
 }
 
 /** Title metadata. Nothing sets this before the rankings phase; the presentation only reads it. */
