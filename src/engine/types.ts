@@ -813,6 +813,8 @@ export interface GameState {
   scenario?: { id: 'groundUp' | 'regional' | 'national' | 'champion'; done: Record<string, number> }
   /** Phase 5.4: the fight business — conversations, promises, development plans (see engine/business). Created by migration. */
   business?: import('./business/types').BusinessState
+  /** Phase 5.4B: the living boxing world - contested signings and the prospect pipeline (see engine/world). Created by migration. */
+  world?: import('./world/types').WorldState
 }
 
-export const GAME_STATE_VERSION = 10
+export const GAME_STATE_VERSION = 11

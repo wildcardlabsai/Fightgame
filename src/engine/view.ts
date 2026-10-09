@@ -8,6 +8,7 @@
  * The UI must not import `Fighter`, read `state.fighters` or `state.knowledge` directly.
  * (Enforced by src/engine/leakAudit.test.ts.)
  */
+import { rivalOfferFor, type RivalOffer } from './world/views'
 import { nation } from '../data/nations'
 import { weightClassLabel } from '../data/weightClasses'
 import { BALANCE as B } from './balance'
@@ -139,6 +140,8 @@ export interface FighterView {
     unavailableReason: string | null
     negotiation: NegotiationView | null
     availableWeeks: number | null
+    /** A rival's offer on the table for a fighter you are aware of (who, and about when the answer comes). */
+    rivalOffer: RivalOffer | null
   }
   history: { day: number; kind: Fighter['history'][number]['kind']; text: string; promotionId: Id | null }[]
   availability: AvailabilityView
@@ -363,6 +366,7 @@ function buildView(state: GameState, f: Fighter): FighterView {
         lockedWeeks: neg.lockedUntil !== null && neg.lockedUntil > state.today ? weeksBetween(state.today, neg.lockedUntil) : null,
       } : null,
       availableWeeks: f.availableSince === null ? null : weeksBetween(f.availableSince, state.today),
+      rivalOffer: rivalOfferFor(state, f.id),
     },
     history: f.history.map((h) => ({ day: h.day, kind: h.kind, text: historyText(state, h), promotionId: h.promotionId })).sort((a, b) => b.day - a.day),
     availability: availabilityView(state, f),

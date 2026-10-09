@@ -1,4 +1,5 @@
 import { initMediaWorld } from './media/process'
+import { emptyWorld } from './world/types'
 import { buildWorldVenues } from './business/venues'
 import { dayFromIso } from './calendar'
 import { generateFighter, publicFacts, visibility } from './fighters'
@@ -212,6 +213,7 @@ export function createNewGame(opts: NewGameOptions, now = Date.now()): GameState
     ...(sc ? { scenario: { id: sc.id, done: {} } } : {}),
     promotionProgress: freshTierProgress(),
     sponsors: freshSponsorBook(),
+    world: emptyWorld(today),
   }
   state.idCounter = ids.counter
   state.scouts.push(createStartingScout(state, opts.homeCountry))

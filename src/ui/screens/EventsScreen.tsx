@@ -12,6 +12,8 @@ import { EventPoster } from '../visual/EventPoster'
 import { FighterPortrait } from '../visual/FighterPortrait'
 import { VenueImage } from '../visual/VenueImage'
 import { VenuePicker } from '../venues/VenuePicker'
+import { clashesOn } from '../../engine/world/views'
+import '../../styles/world54b.css'
 
 type Tab = 'open' | 'history' | 'upcoming' | 'world'
 
@@ -56,6 +58,8 @@ function NewEventModal({ onClose }: { onClose: () => void }) {
   const date = day !== null && v.freeDates.includes(day) ? day : v.freeDates[0]
   const cash = game.promotions[game.playerPromotionId].cash
   const ok = name.trim().length >= 3 && date !== undefined && !v.locked
+  const clashByDay = useMemo(() => Object.fromEntries(v.freeDates.map((d) => [d, clashesOn(game, d, v.country)])), [game, v])
+  const clashes = date !== undefined ? clashByDay[date] ?? [] : []
   const bookingAdvice = useMemo(() => { const a = venueBookingAdvice(game, v.hireCost, v.productionCost, v.name); return a ? [a] : [] }, [game, v])
   return (
     <Modal title="Plan a new show" onClose={onClose} wide>
@@ -74,8 +78,13 @@ function NewEventModal({ onClose }: { onClose: () => void }) {
       {v.freeDates.length === 0 ? <p className="empty">No free dates at this venue.</p> : (
         <div className="opp-grid">
           {v.freeDates.map((d) => (
-            <button key={d} className={`pick${date === d ? ' on' : ''}`} onClick={() => setDay(d)} aria-pressed={date === d}><div className="num" style={{ fontSize: 18 }}>{formatDay(d)}</div></button>
+            <button key={d} className={`pick${date === d ? ' on' : ''}`} onClick={() => setDay(d)} aria-pressed={date === d}><div className="num" style={{ fontSize: 18 }}>{formatDay(d)}</div>{(clashByDay[d]?.length ?? 0) > 0 && <span className="w54-flag" data-testid="date-clash">Rival show</span>}</button>
           ))}
+        </div>
+      )}
+      {clashes.length > 0 && (
+        <div className={`w54-clash${clashes.some((c) => c.major) ? ' major' : ''}`} role="status" data-testid="clash-note">
+          <b>{clashes.length === 1 ? 'A rival show' : `${clashes.length} rival shows`} on or near this date in {v.country}:</b> {clashes.map((c) => `${c.promotion} (${c.city})`).join(', ')}. Shows in the same country within a couple of days share the audience; {clashes.some((c) => c.major) ? 'one of them is a big card, so expect a real dent in ticket sales.' : 'they look small, so the effect should be modest.'}
         </div>
       )}
       <p className="dim" style={{ fontSize: 13, margin: '10px 0' }}>Pick a building you can honestly fill. A half-empty hall wastes money and hurts atmosphere; a packed small hall leaves money on the table. The event page shows a venue-fit forecast once you have a card.</p>

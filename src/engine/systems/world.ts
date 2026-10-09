@@ -1,6 +1,5 @@
 import { dayToDate } from '../calendar'
-import { generateFighter, fighterAge, fighterName, fighterRating, clamp } from '../fighters'
-import type { IdSource } from '../ids'
+import { fighterAge, fighterName, fighterRating } from '../fighters'
 import { postMessage, postNews } from '../messages'
 import type { Rng } from '../rng'
 import type { Fighter, GameState } from '../types'
@@ -58,25 +57,6 @@ function retire(state: GameState, f: Fighter): void {
   }
   if (f.reputation >= 45 || mine) {
     postNews(state, { headline: `${fighterName(f)} (${f.record.wins}-${f.record.losses}-${f.record.draws}) announces retirement`, category: 'retirement', fighterId: f.id })
-  }
-}
-
-/** New amateur graduates turn professional, keeping the talent pool alive. */
-export function talentIntake(state: GameState, rng: Rng, ids: IdSource): void {
-  if (!rng.chance(0.2)) return
-  const n = rng.int(1, 3)
-  for (let i = 0; i < n; i++) {
-    const quality = rng.clampedNormal(0.3, 0.17, 0.05, 0.97)
-    const f = generateFighter(rng, ids, { quality, today: state.today, ageMin: 18, ageMax: 21 })
-    f.record = { wins: 0, losses: 0, draws: 0, koWins: 0, koLosses: 0 }
-    f.lastFightDay = null
-    f.popularity = clamp(f.popularity - 10, 1, 100)
-    f.availableSince = state.today
-    pushHistory(f, { day: state.today, kind: 'turnedPro', promotionId: null })
-    state.fighters[f.id] = f
-    if (f.potential >= 82) {
-      postNews(state, { headline: `Amateur star ${fighterName(f)} (${f.hometown}) is turning professional`, category: 'prospect', fighterId: f.id })
-    }
   }
 }
 

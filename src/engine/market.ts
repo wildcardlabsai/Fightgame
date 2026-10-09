@@ -4,6 +4,7 @@
  * for young prospects. Asking terms add the fighter's personality and relationship with the
  * promotion — which is exactly what the player has to discover through negotiation.
  */
+import { pursuitOf } from './world/pursuit'
 import { careerValue } from './business/marketValue'
 import { playerRosterCap } from './tiers'
 import { BALANCE as B } from './balance'
@@ -177,6 +178,7 @@ export function marketTags(state: GameState, f: Fighter): string[] {
     if (f.lastFightDay !== null && weeksBetween(f.lastFightDay, state.today) > 52 && fights > 0) tags.push('Returning from inactivity')
     if (tags.length === 0) tags.push('Looking for a promotion')
     if (valueOf(state, f) >= 60) tags.push('In demand')
+    if (state.knowledge[f.id] && pursuitOf(state, f.id)) tags.unshift('Rival offer pending')
   }
   return tags
 }

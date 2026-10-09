@@ -10,6 +10,7 @@
  *
  * Not modelled (deliberately): sanctioning fees, purse bids, interim belts.
  */
+import { creditTitleChange } from '../world/standing'
 import { weightClassLabel, WEIGHT_CLASSES } from '../../data/weightClasses'
 import { bodyIdentity } from '../../data/mediaIdentity'
 import { DAYS_PER_WEEK } from '../calendar'
@@ -462,12 +463,14 @@ export function settleTitleFight(state: GameState, media: MediaState, fight: Fig
         touchTitles(media)
         rec.c = W; rec.cn = fighterName(state.fighters[W]); rec.since = endDay; rec.defences = 0; rec.lastFight = fight.day; rec.mand = undefined; rec.vacantSince = undefined; rec.elim = undefined
         noteTitleWon(state, W, level)
+        creditTitleChange(state, W, old, level)
         ev.push({ kind: 'TITLE_CHANGE', body, wc: fight.weightClass, f: W, o: old, fightId: fight.id })
       }
     } else if (!rec.c && W) {
       touchTitles(media)
       rec.c = W; rec.cn = fighterName(state.fighters[W]); rec.since = Math.max(fight.day, rec.vacantSince ?? fight.day); rec.defences = 0; rec.lastFight = fight.day; rec.vacantSince = undefined
       noteTitleWon(state, W, level)
+      creditTitleChange(state, W, null, level)
       ev.push({ kind: 'TITLE_FILLED', body, wc: fight.weightClass, f: W, o: W === A ? B : A, fightId: fight.id })
     }
   }

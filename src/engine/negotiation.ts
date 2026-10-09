@@ -4,6 +4,7 @@
  * promotion, relationship and the soft terms (fights, length, title promise) all move the verdict.
  * The response — accept / counter / reject — plus plain-language reasons is all the player gets to see.
  */
+import { pursuitOf } from './world/pursuit'
 import { BALANCE as B } from './balance'
 import { FEATURES } from './config'
 import { fighterAge, fighterName } from './fighters'
@@ -62,6 +63,10 @@ export function scoreOffer(state: GameState, f: Fighter, promo: Promotion, offer
   if (f.personality === 'Volatile') thr += keyedNormal(state.seed, 'thr', f.id, Math.floor(state.today / 14)) * 0.04
   thr -= (f.promoRelations[promo.id] ?? 0) * B.negotiation.relationValuePerPoint
   if (kind === 'renewal' && f.personality === 'Loyal') thr -= 0.03
+  // A rival's offer on the table: the camp knows it has options, so a free agent costs a little more than the same fighter with none.
+  const rival = kind === 'signing' ? pursuitOf(state, f.id) : null
+  const contested = !!rival && rival.promoId !== promo.id
+  if (contested) thr += 0.04
 
   // Soft terms, expressed as a fraction of the ask value.
   let credit = 0
@@ -88,6 +93,7 @@ export function scoreOffer(state: GameState, f: Fighter, promo: Promotion, offer
     if (offer.signingBonus < ask.signingBonus * 0.85) reasons.push('wants more up front')
     if (offer.basePurse < ask.basePurse * 0.9) reasons.push('expects a bigger purse per fight')
     if (offer.weeklyRetainer < ask.weeklyRetainer * 0.9) reasons.push('needs a higher weekly retainer')
+    if (contested) reasons.push('has another offer on the table')
     if (f.reputation - promo.reputation > 15) reasons.push('is a bigger name than your promotion and wants to be paid for the step down')
   }
   return { ratio, ask, vAsk, reasons: [...new Set(reasons)], titleMissing }

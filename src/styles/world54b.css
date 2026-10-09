@@ -1,0 +1,16 @@
+/* Phase 5.4B - the living world: rival standing, offers on the table, show clashes. */
+.w54-chip { display: inline-block; padding: 2px 8px; border: 1px solid var(--line-strong); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; clip-path: polygon(0 0, 100% 0, calc(100% - 6px) 100%, 0 100%); }
+.w54-Expanding { color: var(--good); border-color: var(--good); }
+.w54-New { color: var(--gold); border-color: var(--gold); }
+.w54-Cutting, .w54-Quiet { color: var(--warn); border-color: var(--warn); }
+.w54-Folding, .w54-Folded { color: var(--red-hot); border-color: var(--red); }
+.w54-why { display: block; font-size: 12px; color: var(--dim); margin-top: 2px; }
+.w54-moves { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; font-size: 14px; }
+.w54-moves li { display: grid; grid-template-columns: 84px minmax(0, 1fr); gap: 10px; border-bottom: 1px solid var(--line); padding: 4px 0; }
+.w54-moves button { all: unset; cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
+.w54-moves button:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.n54-rival, .ds-rival { margin: 8px 0; padding: 10px 14px; border: 1px solid var(--gold); border-left: 3px solid var(--gold); background: var(--bg-2); font-size: 14px; }
+.n54-rival b, .ds-rival b { color: var(--gold); }
+.w54-clash { margin: 8px 0; padding: 8px 12px; border-left: 3px solid var(--warn); background: var(--bg-2); font-size: 13.5px; }
+.w54-clash.major { border-left-color: var(--red); }
+.pick .w54-flag { display: block; font-size: 10.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--warn); }

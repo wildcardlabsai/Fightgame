@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import '../../styles/world54b.css'
 import '../../styles/negotiation54.css'
 import { contractTalkAdvice } from '../../engine/advisor'
 import { assessContractDraft, contractTalkView, openContractTalkId, type ContractTalkView } from '../../engine/business/talkViews'
@@ -81,6 +82,11 @@ export function NegotiationScreen({ id }: { id: string }) {
   return (
     <div className="n54">
       <TalkHeaderBar h={v.header} f={fv} eyebrow={kind === 'renewal' ? 'Contract renewal' : 'Signing negotiation'} onBack={() => navigate('fighter', id)} backLabel="Fighter profile" />
+      {open && v.header.rival && (
+        <p className="n54-rival" role="status" data-testid="talk-rival">
+          <b>{v.header.rival.promotion}</b> have an offer on the table for {v.header.name}. Their camp expects an answer from them within about {v.header.rival.weeks} week{v.header.rival.weeks === 1 ? '' : 's'}, and knows it has options.
+        </p>
+      )}
       <div className="n54-grid">
         <div className="n54-left">
           <ChatLog lines={v.log} f={fv} label="The conversation" counterCard={open ? counterCard : null} counterAfter={lastCounterIndex(v.log)} />

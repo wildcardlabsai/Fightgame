@@ -16,6 +16,7 @@ import type { IdSource } from '../ids'
 import { appraise, askTerms, aiLuck, normaliseOffer, valueOf } from '../market'
 import { titleObligation } from '../business/titleEco'
 import { titlesHeldBy } from '../media/titles'
+import { endPursuit, startPursuit } from '../world/pursuit'
 import { postMessage, postNews } from '../messages'
 import { archiveContract, becomeFreeAgent, buildContract, pushHistory, rosterFull } from '../roster'
 import type { Rng } from '../rng'
@@ -114,7 +115,8 @@ function holdsOrChases(state: GameState, f: Fighter): boolean {
 
 /** Rivals scout the market and bid; contested fighters go to the most attractive suitor. */
 export function aiSigning(state: GameState, rng: Rng, ids: IdSource): void {
-  const market = Object.values(state.fighters).filter((f) => f.status === 'active' && f.contractId === null)
+  const live = state.world?.pursuits ?? {}
+  const market = Object.values(state.fighters).filter((f) => f.status === 'active' && f.contractId === null && !live[f.id]) // a fighter with an offer pending is not shopped around
   if (market.length === 0) return
   const bids = new Map<string, Bid[]>()
   const promos = rng.shuffle(Object.values(state.promotions).filter((p) => !p.isPlayer && p.ai))
@@ -153,26 +155,80 @@ export function aiSigning(state: GameState, rng: Rng, ids: IdSource): void {
     const win = winner[0]
     for (const lose of winner.slice(1)) lose.promo.ai!.urgency = Math.min(3, lose.promo.ai!.urgency + 1)
 
-    const c = aiContract(state, ids, f, win.promo, 'signing')
-    state.contracts[c.id] = c
-    f.contractId = c.id
-    f.availableSince = null
-    pushHistory(f, { day: state.today, kind: 'signed', promotionId: win.promo.id })
-    win.promo.ai!.urgency = Math.max(0, win.promo.ai!.urgency - 1)
-    win.promo.ai!.cooldownUntil = state.today + rng.int(1, 3) * 7
-
     const notable = f.reputation >= 40 || f.popularity >= 40 || valueOf(state, f) >= 45
-    if (notable) postNews(state, { headline: `${win.promo.name} sign ${fighterName(f)} (${f.record.wins}-${f.record.losses}-${f.record.draws})`, category: 'signing', fighterId: f.id })
+    if (contested(state, f, notable)) {
+      // A fighter who matters, or one the player is watching, takes a few weeks to answer: the player has a window.
+      const decide = state.today + 7 * rng.int(1, 3)
+      if (startPursuit(state, f.id, win.promo.id, decide)) {
+        win.promo.ai!.cooldownUntil = decide
+        if (onRadar(state, f)) {
+          postMessage(state, {
+            from: 'Scouting', category: 'world', priority: 'important', key: `pursuit-${f.id}`, cooldownWeeks: 6,
+            subject: `${win.promo.name} have made an offer to ${fighterName(f)}`,
+            body: `${fighterName(f)} — a fighter you have been following — has an offer on the table from ${win.promo.name} and is expected to decide within ${Math.round((decide - state.today) / 7)} weeks. If you want them, move before then; their camp knows they have options.`,
+            link: { kind: 'fighter', id: f.id },
+          })
+        } else if (f.reputation >= 45) {
+          postNews(state, { headline: `${win.promo.name} reported to be after ${fighterName(f)} (${f.record.wins}-${f.record.losses}-${f.record.draws})`, category: 'market', fighterId: f.id, importance: 25 })
+        }
+      }
+      continue
+    }
+    signWithRival(state, rng, ids, f, win.promo)
+  }
+}
 
+/** A name, or someone the player is working on: not an instant signing. */
+function contested(state: GameState, f: Fighter, notable: boolean): boolean {
+  return notable || onRadar(state, f)
+}
+
+/** Fighters the player has scouted, shortlisted or opened talks with (what the player can legitimately be told about). */
+function onRadar(state: GameState, f: Fighter): boolean {
+  const k = state.knowledge[f.id]
+  return !!k && (state.shortlist.includes(f.id) || k.reports.length > 0 || !!state.negotiations[f.id] || Object.values(state.business?.talks ?? {}).some((t) => t.kind === 'contract' && t.fighterId === f.id && t.status === 'open'))
+}
+
+/** The rival's contract is written and the fighter joins its roster (shared by instant signings and answered pursuits). */
+function signWithRival(state: GameState, rng: Rng, ids: IdSource, f: Fighter, promo: Promotion): void {
+  const c = aiContract(state, ids, f, promo, 'signing')
+  state.contracts[c.id] = c
+  f.contractId = c.id
+  f.availableSince = null
+  pushHistory(f, { day: state.today, kind: 'signed', promotionId: promo.id })
+  promo.ai!.urgency = Math.max(0, promo.ai!.urgency - 1)
+  promo.ai!.cooldownUntil = state.today + rng.int(1, 3) * 7
+  const notable = f.reputation >= 40 || f.popularity >= 40 || valueOf(state, f) >= 45
+  if (notable) postNews(state, { headline: `${promo.name} sign ${fighterName(f)} (${f.record.wins}-${f.record.losses}-${f.record.draws})`, category: 'signing', fighterId: f.id })
+  {
     const interested = state.knowledge[f.id] && (state.shortlist.includes(f.id) || state.knowledge[f.id].reports.length > 0 || state.negotiations[f.id])
     if (interested) {
       delete state.negotiations[f.id]
       postMessage(state, {
         from: 'Scouting', category: 'world', priority: 'important',
-        subject: `${win.promo.name} sign ${fighterName(f)}`,
-        body: `${fighterName(f)} — a fighter you were looking at — has signed with ${win.promo.name}. The market moves fast; shortlisted talent will not wait for you.`,
+        subject: `${promo.name} sign ${fighterName(f)}`,
+        body: `${fighterName(f)} — a fighter you were looking at — has signed with ${promo.name}. The market moves fast; shortlisted talent will not wait for you.`,
         link: { kind: 'fighter', id: f.id },
       })
     }
+  }
+}
+
+/**
+ * Weekly: rivals' offers come due. The fighter signs only if the rival can still afford the deal under the same rules as any signing
+ * (roster space, finances, not collapsing); if the fighter signed elsewhere meanwhile, the offer simply lapses.
+ */
+export function resolvePursuits(state: GameState, rng: Rng, ids: IdSource): void {
+  const w = state.world
+  if (!w) return
+  for (const fid of Object.keys(w.pursuits).sort()) {
+    const p = w.pursuits[fid]
+    const f = state.fighters[fid]
+    const promo = state.promotions[p.promoId]
+    if (!f || f.status !== 'active' || f.contractId !== null || !promo?.ai) { endPursuit(state, fid); continue }
+    if (p.decide > state.today) continue
+    endPursuit(state, fid)
+    if (promo.ai.fin.collapsing || rosterFull(state, promo.id) || !affordable(promo, askTerms(state, f, promo, 'signing'))) { promo.ai.cooldownUntil = state.today; continue }
+    signWithRival(state, rng, ids, f, promo)
   }
 }

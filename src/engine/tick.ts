@@ -15,12 +15,14 @@ import { processEvents, pruneEvents, runWholeEvent } from './events/events'
 import { Rng } from './rng'
 import { passiveDiscovery, processScouting } from './scouting'
 import { playerRoster } from './selectors'
-import { aiReleases, aiRenewals, aiSigning } from './systems/aiMarket'
+import { aiReleases, aiRenewals, aiSigning, resolvePursuits } from './systems/aiMarket'
 import { aiFinances } from './systems/aiFinance'
 import { processContracts } from './systems/contracts'
 import { birthdayMessages, developFighter, updateCondition } from './systems/development'
 import { processWeeklyFinance } from './systems/finance'
-import { processRetirements, talentIntake } from './systems/world'
+import { processRetirements } from './systems/world'
+import { talentIntake } from './world/intake'
+import { processLifecycle } from './world/lifecycle'
 import { PASS_EVERY, processMedia } from './media/process'
 import { planGrowthMult, processPlans } from './business/plans'
 import { processBusiness } from './business/weekly'
@@ -81,8 +83,10 @@ export function advanceOneWeek(input: GameState, opts: { media?: boolean } = {})
   talentIntake(state, rng, ids)
   aiEvents(state, rng)
   aiReleases(state, rng)
+  resolvePursuits(state, rng, ids) // offers made in earlier weeks come due before new ones are made
   aiSigning(state, rng, ids)
   aiFinances(state)
+  processLifecycle(state, ids)
   processObligations(state)
   processPlans(state)
   processBusiness(state)

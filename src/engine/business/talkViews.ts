@@ -3,6 +3,7 @@
  * (`told` tags). It never carries manager weights, ambition (until learned), satisfaction scores, the camp’s ask or reservation value,
  * patience as a number, or any hidden fighter attribute. `hiddenKeys` below is asserted absent by the hidden-information audit.
  */
+import { rivalOfferFor, type RivalOffer } from '../world/views'
 import { weightClassLabel } from '../../data/weightClasses'
 import { fighterAge, fighterName } from '../fighters'
 import type { Fighter, FightOffer, GameState, Id, Offer } from '../types'
@@ -36,6 +37,8 @@ export interface TalkHeader {
   turn: number
   open: boolean
   status: Talk['status']
+  /** A rival's offer on the table for this fighter: who, and roughly when the answer comes (null when none). */
+  rival: RivalOffer | null
 }
 
 function header(state: GameState, t: Talk, f: Fighter): TalkHeader {
@@ -44,6 +47,7 @@ function header(state: GameState, t: Talk, f: Fighter): TalkHeader {
     talkId: t.id, fighterId: f.id, name: fighterName(f), age: fighterAge(f, state.today), division: weightClassLabel(f.weightClass), record: `${f.record.wins}-${f.record.losses}-${f.record.draws}`,
     stage: STAGE_LABEL[negStage(state, f)], managerName: mgr.name, relationship: relLabel(f.promoRelations[state.playerPromotionId] ?? 0),
     mood: t.mood, tension: tension(t, t.p0), turn: t.turn, open: t.status === 'open', status: t.status,
+    rival: t.contractKind === 'signing' ? rivalOfferFor(state, f.id) : null,
   }
 }
 

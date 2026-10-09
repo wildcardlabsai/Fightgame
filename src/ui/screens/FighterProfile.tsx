@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import '../../styles/world54b.css'
 import { fighterAdvice } from '../../engine/advisor'
 import { formatDay } from '../../engine/calendar'
 import { STAGE_LABEL } from '../../engine/systems/contracts'
@@ -54,6 +55,11 @@ export function FighterProfile({ id }: { id: string }) {
             <span className="chip">{v.stage}</span>
             {v.market.tags.filter((t) => t !== 'Looking for a promotion').slice(0, 2).map((t) => <span key={t} className="chip good">{t}</span>)}
           </div>
+          {v.market.rivalOffer && !mine && (
+            <p className="ds-rival" role="status" data-testid="rival-offer">
+              <b>Offer on the table from {v.market.rivalOffer.promotion}.</b> Expected to decide within about {v.market.rivalOffer.weeks} week{v.market.rivalOffer.weeks === 1 ? '' : 's'}. {v.market.signable ? 'Open talks now if you want them.' : ''}
+            </p>
+          )}
           {v.nickname && <div className="ds-nick display">“{v.nickname}”</div>}
           <h1 className="ds-name display">{v.firstName} <span>{v.lastName}</span></h1>
           <div className="ds-line"><Flag code={v.nationKey} /> <b>{v.nationName}</b> <span className="dim">· {v.hometown}</span> <span className="ds-dot" /> <b>{v.division}</b> <span className="ds-dot" /> {v.age} years · {v.style}</div>

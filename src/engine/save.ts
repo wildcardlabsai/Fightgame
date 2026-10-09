@@ -123,6 +123,7 @@ export function migrate(data: unknown): GameState | null {
   if (s.version < 8) migrateV7toV8(s as never)
   if (s.version < 9) migrateV8toV9(s as never)
   if (s.version < 10) migrateV9toV10(s as never)
+  if (s.version < 11) migrateV10toV11(s as never)
   return s as GameState
 }
 
@@ -292,4 +293,14 @@ function migrateV8toV9(s: any): void {
 function migrateV9toV10(s: any): void {
   if (s.media) normaliseTitles(s as GameState)
   s.version = 10
+}
+
+/**
+ * v10 → v11 (the living world): adds the world record (contested signings, pipeline window). Nothing else is touched: every fighter,
+ * contract, event, ledger line, ranking and title history carries over unchanged. The pipeline window starts at the save's own date so a
+ * migrated career neither gets a burst of new professionals nor a drought.
+ */
+function migrateV10toV11(s: any): void {
+  if (!s.world) s.world = { v: 1, pursuits: {}, intake: { windowStart: s.today ?? 0, admitted: 0 } }
+  s.version = 11
 }
