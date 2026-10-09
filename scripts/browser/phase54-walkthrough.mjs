@@ -96,7 +96,7 @@ for (const w of [1280, 1024, 390]) {
   await page.evaluate(() => { const st = window.__fe.useGame.getState(); st.advance(8) })
   await page.waitForTimeout(1200)
   const sound = await game((g) => ({ v: g.version, champsRetired: Object.entries(g.media.titles).filter(([, r]) => r.c && g.fighters[r.c]?.status === 'retired').length }))
-  check(`${w} 6 eight weeks later the world is sound`, sound.v === 11 && sound.champsRetired === 0, JSON.stringify(sound))
+  check(`${w} 6 eight weeks later the world is sound`, sound.v === 12 && sound.champsRetired === 0, JSON.stringify(sound))
   await ctx.close()
 }
 check('no console errors or page errors', errors.length === 0, errors.slice(0, 3).join(' | '))

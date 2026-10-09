@@ -404,3 +404,59 @@ Contested signings: about 25 offers a year per world, 97% on fighters the player
 offer wins about 20-34 fighters in eight years (never beaten when affordable; the rest go to the rival because the player's roster was full
 or the price out of reach). Rival books: no rival's cash ever exceeds start + revenue + bailouts. Title audit after the changes (5 seeds x 5 years):
 191-244 title fights per seed, 30% of belts vacant, 0 round-count problems (5.4A: 184-227, 28%).
+
+## The Promoter's Office (Phase 5.4C, save version 12)
+
+**Gap report (baseline audit of the 5.4B code).** Rivals never proposed fights: every bout was started by the player. Career direction was a
+three-way development plan (protected/normal/accelerated) with nothing tying it to matchmaking. Pressers and rivalries existed in the media
+engine but could not be chosen as a promotional angle for a show. Relationships existed only inside media (`media.rel`) and negotiation memory.
+There was no business strategy. And the promoter could set training focus, camp intensity and the fight plan for every fighter, which
+is the trainer's job, not a promoter's.
+
+**Reused, not rebuilt**: fight negotiation and agreement (`fightNegotiation`, `fights`), the event engine and rival shows, `DevPlan`,
+`Commitment` promises, media pressers/rivalries/narratives, event demand and marketing, hiring, title rules (`titleObligation`, `assessChallenger`),
+the 5.4B world and pursuits. **New** (`src/engine/office/`): `offers` (incoming proposals), `goals` (career objectives), `promotion` (angles),
+`press` (conferences), `relations` + `politics` (one relationship book), `strategy`, `trainer` (coaching staff + trainer-owned preparation),
+`weekly` (the once-a-week pass), `views`/`commands` (the only things the UI may import).
+
+**Incoming offers.** Each week every active rival has a small keyed chance to write. A proposal is only made if it could really be staged: both
+fighters free, in one division, rested, contracted past the date, not under a title obligation, affordable to whoever pays, and the pair not
+used within half a year. Two shapes: the rival hosts (a real fight is attached to their open show; they pay the player's promotion a fee that
+posts to the ledger as `loanFee` income against the fighter's purse cost) or the player hosts (a normal fight; the player pays the rival fighter's
+purse through the usual agreement path). Offers carry both fighters' records, the terms, the date, the reason and an expiry. Actions: accept, reject,
+counter (at most twice), withdraw a counter. The rival answers a counter a week later from how far it is from what they asked, their finances,
+their strategy and the relationship, plus keyed noise. Offers expire, or are withdrawn with a stated reason if a fighter is injured or booked. An accepted
+offer becomes an ordinary agreed fight (no special path). The Fights screen's *Offers* tab (counts from real state) has Incoming / Active / Sent /
+Agreed / Rejected-expired.
+
+**Career pathways.** A fighter can carry one objective (prospect, regional, domestic, European, world, rebuild, return, headline, veteran). Milestones are
+read from authoritative state (record, rank, belts); an objective never grants eligibility. It sets the default development plan and changes real
+matchmaking (`opponentFit`: risk appetite). Protecting a prospect against a harder fight is possible but the camp objects and the promoter must
+override, at a morale cost applied once. Profile shows objective, next milestone, progress, decisions made, promises and obstacles.
+
+**Angles and press.** Six angles per show (traditional, prestige, rivalry, showcase, local, headline), each with a *fit* rating from public facts; a
+poor fit points the wrong way. Cost is charged through the marketing ledger once. Press conferences only for fights with something to sell, cost money, can
+backfire (bounded), and feed persistent rivalries from real history.
+
+**Relationships.** One book (`office.rel`) for promoters, managers, broadcasters, venues and sanctioning bodies' media outlets. Every change has a recorded reason
+and a once-key, is bounded, and eases toward neutral. It tilts offer frequency, counter replies and venue hire (±5%) but never overrides contracts,
+finances or title rules.
+
+**Strategy.** Focus (prospects / regional / contender / headline) and stance (growth / stability / prestige): each moves demand, growth, costs or standing by
+a few percent, with a stated downside; a change is half-strength for 8 weeks; no ledger entries are created. `null` is neutral, so old saves and new games
+play as before.
+
+**Roles corrected.** Removed from the promoter: training focus, camp intensity and the fight plan (`setTraining`, `setPrep`, the focus grid). Trainers set
+them each week (recovery when injured, plan from style, light camps for veterans) and report in words. The promoter owns the coaching staff level (a hire
+posts six weeks' cost to the ledger as `coaching`; bounded growth/injury effects), budgets, objectives, and proceed-or-pull-out on the trainer's report.
+
+**Save migration v11 -> v12**: adds optional `office` (created lazily by writes, never by reads); nothing else changes. Tested (a v11 save loads, ticks and keeps its trajectory).
+
+**Measured** (5 seeds x 5 years, balanced bot, `scripts/audit/phase54c-office.ts`): offers made 1.5/seed-year when the bot answers (28 agreed, 8 withdrawn
+before an answer, 1 rejected; 9 rival-hosted, 28 player-hosted), 2.9/seed-year when ignored (13 expired, 60 withdrawn by the rival as fighters got booked). Passive
+career: 2.1/seed-year, 50 of 53 accepted. Title integrity unchanged (`phase54-contention.ts 5 5`: problems 0). 5.4B world metrics unchanged (about 320 active
+fighters, 8 rivals alive, no negative-cash rivals, pursuits as before). Save size about 15.8 MB for five busy years (state JSON). Tick time: per-week
+wall 30-38 ms vs 34-43 ms at 5.4B in the same loaded conditions; the ratio test is noisy under load (see the final report).
+
+**Known limitations**: offer volume is limited by free fighters for a busy promoter; sanctioning-body relationships beyond the media outlets are not modelled; manager
+relationships are derived from negotiation memory; a rival-hosted fight pays through a fee line rather than a shared-revenue split.
