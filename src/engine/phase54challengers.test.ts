@@ -13,7 +13,11 @@ import { championCampResponse } from './business/titleCamp'
 import { stakesBetween } from './business/stakes'
 import { titleEligibility } from './business/titleEco'
 import { titleBoard } from './business/views'
-import { CHALLENGER_REQ, TITLE_DEFS, TITLE_DEF_BY_ID, challengerShortfall, levelOf } from './business/titleDefs'
+import { CONTENDER_CONFIG, TITLE_DEFS, TITLE_DEF_BY_ID, experienceGap, levelOf } from './business/titleDefs'
+import { assessChallenger } from './business/contender'
+import { maintainTitles } from './media/titles'
+import { myTitlePaths } from './business/views'
+import { requestTitleFight } from './business/titlePath'
 import { newLog, playWeek, STRATEGIES } from './sim/strategies'
 import type { GameState } from './types'
 
@@ -25,7 +29,7 @@ const world = (() => { let s: GameState | null = null; return () => (s ??= (() =
 function worldBelt(s: GameState) {
   for (const [key, rec] of Object.entries(s.media!.titles)) {
     const [body, wc] = key.split('|')
-    if (!rec.c || levelOf(body) !== 'world') continue
+    if (!rec.c || levelOf(body) !== 'world' || rec.mand || rec.elim) continue // a belt with no order outstanding
     const d = TITLE_DEF_BY_ID[body]
     const list = getList(s.media!, body, wc as never)!.e.filter((e) => e.r >= 1 && e.r <= d.challengerLimit && e.f !== rec.c && s.fighters[e.f].status === 'active')
     if (list.length >= 2) return { body, wc: wc as never, champ: rec.c, list, rec }
@@ -35,17 +39,37 @@ function worldBelt(s: GameState) {
 
 const setRecord = (s: GameState, id: string, w: number, l: number) => { s.fighters[id].record.wins = w; s.fighters[id].record.losses = l; s.fighters[id].record.draws = 0 }
 
-describe('the record a challenger needs', () => {
-  it('rises with the level, and a 5-2 fighter is not a title challenger at any level', () => {
+/** Give a fighter a recent history: results against opponents of a given standing at the time (public, from the fights themselves). */
+function giveHistory(s: GameState, id: string, bouts: { win: boolean; oppRep: number }[]) {
+  const f = s.fighters[id]
+  f.recentFights = []
+  bouts.forEach((b, i) => {
+    const fid = `ft_h${id}_${i}`
+    s.fights[fid] = { id: fid, day: s.today - 40 - 20 * (bouts.length - i), status: 'postFight', kind: 'ai', organiserId: 'x', weightClass: f.weightClass, scheduledRounds: 10, terms: {}, venueId: null, city: '', country: '', createdDay: 0, paid: true,
+      sideA: { fighterId: id, promotionId: null, prep: {}, preRecord: '10-0-0', preRep: 50, prePop: 20 }, sideB: { fighterId: `opp${i}`, promotionId: null, prep: {}, preRecord: '10-3-0', preRep: b.oppRep, prePop: 20 },
+      result: { winner: b.win ? 0 : 1, method: 'UD', round: 10, second: 0, cards: [], kd: [0, 0], tot: [], deductions: [0, 0], pExpA: 0.5, dRep: [0, 0], dPop: [0, 0] } } as never
+    f.recentFights.push(fid)
+  })
+  f.lastFightDay = s.today - 21
+}
+
+/** A genuine contender on the numbers (experience, credible wins, recent form, active) — so what varies in a test is the champion's appetite, not eligibility. */
+function makeContender(s: GameState, id: string) {
+  setRecord(s, id, 16, 3)
+  giveHistory(s, id, [{ win: true, oppRep: 52 }, { win: true, oppRep: 54 }, { win: false, oppRep: 58 }, { win: true, oppRep: 50 }, { win: true, oppRep: 51 }, { win: true, oppRep: 49 }, { win: true, oppRep: 53 }, { win: true, oppRep: 48 }])
+  s.fighters[id].birthDay = s.today - 28 * 365
+}
+
+describe('how a challenger is assessed', () => {
+  it('the experience floor rises with the level; a 5-2 fighter is not eligible for any belt, whatever their ranking', () => {
     const order = ['area', 'domestic', 'european', 'world'] as const
-    for (let i = 1; i < order.length; i++) { expect(CHALLENGER_REQ[order[i]].fights).toBeGreaterThan(CHALLENGER_REQ[order[i - 1]].fights); expect(CHALLENGER_REQ[order[i]].wins).toBeGreaterThanOrEqual(CHALLENGER_REQ[order[i - 1]].wins) }
-    for (const d of TITLE_DEFS) {
-      expect(challengerShortfall(d, { wins: 5, losses: 2, draws: 0 }), d.id).toMatch(/professional fights/)
-      const q = d.challenger
-      expect(challengerShortfall(d, { wins: q.wins, losses: Math.max(0, Math.ceil(q.wins / q.share) - q.wins), draws: 0 }) === null || q.fights > q.wins, d.id).toBe(true)
-      expect(challengerShortfall(d, { wins: q.fights, losses: 0, draws: 0 }), d.id).toBeNull()
-      expect(challengerShortfall(d, { wins: q.wins - 1, losses: q.fights, draws: 0 }), d.id).toMatch(/wins|record/)
+    for (let i = 1; i < order.length; i++) {
+      expect(CONTENDER_CONFIG[order[i]].floor.fights).toBeGreaterThan(CONTENDER_CONFIG[order[i - 1]].floor.fights)
+      expect(CONTENDER_CONFIG[order[i]].bar).toBeGreaterThan(CONTENDER_CONFIG[order[i - 1]].bar)
+      expect(CONTENDER_CONFIG[order[i]].credibleWins).toBeGreaterThanOrEqual(CONTENDER_CONFIG[order[i - 1]].credibleWins)
     }
+    for (const lv of order) expect(experienceGap(lv, { wins: 5, losses: 2, draws: 0 }), lv).toMatch(/Insufficient professional experience/)
+    expect(experienceGap('world', { wins: 15, losses: 0, draws: 0 })).toBeNull()
   })
 
   it('the reported case: a 5-2 fighter ranked in a champion\'s range cannot be matched with a 15-3 champion for the belt', () => {
@@ -55,29 +79,73 @@ describe('the record a challenger needs', () => {
     const x = list[0].f
     setRecord(s, x, 5, 2)
     expect(qualifiesFor(s, body, x)).toBe(false)
+    expect(assessChallenger(s, body, x).tier).toBe('notEligible')
     expect(bodiesFor(s, x, champ, wc)).not.toContain(body)
     expect(stakesBetween(s, x, champ, wc).bodies).not.toContain(body)
     const e0 = titleEligibility(s, s.fighters[x], body)
-    expect(['unranked', 'unqualified']).toContain(e0.status) // too few fights to be rated at all for a world belt
+    expect(['unranked', 'unqualified']).toContain(e0.status)
     expect(e0.canChallengeNow).toBe(false)
-    // Rated and inside the range, but the record is not enough: say so.
-    setRecord(s, x, 9, 4)
-    const e = titleEligibility(s, s.fighters[x], body)
-    expect(e.status).toBe('unqualified')
-    expect(e.canChallengeNow).toBe(false)
-    expect(e.reasons.join(' ')).toMatch(/not yet a credible challenger/)
-    // …and the board shows it, instead of listing him as a challenger.
+    // …and the board says so with the right label, not a ranking position.
     const row = titleBoard(s, 'world', wc).find((c) => c.body === body)!.contenders.find((c) => c.id === x)
-    if (row) { expect(row.qualified).toBe(false); expect(row.need).toMatch(/Needs/) }
+    if (row) { expect(row.status).toBe('notEligible'); expect(row.step).toMatch(/professional experience/) }
   })
 
-  it('a challenger the body has ordered is exempt from the record requirement', () => {
+  it('an undefeated record against weak opposition does not outrank a fighter who has beaten credible contenders', () => {
+    const s = clone(world())
+    const { body, list } = worldBelt(s)
+    const a = list[0].f, b = list[1].f
+    for (const id of [a, b]) s.fighters[id].birthDay = s.today - 28 * 365
+    setRecord(s, a, 16, 0); giveHistory(s, a, Array.from({ length: 8 }, () => ({ win: true, oppRep: 8 })))
+    setRecord(s, b, 14, 2); giveHistory(s, b, [{ win: true, oppRep: 58 }, { win: true, oppRep: 55 }, { win: true, oppRep: 52 }, { win: false, oppRep: 60 }, { win: true, oppRep: 50 }, { win: true, oppRep: 48 }, { win: true, oppRep: 45 }, { win: true, oppRep: 44 }])
+    s.fighters[a].reputation = s.fighters[b].reputation
+    const A = assessChallenger(s, body, a), B = assessChallenger(s, body, b)
+    expect(B.score).toBeGreaterThan(A.score)
+    expect(B.tier).toBe('contender')
+    expect(A.tier).toBe('building')
+    expect(A.step).toBe('Needs a win over a credible contender')
+  })
+
+  it('a lower belt can be within reach of a fighter who is not ready for a world title', () => {
+    const s = clone(world())
+    const { body, list } = worldBelt(s)
+    const x = list[0].f
+    setRecord(s, x, 9, 2); giveHistory(s, x, Array.from({ length: 8 }, (_, i) => ({ win: i % 4 !== 3, oppRep: 36 })))
+    s.fighters[x].birthDay = s.today - 26 * 365
+    expect(assessChallenger(s, body, x).tier).not.toBe('contender') // 11 fights: below the world floor
+    const domestic = TITLE_DEFS.find((d) => d.level === 'domestic')!.id
+    const t = assessChallenger(s, domestic, x)
+    expect(t.tier).not.toBe('notEligible') // …but past the domestic floor, and assessed on the merits
+  })
+
+  it('a challenger the body has ordered is exempt from the assessment', () => {
     const s = clone(world())
     const { body, wc, champ, list, rec } = worldBelt(s)
     const x = list[0].f
     setRecord(s, x, 5, 2)
     rec.mand = { challenger: x, cn: 'X', ordered: s.today, due: s.today + 120 }
     expect(bodiesFor(s, x, champ, wc)).toContain(body)
+  })
+
+  it('a mandatory challenger is chosen only among credible contenders, never just the top of the list', () => {
+    const s = clone(world())
+    const { body, wc, list, rec } = worldBelt(s)
+    rec.mand = undefined; rec.elim = undefined
+    rec.lastFight = s.today - 7 * 200; rec.since = s.today - 7 * 220 // long overdue for a defence
+    // the top-ranked fighter has not got the experience; the board must look past them
+    const top = list[0].f
+    setRecord(s, top, 6, 1)
+    const ev = maintainTitles(s, s.media!)
+    const rec2 = s.media!.titles[titleKey(body, wc)]
+    const ordered = ev.find((e) => e.kind === 'MANDATORY' && e.body === body && e.wc === wc)
+    if (ordered) { expect(ordered.o).not.toBe(top); expect(qualifiesFor(s, body, rec2.mand!.challenger)).toBe(true) }
+  })
+
+  it('views carry a status and a next step, never the scores behind them', () => {
+    const s = clone(world())
+    const { wc } = worldBelt(s)
+    const json = JSON.stringify([titleBoard(s, 'world', wc), myTitlePaths(s)])
+    expect(json).not.toMatch(/"score"|"bar"|"credibleRep"|"weights"/)
+    expect(json).toMatch(/"status":"(contender|building|notEligible|mandatory|eliminator)"/)
   })
 })
 
@@ -103,7 +171,7 @@ describe('the champion\'s camp decides a voluntary challenge', () => {
     const s0 = clone(world())
     const { body, wc, champ, list } = worldBelt(s0)
     const strong = list[0].f, weak = list[list.length - 1].f
-    for (const id of [strong, weak]) setRecord(s0, id, 16, 3)
+    for (const id of [strong, weak]) makeContender(s0, id)
     s0.fighters[strong].reputation = s0.fighters[champ].reputation; s0.fighters[strong].popularity = s0.fighters[champ].popularity
     s0.fighters[weak].reputation = 8; s0.fighters[weak].popularity = 6
     let ok = { strong: 0, weak: 0 }
@@ -113,16 +181,17 @@ describe('the champion\'s camp decides a voluntary challenge', () => {
       if (championCampResponse(s, champ, strong, wc, [body]).accept) ok.strong++
       if (championCampResponse(s, champ, weak, wc, [body]).accept) ok.weak++
     }
-    expect(ok.strong / N).toBeGreaterThan(0.45)
-    expect(ok.weak / N).toBeLessThan(0.4)
-    expect(ok.strong / N - ok.weak / N).toBeGreaterThan(0.25)
+    expect(ok.strong / N).toBeGreaterThan(0.4)
+    expect(ok.strong / N).toBeLessThan(0.95) // never guaranteed
+    expect(ok.weak / N).toBeLessThan(0.45)
+    expect(ok.strong / N - ok.weak / N).toBeGreaterThan(0.2)
   })
 
   it('the player\'s approach is turned down by the champion\'s camp when it should be, and cannot be when the board ordered it', () => {
     const s = clone(world())
     const { body, wc, champ, list } = worldBelt(s)
     const weak = list[list.length - 1].f
-    setRecord(s, weak, 14, 3)
+    makeContender(s, weak)
     s.fighters[weak].reputation = 4; s.fighters[weak].popularity = 4
     const own = Object.values(s.contracts).find((x) => x.promotionId === s.playerPromotionId && x.status === 'active')!
     s.fighters[own.fighterId].contractId = null
@@ -133,13 +202,69 @@ describe('the champion\'s camp decides a voluntary challenge', () => {
     for (let i = 0; i < 40 && !declined; i++) {
       const t = clone(s); t.seed = `ask-${i}`
       const r = approachOpponent(t, weak, champ)
-      if (!r.ok) { declined = true; expect(r.error).toMatch(/turned the challenge down/); expect(r.state).toBe(t); expect(approachOpponent(t, weak, champ).ok).toBe(false) /* same answer again */
+      if (!r.ok) { declined = true; expect(r.error).toMatch(/turned the challenge down/); expect(r.state.business!.declines![`${weak}|${champ}`]).toBeTruthy(); expect(approachOpponent(r.state, weak, champ).error).toBe(r.error) /* same answer again */
         t.media!.titles[titleKey(body, wc)].mand = { challenger: weak, cn: 'W', ordered: t.today, due: t.today + 120 }
         const o = approachOpponent(t, weak, champ)
         expect(o.ok, o.error).toBe(true)
         expect(o.state.fights[o.fightId!].status).toBe('negotiating') }
     }
     expect(declined).toBe(true)
+  })
+
+  it('a champion who owes a mandatory defence, or is waiting on an eliminator, takes no voluntary challenge — whatever the challenger\'s appeal', () => {
+    const s = clone(world())
+    const { body, wc, champ, list, rec } = worldBelt(s)
+    const x = list[0].f, other = list[1].f
+    for (const id of [x, other]) { setRecord(s, id, 20, 1); s.fighters[id].reputation = 90; s.fighters[id].popularity = 90 }
+    rec.mand = { challenger: other, cn: 'O', ordered: s.today, due: s.today + 120 }
+    const r1 = championCampResponse(s, champ, x, wc, [body])
+    expect(r1.accept).toBe(false)
+    expect(r1.reason).toMatch(/mandatory defence first/)
+    rec.mand = undefined
+    rec.elim = { a: list[2].f, b: list[3].f, ordered: s.today, due: s.today + 120 }
+    expect(championCampResponse(s, champ, x, wc, [body]).reason).toMatch(/eliminator/)
+    // the mandatory challenger himself is never refused, appeal or no appeal
+    rec.elim = undefined
+    rec.mand = { challenger: other, cn: 'O', ordered: s.today, due: s.today + 120 }
+    s.fighters[other].popularity = 1; s.fighters[other].reputation = 1
+    expect(championCampResponse(s, champ, other, wc, [body])).toMatchObject({ accept: true, ordered: true })
+  })
+
+  it('a refusal is remembered: the same answer comes back with no new roll, the title path says so, and it lapses with the cooldown', () => {
+    const base = clone(world())
+    const { body, wc, champ, list } = worldBelt(base)
+    const weak = list[list.length - 1].f
+    makeContender(base, weak)
+    base.fighters[weak].reputation = 4; base.fighters[weak].popularity = 4
+    const own = Object.values(base.contracts).find((x) => x.promotionId === base.playerPromotionId && x.status === 'active')!
+    base.fighters[own.fighterId].contractId = null
+    own.fighterId = weak; base.fighters[weak].contractId = own.id
+    for (const id of [weak, champ]) { base.fighters[id].activeFightId = null; base.fighters[id].injury = null; base.fighters[id].suspendedUntil = null; base.fighters[id].lastFightDay = null }
+    let declined: ReturnType<typeof approachOpponent> | null = null, t: GameState | null = null
+    for (let i = 0; i < 60 && !declined; i++) { t = clone(base); t.seed = `memo-${i}`; const r = approachOpponent(t, weak, champ); if (!r.ok) declined = r }
+    expect(declined, 'a quarter in which the long shot is refused').toBeTruthy()
+    const after = declined!.state
+    const key = `${weak}|${champ}`
+    expect(after.business!.declines![key].reason).toMatch(/turned the challenge down/)
+    // Asking again — even if the challenger has become a far bigger name — does not roll again inside the cooldown.
+    after.fighters[weak].reputation = 95; after.fighters[weak].popularity = 95
+    const again = approachOpponent(after, weak, champ)
+    expect(again.ok).toBe(false)
+    expect(again.error).toBe(after.business!.declines![key].reason)
+    expect(again.state).toBe(after)
+    // The title path shows it, and refuses the request.
+    const target = myTitlePaths(after).find((p) => p.id === weak)!.targets.find((x) => x.body === body)
+    if (target) { expect(target.state).toBe('declined'); expect(target.blocked).toMatch(/will not change the answer/) }
+    expect(requestTitleFight(after, weak, body).ok).toBe(false)
+    // An order overrides the memory.
+    const ordered = clone(after)
+    ordered.media!.titles[titleKey(body, wc)].mand = { challenger: weak, cn: 'W', ordered: ordered.today, due: ordered.today + 120 }
+    expect(approachOpponent(ordered, weak, champ).ok).toBe(true)
+    // After the cooldown the camp may be asked again (the answer is rolled afresh).
+    const later = clone(after); later.today = after.business!.declines![key].until + 1
+    expect(later.business!.declines![key].until).toBeLessThanOrEqual(later.today)
+    const next = approachOpponent(later, weak, champ)
+    expect(next.error === after.business!.declines![key].reason).toBe(false)
   })
 
   it('a champion who has not defended for a long time is likelier to take a challenger', () => {

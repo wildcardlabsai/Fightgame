@@ -7,6 +7,13 @@ import '../../styles/business54.css'
 
 const weeks = (n: number) => `${n} week${n === 1 ? '' : 's'}`
 
+const STATUS_LABEL = { mandatory: 'MANDATORY', eliminator: 'ELIMINATOR', contender: 'CONTENDER', building: 'BUILDING', notEligible: 'NOT ELIGIBLE', holder: 'HOLDS A WORLD BELT' } as const
+/** Where a fighter stands as a title challenger, and (when not yet a contender) the next credible step. */
+export function StatusChip({ row }: { row: ContenderRow }) {
+  if (row.status === 'mandatory' || row.status === 'eliminator') return null // shown by the order chip
+  return <span className={`chip${row.status === 'contender' ? ' good' : ''}`} title={row.step ?? ''} data-testid={`status-${row.status}`}>{STATUS_LABEL[row.status]}{row.step ? ` — ${row.step.toLowerCase()}` : ''}</span>
+}
+
 export function TagChip({ tag }: { tag: ContenderRow['tag'] }) {
   if (!tag) return null
   return tag === 'mandatory' ? <span className="chip red">MANDATORY</span> : <span className="chip gold">ELIMINATOR</span>
@@ -34,7 +41,7 @@ export function ContenderList({ card, paths }: { card: BeltCard; paths?: Map<str
             <li key={c.id} className="bz-wrap">
               <div className={`bz-crow${c.mine ? ' mine' : ''}${c.inChallengeRange ? '' : ' outside'}`}>
                 <span className="bz-rank num">#{c.rank}</span>
-                <span className="bz-who"><button type="button" className="bz-name" onClick={() => navigate('fighter', c.id)}>{c.name}</button> <span className="dim bz-rec">{c.record}</span>{c.mine && <span className="chip gold">YOURS</span>}<TagChip tag={c.tag} />{c.inChallengeRange && !c.qualified && <span className="chip" title={c.need ?? ''} data-testid="not-qualified">RECORD NOT YET ENOUGH</span>}</span>
+                <span className="bz-who"><button type="button" className="bz-name" onClick={() => navigate('fighter', c.id)}>{c.name}</button> <span className="dim bz-rec">{c.record}</span>{c.mine && <span className="chip gold">YOURS</span>}<TagChip tag={c.tag} /><StatusChip row={c} /></span>
                 {target ? <span className="bz-req"><RequestButton fighterId={c.id} target={target} small /></span> : null}
                 <span className="dim bz-why" title={c.reason}>{c.reason}</span>
               </div>

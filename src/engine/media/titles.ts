@@ -17,7 +17,8 @@ import { fighterName } from '../fighters'
 import { keyedFloat, keyedRng } from '../rng'
 import type { Day, Fight, FightTitle, GameState, Id, WeightClassId } from '../types'
 import { championCampResponse } from '../business/titleCamp'
-import { challengerShortfall, TITLE_DEF_BY_ID, LEVEL_LABEL, LEVEL_ORDER, levelOf, levelRank, type TitleDef, type TitleLevel } from '../business/titleDefs'
+import { assessChallenger } from '../business/contender'
+import { TITLE_DEF_BY_ID, LEVEL_LABEL, LEVEL_ORDER, levelOf, levelRank, type TitleDef, type TitleLevel } from '../business/titleDefs'
 import { noteDefence, noteTitleWon, noteUnified } from '../business/titleHistory'
 import { SANCTIONING } from './orgs'
 import { rankIn } from './rankings'
@@ -33,7 +34,7 @@ export const MANDATORY_AFTER_WEEKS = 40
 export const MANDATORY_WINDOW_WEEKS = 26
 export const INACTIVE_STRIP_WEEKS = 78
 /** For a vacant belt: how far down a body's list the two contenders may be (its challenger limit plus one). */
-const vacantLimit = (body: string): number => (def(body)?.challengerLimit ?? 5) + 1
+export const vacantLimit = (body: string): number => (def(body)?.challengerLimit ?? 5) + 3
 /** An eliminator is rare: one per body per season at most, and only a few across the whole sport at once. */
 const ELIM_GAP_WEEKS = 78
 const ELIM_MAX_OPEN = 5
@@ -282,11 +283,9 @@ export function maintainTitles(state: GameState, media: MediaState): TitleEvent[
   return ev
 }
 
-/** Does this fighter's record make them a credible challenger for this body's belt? (Being rated is not enough.) */
+/** Is this fighter a credible challenger for this body's belt? (Being rated is not enough: see business/contender.ts.) */
 export function qualifiesFor(state: GameState, body: string, id: Id): boolean {
-  const f = state.fighters[id]
-  const d = def(body)
-  return !!f && !!d && challengerShortfall(d, f.record) === null
+  return !!state.fighters[id] && !!def(body) && assessChallenger(state, body, id).tier === 'contender'
 }
 
 /** Position among the QUALIFIED fighters on a body's list (1 = best qualified), or null when unlisted or not qualified. Used for vacant belts. */
@@ -501,7 +500,7 @@ export function titleBonus(state: GameState, x: Id, o: Id, wc: WeightClassId): n
   for (const org of SANCTIONING) {
     const rec = media.titles[titleKey(org.id, wc)]
     if (!rec) continue
-    if (rec.elim && ((rec.elim.a === x && rec.elim.b === o) || (rec.elim.a === o && rec.elim.b === x))) { best = Math.max(best, 24); continue }
+    if (rec.elim && ((rec.elim.a === x && rec.elim.b === o) || (rec.elim.a === o && rec.elim.b === x))) { best = Math.max(best, 38); continue }
     const rX = rankIn(media, org.id, wc, x)
     if (rX === null) continue
     const rO = rankIn(media, org.id, wc, o)
@@ -515,9 +514,9 @@ export function titleBonus(state: GameState, x: Id, o: Id, wc: WeightClassId): n
         // Two champions of different world bodies meeting is a unification: it is made by intent (see unificationPartner), not by drift.
         const other = rec.c === x ? o : x
         if (!mand && levelOf(org.id) === 'world' && holdsWorldBelt(media, other, wc)) { best = Math.max(best, 6); continue }
-        best = Math.max(best, mand ? 32 : 20)
+        best = Math.max(best, mand ? 44 : 20)
       } else if (rX >= 1 && rO >= 1 && rX <= 6 && rO <= 6) best = Math.max(best, 3)
-    } else if (rX >= 1 && rO >= 1 && (qualifiedRank(state, org.id, wc, x) ?? 99) <= vacantLimit(org.id) && (qualifiedRank(state, org.id, wc, o) ?? 99) <= vacantLimit(org.id)) best = Math.max(best, 26)
+    } else if (rX >= 1 && rO >= 1 && (qualifiedRank(state, org.id, wc, x) ?? 99) <= vacantLimit(org.id) && (qualifiedRank(state, org.id, wc, o) ?? 99) <= vacantLimit(org.id)) best = Math.max(best, 36)
   }
   return best
 }

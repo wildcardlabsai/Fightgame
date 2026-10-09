@@ -119,6 +119,8 @@ export interface BusinessState {
   titleHist: Record<Id, TitleHistory>
   /** Day each fighter last changed division (one move a year). */
   moved?: Record<Id, Day>
+  /** Voluntary title requests a champion's camp turned down, keyed `challenger|champion`: the answer stands until `until` (no re-rolling). */
+  declines?: Record<string, { until: Day; reason: string }>
 }
 
 export const BUSINESS_LIMITS = { talks: 16, commitments: 60, log: 26, learnedPerFighter: 8 }

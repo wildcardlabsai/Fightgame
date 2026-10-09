@@ -11,7 +11,7 @@ import { fighterAge, fighterName } from '../fighters'
 import { SANCTIONING } from '../media/orgs'
 import { decodeWhy, rankIn } from '../media/rankings'
 import { getList, getReigns } from '../media/records'
-import { titleName, titleKey, titlesHeldBy } from '../media/titles'
+import { titleName, titleKey, titlesHeldBy, holdsWorldBelt } from '../media/titles'
 import { reasonText } from '../media/reasons'
 import { rosterOf } from '../media/requests'
 import type { Fighter, GameState, Id, WeightClassId } from '../types'
@@ -23,14 +23,16 @@ import { planChoices, toldSummary } from './talkViews'
 import { negStage, STAGE_LABEL } from './stage'
 import { expectedContractTerms, type ExpectedContractTerms } from './terms'
 import { LADDER, STATUS_LABEL, currentTitleLabel, allEligibility, championObligations, contenderStatus, nextMilestone, titleOpportunities, type ContenderStatus, type Eligibility, type Opportunity } from './titleEco'
-import { challengerShortfall, LEVEL_LABEL, LEVEL_ORDER, TITLE_DEF_BY_ID, levelOf, type TitleLevel } from './titleDefs'
+import { assessChallenger } from './contender'
+import { LEVEL_LABEL, LEVEL_ORDER, TITLE_DEF_BY_ID, levelOf, type TitleLevel } from './titleDefs'
 import { planOf } from './plans'
 
 // ------------------------------------------------------------------ title boards (Titles screen)
 
 export interface ContenderRow { rank: number; id: Id; name: string; record: string; mine: boolean; reason: string; inChallengeRange: boolean; tag: 'mandatory' | 'eliminator' | null
-  /** Inside the challenger range AND the record of a credible challenger (or ordered by the body). `need` says what is missing. */
-  qualified: boolean; need: string | null }
+  /** Where the fighter stands as a title challenger. `step` is the next credible step (null for a contender); the scores behind it are never shown. */
+  status: 'mandatory' | 'eliminator' | 'contender' | 'building' | 'notEligible' | 'holder'
+  step: string | null }
 export interface BeltCard {
   body: string
   bodyName: string
@@ -81,8 +83,17 @@ export function titleBoard(state: GameState, level: TitleLevel, wc: WeightClassI
     const contenders: ContenderRow[] = (list?.e ?? []).filter((e) => e.r >= 1).map((e) => {
       const why = reasonText(decodeWhy(e.why), e.p, e.r, (x) => (state.fighters[x] ? fighterName(state.fighters[x]) : undefined))
       const tag = t?.mand?.challenger === e.f ? 'mandatory' as const : t?.elim && (t.elim.a === e.f || t.elim.b === e.f) ? 'eliminator' as const : null
-      const need = tag === 'mandatory' || !d || !state.fighters[e.f] ? null : challengerShortfall(d, state.fighters[e.f].record)
-      return { rank: e.r, id: e.f, name: nm(e.f), record: rec(e.f), mine: mine.has(e.f), reason: why, inChallengeRange: e.r <= (d?.challengerLimit ?? 0), tag, qualified: e.r <= (d?.challengerLimit ?? 0) && !need, need }
+      const inRange = e.r <= (d?.challengerLimit ?? 0)
+      let status: ContenderRow['status'] = 'building', step: string | null = null
+      if (tag === 'mandatory') status = 'mandatory'
+      else if (tag === 'eliminator') status = 'eliminator'
+      else if (!t?.c && level === 'world' && holdsWorldBelt(media, e.f, wc)) { status = 'holder'; step = 'Already holds a world belt in this division: a unification fight, not a vacancy' }
+      else if (d && state.fighters[e.f]) {
+        const a = assessChallenger(state, org.id, e.f)
+        status = a.tier === 'notEligible' ? 'notEligible' : a.tier === 'contender' && inRange ? 'contender' : 'building'
+        step = a.tier === 'contender' ? (inRange ? null : 'Needs to climb the rankings') : a.step
+      }
+      return { rank: e.r, id: e.f, name: nm(e.f), record: rec(e.f), mine: mine.has(e.f), reason: why, inChallengeRange: inRange, tag, status, step }
     })
     let state_: BeltCard['state'] = 'dormant'
     let note = `Not being contested: fewer than ${d?.minPool ?? 4} eligible, rated fighters in ${weightClassLabel(wc)}.`
@@ -90,7 +101,7 @@ export function titleBoard(state: GameState, level: TitleLevel, wc: WeightClassI
       if (t.c) { state_ = 'champion'; note = t.mand ? `Mandatory defence ordered against ${t.mand.cn}.` : t.elim ? `An eliminator is ordered between ${nm(t.elim.a)} and ${nm(t.elim.b)}.` : `${t.defences} successful defence${t.defences === 1 ? '' : 's'}.` }
       else {
         state_ = 'vacant'
-        const top = contenders.slice(0, 2)
+        const top = contenders.filter((c) => c.status === 'contender' || c.status === 'mandatory' || c.status === 'eliminator').slice(0, 2)
         note = t.vacantSince ? `Vacant for ${weeksBetween(t.vacantSince, state.today)} weeks.` : 'Vacant.'
         if (top.length >= 2) note += ` The leading contenders are ${top[0].name} and ${top[1].name}.`
         else note += ' Waiting for enough rated contenders to fill it.'

@@ -38,36 +38,47 @@ export interface TitleDef {
   inactiveStripWeeks: number
   /** 0–100: how much a belt of this body is worth in market value and fight appeal (a game weighting). */
   prestige: number
-  /**
-   * What a fighter must have on their record to be a credible CHALLENGER (being rated is not enough). Public facts only: professional
-   * fights, wins, and the share of fights won. A challenger ordered by the body (mandatory, or the winner of an eliminator) is exempt.
-   */
-  challenger: { fights: number; wins: number; share: number }
 }
 
-/** The record a challenger needs, by level. Rising with the level: an area title shot needs a proven prospect, a world title shot a proven contender. */
-export const CHALLENGER_REQ: Record<TitleLevel, { fights: number; wins: number; share: number }> = {
-  area: { fights: 8, wins: 5, share: 0.58 },
-  domestic: { fights: 10, wins: 7, share: 0.6 },
-  european: { fights: 12, wins: 8, share: 0.6 },
-  world: { fights: 15, wins: 10, share: 0.62 },
+/**
+ * CONTENDER CONFIGURATION, by level (data; tune here). A fighter is a credible title CHALLENGER when they meet the experience floor AND their
+ * all-round case — record, who they have beaten, recent results, wins over credible opponents, ranking and movement, activity and stage of
+ * career — clears the level's bar. A good record alone is not enough: an unbeaten run against weak opposition scores below a fighter who
+ * has beaten credible contenders. The scores themselves are never shown; the player sees a status and the next credible step.
+ */
+export interface ContenderConfig {
+  /** Hard floor: professional fights and wins before the fighter can be assessed at all. */
+  floor: { fights: number; wins: number }
+  /** The all-round score (0–100) a fighter must reach. Rises with the level. */
+  bar: number
+  /** An opponent counts as credible when their reputation, at the time, was at least this. */
+  credibleRep: number
+  /** Wins over credible opponents (in the last eight bouts) required. */
+  credibleWins: number
 }
+export const CONTENDER_CONFIG: Record<TitleLevel, ContenderConfig> = {
+  area: { floor: { fights: 8, wins: 5 }, bar: 30, credibleRep: 20, credibleWins: 0 },
+  domestic: { floor: { fights: 10, wins: 7 }, bar: 38, credibleRep: 30, credibleWins: 0 },
+  european: { floor: { fights: 12, wins: 8 }, bar: 44, credibleRep: 38, credibleWins: 1 },
+  world: { floor: { fights: 15, wins: 10 }, bar: 50, credibleRep: 46, credibleWins: 1 },
+}
+/** How the parts of the case weigh against each other (sums to 1). */
+export const CONTENDER_WEIGHTS = { experience: 0.1, record: 0.17, opposition: 0.18, credibleWins: 0.15, form: 0.1, ranking: 0.15, activity: 0.1, stage: 0.05 }
 
-/** Why a record is not yet enough for this belt (null when it is). */
-export function challengerShortfall(def: TitleDef, rec: { wins: number; losses: number; draws: number }): string | null {
+/** The public floor, in words (null when met). */
+export function experienceGap(level: TitleLevel, rec: { wins: number; losses: number; draws: number }): string | null {
   const n = rec.wins + rec.losses + rec.draws
-  const q = def.challenger
+  const q = CONTENDER_CONFIG[level].floor
   const need: string[] = []
   if (n < q.fights) need.push(`${q.fights} professional fights (has ${n})`)
   if (rec.wins < q.wins) need.push(`${q.wins} wins (has ${rec.wins})`)
-  if (n >= q.fights && rec.wins >= q.wins && rec.wins / Math.max(1, n) < q.share) need.push(`a better record: ${Math.round(q.share * 100)}% of fights won (has ${Math.round((100 * rec.wins) / Math.max(1, n))}%)`)
-  return need.length ? `Needs ${need.join(', ')}.` : null
+  return need.length ? `Insufficient professional experience: needs ${need.join(' and ')}.` : null
 }
 
 const UK = ['ENG', 'SCO', 'WAL']
 const T = (id: string, level: TitleLevel, eligibility: Eligibility, p: Partial<TitleDef> = {}): TitleDef => ({
   id, level, eligibility, rankingCount: 10, challengerLimit: 8, minPool: 4, minFights: 5, minWinShare: 0.3,
-  mandatoryAfterWeeks: 40, mandatoryWindowWeeks: 26, inactiveStripWeeks: 78, prestige: 60, challenger: CHALLENGER_REQ[level], ...p,
+  mandatoryAfterWeeks: 40, mandatoryWindowWeeks: 26, inactiveStripWeeks: 78, prestige: 60, ...p,
 })
 
 export const TITLE_DEFS: TitleDef[] = [

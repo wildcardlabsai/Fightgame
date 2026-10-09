@@ -384,7 +384,7 @@ export const useGame = create<GameStore>((set, get) => {
       const g = get().game
       if (!g) return null
       const r = commands.approach(g, myId, oppId)
-      if (!r.ok) { get().notify(r.error ?? 'They will not take that call.', 'bad'); return null }
+      if (!r.ok) { if (r.state !== g) set({ game: r.state }); get().notify(r.error ?? 'They will not take that call.', 'bad'); return null }
       set({ game: r.state })
       return r.fightId ?? null
     },
@@ -392,7 +392,7 @@ export const useGame = create<GameStore>((set, get) => {
       const g = get().game
       if (!g) return null
       const r = commands.requestTitleFight(g, fighterId, body)
-      if (!r.ok) { get().notify(r.error ?? 'They will not take that call.', 'bad'); return null }
+      if (!r.ok) { if (r.state !== g) set({ game: r.state }); get().notify(r.error ?? 'They will not take that call.', 'bad'); return null }
       set({ game: r.state })
       return r.fightId ?? null
     },

@@ -8,6 +8,7 @@ import { weightClassLabel } from '../../data/weightClasses'
 import { bodyIdentity } from '../../data/mediaIdentity'
 import { fighterName } from '../fighters'
 import { validateMatch } from '../fights'
+import { assessChallenger } from './contender'
 import { championCampResponse, type Outlook } from './titleCamp'
 import { approachOpponent, type FightOutcome } from '../fightNegotiation'
 import { rosterOf } from '../media/requests'
@@ -17,7 +18,7 @@ import { LEVEL_LABEL, TITLE_DEF_BY_ID, levelOf, levelRank, type TitleLevel } fro
 import { SANCTIONING } from '../media/orgs'
 import { titlesHeldBy } from '../media/titles'
 
-export type TargetState = 'ready' | 'blocked' | 'building'
+export type TargetState = 'ready' | 'blocked' | 'declined' | 'building'
 export interface TitleTarget {
   body: string
   shortName: string
@@ -27,6 +28,8 @@ export interface TitleTarget {
   state: TargetState
   rank: number | null
   limit: number
+  /** Where the fighter stands as a challenger for this belt: the label the screens show. */
+  standing: 'mandatory' | 'eliminator' | 'contender' | 'building' | 'notEligible'
   /** One short line: what this belt means for the fighter right now. */
   headline: string
   /** Short, concrete things still needed (empty when ready). */
@@ -82,11 +85,16 @@ function targetFor(state: GameState, f: Fighter, e: Eligibility, opps: Opportuni
     const check = validateMatch(state, f.id, o.opponentId)
     const blocked = hardBlock ?? (check.ok ? null : check.reason)
     const verb = REQUEST_KINDS[o.kind] ?? 'Request the fight'
+    const prior = state.business?.declines?.[`${f.id}|${o.opponentId}`]
+    const declined = prior && prior.until > state.today && !(e.champion && state.media?.titles[`${e.body}|${e.wc}`]?.mand?.challenger === f.id) ? prior : null
     const resp = e.status !== 'champion' && e.champion === o.opponentId ? championCampResponse(state, o.opponentId, f.id, f.weightClass, [e.body]) : null
-    return { ...base, outlook: resp && !resp.ordered ? resp.outlook : null, ordered: !!resp?.ordered || o.kind === 'MANDATORY_SHOT' || o.kind === 'ELIMINATOR', state: blocked ? 'blocked' : 'ready', headline: e.status === 'champion' ? `Holds the ${short} belt` : `${verb} against ${oppName}`, needs: [], request: { opponentId: o.opponentId, opponentName: oppName, label: verb }, blocked }
+    const standing = o.kind === 'MANDATORY_SHOT' ? 'mandatory' as const : o.kind === 'ELIMINATOR' ? 'eliminator' as const : 'contender' as const
+    return { ...base, standing, outlook: resp && !resp.ordered ? resp.outlook : null, ordered: !!resp?.ordered || o.kind === 'MANDATORY_SHOT' || o.kind === 'ELIMINATOR', state: declined ? 'declined' : blocked ? 'blocked' : 'ready', headline: e.status === 'champion' ? `Holds the ${short} belt` : `${verb} against ${oppName}`, needs: [], request: { opponentId: o.opponentId, opponentName: oppName, label: verb }, blocked: declined ? `${declined.reason}. Asking again will not change the answer for ${Math.max(1, Math.ceil((declined.until - state.today) / 7))} weeks.` : blocked }
   }
   if (e.status === 'champion') return null
-  return { ...base, state: 'building', headline: e.status === 'unqualified' ? `#${e.rank} with the ${short}: record not yet enough` : e.status === 'ranked' ? `#${e.rank} with the ${short}, top ${e.limit} can challenge` : e.status === 'eliminator' ? 'Eliminator ordered' : `Not yet rated by ${short}`, needs: needsFor(e, short, f), outlook: null, ordered: false, request: null, blocked: null }
+  const tier = e.status === 'unqualified' ? assessChallenger(state, e.body, f.id).tier : e.status === 'unranked' && e.reasons.some((r) => /professional fights/.test(r)) ? 'notEligible' : 'building'
+  const standing = e.status === 'eliminator' ? 'eliminator' as const : e.status === 'mandatory' ? 'mandatory' as const : tier === 'notEligible' ? 'notEligible' as const : 'building' as const
+  return { ...base, standing, state: 'building', headline: e.status === 'unqualified' ? `#${e.rank} with the ${short}: record not yet enough` : e.status === 'ranked' ? `#${e.rank} with the ${short}, top ${e.limit} can challenge` : e.status === 'eliminator' ? 'Eliminator ordered' : `Not yet rated by ${short}`, needs: needsFor(e, short, f), outlook: null, ordered: false, request: null, blocked: null }
 }
 
 /** Every belt a fighter could realistically be aiming at, with the request that is open to them and what is missing for the rest. */
@@ -99,7 +107,7 @@ export function titlePathFor(state: GameState, f: Fighter): TitlePathView {
     const t = targetFor(state, f, titleEligibility(state, f, o.id), opps, hardBlock)
     if (t) targets.push(t)
   }
-  const rank = (t: TitleTarget) => (t.state === 'ready' ? 0 : t.state === 'blocked' ? 1 : 2)
+  const rank = (t: TitleTarget) => (t.state === 'ready' ? 0 : t.state === 'blocked' ? 1 : t.state === 'declined' ? 2 : 3)
   const gap = (t: TitleTarget) => (t.rank === null ? 99 : Math.max(0, t.rank - t.limit))
   targets.sort((a, b) => rank(a) - rank(b) || (a.state === 'building' ? gap(a) - gap(b) : 0) || levelRank(b.level) - levelRank(a.level))
   const next = nextMilestone(state, f)
@@ -121,7 +129,7 @@ export function requestTitleFight(input: GameState, fighterId: Id, body: string)
   if (!f) return { ok: false, error: 'Unknown fighter.', state: input }
   const target = titlePathFor(input, f).targets.find((t) => t.body === body)
   if (!target || !target.request) return { ok: false, error: 'They are not in a position to ask for that title fight yet.', state: input }
-  if (target.state === 'blocked') return { ok: false, error: target.blocked ?? 'That fight cannot be requested right now.', state: input }
+  if (target.state === 'blocked' || target.state === 'declined') return { ok: false, error: target.blocked ?? 'That fight cannot be requested right now.', state: input }
   return approachOpponent(input, fighterId, target.request.opponentId)
 }
 

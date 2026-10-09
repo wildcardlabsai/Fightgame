@@ -16,6 +16,7 @@ import { boundedPurse, careerValue, contextFor, eventRevenueMid } from './busine
 import { postMessage } from './messages'
 import { TIER_ORDER } from './promotions'
 import { settleRounds } from './business/fightRounds'
+import { emptyBusiness } from './business/types'
 import { stakesBetween } from './business/stakes'
 import { championCampResponse } from './business/titleCamp'
 import { sizeEdge } from './fight/profile'
@@ -137,7 +138,21 @@ export function approachOpponent(input: GameState, myId: Id, oppId: Id): FightOu
   const st = stakesBetween(input, myId, oppId, wc)
   if (st.kind === 'title' || st.kind === 'unification') {
     const resp = championCampResponse(input, oppId, myId, wc, st.bodies)
-    if (!resp.accept) return { ok: false, error: resp.reason ?? 'They will not take that fight.', state: input }
+    if (!resp.ordered) {
+      // The answer stands until the cooldown ends: asking again does not roll again.
+      const key = `${myId}|${oppId}`
+      const prior = input.business?.declines?.[key]
+      if (prior && prior.until > input.today) return { ok: false, error: prior.reason, state: input }
+      if (!resp.accept) {
+        const next = structuredClone(input)
+        const b = (next.business ??= emptyBusiness())
+        const declines = (b.declines ??= {})
+        for (const k of Object.keys(declines)) if (declines[k].until <= next.today) delete declines[k]
+        const reason = resp.reason ?? 'They will not take that fight.'
+        declines[key] = { until: Math.max((Math.floor(next.today / 91) + 1) * 91, next.today + 28), reason }
+        return { ok: false, error: reason, state: next }
+      }
+    }
   }
   const state = structuredClone(input)
   const opp = state.fighters[oppId]

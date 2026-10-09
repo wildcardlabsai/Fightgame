@@ -281,9 +281,9 @@ describe('development plans connect to stage and ambition, and change the game',
   })
   it('plans really change growth, fame, injury, morale after a loss and week-by-week morale/trust', () => {
     const s0 = world()
-    const f = frees(s0)[0]
-    const { s } = runTalk(s0, f.id)
-    const id = s.fighters[f.id].contractId ? f.id : null
+    // The first free agent whose camp actually signs within the turns allowed (which camps do depends on the world).
+    let s = s0, id: string | null = null
+    for (const f of frees(s0).slice(0, 8)) { const r = runTalk(s0, f.id); if (r.s.fighters[f.id].contractId) { s = r.s; id = f.id; break } }
     expect(id).toBeTruthy()
     if (!id) return
     const g = ok(choosePlan(s, id, 'accelerated')).state

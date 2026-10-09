@@ -9,6 +9,7 @@ export function RequestButton({ fighterId, target, small }: { fighterId: Id; tar
   const request = useGame((s) => s.requestTitleFight)
   const navigate = useGame((s) => s.navigate)
   if (!target.request) return null
+  if (target.state === 'declined') return <span className="bz-declined" data-testid="request-declined"><span className="chip red">TITLE REQUEST DECLINED</span> <span className="bz-blocked dim">{target.blocked}</span></span>
   if (target.state === 'blocked') return <span className="bz-blocked dim" data-testid="request-blocked">{target.blocked?.replace(/^[^:]+: /, '')}</span>
   return (
     <button type="button" className={`btn primary${small ? ' small' : ''}`} data-testid="request-title-fight" data-body={target.body}
@@ -26,13 +27,18 @@ function Outlook({ t }: { t: TitleTarget }) {
   return t.outlook ? <span className={`chip bz-outlook ${t.outlook}`} data-testid="outlook">{OUTLOOK[t.outlook]}</span> : null
 }
 
+const STANDING = { mandatory: 'MANDATORY', eliminator: 'ELIMINATOR', contender: 'CONTENDER', building: 'BUILDING', notEligible: 'NOT ELIGIBLE' } as const
+function StandingChip({ t }: { t: TitleTarget }) {
+  return <span className={`chip${t.standing === 'contender' || t.standing === 'mandatory' ? ' good' : ''}`} data-testid={`standing-${t.standing}`}>{STANDING[t.standing]}</span>
+}
+
 function TargetRow({ fighterId, t }: { fighterId: Id; t: TitleTarget }) {
   return (
     <li className={`bz-tgt ${t.state}`} data-testid="path-target" data-state={t.state}>
       <div className="bz-tgt-head">
         <b>{t.shortName}</b><span className="dim">{t.levelLabel}</span>
         {t.state === 'ready' && <span className="chip good">READY</span>}
-        {t.state === 'blocked' && <span className="chip">NOT NOW</span>}
+        {t.state === 'blocked' && <span className="chip">NOT NOW</span>}{t.state === 'declined' && <span className="chip red">DECLINED</span>}<StandingChip t={t} />
         {t.state === 'building' && <span className="chip">{t.rank ? `#${t.rank}` : 'UNRATED'}</span>}
       </div>
       {t.request ? <div className="bz-tgt-line">{t.request.label} against <b>{t.request.opponentName}</b></div> : <ul className="bz-needs">{t.needs.map((n) => <li key={n}>{n}</li>)}</ul>}
@@ -62,13 +68,13 @@ export function PathCard({ view }: { view: TitlePathView }) {
       {best ? (
         best.request ? (
           <div className="bz-best" data-testid="path-best">
-            <div className="bz-best-t"><span className="caps">{best.state === 'ready' ? 'Can challenge now' : 'Cannot ask yet'}</span> <b>{best.shortName}</b> <span className="dim">{best.levelLabel}</span></div>
+            <div className="bz-best-t"><span className="caps">{best.state === 'ready' ? 'Can challenge now' : best.state === 'declined' ? 'Request declined' : 'Cannot ask yet'}</span> <b>{best.shortName}</b> <span className="dim">{best.levelLabel}</span> <StandingChip t={best} /></div>
             <div>{best.request.label} against <b>{best.request.opponentName}</b></div>
             <div className="bz-best-act"><RequestButton fighterId={view.id} target={best} /><Outlook t={best} /></div>
           </div>
         ) : (
           <div className="bz-best" data-testid="path-best">
-            <div className="bz-best-t"><span className="caps">Next belt</span> <b>{best.shortName}</b> <span className="dim">{best.levelLabel}</span> <span className="chip">{best.rank ? `#${best.rank}` : 'UNRATED'}</span></div>
+            <div className="bz-best-t"><span className="caps">Next belt</span> <b>{best.shortName}</b> <span className="dim">{best.levelLabel}</span> <StandingChip t={best} /> <span className="chip">{best.rank ? `#${best.rank}` : 'UNRATED'}</span></div>
             <ul className="bz-needs">{best.needs.map((n) => <li key={n}>{n}</li>)}</ul>
           </div>
         )

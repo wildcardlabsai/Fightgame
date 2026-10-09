@@ -10,13 +10,13 @@ import { keyedFloat } from '../rng'
 import { fighterAge, fighterName } from '../fighters'
 import { SANCTIONING } from '../media/orgs'
 import { rankIn } from '../media/rankings'
-import { bodiesFor, higherBeltOf, qualifiesFor, holdsWorldBelt, titleKey, titleName, titlesHeldBy } from '../media/titles'
+import { bodiesFor, higherBeltOf, qualifiedRank, qualifiesFor, vacantLimit, holdsWorldBelt, titleKey, titleName, titlesHeldBy } from '../media/titles'
 import { getList } from '../media/records'
 import type { Fight, Fighter, GameState, Id, WeightClassId } from '../types'
 import { bodyIdentity } from '../../data/mediaIdentity'
-import { challengerShortfall, LEVEL_STAKES, LEVEL_LABEL, LEVEL_ORDER, TITLE_DEF_BY_ID, eligibilityReason, isEligibleFor, levelOf, levelRank, type TitleLevel } from './titleDefs'
+import { assessChallenger } from './contender'
+import { LEVEL_STAKES, LEVEL_LABEL, LEVEL_ORDER, TITLE_DEF_BY_ID, eligibilityReason, isEligibleFor, levelOf, levelRank, type TitleLevel } from './titleDefs'
 
-const vacantFor = (body: string): number => (TITLE_DEF_BY_ID[body]?.challengerLimit ?? 5) + 1
 
 export type EligibilityStatus = 'champion' | 'mandatory' | 'eliminator' | 'challenger' | 'unqualified' | 'ranked' | 'unranked' | 'ineligible' | 'dormant'
 export interface Eligibility {
@@ -58,11 +58,13 @@ export function titleEligibility(state: GameState, f: Fighter, body: string, wc:
   if (rec.mand?.challenger === f.id) { reasons.push(`Named mandatory challenger by ${bodyIdentity(body).shortName}.`); return { ...base, status: 'mandatory', rank, champion: rec.c, canChallengeNow: !!rec.c, reasons } }
   if (rec.elim && (rec.elim.a === f.id || rec.elim.b === f.id)) { reasons.push(`Ordered to an eliminator by ${bodyIdentity(body).shortName}.`); return { ...base, status: 'eliminator', rank, champion: rec.c, canChallengeNow: false, reasons } }
   if (rank === null || rank < 1) { reasons.push(`Not in the ${bodyIdentity(body).shortName} top ${d.rankingCount}.`); return { ...base, status: 'unranked', rank: null, champion: rec.c, canChallengeNow: false, reasons } }
-  const limit = rec.c ? d.challengerLimit : vacantFor(body)
-  if (rank <= limit) {
-    // High enough on the list, but the record is not yet that of a credible challenger.
-    const gap = challengerShortfall(d, f.record)
-    if (gap) { reasons.push(`Ranked #${rank} by ${bodyIdentity(body).shortName}, inside the top ${limit}, but not yet a credible challenger. ${gap}`); return { ...base, status: 'unqualified', rank, champion: rec.c, canChallengeNow: false, reasons, limit } }
+  const limit = rec.c ? d.challengerLimit : vacantLimit(body)
+  const a = assessChallenger(state, body, f.id)
+  // A champion's challengers come from the top of the list; a vacant belt goes to the best CREDIBLE contenders, wherever they are placed.
+  const inRange = rec.c || a.tier !== 'contender' ? rank <= limit : (qualifiedRank(state, body, wc, f.id) ?? 99) <= limit
+  if (inRange) {
+    // High enough on the list, but not yet a credible challenger.
+    if (a.tier !== 'contender') { reasons.push(`Ranked #${rank} by ${bodyIdentity(body).shortName}, inside the top ${limit}, but not yet a credible challenger. ${a.step}.`.replace('..', '.')); return { ...base, status: 'unqualified', rank, champion: rec.c, canChallengeNow: false, reasons, limit } }
     reasons.push(`Ranked #${rank} by ${bodyIdentity(body).shortName}; ${rec.c ? 'challenges are open to the top' : 'the top'} ${limit}.`)
     return { ...base, status: 'challenger', rank, champion: rec.c, canChallengeNow: true, reasons, limit }
   }
@@ -118,7 +120,7 @@ export function titleOpportunities(state: GameState, f: Fighter): Opportunity[] 
     } else if (e.status === 'challenger') {
       if (rec.c) out.push({ ...base, kind: 'CHALLENGE', opponentId: rec.c, dueWeeks: null, text: `Ranked #${e.rank} by ${sb}: eligible to challenge ${nm(rec.c)} for the ${e.title}.` })
       else {
-        const rival = (getList(media, o.id, f.weightClass)?.e ?? []).find((x) => x.r >= 1 && x.r <= vacantFor(o.id) && x.f !== f.id)
+        const rival = (getList(media, o.id, f.weightClass)?.e ?? []).find((x) => x.r >= 1 && x.f !== f.id && (qualifiedRank(state, o.id, f.weightClass, x.f) ?? 99) <= vacantLimit(o.id))
         out.push({ ...base, kind: 'VACANT', opponentId: rival?.f ?? null, dueWeeks: null, text: `The ${e.title} is vacant. Ranked #${e.rank}: eligible to fight for it${rival ? ` — for instance against ${nm(rival.f)} (#${rival.r})` : ''}.` })
       }
     }
@@ -265,7 +267,9 @@ function obligationMap(state: GameState): Map<Id, Obligation> {
     if (rec.mand && rec.c) { put(rec.c, { partner: rec.mand.challenger, kind: 'mandatory', body }, true); put(rec.mand.challenger, { partner: rec.c, kind: 'mandatory', body }, true) }
     if (rec.elim) { put(rec.elim.a, { partner: rec.elim.b, kind: 'eliminator', body }, false); put(rec.elim.b, { partner: rec.elim.a, kind: 'eliminator', body }, false) }
     if (!rec.c) {
-      const top = (getList(media, body, wc as WeightClassId)?.e ?? []).filter((e) => e.r >= 1 && !(levelOf(body) === 'world' && holdsWorldBelt(media, e.f, wc as WeightClassId)) && qualifiesFor(state, body, e.f)).slice(0, 2)
+      // The best credible contenders who are not already paired by another vacant belt (several bodies share the same few contenders; one
+      // bout can settle them all, so a fighter is paired once and the next body pairs the rest). Nobody is paired who is not credible.
+      const top = (getList(media, body, wc as WeightClassId)?.e ?? []).filter((e) => e.r >= 1 && !(levelOf(body) === 'world' && holdsWorldBelt(media, e.f, wc as WeightClassId)) && qualifiesFor(state, body, e.f) && !map.has(e.f)).slice(0, 2)
       if (top.length === 2) { put(top[0].f, { partner: top[1].f, kind: 'vacant', body }, false); put(top[1].f, { partner: top[0].f, kind: 'vacant', body }, false) }
     }
   }

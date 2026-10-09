@@ -7,7 +7,7 @@ import type { TitleLevel } from '../../engine/business/titleDefs'
 import { formatDay } from '../../engine/calendar'
 import { useGame } from '../../store/gameStore'
 import { RankMark } from '../media/RankMark'
-import { BeltCardView, LimitMarker, TagChip } from '../business/Boards'
+import { BeltCardView, LimitMarker, StatusChip, TagChip } from '../business/Boards'
 import { MyFighterPaths, RequestButton } from '../business/TitlePaths'
 import '../../styles/business54.css'
 
@@ -85,8 +85,8 @@ function Rankings({ param }: { param?: string }) {
                     <div className={`rk-row${r.champion ? ' champ' : ''}${r.mine ? ' mine' : ''}${c && !c.inChallengeRange ? ' outside' : ''}`} data-testid="rank-row">
                       <RankMark label={r.label} champion={r.champion} />
                       <button type="button" className="rk-who" onClick={() => navigate('fighter', r.id)}>
-                        <span className="rk-n">{r.name}{r.champion && <span className="chip gold" data-testid="champ-chip">CHAMPION</span>}{r.mine && <span className="chip gold">YOURS</span>}{c && <TagChip tag={c.tag} />}</span>
-                        <span className="dim rk-sub"><Flag code={r.nation} /> {r.record}{r.champion && belt?.champion ? ` · ${belt.champion.weeks} wk champion · ${belt.champion.defences} def.` : ''}</span>
+                        <span className="rk-n">{r.name}{r.champion && <span className="chip gold" data-testid="champ-chip">CHAMPION</span>}{r.mine && <span className="chip gold">YOURS</span>}{c && <TagChip tag={c.tag} />}{c && c.rank <= belt!.challengerLimit + 2 && <StatusChip row={c} />}</span>
+                        <span className="dim rk-sub"><Flag code={r.nation} /> {r.record}{r.champion && belt?.champion ? ` · ${belt.champion.weeks} wk champion · ${belt.champion.defences} def.` : ''}{r.mine && c?.step ? ` · Next step: ${c.step.toLowerCase()}` : ''}</span>
                       </button>
                       <span className={`rk-move ${r.movementTone}`} aria-label={`Movement ${r.movement}`}>{r.movement}</span>
                       <span className="rk-why dim" title={r.why}>{r.why}</span>
