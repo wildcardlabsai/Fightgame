@@ -119,11 +119,16 @@ for (const w of [1280, 1024, 390]) {
   // ============================================================ B. renewal
   {
     const { ctx, page } = await newPage(w)
-    await load(page, 'p54-played')
-    const rid = await state(page, (g) => Object.values(g.contracts).filter((c) => c.promotionId === g.playerPromotionId && c.status === 'active').sort((a, b) => a.endDay - b.endDay)[0]?.fighterId)
+    // The played fixture's bot may have broken off renewal talks with its soonest-expiring fighter (a 12-week lock); this scenario is about a
+    // conversation that can open, so lift any such lock first.
+    await page.evaluate((j) => { const g = JSON.parse(j); const st = g.state ?? g; for (const k of Object.keys(st.negotiations ?? {})) if (st.negotiations[k].status === 'broken') delete st.negotiations[k]; window.__fe.useGame.getState().importGame(JSON.stringify(g)) }, fixture('p54-played'))
+    await page.waitForTimeout(300)
+    // The soonest-ending contract whose camp will actually talk (a fighter whose talks were broken off, say, is skipped).
+    const rids = await state(page, (g) => Object.values(g.contracts).filter((c) => c.promotionId === g.playerPromotionId && c.status === 'active').sort((a, b) => a.endDay - b.endDay).map((c) => c.fighterId))
+    let rid = null
+    for (const cand of rids) { await go(page, `#/negotiation/${cand}`); if ((await page.getByTestId('talk-header').count()) === 1) { rid = cand; break } }
     check(`B/${w} roster fighter exists for renewal`, !!rid)
     if (rid) {
-      await go(page, `#/negotiation/${rid}`)
       check(`B/${w} renewal conversation opens with expected terms`, (await page.getByTestId('talk-header').count()) === 1 && (await page.getByTestId('expected-terms').isVisible()) && /renewal/i.test(await page.getByTestId('talk-header').innerText()))
       await click(page, 'ask-priorities')
       await playToEnd(page)

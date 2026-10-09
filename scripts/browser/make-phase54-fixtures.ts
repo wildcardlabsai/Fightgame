@@ -8,6 +8,7 @@ import { newLog, playWeek, STRATEGIES } from '../../src/engine/sim/strategies'
 import { qualifiesFor, titleKey, touchTitles } from '../../src/engine/media/titles'
 import { getList } from '../../src/engine/media/records'
 import { levelOf } from '../../src/engine/business/titleDefs'
+import { createEvent } from '../../src/engine/events/events'
 
 const out = process.argv[2] ?? '/tmp/e2e'
 mkdirSync(out, { recursive: true })
@@ -55,5 +56,16 @@ const o = structuredClone(s)
     rec.mand = { challenger: x.id, cn: `${x.firstName} ${x.lastName}`, ordered: o.today, due: o.today + 26 * 7 }
   }
 }
-writeFileSync(`${out}/p54-ordered.json`, serialiseGame(o))
+// The browser test also puts one title fight through an open show: make sure the promoter has one (the bot-played world may not).
+const SAT = 5 // shows fall 5 days after today modulo a week (events.isSaturday)
+let ordered = o
+for (const v of Object.values(o.venues).sort((a, b) => a.capacity - b.capacity)) {
+  let made = false
+  for (let wk = 10; wk < 40 && !made; wk++) {
+    const r = createEvent(ordered, { name: 'Fixture Night', day: o.today + SAT + wk * 7, venueId: v.id })
+    if (r.ok) { ordered = r.state; made = true }
+  }
+  if (made) break
+}
+writeFileSync(`${out}/p54-ordered.json`, serialiseGame(ordered))
 console.log('fixtures written to', out, 'mine', mine?.id, 'roster', Object.values(s.contracts).filter((c) => c.promotionId === s.playerPromotionId).length, 'events', Object.values(s.events).filter((e) => e.promotionId === s.playerPromotionId).length)
