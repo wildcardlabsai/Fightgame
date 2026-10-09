@@ -511,3 +511,31 @@ Honest reading: the stage-aware effects are deliberately modest (about 10-20% ei
 sound. The retirement change moves the careers of modest, beaten fighters, not the top of the sport. Title fights going the distance only 17-18% of the
 time is a property of the existing sim (unchanged by this phase), which is why the championship browser suite's "at least one fight went 12 rounds" check
 can fail on a fixture whose few distinct pairings are all stopped (it did, on both fixture worlds tried, with 300/301 and 155/156 other checks passing).
+
+## Career-loop audit and mandatory-challenge integrity (Phase 5.5, no schema change)
+
+**Defect found and fixed: mandatory orders the rules could not let the pair fulfil.** `maintainTitles` named a mandatory challenger from the top qualified entry of a
+ranking list and left the order standing until its deadline, but `bodiesFor` (which decides whether a bout between two fighters is a title fight for a given belt)
+also requires the challenger to be inside the body's challenger limit, not to hold a higher belt, and not to be better contested for a higher belt (a bout is for the
+highest level on the line). Reproduced by `scripts/audit/phase55-mandatory.ts` (6 seeds x 6 years, passive): **161 orders (about 4.5 a year) became unreachable, 2,257
+of 23,289 order-weeks (10%), and 40 of the 152 that ended did so by the champion being stripped for "refusing a mandatory defence"** that no booking could have
+satisfied. Causes: 99 the pair would now contest a higher belt (usually a vacant world belt), 41 the challenger had slid beyond the limit, 21 the challenger now held a higher
+belt. On the player's side this showed as an "Ordered by the board" request that opened an ordinary 10-round fight.
+
+Fix (deterministic, `media/titles.ts`): a new order is only named for a challenger who can meet the champion for that belt; an eliminator winner likewise. A standing order
+that can no longer be staged for that belt, with no title-flagged fight already booked between the pair, is withdrawn with a plain reason (`MANDATORY_VOID`: news, inbox
+message for the player's side, narrative resolved) and the champion is not penalised; a booked fight is always left to run, and an order that *can* still be staged is
+untouched, so a champion who really refuses is still stripped. The title path only calls a challenger "mandatory" when the order is reachable.
+After the fix: 14 transient orders in the same sample (all inside the two-week media cadence), none ending in a strip, none outstanding at the end.
+
+**Championship browser coverage.** The failing check ("at least one championship fight went the full 12 rounds") asserted a simulation outcome: only about 17% of title
+fights go the distance and an attempt replays the same pairing and fight number, so a run can legitimately see only stoppages. It now asserts per fight that the
+outcome is consistent (stoppage inside 12 or a 12-round decision), reports the distance count as information, and the distance path is covered deterministically by
+`phase55.test.ts` (120 fixed seeds, both endings required). The simulation is unchanged. The venue suite's skipped editable-event check was missing coverage (the fixture
+had no show still being built); the fixture now guarantees one and the 3 checks run.
+
+**Long-career audit** (`scripts/audit/phase55-career-loop.ts`, 4 passive seeds x 12 years; 3 bot seeds x 10 years): see the final report for numbers. Findings: world
+coherence audit clean; fighters idle over a year among those under contract 1.7-1.9% for rivals; rivals defunct 6-8% of rival-samples with 0.3-1.1% in negative cash; vacant
+belts 30% (as accepted in 5.4A); 39-40% of young low-fight debutants reach contender level within eleven years and 35-36% world level; 18% never get a contract (free agents,
+they retire by age); retired fighters keep their record and reigns. Bot promotions: the balanced bot goes bankrupt in roughly half of worlds in every version back to 5.3
+(roster attrition then fixed overheads; see the report), so this is not a regression of this phase.

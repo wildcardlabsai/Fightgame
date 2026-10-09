@@ -111,7 +111,13 @@ export function processReviews(state: GameState): void {
   if (!o?.reviews) return
   for (const rv of Object.values(o.reviews)) {
     if (rv.status !== 'open') continue
-    if (state.today >= rv.expiresDay || reviewStillValid(state, rv)) { rv.status = 'lapsed'; rv.closedDay = state.today }
+    const gone = reviewStillValid(state, rv)
+    if (state.today >= rv.expiresDay || gone) {
+      rv.status = 'lapsed'; rv.closedDay = state.today
+      // Say so in the fighter's record of decisions: a decision that quietly disappears reads as a bug. (Nothing to record if he has left.)
+      const opp = state.fighters[rv.oppId]
+      if (gone !== 'He is no longer on your roster.' && opp) noteDecision(state, rv.fighterId, `No decision was made about ${rv.kind === 'rematch' ? 'a rematch with' : rv.kind === 'breakout' ? 'the next step after beating' : 'the next step after losing to'} ${fighterName(opp)}: it lapsed`)
+    }
   }
 }
 

@@ -64,9 +64,18 @@ function withOffers(): { s: GameState; you: string; them: string } {
   }
   const used = new Set<string>()
   let youMine = null as null | (typeof mine)[number], youT = null as ReturnType<typeof pick>
-  for (const m of mine) { const t = pick(m, used); if (t) { youMine = m; youT = t; used.add(t.f.id); break } }
+  let you = ''
+  // a fixture must be a valid offer: take the first pairing the rules would let the promoter accept
+  search: for (const m of mine) {
+    for (let tries = 0; tries < 6; tries++) {
+      const t = pick(m, used); if (!t) break
+      used.add(t.f.id)
+      you = mkOffer(1, 'you', t.p.id, t.f.id, m.id, null)
+      if (!offerProblem(s, o.offers[you])) { youMine = m; youT = t; break search }
+      delete o.offers[you]; you = ''
+    }
+  }
   expect(youT, 'a rival fighter in the same division').toBeTruthy()
-  const you = mkOffer(1, 'you', youT!.p.id, youT!.f.id, youMine!.id, null)
   let them = ''
   for (const m of mine.filter((x) => x.id !== youMine!.id)) {
     const t = pick(m, used)

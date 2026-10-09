@@ -49,13 +49,15 @@ function bout(base: GameState, aId: string, bId: string, seed: string): { s: Gam
 
 const myFighters = (s: GameState) => playerRoster(s).filter((f) => f.status === 'active' && !f.activeFightId && !f.injury)
 /** Search seeds for a bout that ends the way a test needs. */
-function findBout(want: (f: Fight, s: GameState, myIdx: 0 | 1) => boolean, pick: (s: GameState) => { me: Fighter; opp: Fighter } | null, tries = 90): { s: GameState; fight: Fight; me: Fighter; opp: Fighter } | null {
+function findBout(want: (f: Fight, s: GameState, myIdx: 0 | 1) => boolean, pick: (s: GameState, skip: number) => { me: Fighter; opp: Fighter } | null, tries = 90): { s: GameState; fight: Fight; me: Fighter; opp: Fighter } | null {
   const base = world()
-  const pr = pick(base)
-  if (!pr) return null
-  for (let k = 0; k < tries; k++) {
-    const { s, fight } = bout(base, pr.me.id, pr.opp.id, `p54d-${k}`)
-    if (want(fight, s, 0)) return { s, fight, me: s.fighters[pr.me.id], opp: s.fighters[pr.opp.id] }
+  for (let skip = 0; skip < 6; skip++) {
+    const pr = pick(base, skip)
+    if (!pr) break
+    for (let k = 0; k < tries; k++) {
+      const { s, fight } = bout(base, pr.me.id, pr.opp.id, `p54d-${skip}-${k}`)
+      if (want(fight, s, 0)) return { s, fight, me: s.fighters[pr.me.id], opp: s.fighters[pr.opp.id] }
+    }
   }
   return null
 }
@@ -64,21 +66,23 @@ const sameDivision = (s: GameState, me: Fighter, stronger: boolean): Fighter | n
   pool.sort((a, b) => (stronger ? b.reputation - a.reputation : a.reputation - b.reputation) || (a.id < b.id ? -1 : 1))
   return pool[0] ?? null
 }
-const pickUnderdog = (s: GameState) => {
+const pickUnderdog = (s: GameState, skip = 0) => {
+  const out: { me: Fighter; opp: Fighter }[] = []
   for (const me of [...myFighters(s)].sort((a, b) => a.reputation - b.reputation)) {
     if (me.record.wins + me.record.losses + me.record.draws < 4) continue
     const opp = sameDivision(s, me, true)
-    if (opp) return { me, opp }
+    if (opp) out.push({ me, opp })
   }
-  return null
+  return out[skip] ?? null
 }
-const pickFavourite = (s: GameState) => {
+const pickFavourite = (s: GameState, skip = 0) => {
+  const out: { me: Fighter; opp: Fighter }[] = []
   for (const me of [...myFighters(s)].sort((a, b) => b.reputation - a.reputation)) {
     if (me.record.wins + me.record.losses + me.record.draws < 5) continue
     const opp = sameDivision(s, me, false)
-    if (opp) return { me, opp }
+    if (opp) out.push({ me, opp })
   }
-  return null
+  return out[skip] ?? null
 }
 
 describe('results in career context', () => {
@@ -203,6 +207,7 @@ describe('post-fight decisions', () => {
     processReviews(t)
     expect(t.office!.reviews!.rv3.status).toBe('lapsed')
     expect(t.fighters[me.id].morale).toBe(morale)
+    expect(t.office!.decisions[me.id][0].text).toMatch(/lapsed/) // a decision that goes away says so on the fighter's record
     const u = clone(s); u.fighters[me.id].status = 'retired'
     processReviews(u)
     expect(u.office!.reviews!.rv3.status).toBe('lapsed')

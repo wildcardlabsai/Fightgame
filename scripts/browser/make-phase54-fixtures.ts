@@ -27,7 +27,19 @@ const log = newLog()
 for (let w = 1; w <= 100; w++) {
   s = playWeek(s, STRATEGIES.balanced, log)
   s = advanceOneWeek(s)
-  if (w === 100) writeFileSync(`${out}/p54-played.json`, serialiseGame(s))
+  if (w === 100) {
+    // The venue tests need a show that is still being built (venue booked, no card yet); a bot-played week may not leave one, so make sure of it.
+    let played = s
+    if (!Object.values(played.events).some((e) => e.promotionId === played.playerPromotionId && ['venueBooked', 'cardBuilding'].includes(e.status))) {
+      outer: for (const v of Object.values(played.venues).filter((x) => !x.legacy).sort((a, b) => a.capacity - b.capacity)) {
+        for (let wk = 8; wk < 40; wk++) {
+          const r = createEvent(played, { name: 'Venue Test Night', day: played.today + 5 + wk * 7, venueId: v.id })
+          if (r.ok) { played = r.state; break outer }
+        }
+      }
+    }
+    writeFileSync(`${out}/p54-played.json`, serialiseGame(played))
+  }
 }
 // A save where the player's best fighter holds a European belt and has an open promise: the champion-side screens need something to show.
 const g = structuredClone(s)

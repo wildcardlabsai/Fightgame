@@ -43,7 +43,7 @@ const ELIM_WINDOW_WEEKS = 26
 const ELIM_GATE = 0.2
 
 export type TitleEventKind =
-  | 'TITLE_CHANGE' | 'TITLE_DEFENCE' | 'TITLE_FILLED' | 'TITLE_VACANT' | 'STRIPPED' | 'MANDATORY' | 'MANDATORY_WARNING' | 'MANDATORY_EXTENDED'
+  | 'TITLE_CHANGE' | 'TITLE_DEFENCE' | 'TITLE_FILLED' | 'TITLE_VACANT' | 'STRIPPED' | 'MANDATORY' | 'MANDATORY_WARNING' | 'MANDATORY_EXTENDED' | 'MANDATORY_VOID'
   | 'TITLE_FIGHT_SET' | 'ELIM_ORDERED' | 'ELIM_RESULT' | 'ELIM_LAPSED' | 'TITLE_OPEN' | 'UNIFIED' | 'UNDISPUTED' | 'DIVISION_MOVE'
 export interface TitleEvent { kind: TitleEventKind; body: string; wc: WeightClassId; f?: Id; o?: Id; fightId?: Id; defences?: number; how?: string }
 
@@ -249,6 +249,17 @@ export function maintainTitles(state: GameState, media: MediaState): TitleEvent[
       if (!ch || ch.status === 'retired') { rec.mand = undefined; continue }
       const scheduled = Object.entries(media.titleFights).some(([fid, bodies]) => bodies.includes(body) && isLiveFight(state.fights[fid], rec.c!, rec.mand!.challenger))
       if (scheduled) continue
+      // Phase 5.5: an order that can no longer be staged for THIS belt is void, not refused. A champion cannot be stripped for failing to make a fight the
+      // rules would not let him make: the challenger fell out of the ranking limit or now holds a higher belt, or the pair now contest a bigger title.
+      // A fight already booked between them under any title flag is left to run (it is not refusal).
+      const booked = Object.entries(media.titleFights).some(([fid, bodies]) => bodies.length > 0 && isLiveFight(state.fights[fid], rec.c!, rec.mand!.challenger))
+      if (booked) continue
+      const why = mandateVoidReason(state, media, body, wc, rec.c, rec.mand.challenger)
+      if (why) {
+        ev.push({ kind: 'MANDATORY_VOID', body, wc, f: rec.c, o: rec.mand.challenger, how: why })
+        rec.mand = undefined
+        continue
+      }
       if (state.today >= rec.mand.due) {
         // A valid reason (injury to either man) earns ONE extension; anything else is a refused mandatory.
         const excuse = f.injury ? `${fighterName(f)} is injured` : ch.injury ? `${fighterName(ch)} is injured` : f.activeFightId ? `${fighterName(f)} is already booked to fight` : ch.activeFightId ? `${fighterName(ch)} is already booked to fight` : null
@@ -261,7 +272,8 @@ export function maintainTitles(state: GameState, media: MediaState): TitleEvent[
     const list = getList(media, body, wc)
     if (!rec.elim && idle >= WEEKS(d.mandatoryAfterWeeks)) {
       // The leading contender who is still active in this division (a list may not yet have dropped someone who retired or moved this week).
-      const top = list?.e.find((e) => e.r >= 1 && e.f !== rec.c && state.fighters[e.f]?.status === 'active' && state.fighters[e.f].weightClass === wc && qualifiesFor(state, body, e.f))
+      // ...who can actually be matched with the champion for this belt (inside the body's challenger limit, not superseded by a higher belt).
+      const top = list?.e.find((e) => e.r >= 1 && e.f !== rec.c && state.fighters[e.f]?.status === 'active' && state.fighters[e.f].weightClass === wc && qualifiesFor(state, body, e.f) && bodiesFor(state, rec.c!, e.f, wc).includes(body))
       if (top) {
         rec.mand = { challenger: top.f, cn: fighterName(state.fighters[top.f]), ordered: state.today, due: state.today + WEEKS(d.mandatoryWindowWeeks) }
         ev.push({ kind: 'MANDATORY', body, wc, f: rec.c, o: top.f })
@@ -331,6 +343,19 @@ export function bodiesFor(state: GameState, aId: Id, bId: Id, wc: WeightClassId)
     return out.filter((b) => levelRank(levelOf(b)) === top)
   }
   return out
+}
+
+/** Why a standing mandatory order can no longer be staged for this belt (null if it still can). Plain words, for the news and the champion's camp. */
+export function mandateVoidReason(state: GameState, media: MediaState, body: string, wc: WeightClassId, champ: Id, challenger: Id): string | null {
+  if (bodiesFor(state, champ, challenger, wc).includes(body)) return null
+  const ch = state.fighters[challenger]
+  const name = ch ? fighterName(ch) : 'The challenger'
+  const lvl = levelOf(body)
+  if (higherBeltOf(media, challenger, wc, lvl)) return `${name} now holds a higher title`
+  if (higherBeltOf(media, champ, wc, lvl)) return 'the champion now holds a higher title'
+  const r = rankIn(media, body, wc, challenger)
+  if (r === null || r < 1 || r > (SANCTIONING.find((o) => o.id === body)?.challengerLimit ?? 0)) return `${name} is no longer ranked high enough`
+  return `a meeting between them would now be for a bigger title`
 }
 
 export function holdsWorldBelt(media: MediaState, id: Id, wc: WeightClassId): boolean {
@@ -433,7 +458,7 @@ export function settleTitleFight(state: GameState, media: MediaState, fight: Fig
       if (W) {
         const loser = W === A ? B : A
         rec.elim = undefined; rec.lastElim = state.today
-        if (rec.c && !rec.mand) rec.mand = { challenger: W, cn: fighterName(state.fighters[W]), ordered: state.today, due: state.today + WEEKS(def(body)?.mandatoryWindowWeeks ?? 26) }
+        if (rec.c && !rec.mand && bodiesFor(state, rec.c, W, wc as WeightClassId).includes(body)) rec.mand = { challenger: W, cn: fighterName(state.fighters[W]), ordered: state.today, due: state.today + WEEKS(def(body)?.mandatoryWindowWeeks ?? 26) }
         ev.push({ kind: 'ELIM_RESULT', body, wc: wc as WeightClassId, f: W, o: loser, fightId: fight.id })
       } else {
         // A draw settles nothing: the order stands, with a fresh window, once.

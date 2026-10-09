@@ -55,7 +55,7 @@ export function titleEligibility(state: GameState, f: Fighter, body: string, wc:
   const rank = rankIn(media, body, wc, f.id)
   const n = countFights(f)
   if (n < d.minFights) { reasons.push(`Needs ${d.minFights} professional fights to be rated (has ${n}).`); return { ...base, status: 'unranked', rank: null, champion: rec.c, canChallengeNow: false, reasons } }
-  if (rec.mand?.challenger === f.id) { reasons.push(`Named mandatory challenger by ${bodyIdentity(body).shortName}.`); return { ...base, status: 'mandatory', rank, champion: rec.c, canChallengeNow: !!rec.c, reasons } }
+  if (rec.mand?.challenger === f.id && rec.c && bodiesFor(state, rec.c, f.id, wc).includes(body)) { reasons.push(`Named mandatory challenger by ${bodyIdentity(body).shortName}.`); return { ...base, status: 'mandatory', rank, champion: rec.c, canChallengeNow: !!rec.c, reasons } }
   if (rec.elim && (rec.elim.a === f.id || rec.elim.b === f.id)) { reasons.push(`Ordered to an eliminator by ${bodyIdentity(body).shortName}.`); return { ...base, status: 'eliminator', rank, champion: rec.c, canChallengeNow: false, reasons } }
   if (rank === null || rank < 1) { reasons.push(`Not in the ${bodyIdentity(body).shortName} top ${d.rankingCount}.`); return { ...base, status: 'unranked', rank: null, champion: rec.c, canChallengeNow: false, reasons } }
   const limit = rec.c ? d.challengerLimit : vacantLimit(body)

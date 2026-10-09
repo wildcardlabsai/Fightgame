@@ -207,7 +207,7 @@ describe('the champion\'s camp decides a voluntary challenge', () => {
     const { body, wc, champ, list } = worldBelt(s)
     const weak = list[list.length - 1].f
     makeContender(s, weak)
-    s.fighters[weak].reputation = 4; s.fighters[weak].popularity = 4
+    s.fighters[weak].reputation = 4; s.fighters[weak].popularity = 4; s.fighters[weak].momentum = 0 // the champion's camp is the subject here, not the challenger's form
     const own = Object.values(s.contracts).find((x) => x.promotionId === s.playerPromotionId && x.status === 'active')!
     s.fighters[own.fighterId].contractId = null
     own.fighterId = weak; s.fighters[weak].contractId = own.id
@@ -250,7 +250,7 @@ describe('the champion\'s camp decides a voluntary challenge', () => {
     const { body, wc, champ, list } = worldBelt(base)
     const weak = list[list.length - 1].f
     makeContender(base, weak)
-    base.fighters[weak].reputation = 4; base.fighters[weak].popularity = 4
+    base.fighters[weak].reputation = 4; base.fighters[weak].popularity = 4; base.fighters[weak].momentum = 0
     const own = Object.values(base.contracts).find((x) => x.promotionId === base.playerPromotionId && x.status === 'active')!
     base.fighters[own.fighterId].contractId = null
     own.fighterId = weak; base.fighters[weak].contractId = own.id
