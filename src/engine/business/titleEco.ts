@@ -15,7 +15,7 @@ import { getList } from '../media/records'
 import type { Fight, Fighter, GameState, Id, WeightClassId } from '../types'
 import { bodyIdentity } from '../../data/mediaIdentity'
 import { assessChallenger } from './contender'
-import { LEVEL_STAKES, LEVEL_LABEL, LEVEL_ORDER, TITLE_DEF_BY_ID, eligibilityReason, isEligibleFor, levelOf, levelRank, type TitleLevel } from './titleDefs'
+import { LEVEL_STAKES, LEVEL_LABEL, LEVEL_ORDER, TITLE_DEF_BY_ID, ratingGap, eligibilityReason, isEligibleFor, levelOf, levelRank, type TitleLevel } from './titleDefs'
 
 
 export type EligibilityStatus = 'champion' | 'mandatory' | 'eliminator' | 'challenger' | 'unqualified' | 'ranked' | 'unranked' | 'ineligible' | 'dormant'
@@ -53,8 +53,8 @@ export function titleEligibility(state: GameState, f: Fighter, body: string, wc:
   if (up) { reasons.push(`Holds the ${bodyIdentity(up).shortName} ${LEVEL_LABEL[levelOf(up)].toLowerCase()} title, so the ${LEVEL_LABEL[levelOf(body)].toLowerCase()} belts are behind them.`); return { ...base, status: 'ineligible', rank: null, champion: rec.c ?? null, canChallengeNow: false, reasons } }
   if (rec.c === f.id) { reasons.push(`Champion since ${weeksBetween(rec.since, state.today)} weeks ago, ${rec.defences} defence${rec.defences === 1 ? '' : 's'}.`); return { ...base, status: 'champion', rank: 0, champion: f.id, canChallengeNow: false, reasons } }
   const rank = rankIn(media, body, wc, f.id)
-  const n = countFights(f)
-  if (n < d.minFights) { reasons.push(`Needs ${d.minFights} professional fights to be rated (has ${n}).`); return { ...base, status: 'unranked', rank: null, champion: rec.c, canChallengeNow: false, reasons } }
+  const gapText = ratingGap(d, f.record)
+  if (gapText) { reasons.push(gapText); return { ...base, status: 'unranked', rank: null, champion: rec.c, canChallengeNow: false, reasons } }
   if (rec.mand?.challenger === f.id && rec.c && bodiesFor(state, rec.c, f.id, wc).includes(body)) { reasons.push(`Named mandatory challenger by ${bodyIdentity(body).shortName}.`); return { ...base, status: 'mandatory', rank, champion: rec.c, canChallengeNow: !!rec.c, reasons } }
   if (rec.elim && (rec.elim.a === f.id || rec.elim.b === f.id)) { reasons.push(`Ordered to an eliminator by ${bodyIdentity(body).shortName}.`); return { ...base, status: 'eliminator', rank, champion: rec.c, canChallengeNow: false, reasons } }
   if (rank === null || rank < 1) { reasons.push(`Not in the ${bodyIdentity(body).shortName} top ${d.rankingCount}.`); return { ...base, status: 'unranked', rank: null, champion: rec.c, canChallengeNow: false, reasons } }

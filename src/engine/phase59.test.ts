@@ -100,3 +100,22 @@ describe('fight talks put the money in figures and judge every offer', () => {
     expect(JSON.stringify(a.state.business!.talks[talkId])).toEqual(JSON.stringify(b.state.business!.talks[talkId]))
   })
 })
+
+// ---------------------------------------------------------------- the next belt for an inexperienced fighter
+import { titlePathFor } from './business/titlePath'
+import { levelRank } from './business/titleDefs'
+
+describe('a fighter with almost no fights is not pointed at a world belt', () => {
+  it('the next belt is the lowest rung available, and the gap names both fights and wins', () => {
+    let s: GameState = mk('p59-path')
+    for (let i = 0; i < 40; i++) s = advanceOneWeek(s)
+    const me = Object.values(s.fighters).find((f) => f.contractId && s.contracts[f.contractId].promotionId === s.playerPromotionId)!
+    me.record = { wins: 1, losses: 2, draws: 0, koWins: 0, koLosses: 0 }
+    const path = titlePathFor(s, me)
+    expect(path.best, 'some belt is shown').toBeTruthy()
+    const lowest = Math.min(...path.targets.map((t) => levelRank(t.level)))
+    expect(levelRank(path.best!.level)).toBe(lowest)
+    const worldT = path.targets.find((t) => t.level === 'world')
+    if (worldT) { expect(worldT.needs.join(' ')).toMatch(/professional fights \(has 3\)/); expect(worldT.needs.join(' ')).toMatch(/wins \(has 1\)/) }
+  })
+})

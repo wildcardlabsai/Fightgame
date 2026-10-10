@@ -14,7 +14,7 @@ import { approachOpponent, type FightOutcome } from '../fightNegotiation'
 import { rosterOf } from '../media/requests'
 import type { Fighter, GameState, Id } from '../types'
 import { STATUS_LABEL, contenderStatus, currentTitleLabel, nextMilestone, titleEligibility, titleOpportunities, type Eligibility, type Opportunity } from './titleEco'
-import { LEVEL_LABEL, TITLE_DEF_BY_ID, levelOf, levelRank, type TitleLevel } from './titleDefs'
+import { LEVEL_LABEL, TITLE_DEF_BY_ID, ratingGap, levelOf, levelRank, type TitleLevel } from './titleDefs'
 import { SANCTIONING } from '../media/orgs'
 import { titlesHeldBy } from '../media/titles'
 
@@ -64,11 +64,11 @@ const REQUEST_KINDS: Record<string, string> = { CHALLENGE: 'Challenge for the ti
 
 const needsFor = (e: Eligibility, short: string, f: Fighter): string[] => {
   const d = TITLE_DEF_BY_ID[e.body]
-  const n = f.record.wins + f.record.losses + f.record.draws
   if (e.status === 'unqualified') return [`Ranked #${e.rank}, inside the top ${e.limit}, but the record is not yet enough.`, (e.reasons[e.reasons.length - 1].split('. ').pop() ?? '').trim()]
   if (e.status === 'ranked') return [`Reach the top ${e.limit} of the ${short} list (now #${e.rank}).`, 'Win against ranked fighters and keep fighting to climb.']
   if (e.status === 'unranked') {
-    if (d && n < d.minFights) return [`Needs ${d.minFights} professional fights to be rated (has ${n}).`]
+    const gap = d ? ratingGap(d, f.record) : null
+    if (gap) return [gap]
     return [`Get into the ${short} top ${d?.rankingCount ?? 10}.`, 'Win against rated opponents and stay active.']
   }
   if (e.status === 'eliminator') return ['Win the ordered eliminator first.']
@@ -109,7 +109,9 @@ export function titlePathFor(state: GameState, f: Fighter): TitlePathView {
   }
   const rank = (t: TitleTarget) => (t.state === 'ready' ? 0 : t.state === 'blocked' ? 1 : t.state === 'declined' ? 2 : 3)
   const gap = (t: TitleTarget) => (t.rank === null ? 99 : Math.max(0, t.rank - t.limit))
-  targets.sort((a, b) => rank(a) - rank(b) || (a.state === 'building' ? gap(a) - gap(b) : 0) || levelRank(b.level) - levelRank(a.level))
+  // Ready belts: the biggest first. Belts still being built toward: those the fighter is already rated for, nearest first; otherwise the next rung up the ladder, not the top of it.
+  const rated = (t: TitleTarget) => (t.rank === null ? 1 : 0)
+  targets.sort((a, b) => rank(a) - rank(b) || (a.state === 'building' ? rated(a) - rated(b) || gap(a) - gap(b) || levelRank(a.level) - levelRank(b.level) : levelRank(b.level) - levelRank(a.level)))
   const next = nextMilestone(state, f)
   return {
     id: f.id, name: fighterName(f), division: weightClassLabel(f.weightClass), record: `${f.record.wins}-${f.record.losses}-${f.record.draws}`, statusLabel: STATUS_LABEL[contenderStatus(state, f)], next: next.text, champion: championRoad(state, f),

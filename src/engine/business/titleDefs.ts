@@ -64,6 +64,20 @@ export const CONTENDER_CONFIG: Record<TitleLevel, ContenderConfig> = {
   european: { floor: { fights: 11, wins: 7 }, minShare: 0.52, bar: 41, credibleRep: 34, credibleWins: 1 },
   world: { floor: { fights: 14, wins: 9 }, minShare: 0.55, bar: 47, credibleRep: 40, credibleWins: 1 },
 }
+/** The fewest fights and wins a title body will rate a fighter on (its own minimum, never below the public floor for a challenge at that level). */
+export const rankingFloor = (d: { level: TitleLevel; minFights: number }): { fights: number; wins: number } => {
+  const f = CONTENDER_CONFIG[d.level].floor
+  return { fights: Math.max(d.minFights, f.fights), wins: f.wins }
+}
+/** The same floor in words, or null when met. */
+export const ratingGap = (d: { level: TitleLevel; minFights: number }, rec: { wins: number; losses: number; draws: number }): string | null => {
+  const fl = rankingFloor(d)
+  const n = rec.wins + rec.losses + rec.draws
+  const need: string[] = []
+  if (n < fl.fights) need.push(`${fl.fights} professional fights (has ${n})`)
+  if (rec.wins < fl.wins) need.push(`${fl.wins} wins (has ${rec.wins})`)
+  return need.length ? `Needs ${need.join(' and ')} to be rated.` : null
+}
 /** How the parts of the case weigh against each other (sums to 1). */
 export const CONTENDER_WEIGHTS = { experience: 0.1, record: 0.17, opposition: 0.18, credibleWins: 0.15, form: 0.1, ranking: 0.15, activity: 0.1, stage: 0.05 }
 

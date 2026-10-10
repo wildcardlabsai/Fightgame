@@ -5,7 +5,7 @@
  */
 import { WEIGHT_CLASSES } from '../../data/weightClasses'
 import type { Day, Fighter, GameState, Id, WeightClassId } from '../types'
-import { CONTENDER_CONFIG, TITLE_DEF_BY_ID, isEligibleFor, levelOf, levelRank, type TitleLevel } from '../business/titleDefs'
+import { rankingFloor, TITLE_DEF_BY_ID, isEligibleFor, levelOf, levelRank, type TitleLevel } from '../business/titleDefs'
 import { RANKING_ORGS, RANK_ORG_BY_ID } from './orgs'
 import { getList, packList } from './records'
 import type { MediaState, RankEntry, RankList, RankingMethod, RankingOrg, RankReason } from './types'
@@ -120,8 +120,8 @@ function computeList(state: GameState, media: MediaState, org: RankingOrg, wc: W
   // Who may be on this list: every eligible, active fighter with enough fights (title bodies carry their own territory rule).
   const def = TITLE_DEF_BY_ID[org.id]
   // A title body can't rate a fighter its own title rules would turn away: the public experience floor of the level applies to the list too (an 8-2 fighter is not the world's number one).
-  const floor = def ? CONTENDER_CONFIG[def.level].floor : null
-  const minFights = Math.max(def?.minFights ?? MIN_FIGHTS_TO_RANK, floor?.fights ?? 0)
+  const floor = def ? rankingFloor(def) : null
+  const minFights = floor?.fights ?? MIN_FIGHTS_TO_RANK
   const winShare = (f: Fighter): number => { const n = totalFightsOf(f); return n ? f.record.wins / n : 0 }
   const above = def ? higherHolders(media, wc, def.level) : null
   const pool = everyone.filter((f) => totalFightsOf(f) >= minFights && (!floor || f.record.wins >= floor.wins || f.id === champId) && !(above && above.has(f.id) && f.id !== champId) && (!def || (isEligibleFor(def, f) && (winShare(f) >= def.minWinShare || f.id === champId))))
