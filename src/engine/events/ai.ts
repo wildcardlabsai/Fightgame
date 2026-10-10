@@ -57,7 +57,21 @@ function perceptionFactor(state: GameState, promo: Promotion, day: number): numb
   return Math.exp(c.bias + c.sd * keyedNormal(state.seed, 'aiperc', promo.id, day))
 }
 
-function planEvent(state: GameState, promo: Promotion, rng: Rng, playerRoster: Set<Id>): void {
+/**
+ * Put together one show for a rival promotion right now, with `reserve` fighters held back (an offer to the player is waiting for a slot on it).
+ * Same planner, same finance and roster limits as the weekly one: it returns null when the promotion cannot stage a card.
+ */
+export function stageRivalShow(state: GameState, promo: Promotion, rng: Rng, reserve: Set<Id>): BoxingEvent | null {
+  const ai = promo.ai
+  if (!ai || ai.fin.collapsing || ai.fin.state === 'insolvent') return null
+  const maxOpen = ai.fin.state === 'struggling' || ai.fin.state === 'critical' ? 1 : MAX_OPEN[promo.tier] + (ai.strategy === 'prospectFactory' ? 1 : 0)
+  if (Object.values(state.events).filter((e) => e.promotionId === promo.id && isEventOpen(e)).length >= maxOpen) return null
+  const playerRoster = new Set(Object.values(state.contracts).filter((c) => c.promotionId === state.playerPromotionId).map((c) => c.fighterId))
+  for (const id of reserve) playerRoster.add(id)
+  return planEvent(state, promo, rng, playerRoster, reserve)
+}
+
+function planEvent(state: GameState, promo: Promotion, rng: Rng, playerRoster: Set<Id>, reserve?: Set<Id>): BoxingEvent | null {
   const ai = promo.ai!
   stat(promo).attempts++
   const [lo, hi] = E.ai.leadWeeks
@@ -69,7 +83,7 @@ function planEvent(state: GameState, promo: Promotion, rng: Rng, playerRoster: S
   const contracts = Object.values(state.contracts).filter((c) => c.promotionId === promo.id)
   const needy = contracts
     .map((c) => ({ c, f: state.fighters[c.fighterId] }))
-    .filter((x) => x.f && bookable(state, x.f, day) && weeksSince(state, x.f) >= B.fights.restWeeks + 2)
+    .filter((x) => x.f && !reserve?.has(x.f.id) && bookable(state, x.f, day) && weeksSince(state, x.f) >= B.fights.restWeeks + 2)
     .sort((a, b) => weeksSince(state, b.f) - weeksSince(state, a.f))
 
   // Build the fights first (agreed, unscheduled); the venue follows from how good the card is.
@@ -134,7 +148,7 @@ function planEvent(state: GameState, promo: Promotion, rng: Rng, playerRoster: S
       tr('ev.free.booked')
     }
   }
-  const abort = () => { for (const f of fights) if (f.status === 'agreed') cancelFight(state, f, 'the show was never put together') }
+  const abort = (): null => { for (const f of fights) if (f.status === 'agreed') cancelFight(state, f, 'the show was never put together'); return null }
   tr(`ev.needy.${Math.min(needy.length, 12)}`)
   if (fights.length < 3) { stat(promo).fewFights++; tr('ev.fail.fewFights'); return abort() }
 
@@ -159,6 +173,7 @@ function planEvent(state: GameState, promo: Promotion, rng: Rng, playerRoster: S
     ev.forecast = { att: [at(1 - c.sd), at(1 + c.sd)], profit: ev.forecast?.profit ?? [0, 0] }
   }
   ev.sponsor.accepted = ev.sponsor.offers.slice().sort((a, b) => b.fixedFee - a.fixedFee).find((o) => o.minMainPopularity <= maxPop(state, ev) + 5) ?? null
+  return ev
 }
 
 function maxPop(state: GameState, ev: BoxingEvent): number {

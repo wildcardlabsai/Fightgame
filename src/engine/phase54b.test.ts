@@ -28,10 +28,13 @@ const ids = (s: GameState) => { const g = new IdGen(); g.counter = s.idCounter +
 
 /** A free agent a solvent rival could sign, and that rival, in a scratch copy. */
 function setup(s: GameState) {
-  const rival = Object.values(s.promotions).find((p) => !p.isPlayer && p.ai && !p.ai.fin.collapsing && p.tier !== 'Startup')!
+  const live = Object.entries(s.world?.pursuits ?? {})
+  const roster = (id: string) => Object.values(s.contracts).filter((c) => c.promotionId === id && c.status === 'active').length
+  // the emptiest roster among rivals with no offer already out: a fixture, so the signing can never be refused for room
+  const rival = Object.values(s.promotions).filter((p) => !p.isPlayer && p.ai && !p.ai.fin.collapsing && p.tier !== 'Startup' && !live.some(([, x]) => x.promoId === p.id)).sort((a, b) => roster(a.id) - roster(b.id) || (a.id < b.id ? -1 : 1))[0]
   rival.cash = 5_000_000
   // free the rival's roster so it is never full
-  const f = Object.values(s.fighters).find((x) => x.status === 'active' && x.contractId === null && x.record.wins >= 3)!
+  const f = Object.values(s.fighters).find((x) => x.status === 'active' && x.contractId === null && x.record.wins >= 3 && !live.some(([id]) => id === x.id))!
   return { rival, f }
 }
 

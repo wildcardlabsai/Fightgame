@@ -40,7 +40,7 @@ function OfferCard({ v }: { v: OfferView }) {
       <div className="o54-facts">
         <div><span className="k">Stakes</span>{v.stakes}</div>
         <div><span className="k">Distance</span>{v.rounds} rounds</div>
-        <div><span className="k">Hosted by</span>{v.hostLabel}</div>
+        <div><span className="k">Staged by</span>{v.hostLabel}</div>
         <div><span className="k">Date and venue</span>{v.date ? `${v.date} · ${v.venue}` : 'You choose the date'}</div>
         <div><span className="k">Fit with the plan</span>{v.fit.label}</div>
       </div>
@@ -91,7 +91,7 @@ export function OffersPanel() {
   const rows = board[seg] as OfferView[]
   return (
     <div data-testid="offers-panel">
-      <p className="o54-tabs-note">Rival promoters write to you when a fight between their fighter and yours could really be staged. Accepting turns it into an ordinary fight; countering lets them think it over for a week.</p>
+      <p className="o54-tabs-note">Rival promoters write to you when a fight between their fighter and yours could really be staged. Accepting books your fighter onto the rival’s own card, which they run; countering lets them think it over for a week.</p>
       <div className="tabs" role="tablist" aria-label="Offer status">
         {SEGS.map((s) => (
           <button key={s.key} role="tab" aria-selected={seg === s.key} className={`tab${seg === s.key ? ' active' : ''}`} onClick={() => setSeg(s.key)} data-testid={`offers-${s.key}`}>{s.label}<span className="count">{board.counts[s.key]}</span></button>

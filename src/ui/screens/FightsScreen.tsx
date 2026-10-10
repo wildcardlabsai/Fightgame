@@ -17,6 +17,7 @@ function Row({ f }: { f: FightListItem }) {
       <td className="primary" data-label="Fight">
         <div className="fighter-name"><span className={w === 0 ? 'gold' : ''}>{f.aName}</span> <span className="dim">vs</span> <span className={w === 1 ? 'gold' : ''}>{f.bName}</span></div>
         <div className="fighter-sub">{f.division} · {f.rounds} rounds{f.city ? ` · ${f.city}` : ''}</div>
+        {f.mine && <span className={`chip ${f.external ? '' : 'gold'}`} data-testid="host-chip" data-external={f.external ? 'true' : 'false'} style={{ marginRight: 6 }}>{f.external ? `On ${f.organiser}’s card` : 'Your show'}</span>}
         {f.stake && <span className={`stake stake-${f.stake.kind}`} data-testid="stake-chip">{f.stake.label}</span>}
       </td>
       <td data-label="Records" className="num">{f.aRecord} / {f.bRecord}</td>

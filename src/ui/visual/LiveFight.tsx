@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import type { FightView, ResultView } from '../../engine/fightViews'
+import { nightProgress } from '../../engine/eventViews'
 import { control, finishCard, PLAY_MODES, roundCommentary, roundsWon, stamina, totalsThrough, type PlayMode } from '../../presentation/fightPlayback'
 import { advance, buildTimeline, clockNow, finish, keyEvents, nextEvent, previousEvent, restartEvent, shownRounds, SPEEDS, startPlayback, stepAt, type Playback, type Speed, type TlEvent } from '../../presentation/timeline'
 import { emitGameEvent } from '../../store/gameEvents'
@@ -131,6 +132,11 @@ export function LiveFight({ fv, r, live, onDone }: { fv: FightView; r: ResultVie
   const replay = () => begin(stage === 'key' ? 'key' : stage === 'result' ? (prefMode === 'key' ? 'key' : 'watch') : 'watch')
   const exit = () => { setOverlay(false); if (fv.eventId) navigate('event', fv.eventId); else navigate('fights') }
   const exitLabel = fv.eventId ? 'Return to event' : 'Return to fights'
+  const runNext = useGame((st) => st.runNextEventFight)
+  const gameNow = useGame((st) => st.game)
+  const night = useMemo(() => (fv.eventId && gameNow ? nightProgress(gameNow, fv.eventId) : null), [gameNow, fv.eventId])
+  const nextBout = finished && night?.canRun && night.next && night.next.fightId !== fv.id ? night.next : null
+  const nextLabel = nextBout ? (nextBout.slot === 'MAIN EVENT' ? 'Main event: ring the bell' : 'Next fight') : ''
   const eventDone = useGame((st) => (fv.eventId ? ['completed', 'settled', 'archived'].includes(st.game?.events[fv.eventId]?.status ?? '') : false))
 
   // ---- derived presentation state (all from the recorded result)
@@ -306,6 +312,7 @@ export function LiveFight({ fv, r, live, onDone }: { fv: FightView; r: ResultVie
         {stage === 'key' && !finished && <button type="button" className="btn small ghost" data-testid="key-next" onClick={() => setPb((p) => nextEvent(keyTl, p))}>Next ▸▸</button>}
         {!finished && <button type="button" className="btn small ghost" data-testid="lf-skip" onClick={skip}>Skip to result</button>}
         <button type="button" className="btn small ghost" data-testid="lf-replay" onClick={replay}>Replay</button>
+        {nextBout && <button type="button" className="btn small primary" data-testid="lf-next-fight" onClick={() => runNext(night!.eventId)} aria-label={`${nextLabel}: ${nextBout.aName} versus ${nextBout.bName}`}>{nextLabel} ▸ <span className="lf-next-who">{nextBout.aName} v {nextBout.bName}</span></button>}
         {finished && eventDone && <button type="button" className="btn small primary" data-testid="lf-end-event" onClick={exit}>End event ▸</button>}
         {finished && <button type="button" className="btn small ghost" data-testid="lf-full" onClick={() => begin('watch')}>View full fight</button>}
         {finished && <button type="button" className="btn small ghost" data-testid="lf-keys" onClick={() => begin('key')}>View key events</button>}

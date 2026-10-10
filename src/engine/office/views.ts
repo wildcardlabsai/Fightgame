@@ -95,7 +95,7 @@ export function offerView(state: GameState, o: FightProposal): OfferView | null 
   return {
     id: o.id, status: o.status, statusLabel: STATUS_LABEL[o.status], tab, promotion: promo.name, promoter: promo.promoterName, promotionTier: promo.tier, standing: standingOf(relation(state, 'promoter', promo.id)),
     reason: OFFER_REASON_LABEL[o.reason], message: o.message, mine: fighterLine(state, y), theirs: fighterLine(state, x), stakes: stakesLabel(o), rounds: o.rounds,
-    hostLabel: o.host === 'you' ? 'You host' : `${promo.name} host`, host: o.host, date: o.day ? formatDay(o.day, true) : null, venue: venue ? `${venue.name}, ${venue.city}` : null, eventName: ev?.name ?? null,
+    hostLabel: o.host === 'you' ? 'You host' : `Their card: ${ev?.name ?? promo.name}`, host: o.host, date: o.day ? formatDay(o.day, true) : null, venue: venue ? `${venue.name}, ${venue.city}` : null, eventName: ev?.name ?? null,
     terms: { label: o.host === 'you' ? `Purse for ${x.firstName} ${x.lastName}` : `Fee for ${y.firstName} ${y.lastName}`, purse: o.terms.purse, winBonus: o.terms.winBonus, rematch: o.terms.rematch, note: net !== null ? `Net to your promotion after ${y.firstName}'s contract purse: ${net >= 0 ? '' : '-'}£${Math.abs(net).toLocaleString('en-GB')}.` : 'Paid by your promotion.' },
     responsibilities, weeksLeft: isLive(o) ? Math.max(0, Math.ceil((o.expiresDay - state.today) / WEEK)) : null,
     history: o.history.map((h) => ({ by: h.by === 'you' ? 'You' : promo.name, day: formatDay(h.day, false), purse: h.terms.purse, note: h.note })),
@@ -111,7 +111,8 @@ export function offersBoard(state: GameState): OffersBoard {
   const by = (t: OfferView['tab']) => all.filter((v) => v.tab === t).sort((a, b) => (a.weeksLeft ?? 99) - (b.weeksLeft ?? 99) || (a.id < b.id ? -1 : 1))
   const incoming = by('incoming'), active = by('active'), sent = by('sent')
   const agreed = by('agreed').slice(0, 12)
-  const closed = by('closed').slice(0, 12)
+  const when = (v: OfferView) => state.office!.offers[v.id].closedDay ?? state.office!.offers[v.id].createdDay
+  const closed = by('closed').sort((a, b) => when(b) - when(a) || (a.id < b.id ? -1 : 1)).slice(0, 12) // newest first: what you just declined is on top
   const negotiating = Object.values(state.fights).filter((f) => f.status === 'negotiating' && f.organiserId === state.playerPromotionId).map((f) => ({ fightId: f.id, text: `${fighterName(state.fighters[f.sideA.fighterId])} v ${fighterName(state.fighters[f.sideB.fighterId])}` }))
   return { incoming, active, sent, agreed, closed, negotiating, counts: { incoming: incoming.length, active: active.length + negotiating.length, sent: sent.length, agreed: by('agreed').length, closed: by('closed').length } }
 }

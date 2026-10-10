@@ -34,6 +34,9 @@ export interface FightListItem {
   stake?: { kind: 'title' | 'unification' | 'eliminator' | 'mandatory'; label: string } | null
   /** The player's own fight is a proposal still being negotiated, an agreed booking, or already staged. */
   phase?: 'negotiating' | 'booked' | 'done'
+  /** Staged by another promotion (a rival's card) - the booking is theirs; yours is the fighter's side of it. */
+  external: boolean
+  organiser: string
 }
 
 export interface RoundView {
@@ -175,6 +178,7 @@ export function fightListItem(state: GameState, id: Id): FightListItem | null {
     aRecord: f.sideA.preRecord, bRecord: f.sideB.preRecord, division: viewsOf(state).fighter(A.id)!.division, rounds: f.scheduledRounds, city: f.city,
     mine: fightInvolvesPlayer(state, f), resultText: r ? resultHeadline(f, nA, nB) : undefined, method: r ? METHOD_LABEL[r.method] : undefined,
     winner: r ? r.winner : undefined, importance: r?.importance, weeksAway: f.day ? Math.max(0, weeksBetween(state.today, f.day)) : undefined,
+    external: f.organiserId !== state.playerPromotionId, organiser: state.promotions[f.organiserId]?.name ?? '—',
     stake: stakeOf(state, f), phase: f.status === 'negotiating' ? 'negotiating' : f.status === 'postFight' ? 'done' : 'booked',
   }
 }
@@ -239,7 +243,7 @@ export function fightView(state: GameState, id: Id): FightView | null {
       patience: neg.patience >= 3 ? 'Patient' : neg.patience >= 2 ? 'Cooling' : 'Running out of patience', status: neg.status, suggested: suggested(state, fight.sideB.fighterId),
     } : null,
     scheduleOptions: fight.status === 'agreed' ? scheduleOptions(state, id) : [],
-    stakes, matchup, previousMeetings: prev, canRunNight: fight.status === 'fightNight' && mine, eventId: fight.eventId ?? null, eventName: fight.eventId ? state.events[fight.eventId]?.name ?? null : null, cancelReason: fight.cancelReason ?? null, result: res,
+    stakes, matchup, previousMeetings: prev, canRunNight: fight.status === 'fightNight' && mine && isPlayerOrg, eventId: fight.eventId ?? null, eventName: fight.eventId ? state.events[fight.eventId]?.name ?? null : null, cancelReason: fight.cancelReason ?? null, result: res,
     headline: r ? resultHeadline(fight, nA, nB) : `${nA} vs ${nB}`,
     title: titleView(fight.title),
     seriesNote: fight.seriesOf ? 'Second fight of a two-fight deal' : Object.values(state.fights).some((x) => x.seriesOf === id) ? 'First fight of a two-fight deal' : null,

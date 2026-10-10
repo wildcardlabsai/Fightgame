@@ -16,10 +16,10 @@
 import { weightClassLabel } from '../../data/weightClasses'
 import { fighterName, totalFights } from '../fighters'
 import { regionOf } from '../../data/nations'
-import { keyedFloat } from '../rng'
+import { keyedFloat, keyedRng } from '../rng'
 import { appraise, baseMoney, valueOf } from '../market'
 import { postMessage } from '../messages'
-import { agreeFight, suggestedFightOffer } from '../fightNegotiation'
+import { agreeFight } from '../fightNegotiation'
 import { cancelFight, createFight, fightAvailability, lockKey, validateMatch } from '../fights'
 import { transition } from '../fight/lifecycle'
 import { stakesBetween } from '../business/stakes'
@@ -29,6 +29,7 @@ import { rivalryStrength } from '../media/narratives'
 import { rankIn } from '../media/rankings'
 import { attachFight, eventAcceptsFight } from '../events/events'
 import { isEventOpen } from '../events/lifecycle'
+import { stageRivalShow } from '../events/ai'
 import { settleRounds } from '../business/fightRounds'
 import { requiredRounds } from '../business/rounds'
 import { bookable, weeksSince } from '../systems/aiFights'
@@ -79,7 +80,7 @@ function myFree(state: GameState, day: number): Fighter[] {
 /** A rival show that could take another fight in the next few months: venue room, date far enough away, rival active. */
 function openSlot(state: GameState, promoId: Id, x: Fighter, y: Fighter): { ev: string } | null {
   for (const ev of Object.values(state.events).sort((a, b) => a.day - b.day)) {
-    if (ev.promotionId !== promoId || !isEventOpen(ev) || ev.day < state.today + 5 * WEEK || ev.day > state.today + 14 * WEEK) continue
+    if (ev.promotionId !== promoId || !isEventOpen(ev) || ev.day < state.today + 5 * WEEK || ev.day > state.today + 15 * WEEK) continue
     const v = state.venues[ev.venueId]
     const onCard = ev.card.map((id) => state.fights[id]).filter((f): f is Fight => !!f && f.status !== 'cancelled')
     if (!v || onCard.length >= v.maxFights - 1) continue
@@ -202,27 +203,26 @@ function buildProposal(state: GameState, promoId: Id, c: Candidate): FightPropos
   const promo = state.promotions[promoId]
   const wk = weekIndex(state)
   const { x, y } = c
-  const slot = keyedFloat(state.seed, 'offerhost', promoId, wk) < 0.6 ? openSlot(state, promoId, x, y) : null
-  const host: 'you' | 'them' = slot ? 'them' : 'you'
   const wc = (x.weightClass === y.weightClass ? x.weightClass : y.weightClass) // the bigger man's class governs a catchweight (as in fight creation)
   const st = state.media?.effects ? stakesBetween(state, x.id, y.id, wc) : { kind: 'standard' as const, level: null, bodies: [] as string[] }
   const rounds = (() => { const need = requiredRounds({ kind: st.kind === 'unification' ? 'unification' : st.kind, level: st.level ?? null } as never); return need ?? (totalFights(x) + totalFights(y) < 16 ? 6 : 8) })()
   const markup = 1 + 0.12 * keyedFloat(state.seed, 'offermark', promoId, wk)
-  let terms: OfferTerms
-  let day: number | null = null
-  if (host === 'you') {
-    const purse = round100(suggestedFightOffer(state, x.id).purseB * markup)
-    if (state.promotions[state.playerPromotionId].cash < purse * 2.5) return null // the player could not pay for it: not a real proposal
-    terms = { purse, winBonus: round100(purse * 0.1), rematch: false }
-  } else {
-    const ev = state.events[slot!.ev]
-    day = ev.day
-    const ct = y.contractId ? state.contracts[y.contractId] : null
-    const fee = round100(Math.max(baseMoney(valueOf(state, y)).purse * 0.95 * (2 - markup), (ct?.basePurse ?? 0) * 1.15))
-    const xc = x.contractId ? state.contracts[x.contractId] : null
-    if (promo.cash < (fee + (xc?.basePurse ?? 0)) * 3) return null // the rival must afford its side
-    terms = { purse: fee, winBonus: round100(fee * 0.1), rematch: false }
+  // Since Phase 6.3 every new proposal is a place on the RIVAL's own show: the rival is the organiser, and the player never has to find a date or a card.
+  // If it has no open show with room, it puts one together now (the weekly planner, with the same finance and roster limits) - or makes no offer.
+  const ct = y.contractId ? state.contracts[y.contractId] : null
+  const fee = round100(Math.max(baseMoney(valueOf(state, y)).purse * 0.95 * (2 - markup), (ct?.basePurse ?? 0) * 1.15))
+  const xc = x.contractId ? state.contracts[x.contractId] : null
+  if (promo.cash < (fee + (xc?.basePurse ?? 0)) * 3) return null // the rival must afford its side
+  let slot = openSlot(state, promoId, x, y)
+  if (!slot) {
+    const show = stageRivalShow(state, promo, keyedRng(state.seed, 'offershow', promoId, wk), new Set([x.id]))
+    if (show) { dg('showStaged'); slot = openSlot(state, promoId, x, y) }
   }
+  if (!slot) { dg('noShow'); return null }
+  const host: 'you' | 'them' = 'them'
+  const ev = state.events[slot.ev]
+  const day: number | null = ev.day
+  const terms: OfferTerms = { purse: fee, winBonus: round100(fee * 0.1), rematch: false }
   const id = nextOfficeId(state, 'of')
   const p: FightProposal = {
     id, promoId, mine: y.id, theirs: x.id, reason: host === 'them' && c.reason === 'development' && keyedFloat(state.seed, 'offerrep', id) < 0.3 ? 'replacement' : c.reason, host, eventId: slot?.ev ?? null, day, rounds,

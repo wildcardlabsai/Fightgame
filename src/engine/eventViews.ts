@@ -10,6 +10,7 @@ import { fighterName } from './fighters'
 import { STATUS_LABEL } from './fight/lifecycle'
 import { resultHeadline } from './fight/narrative'
 import { fightInvolvesPlayer } from './fights'
+import { fightListItem } from './fightViews'
 import { totalCosts, totalRevenue } from './eventFinance'
 import {
   broadcastTerms, hireFor, cardFights, cardQuality, fightAppeal, forecastEvent, inventory, qualityLabel, ppvRefPrice, eventInterest,
@@ -171,6 +172,33 @@ export function cardSlots(state: GameState, ev: BoxingEvent): CardSlot[] {
       winner: r ? r.winner : undefined, method: r ? r.method : undefined,
     }
   })
+}
+
+/** Where the night stands: what has been fought, what is next (in card order, the same order the event runs them), and whether the show is over. */
+export interface NightProgress {
+  eventId: Id; name: string; mine: boolean
+  total: number; done: number; remaining: number
+  /** The next bout to be run, or null when every bout is fought. */
+  next: (CardSlot & { stake: string | null; position: string }) | null
+  /** Every bout is fought: the show is complete (or about to settle). */
+  complete: boolean
+  /** The night can be advanced by the player right now (the show is theirs and in fight week / live). */
+  canRun: boolean
+}
+
+export function nightProgress(state: GameState, eventId: Id): NightProgress | null {
+  const ev = state.events[eventId]
+  if (!ev) return null
+  const slots = cardSlots(state, ev).filter((c) => c.statusKey !== 'cancelled')
+  const done = slots.filter((c) => !!c.result).length
+  const nx = slots.find((c) => c.statusKey === 'fightNight') ?? null
+  const mine = ev.promotionId === state.playerPromotionId
+  return {
+    eventId, name: ev.name, mine, total: slots.length, done, remaining: slots.length - done,
+    next: nx ? { ...nx, stake: fightListItem(state, nx.fightId)?.stake?.label ?? null, position: `Bout ${slots.indexOf(nx) + 1} of ${slots.length}` } : null,
+    complete: slots.length > 0 && done === slots.length,
+    canRun: mine && ['fightWeek', 'live'].includes(ev.status),
+  }
 }
 
 export function salesView(state: GameState, ev: BoxingEvent): SalesView {

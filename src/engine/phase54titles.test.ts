@@ -56,7 +56,7 @@ describe('division moves and title relinquishment', () => {
 
   it('a booked fighter cannot move; only one move a year; the camp must agree; the player can only move their own fighters', () => {
     const s = clone(world())
-    const f = Object.values(s.fighters).find((x) => x.status === 'active' && !x.activeFightId && (x.lastFightDay === null || s.today - x.lastFightDay > 28))!
+    const f = Object.values(s.fighters).find((x) => x.status === 'active' && !x.activeFightId && (x.lastFightDay === null || s.today - x.lastFightDay > 28) && !divisionMoveOptions(s, x)[0]?.blocked)!
     const o = divisionMoveOptions(s, f)[0]
     f.activeFightId = 'f_x'
     expect(applyDivisionMove(s, f.id, o.to)).toMatch(/fight booked/i)
@@ -64,6 +64,7 @@ describe('division moves and title relinquishment', () => {
     expect(applyDivisionMove(s, f.id, o.to)).toBeNull()
     expect(applyDivisionMove(s, f.id, divisionMoveOptions(s, f)[0].to)).toMatch(/within the last year/i)
     const mine = Object.values(s.fighters).find((x) => x.contractId && s.contracts[x.contractId]?.promotionId === s.playerPromotionId)!
+    mine.lastFightDay = null; if (s.business?.moved) delete s.business.moved[mine.id] // a fixture: this fighter is free to move (the world may have moved or booked them)
     const other = Object.values(s.fighters).find((x) => x.status === 'active' && x.id !== mine.id && !(x.contractId && s.contracts[x.contractId]?.promotionId === s.playerPromotionId))!
     expect(changeDivision(s, other.id, divisionMoveOptions(s, other)[0].to).ok).toBe(false)
     mine.promoRelations[s.playerPromotionId] = -40

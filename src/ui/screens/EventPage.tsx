@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { CampaignPanel } from '../office/CampaignPanel'
 import { formatDay } from '../../engine/calendar'
-import { eventView, type CardSlot, type EventView } from '../../engine/eventViews'
+import { eventView, nightProgress, type CardSlot, type EventView } from '../../engine/eventViews'
 import { eventAdvice, needsConfirmation, visibleAdvice } from '../../engine/advisor'
 import type { BroadcastKind, MarketingLevel, PromoStrategy } from '../../engine/types'
 import { useGame } from '../../store/gameStore'
@@ -100,7 +100,7 @@ export function EventPage({ id }: { id: string }) {
 
       {v.can.run && <NightPanel v={v} runNext={runNext} nightFight={nightFight} />}
       {v.result && !presenting && <CompletePanel v={v} />}
-      {!v.can.run && nightFight && onCard && (presenting || latched === nightFight || (!v.result && v.open)) && <FightPage id={nightFight} />}
+      {!v.can.run && nightFight && onCard && (presenting || latched === nightFight || (!v.result && v.open)) && <><FightPage id={nightFight} /><NightBar eventId={v.id} runNext={runNext} /></>}
 
       <div className="grid-2" style={{ alignItems: 'start' }}>
         <div>
@@ -375,6 +375,40 @@ function FinancePanel({ v }: { v: EventView }) {
   )
 }
 
+/**
+ * Keeps the night moving from the result on screen: the next bout (named, in card order) or, after the last, a clear "show complete".
+ * It follows the engine's own order and only appears once the fight on screen has been revealed, so a bout cannot be run twice or skipped past.
+ */
+function NightBar({ eventId, runNext }: { eventId: string; runNext: (id: string) => string | null }) {
+  const game = useGame((s) => s.game)!
+  const nightFight = useGame((s) => s.nightFight)
+  const justRan = useGame((s) => s.justRan)
+  const p = useMemo(() => nightProgress(game, eventId), [game, eventId])
+  if (!p || !nightFight || justRan === nightFight || p.done === 0) return null
+  if (p.next && p.canRun) {
+    const main = p.next.slot === 'MAIN EVENT'
+    return (
+      <div className="night-bar" role="region" aria-label="Fight night progress" data-testid="night-bar" data-state="next">
+        <div className="nb-text">
+          <span className="caps">{p.done} of {p.total} bouts fought · {main ? 'Main event next' : p.next.position}</span>
+          <b>{p.next.aName} <span className="dim">v</span> {p.next.bName}</b>
+          <span className="dim">{p.next.slot.toLowerCase()} · {p.next.division} · {p.next.rounds} rounds{p.next.stake ? ` · ${p.next.stake}` : ''}</span>
+        </div>
+        <button className="btn primary big" data-testid="next-fight" onClick={() => runNext(eventId)}>{main ? 'Main event: ring the bell ▸' : 'Next fight ▸'}</button>
+      </div>
+    )
+  }
+  if (p.complete) {
+    return (
+      <div className="night-bar done" role="region" aria-label="Fight night progress" data-testid="night-bar" data-state="complete">
+        <div className="nb-text"><span className="caps">Show complete</span><b>All {p.total} bouts are fought</b></div>
+        <button className="btn primary big" data-testid="show-summary" onClick={() => document.querySelector('[data-testid=event-complete]')?.scrollIntoView?.({ block: 'start' })}>Show summary ▸</button>
+      </div>
+    )
+  }
+  return null
+}
+
 function NightPanel({ v, runNext, nightFight }: { v: EventView; runNext: (id: string) => string | null; nightFight: string | null }) {
   const act = useGame((s) => s.eventDo)
   const pending = v.card.filter((c) => c.statusKey === 'fightNight')
@@ -404,6 +438,7 @@ function NightPanel({ v, runNext, nightFight }: { v: EventView; runNext: (id: st
       )}
       {done.length > 0 && <div className="dim" style={{ margin: '10px 0', fontSize: 13.5 }}>{done.length} fight{done.length > 1 ? 's' : ''} done tonight. Results are on the card below.</div>}
       {nightFight && <FightPage id={nightFight} />}
+      <NightBar eventId={v.id} runNext={runNext} />
     </div>
   )
 }
