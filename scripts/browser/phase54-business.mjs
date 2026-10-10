@@ -167,7 +167,7 @@ for (const w of [1280, 1024, 390]) {
   await go(page, '#/titles')
   check('titles: opens on My fighters with one card per active fighter', (await page.getByTestId('path-card').count()) >= 1 && (await page.getByTestId('title-paths').count()) === 1)
   check('titles: my fighters has no overflow', (await overflow(page)) <= 1, String(await overflow(page)))
-  check('titles: every card says what is possible or what is missing', (await page.locator('[data-testid=path-card]').evaluateAll((els) => els.every((e) => /Request title fight|Can challenge now|Next belt|Cannot ask yet/i.test(e.textContent || '') || e.querySelector('[data-testid=path-none]')))))
+  check('titles: every card says what is possible or what is missing', (await page.locator('[data-testid=path-card]').evaluateAll((els) => els.every((e) => /Request title fight|Can challenge now|Next belt|Long-term goal|Cannot ask yet/i.test(e.textContent || '') || e.querySelector('[data-testid=path-none]')))))
   await page.screenshot({ path: `${shots}/titles-mine-${w}.png`, fullPage: true })
   await page.locator('[data-testid=path-card] .bz-pname').first().click(); await page.waitForTimeout(400)
   check('titles: card name opens the profile', /#\/fighter\//.test(await page.evaluate(() => location.hash)))

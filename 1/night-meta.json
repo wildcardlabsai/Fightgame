@@ -1,0 +1,19 @@
+{
+ "ko": {
+  "seed": "e2e-night-0",
+  "eventId": "ev_dm",
+  "fightId": "ft_dr",
+  "rounds": 2,
+  "round": 2,
+  "kd": 1,
+  "method": "KO"
+ },
+ "dec": {
+  "seed": "e2e-night-1",
+  "eventId": "ev_dm",
+  "fightId": "ft_dv",
+  "rounds": 4,
+  "kd": 0,
+  "method": "UD"
+ }
+}

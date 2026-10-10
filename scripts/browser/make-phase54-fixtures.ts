@@ -69,12 +69,14 @@ const o = structuredClone(sOrd)
   for (const [key, rec] of Object.entries(media.titles)) {
     const [body, wc] = key.split('|')
     if (!rec.c || levelOf(body) !== 'world' || rec.mand || divisions.has(wc) || used >= mineContracts.length || used >= 6) continue
-    const f = getList(media, body, wc as never)?.e.find((e) => e.r >= 1 && e.r <= 6 && e.f !== rec.c && o.fighters[e.f].status === 'active' && !o.fighters[e.f].contractId && qualifiesFor(o, body, e.f))
+    const f = getList(media, body, wc as never)?.e.find((e) => e.r >= 1 && e.r <= 6 && e.f !== rec.c && o.fighters[e.f].status === 'active' && !o.fighters[e.f].activeFightId && qualifiesFor(o, body, e.f))
     if (!f) continue
     const x = o.fighters[f.f], champ = o.fighters[rec.c]
     const c = mineContracts[used++]
     divisions.add(wc)
     o.fighters[c.fighterId].contractId = null
+    // credible contenders are scarce and usually signed elsewhere: release their contract so the player can take them over
+    if (x.contractId && o.contracts[x.contractId]) { o.contracts[x.contractId].status = 'released'; x.contractId = null }
     c.fighterId = x.id; x.contractId = c.id
     for (const id of [x.id, champ.id]) { const q = o.fighters[id]; q.activeFightId = null; q.injury = null; q.suspendedUntil = null; q.lastFightDay = null }
     rec.mand = { challenger: x.id, cn: `${x.firstName} ${x.lastName}`, ordered: o.today, due: o.today + 26 * 7 }
