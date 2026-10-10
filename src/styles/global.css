@@ -270,7 +270,7 @@ a { color: inherit; text-decoration: none; }
 .title { min-height: 100vh; min-height: 100dvh; display: grid; grid-template-columns: minmax(0, 1fr) clamp(380px, 36vw, 760px); position: relative; overflow: hidden; background: radial-gradient(1000px 600px at 20% 30%, rgba(225,29,42,.22), transparent 70%), #050507; }
 .title::before { content: ''; position: absolute; inset: 0; background: repeating-linear-gradient(115deg, rgba(255,255,255,.025) 0 2px, transparent 2px 22px); pointer-events: none; }
 .title-art { display: grid; place-items: center; padding: 30px; position: sticky; top: 0; align-self: start; height: 100vh; height: 100dvh; }
-.title-art img { width: min(560px, 100%); mix-blend-mode: screen; -webkit-mask-image: radial-gradient(closest-side, #000 62%, transparent 100%); mask-image: radial-gradient(closest-side, #000 62%, transparent 100%); }
+.title-art img { width: min(560px, 100%); height: auto; filter: drop-shadow(0 6px 24px rgba(0,0,0,.6)); }
 .title-panel h1 + p { margin-top: 10px; }
 .title-panel { position: relative; padding: 44px 40px; background: rgba(8,8,11,.88); border-left: 1px solid var(--line); display: flex; flex-direction: column; gap: 18px; justify-content: center; overflow-y: auto; }
 .form-grid { display: grid; gap: 16px; }
@@ -843,7 +843,7 @@ body.fight-night .bottomnav, body.fight-night .topnav { display: none !important
 .mobile-only { display: none; }
 .topnav { position: sticky; top: 0; z-index: 40; display: flex; align-items: stretch; gap: 0; min-height: 58px; background: linear-gradient(180deg, #0d0b0e, #08080b); border-bottom: 2px solid var(--red); }
 .tn-brand { display: flex; align-items: center; padding: 0 18px 0 16px; border-right: 1px solid var(--line); }
-.tn-brand img { height: 40px; width: auto; mix-blend-mode: screen; display: block; }
+.tn-brand img { height: 40px; width: auto; display: block; }
 .tn-primary { list-style: none; display: flex; align-items: stretch; flex: 1; min-width: 0; padding-left: 8px; }
 .tn-li { position: relative; display: flex; }
 .tn-tab { display: flex; align-items: center; gap: 8px; padding: 0 20px; font-family: var(--display); font-weight: 800; font-size: 17px; letter-spacing: .1em; text-transform: uppercase; color: var(--dim); background: transparent; border: 0; position: relative; transition: color .15s, background .15s; }

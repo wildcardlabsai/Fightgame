@@ -69,7 +69,7 @@ export function TitleScreen() {
 
   return (
     <div className="title">
-      <div className="title-art"><img src={`${import.meta.env.BASE_URL}brand/badge.png`} alt="Fight Empire — Boxing Management Simulation" /></div>
+      <div className="title-art"><img src={`${import.meta.env.BASE_URL}brand/the-promoter.png`} alt="The Promoter — Boxing Management Simulation" /></div>
       <div className="title-panel">
         {!creating ? (
           <>
