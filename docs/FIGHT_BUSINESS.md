@@ -706,3 +706,17 @@ closed offers are listed newest first; a rival's fight never shows a "ring the b
 division, rounds and stake, and completion. The Fight Night overlay shows "Next fight / Main event: ring the bell" (`lf-next-fight`) once a result is revealed;
 the event page keeps a sticky `night-bar` (above the mobile bottom nav) with the same action, and after the last bout it reads "Show complete". The action
 calls the existing `runNextEventFight`; nothing about the bell, simulation, post-fight or settlement logic changed.
+
+## Phase 6.4 - Fight Night presentation and career stakes
+
+Presentation only: scoring, stoppage logic, finances, attributes, rankings, title rules and saves are untouched; every new line is read from existing state.
+
+- **The belt at stake** (`fightStakes.ts`, `TitleStakeView`): from `fight.title`. Before the bell the champion is whoever the belt record (`media.titles`) holds for the fight's bodies;
+  a vacant belt, an eliminator and a unification bout say so. After the bell the belt record has moved on, so the champion/challenger roles and the outcome lines come from the
+  career log entries written for that day (`TITLE_DEFENCE` / `TITLE_WON` / `TITLE_LOST` / `UNIFIED`...). If the engine logged nothing, nothing is shown.
+- **Consequences** (`ResultView.consequences`): the same career-log read for each fighter (title change, defence, upset, first defeat, losing streak, rankings). Shown in the Fight Night
+  result ("What it means") and the fight page's Consequences panel.
+- **Fight Night overlay**: once a bout ends the result comes first (headline, method, round, scorecards, belt banner); the mode and speed pickers are hidden because they no longer
+  apply, the Next fight button names the fighters on two lines, and toasts move to the top so they never cover the controls. Scorecards state the score order and who each judge favoured.
+- **Cards**: the title chip on the main-event block, the card rows and the night banner; "Your fighter" marks on cards; a rival's show carries an explicit "they stage this show" banner and no run controls.
+- **Fixtures**: `scripts/browser/make-phase64-fixtures.ts` (a real title night in fight week), screenshots by `phase64-shots.mjs`, behaviour checks in `phase64-ui.mjs`.
