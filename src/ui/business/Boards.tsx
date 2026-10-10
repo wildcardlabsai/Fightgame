@@ -41,7 +41,7 @@ export function ContenderList({ card, paths }: { card: BeltCard; paths?: Map<str
             <li key={c.id} className="bz-wrap">
               <div className={`bz-crow${c.mine ? ' mine' : ''}${c.inChallengeRange ? '' : ' outside'}`}>
                 <span className="bz-rank num">#{c.rank}</span>
-                <span className="bz-who"><button type="button" className="bz-name" onClick={() => navigate('fighter', c.id)}>{c.name}</button> <span className="dim bz-rec">{c.record}</span>{c.mine && <span className="chip gold">YOURS</span>}<TagChip tag={c.tag} /><StatusChip row={c} /></span>
+                <span className="bz-who"><button type="button" className="bz-name" onClick={() => navigate('fighter', c.id)}>{c.name}</button> <span className="dim bz-rec">{c.record}</span>{c.mine && <span className="chip mine" data-testid="mine-chip">YOUR FIGHTER</span>}<TagChip tag={c.tag} /><StatusChip row={c} /></span>
                 {target ? <span className="bz-req"><RequestButton fighterId={c.id} target={target} small /></span> : null}
                 <span className="dim bz-why" title={c.reason}>{c.reason}</span>
               </div>
@@ -71,9 +71,10 @@ export function BeltCardView({ card, paths }: { card: BeltCard; paths?: Map<stri
           <span className={`chip ${tone}`}>{label}</span>
         </header>
         {card.champion ? (
-          <div className="bz-champ">
+          <div className={`bz-champ${card.champion.mine ? ' mine' : ''}`}>
+            <div className="caps bz-eyebrow" data-testid="champ-eyebrow">{card.champion.mine ? 'Champion · your fighter' : 'Champion'}</div>
             <button type="button" className="bz-champ-name display" onClick={() => navigate('fighter', card.champion!.id)}>{card.champion.name}</button>
-            {card.champion.mine && <span className="chip gold">YOURS</span>}
+            {card.champion.mine && <span className="chip mine" data-testid="mine-chip">YOUR FIGHTER</span>}
             <div className="dim" title={`Champion since ${formatDay(card.champion.sinceDay, false)}`}>{card.champion.record} · {weeks(card.champion.weeks)} as champion · {card.champion.defences} defence{card.champion.defences === 1 ? '' : 's'}</div>
           </div>
         ) : <div className="bz-champ"><div className="bz-champ-name display dim">{card.state === 'vacant' ? 'VACANT' : 'NOT CONTESTED'}</div></div>}
@@ -87,7 +88,7 @@ export function BeltCardView({ card, paths }: { card: BeltCard; paths?: Map<stri
             <ul className="bz-hlist">{card.history.map((r, i) => <li key={`${r.id}${r.from}${i}`}><span className="chip">FORMER CHAMPION</span> <b>{r.name}</b> <span className="dim">{formatDay(r.from, false)}–{formatDay(r.to, false)} · {r.defences} def. · {r.how}</span></li>)}</ul>
           </details>
         )}
-        <button type="button" className="bz-toggle" aria-expanded={open} aria-controls={listId} onClick={() => setOpen(!open)}>{open ? 'Hide' : 'Show'} contenders ({card.contenders.length})</button>
+        <button type="button" className="bz-toggle" aria-expanded={open} aria-controls={listId} onClick={() => setOpen(!open)}>{open ? 'Hide' : 'Show'} challengers ({card.contenders.length})</button>
         <div id={listId} hidden={!open}>{open && <ContenderList card={card} paths={paths} />}</div>
       </article>
     </div>

@@ -482,3 +482,5 @@ export function deskAdvice(state: GameState, mode: AdvisorMode, cap = 4): Advice
 export { bridgeView, type BridgeView } from './systems/bridge'
 export { breakEven, CONFIDENCE_LABEL, type BreakEven } from './systems/breakEven'
 export { signingForecast, type SigningForecast } from './systems/signingForecast'
+
+export { FIGHT_ASSESS_HINT } from './business/terms'

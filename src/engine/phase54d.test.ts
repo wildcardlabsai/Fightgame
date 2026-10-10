@@ -173,7 +173,7 @@ describe('post-fight decisions', () => {
 
   it('choosing acts through the existing systems, once: fast-track sets the plan, rebuild sets the objective', () => {
     const s = clone(world())
-    const me = myFighters(s)[0], opp = sameDivision(s, me, true)!
+    const me = myFighters(s).find((f) => sameDivision(s, f, true))!, opp = sameDivision(s, me, true)!
     const o = officeOf(s); o.reviews = {}
     o.reviews.rv1 = { id: 'rv1', kind: 'breakout', fighterId: me.id, oppId: opp.id, fightId: 'none', createdDay: s.today, expiresDay: s.today + REVIEW_WEEKS * 7, status: 'open' }
     o.reviews.rv2 = { id: 'rv2', kind: 'setback', fighterId: me.id, oppId: opp.id, fightId: 'none', createdDay: s.today, expiresDay: s.today + REVIEW_WEEKS * 7, status: 'open' }
@@ -193,7 +193,7 @@ describe('post-fight decisions', () => {
 
   it('a rematch decision opens the ordinary fight negotiation, and lapses without penalty when ignored or stale', () => {
     const s = clone(world())
-    const me = myFighters(s)[0], opp = sameDivision(s, me, false)!
+    const me = myFighters(s).find((f) => sameDivision(s, f, false))!, opp = sameDivision(s, me, false)!
     const o = officeOf(s); o.reviews = {}
     o.reviews.rv3 = { id: 'rv3', kind: 'rematch', fighterId: me.id, oppId: opp.id, fightId: 'none', createdDay: s.today, expiresDay: s.today + REVIEW_WEEKS * 7, status: 'open' }
     const r = answerReview(s, 'rv3', 'pursue')
@@ -217,7 +217,7 @@ describe('post-fight decisions', () => {
   it('live decisions are bounded and a fighter has at most one', () => {
     const s = clone(world())
     const fs = myFighters(s)
-    const opp = sameDivision(s, fs[0], true)!
+    const opp = sameDivision(s, fs.find((f) => sameDivision(s, f, true)) ?? fs[0], true)!
     const o = officeOf(s); o.reviews = {}
     // a made-up winning upset result for each fighter, processed twice
     for (const f of fs) {
@@ -235,7 +235,7 @@ describe('post-fight decisions', () => {
 describe('reactions of camps and rivals', () => {
   it('beating a rival promotion\'s favourite cools them once; a fighter\'s camp warms to a win in a real test', () => {
     const s = clone(world())
-    const me = myFighters(s)[0], opp = sameDivision(s, me, true)!
+    const me = myFighters(s).find((f) => sameDivision(s, f, true))!, opp = sameDivision(s, me, true)!
     const rival = s.contracts[opp.contractId!].promotionId
     const id = 'ft_react'
     s.fights[id] = { id, sideA: { fighterId: me.id, promotionId: s.playerPromotionId }, sideB: { fighterId: opp.id, promotionId: rival }, result: { winner: 0, method: 'UD', pExpA: 0.25 } } as never
@@ -331,7 +331,7 @@ describe('stories and persistence', () => {
     let t = back
     for (let i = 0; i < 4; i++) t = advanceOneWeek(t)
     expect(t.office).toBeTruthy()
-    const me = myFighters(s)[0], opp = sameDivision(s, me, true)!
+    const me = myFighters(s).find((f) => sameDivision(s, f, true))!, opp = sameDivision(s, me, true)!
     officeOf(s).reviews = { rv9: { id: 'rv9', kind: 'setback', fighterId: me.id, oppId: opp.id, fightId: 'none', createdDay: s.today, expiresDay: s.today + 42, status: 'open' } }
     const again = deserialiseGame(serialiseGame(s))!
     expect(again.office!.reviews!.rv9.status).toBe('open')

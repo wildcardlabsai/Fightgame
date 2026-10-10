@@ -10,7 +10,7 @@ import { keyedFloat } from '../rng'
 import { fighterAge, fighterName } from '../fighters'
 import { SANCTIONING } from '../media/orgs'
 import { rankIn } from '../media/rankings'
-import { bodiesFor, higherBeltOf, qualifiedRank, qualifiesFor, vacantLimit, holdsWorldBelt, titleKey, titleName, titlesHeldBy } from '../media/titles'
+import { bodiesFor, higherBeltOf, mandateVoidReason, qualifiedRank, qualifiesFor, vacantLimit, holdsWorldBelt, titleKey, titleName, titlesHeldBy } from '../media/titles'
 import { getList } from '../media/records'
 import type { Fight, Fighter, GameState, Id, WeightClassId } from '../types'
 import { bodyIdentity } from '../../data/mediaIdentity'
@@ -172,7 +172,8 @@ export function contenderStatus(state: GameState, f: Fighter): ContenderStatus {
   for (const o of SANCTIONING) {
     const rec = media.titles[titleKey(o.id, f.weightClass)]
     if (!rec) continue
-    if (rec.mand?.challenger === f.id) bump(levelOf(o.id) === 'world' ? 'MANDATORY_CHALLENGER' : levelOf(o.id) === 'european' ? 'EUROPEAN_CONTENDER' : 'DOMESTIC_CONTENDER')
+    // an order that can no longer be staged (the challenger fell out of range, or a belt changed) is not a mandatory challenge
+    if (rec.mand?.challenger === f.id && rec.c && !mandateVoidReason(state, media, o.id, f.weightClass, rec.c, f.id)) bump(levelOf(o.id) === 'world' ? 'MANDATORY_CHALLENGER' : levelOf(o.id) === 'european' ? 'EUROPEAN_CONTENDER' : 'DOMESTIC_CONTENDER')
     else if (rec.elim && (rec.elim.a === f.id || rec.elim.b === f.id)) bump(levelOf(o.id) === 'world' ? 'ELIMINATOR' : levelOf(o.id) === 'european' ? 'EUROPEAN_CONTENDER' : 'DOMESTIC_CONTENDER')
     else {
       const r = rankIn(media, o.id, f.weightClass, f.id)

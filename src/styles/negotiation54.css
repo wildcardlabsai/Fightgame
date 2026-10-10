@@ -111,3 +111,6 @@
 .sf-more summary { cursor: pointer; min-height: 32px; display: flex; align-items: center; }
 .sf-insufficient { opacity: .85; }
 @media (max-width: 640px) { .sf-cols { grid-template-columns: 1fr; gap: 8px; } }
+
+/* The plain-words verdict on the draft, right above the button that sends it. */
+.n54-verdict { margin: 0; padding: 10px 12px; border-left: 3px solid var(--line); background: rgba(255,255,255,.03); font-size: 14px; line-height: 1.45; flex: 1 1 100%; }

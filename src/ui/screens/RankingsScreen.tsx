@@ -51,6 +51,7 @@ function Rankings({ param }: { param?: string }) {
       <div className="bz-seg sub" role="tablist" aria-label="Ranking list">
         {inGroup.map((o) => <button key={o.id} role="tab" aria-selected={o.id === org.id} className={`bz-segbtn${o.id === org.id ? ' on' : ''}`} onClick={() => go(o.id, division)} data-testid={`rank-org-${o.id}`}>{o.shortName}</button>)}
       </div>
+      <p className="rk-legend dim" data-testid="rank-legend"><span className="chip gold">CHAMPION</span> holds the belt <span className="chip mine">YOUR FIGHTER</span> is on your roster</p>
       <div className="rk-controls">
         <label htmlFor="rk-div" className="caps">Division</label>
         <select id="rk-div" className="select" value={division} onChange={(e) => go(org.id, e.target.value)} data-testid="rank-division">
@@ -73,7 +74,7 @@ function Rankings({ param }: { param?: string }) {
               <div><b className="display">{belt.state === 'dormant' ? 'Not contested' : 'Vacant'}</b><div className="dim">{belt.note}</div></div>
             </div>
           )}
-          {rows.length === 0 ? <p className="empty" data-testid="rank-empty">Not enough fighters with five or more fights to rank this division yet.</p> : (
+          {rows.length === 0 ? <p className="empty" data-testid="rank-empty">Not enough fighters meet this body’s experience requirements to rank this division yet.</p> : (
             <ol className="rk-list" data-testid="rank-list">
               {rows.map((r) => {
                 const c = byId.get(r.id)
@@ -85,7 +86,7 @@ function Rankings({ param }: { param?: string }) {
                     <div className={`rk-row${r.champion ? ' champ' : ''}${r.mine ? ' mine' : ''}${c && !c.inChallengeRange ? ' outside' : ''}`} data-testid="rank-row">
                       <RankMark label={r.label} champion={r.champion} />
                       <button type="button" className="rk-who" onClick={() => navigate('fighter', r.id)}>
-                        <span className="rk-n">{r.name}{r.champion && <span className="chip gold" data-testid="champ-chip">CHAMPION</span>}{r.mine && <span className="chip gold">YOURS</span>}{c && <TagChip tag={c.tag} />}{c && c.rank <= belt!.challengerLimit + 2 && <StatusChip row={c} />}</span>
+                        <span className="rk-n">{r.name}{r.champion && <span className="chip gold" data-testid="champ-chip">CHAMPION</span>}{r.mine && <span className="chip mine" data-testid="mine-chip">YOUR FIGHTER</span>}{c && <TagChip tag={c.tag} />}{c && c.rank <= belt!.challengerLimit + 2 && <StatusChip row={c} />}</span>
                         <span className="dim rk-sub"><Flag code={r.nation} /> {r.record}{r.champion && belt?.champion ? ` · ${belt.champion.weeks} wk champion · ${belt.champion.defences} def.` : ''}{r.mine && c?.step ? ` · Next step: ${c.step.toLowerCase()}` : ''}</span>
                       </button>
                       <span className={`rk-move ${r.movementTone}`} aria-label={`Movement ${r.movement}`}>{r.movement}</span>

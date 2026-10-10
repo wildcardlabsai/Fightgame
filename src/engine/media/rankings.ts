@@ -5,7 +5,7 @@
  */
 import { WEIGHT_CLASSES } from '../../data/weightClasses'
 import type { Day, Fighter, GameState, Id, WeightClassId } from '../types'
-import { TITLE_DEF_BY_ID, isEligibleFor, levelOf, levelRank, type TitleLevel } from '../business/titleDefs'
+import { CONTENDER_CONFIG, TITLE_DEF_BY_ID, isEligibleFor, levelOf, levelRank, type TitleLevel } from '../business/titleDefs'
 import { RANKING_ORGS, RANK_ORG_BY_ID } from './orgs'
 import { getList, packList } from './records'
 import type { MediaState, RankEntry, RankList, RankingMethod, RankingOrg, RankReason } from './types'
@@ -119,10 +119,12 @@ function computeList(state: GameState, media: MediaState, org: RankingOrg, wc: W
   const champId = org.sanctions ? media.titles[`${org.id}|${wc}`]?.c ?? null : null
   // Who may be on this list: every eligible, active fighter with enough fights (title bodies carry their own territory rule).
   const def = TITLE_DEF_BY_ID[org.id]
-  const minFights = def?.minFights ?? MIN_FIGHTS_TO_RANK
+  // A title body can't rate a fighter its own title rules would turn away: the public experience floor of the level applies to the list too (an 8-2 fighter is not the world's number one).
+  const floor = def ? CONTENDER_CONFIG[def.level].floor : null
+  const minFights = Math.max(def?.minFights ?? MIN_FIGHTS_TO_RANK, floor?.fights ?? 0)
   const winShare = (f: Fighter): number => { const n = totalFightsOf(f); return n ? f.record.wins / n : 0 }
   const above = def ? higherHolders(media, wc, def.level) : null
-  const pool = everyone.filter((f) => totalFightsOf(f) >= minFights && !(above && above.has(f.id) && f.id !== champId) && (!def || (isEligibleFor(def, f) && (winShare(f) >= def.minWinShare || f.id === champId))))
+  const pool = everyone.filter((f) => totalFightsOf(f) >= minFights && (!floor || f.record.wins >= floor.wins || f.id === champId) && !(above && above.has(f.id) && f.id !== champId) && (!def || (isEligibleFor(def, f) && (winShare(f) >= def.minWinShare || f.id === champId))))
   const minPool = def?.minPool ?? MIN_DIVISION_SIZE
   if (pool.length < minPool && !(champId && ctx.has(champId))) return prev ? { u: state.today, e: [] } : null
   const scored = pool.map((f) => ({ f, s: rankScore(f, ctx.get(f.id)!, org.methodology) })).sort((a, b) => b.s - a.s || (a.f.id < b.f.id ? -1 : 1))

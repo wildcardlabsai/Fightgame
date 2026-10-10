@@ -97,7 +97,7 @@ export function TrendingRow({ t, rank }: { t: TrendingView; rank: number }) {
   return (
     <button type="button" className="m-trend-row" onClick={() => navigate('fighter', t.id)} data-testid="trending">
       <span className="m-rankn num">{rank}</span>
-      <span className="m-tname"><b>{t.name}</b>{t.mine && <span className="chip gold">YOURS</span>}<small>{t.division}{t.rank ? ` · ${t.rank}` : ''}</small></span>
+      <span className="m-tname"><b>{t.name}</b>{t.mine && <span className="chip mine" data-testid="mine-chip">YOUR FIGHTER</span>}<small>{t.division}{t.rank ? ` · ${t.rank}` : ''}</small></span>
       <span className={`m-trend ${t.trend.toLowerCase()}`}>{t.trend === 'HOT' ? '🔥 HOT' : t.trend === 'RISING' ? '▲ RISING' : t.trend === 'COOLING' ? '▼ COOLING' : '● STEADY'}</span>
       <span className="num m-int" title="Media interest">{t.interest}</span>
     </button>

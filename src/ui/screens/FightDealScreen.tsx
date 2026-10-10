@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import '../../styles/negotiation54.css'
 import { fightTalkAdvice } from '../../engine/advisor'
 import type { FightMove } from '../../engine/business/fightTalks'
+import { FIGHT_ASSESS_HINT } from '../../engine/advisor'
 import { assessFightDraft, fightTalkView, openFightTalkId } from '../../engine/business/talkViews'
 import { fightView } from '../../engine/fightViews'
 import type { FightOffer } from '../../engine/types'
@@ -99,6 +100,12 @@ export function FightDealScreen({ id }: { id: string }) {
               </div>
               <div className="n54-propose">
                 <div className="n54-draft" data-testid="draft-summary"><span className="caps dim">Current draft</span> {summary}</div>
+                {assessment && v.expected && (
+                  <p className="n54-verdict" data-testid="draft-verdict" role="status">
+                    <b className={`as-${assessment.split(' ')[0]}`}>{assessment}</b> · the going rate is {money(v.expected.purse.lo, false)} to {money(v.expected.purse.hi, false)} purse and {money(v.expected.winBonus.lo, false)} to {money(v.expected.winBonus.hi, false)} win bonus.
+                    {' '}{FIGHT_ASSESS_HINT[assessment as keyof typeof FIGHT_ASSESS_HINT]}
+                  </p>
+                )}
                 <button type="button" className="btn primary big n54-btn" data-testid="talk-propose" onClick={() => run({ kind: 'propose', offer })}>Make this offer ▸</button>
               </div>
             </div>

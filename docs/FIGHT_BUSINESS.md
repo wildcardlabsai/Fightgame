@@ -650,3 +650,10 @@ after their own costs (from the event results, the ledger's source), bouts per f
 **Warnings** (non-blocking, at most 3, each quantified): capacity vs historical annual profit; working cash under 12 weeks of costs after the bonus; overdrawn promotion; loan instalments ≥ 25% of running costs. Nothing stops a signing.
 
 **Limits.** The estimate uses history, not promises; an early estimate is a small sample; it does not promise profitability.
+
+## Phase 5.9 — Title-body rankings, fight-talk figures, Titles screen
+
+- **Rankings floor.** A sanctioning body now rates only fighters its level's public experience floor admits (`CONTENDER_CONFIG[level].floor`: world 14 fights and 9 wins, European 11/7, domestic 9/6, area 8/5), on top of its own minimum. Before, the list floor (10 fights at world level) was lower than the floor for a title challenge, so an 8-2 fighter could top a world list. The champion is always kept on the list.
+- **Contender status.** An order that can no longer be staged (challenger out of range, belt changed) no longer reads as "Mandatory challenger".
+- **Fight talks.** Asking what a camp needs also gives the going purse and win bonus in pounds. Every offer gets a log note comparing it with the going range (generous / reasonable / light / lowball) and what that means; a counter lists its terms; when the money is fine and they still say no, the note names the real sticking point. The draft shows the same verdict above "Make this offer". The note is text only and does not touch the outcome.
+- **Titles and Rankings screens.** Gold marks the champion; blue marks your own fighter ("YOUR FIGHTER"). Belt cards say "Champion" above the name; the Rankings page has a legend.

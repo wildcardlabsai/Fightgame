@@ -19,6 +19,15 @@ export type Confidence = 'LOW' | 'MODERATE' | 'HIGH'
 export interface Range { lo: number; hi: number }
 export type Assessment = 'Generous offer' | 'Reasonable offer' | 'Light offer' | 'Lowball' | 'Not yet judged'
 
+/** What an assessment means for a fight offer, in the player's terms (judged on the purse and win bonus against the going range; venue and clauses also count in the room). */
+export const FIGHT_ASSESS_HINT: Record<Assessment, string> = {
+  'Generous offer': 'Above the going rate. They should take it, and you may be paying more than you need to.',
+  'Reasonable offer': 'In line with the going rate. They may accept, or ask for small changes.',
+  'Light offer': 'Below the going rate. Expect a counter.',
+  'Lowball': 'Far below the going rate. They are likely to turn it down, and it can cost you goodwill.',
+  'Not yet judged': 'Nothing to compare yet.',
+}
+
 export interface ConfidenceReport { level: Confidence; score: number; basis: string[] }
 
 const nice = (n: number): number => {

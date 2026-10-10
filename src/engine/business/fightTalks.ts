@@ -15,9 +15,10 @@ import { cancelFight, lockKey, validateMatch } from '../fights'
 import { fighterName } from '../fighters'
 import { postMessage } from '../messages'
 import { careerValue } from './marketValue'
-import { managerOf, topPriorities, type Manager, type Priority } from './manager'
+import { managerOf, PRIORITY_LABEL, topPriorities, type Manager, type Priority } from './manager'
 import { planFactors, planOf } from './plans'
 import { negStage, STAGE_BEND } from './stage'
+import { expectedFightTerms, FIGHT_ASSESS_HINT } from './terms'
 import { campWeights } from './contractTalks'
 import { biz, demandFor, evasiveLine, expectationsLine, learn, moodOf, nameOf, nextBizId, pushLine, trimTalks, voiceLine, wantsText } from './talkCore'
 import type { Fight, FightOffer, GameState, Id } from '../types'
@@ -218,6 +219,8 @@ export function fightMove(input: GameState, talkId: string, move: FightMove): Fi
         const shown = topPriorities(mgr, 3).slice(0, Math.min(3, 1 + already + (rel >= 15 ? 1 : 0)))
         for (const p of shown) { const tag = `priority:${p}`; if (!t.told.includes(tag)) t.told.push(tag); learn(state, opp.id, tag) }
         pushLine(t, day, 'mgr', 'answer', expectationsLine(state, opp, mgr, shown))
+        const money = moneyLine(state, fight)
+        if (money) pushLine(t, day, 'mgr', 'answer', money)
       }
     } else if (move.topic === 'location') {
       pushLine(t, day, 'you', 'ask', 'Where would you want to fight this?')
@@ -254,9 +257,11 @@ export function fightMove(input: GameState, talkId: string, move: FightMove): Fi
   const u = fightUtility(state, fight, offer)
   t.fightOffer = offer
   t.mood = moodOf(u.ratio)
+  const verdict = moneyLine(state, fight, offer, move.kind === 'acceptCounter' ? 'their' : 'your', u.ratio >= 1 ? null : u.unmet)
 
   if (u.ratio >= 1) {
     pushLine(t, day, 'mgr', 'accept', say('accept', null))
+    if (verdict) pushLine(t, day, 'sys', 'note', verdict)
     t.status = 'agreed'; t.closedDay = day
     agreeFight(state, fight, offer)
     opp.promoRelations[state.playerPromotionId] = Math.min(100, (opp.promoRelations[state.playerPromotionId] ?? 0) + (u.ratio >= 1.12 ? 4 : 2))
@@ -278,6 +283,7 @@ export function fightMove(input: GameState, talkId: string, move: FightMove): Fi
     opp.promoRelations[state.playerPromotionId] = (opp.promoRelations[state.playerPromotionId] ?? 0) - 2
     t.patience -= 1.8 + (mgr.archetype === 'AGGRESSIVE' ? 1.7 : 0)
     pushLine(t, day, 'mgr', 'reject', say('reject', u.unmet))
+    if (verdict) pushLine(t, day, 'sys', 'note', verdict)
     if (u.unmet) { const tag = `priority:${u.unmet}`; if (!t.told.includes(tag)) t.told.push(tag); learn(state, opp.id, tag) }
     return done()
   }
@@ -285,6 +291,8 @@ export function fightMove(input: GameState, talkId: string, move: FightMove): Fi
   if ((u.ratio >= B_.counterRatio || u.base >= B_.counterRatio) && !repeat) {
     t.fightCounter = buildCounter(state, fight, offer, t)
     pushLine(t, day, 'mgr', 'counter', say('counter', u.unmet))
+    if (verdict) pushLine(t, day, 'sys', 'note', verdict)
+    pushLine(t, day, 'sys', 'note', `Their counter: ${fightOfferLine(t.fightCounter).replace('Our offer: ', '')}`)
     if (u.unmet) { const tag = `priority:${u.unmet}`; if (!t.told.includes(tag)) t.told.push(tag); learn(state, opp.id, tag); t.demands = [demandFor(u.unmet, wantsText(state, opp, u.unmet, t.turn, t.id))] }
     t.patience -= mgr.counters > 0.7 ? 0.35 : 0.6
     return done()
@@ -292,8 +300,22 @@ export function fightMove(input: GameState, talkId: string, move: FightMove): Fi
 
   t.patience -= repeat ? (mgr.archetype === 'AGGRESSIVE' ? 2 : 1.2) : (mgr.archetype === 'AGGRESSIVE' ? 1.5 : 1)
   pushLine(t, day, 'mgr', repeat ? 'hold' : 'reject', say(repeat ? 'hold' : 'reject', u.unmet))
+  if (verdict) pushLine(t, day, 'sys', 'note', verdict)
   if (u.unmet) { const tag = `priority:${u.unmet}`; if (!t.told.includes(tag)) t.told.push(tag); learn(state, opp.id, tag) }
   return done()
+}
+
+const m0 = (n: number): string => `£${Math.round(n).toLocaleString('en-GB')}`
+
+/** The camp's own read of the money in plain figures: the going range for this fight, and (when an offer is given) where that offer sits against it. */
+function moneyLine(state: GameState, fight: Fight, offer?: FightOffer, who: 'your' | 'their' = 'your', blocker: Priority | null = null): string | null {
+  const x = expectedFightTerms(state, fight.id, offer ?? null)
+  if (!x) return null
+  const range = `${m0(x.purse.lo)} to ${m0(x.purse.hi)} purse, with a win bonus of ${m0(x.winBonus.lo)} to ${m0(x.winBonus.hi)}`
+  if (!offer) return `Money-wise, for a fight like this we would expect ${range}.`
+  const fine = x.assessment === 'Generous offer' || x.assessment === 'Reasonable offer'
+  const tail = blocker && fine ? ` If they still say no, it is not the money: it is ${PRIORITY_LABEL[blocker].toLowerCase()}.` : ''
+  return `${who === 'your' ? 'Your' : 'Their'} ${m0(offer.purseB)} purse and ${m0(offer.winBonusB)} win bonus against the going ${range}: ${x.assessment.toLowerCase()}. ${FIGHT_ASSESS_HINT[x.assessment]}${tail}`
 }
 
 const sameFightOffer = (a: FightOffer, b: FightOffer): boolean => a.purseB === b.purseB && a.winBonusB === b.winBonusB && a.rematch === b.rematch && a.venuePref === b.venuePref && a.fights === b.fights && (a.rounds ?? 0) === (b.rounds ?? 0)

@@ -34,7 +34,7 @@ function pickBelt(s: GameState) {
     if (!list) continue
     const ranked = list.e.filter((e) => e.r >= 1 && e.f !== rec.c && s.fighters[e.f]?.status === 'active' && s.fighters[e.f].weightClass === wc)
     const inside = ranked.find((e) => e.r <= limit(body) && qualifiesFor(s, body, e.f) && bodiesFor(s, rec.c!, e.f, wc as never).includes(body))
-    const outside = Object.values(s.fighters).find((x) => x.status === 'active' && x.weightClass === wc && x.id !== rec.c && x.id !== inside?.f && !(rankIn(m, body, wc as never, x.id) !== null && rankIn(m, body, wc as never, x.id)! <= limit(body)))
+    const outside = Object.values(s.fighters).find((x) => x.status === 'active' && x.weightClass === wc && x.id !== rec.c && x.id !== inside?.f && rankIn(m, body, wc as never, x.id) !== null && rankIn(m, body, wc as never, x.id)! > limit(body))
     if (inside && outside) return { key, body, wc: wc as never, rec, inside: inside.f, outside: outside.id }
   }
   return null

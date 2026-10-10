@@ -147,13 +147,18 @@ for (const w of [1280, 1024, 390]) {
   }
   {
     const { ctx, page } = await newPage(w)
-    await load(page, 'p54-played')
-    const fightId = await page.evaluate(() => {
-      const s = window.__fe.useGame.getState(), g = s.game
-      const mine = Object.values(g.contracts).filter((c) => c.promotionId === g.playerPromotionId && c.status === 'active').map((c) => c.fighterId)
-      for (const m of mine) for (const o of Object.values(g.fighters).filter((f) => f.weightClass === g.fighters[m].weightClass && f.id !== m && !f.retired).slice(0, 25)) { const id = s.approachOpponent(m, o.id); if (id) return id }
-      return null
-    })
+    // the played fixture has whatever roster its world left it (all booked or injured is possible): use the first fixture where someone can be approached
+    let fightId = null
+    for (const fxName of ['p54-played', 'p54-new']) {
+      await load(page, fxName)
+      fightId = await page.evaluate(() => {
+        const s = window.__fe.useGame.getState(), g = s.game
+        const mine = Object.values(g.contracts).filter((c) => c.promotionId === g.playerPromotionId && c.status === 'active').map((c) => c.fighterId)
+        for (const m of mine) for (const o of Object.values(g.fighters).filter((f) => f.weightClass === g.fighters[m].weightClass && f.id !== m && !f.retired)) { const id = s.approachOpponent(m, o.id); if (id) return id }
+        return null
+      })
+      if (fightId) break
+    }
     check(`C/${w} a fight can be approached`, !!fightId)
     if (fightId) {
       await go(page, `#/deal/${fightId}`)

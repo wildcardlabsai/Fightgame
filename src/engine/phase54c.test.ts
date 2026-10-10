@@ -7,7 +7,7 @@ import { createNewGame } from './worldgen'
 import { advanceOneWeek } from './tick'
 import { clone } from './media/testing'
 import { migrate } from './save'
-import { GAME_STATE_VERSION, type Fight, type GameState } from './types'
+import { GAME_STATE_VERSION, type Fight, type Fighter, type GameState } from './types'
 import { acceptOffer, counterOffer, generateOffers, isLive, offerProblem, processOffers, rejectOffer, withdrawCounter } from './office/offers'
 import { applyOverride, goalProgress, opponentFit, setGoal, suggestedGoal, GOAL_INFO } from './office/goals'
 import { shiftRelation, easeRelations, relation, venueTilt, standingOf } from './office/relations'
@@ -294,15 +294,22 @@ describe('career objectives and prospect protection', () => {
 
   it('a protected plan changes real matchmaking: a big step up needs the camp\'s objection to be overruled, at a price; a steady plan does not', () => {
     const s = clone(world())
-    const f = prospect(s)
-    // the strongest available opponent in the division range
-    const opps = Object.values(s.fighters).filter((x) => x.status === 'active' && x.id !== f.id && x.weightClass === f.weightClass && !x.activeFightId && !x.injury && !(x.contractId && s.contracts[x.contractId].promotionId === s.playerPromotionId))
-      .sort((a, b) => b.reputation - a.reputation)
-    const big = opps[0]
-    f.activeFightId = null; f.injury = null; f.lastFightDay = null; f.suspendedUntil = null
-    big.activeFightId = null; big.injury = null; big.lastFightDay = null; big.suspendedUntil = null
-    f.record = { wins: 3, losses: 0, draws: 0, koWins: 1, koLosses: 0 }; f.reputation = 8; f.popularity = 6
-    setPlan(s, f.id, 'protected')
+    // a prospect whose division has an opponent far enough above them for the camp to object (the world decides who that is)
+    const setup = (f: Fighter) => {
+      const opps = Object.values(s.fighters).filter((x) => x.status === 'active' && x.id !== f.id && x.weightClass === f.weightClass && !x.activeFightId && !x.injury && !(x.contractId && s.contracts[x.contractId].promotionId === s.playerPromotionId))
+        .sort((a, b) => b.reputation - a.reputation)
+      const big = opps[0]
+      if (!big) return null
+      f.activeFightId = null; f.injury = null; f.lastFightDay = null; f.suspendedUntil = null
+      big.activeFightId = null; big.injury = null; big.lastFightDay = null; big.suspendedUntil = null
+      f.record = { wins: 3, losses: 0, draws: 0, koWins: 1, koLosses: 0 }; f.reputation = 8; f.popularity = 6
+      setPlan(s, f.id, 'protected')
+      return opponentFit(s, f, big).objection ? big : null
+    }
+    let f = prospect(s), big = setup(f)
+    for (const cand of playerRoster(s)) { if (big) break; f = cand; big = setup(f) }
+    expect(big, 'a roster fighter with a too-big opponent in their division').toBeTruthy()
+    big = big!
     const fit = opponentFit(s, f, big)
     expect(fit.objection).toBe(true)
     const blocked = approachOpponent(s, f.id, big.id)
