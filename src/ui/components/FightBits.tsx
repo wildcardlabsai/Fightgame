@@ -5,7 +5,7 @@ import { Flag } from './Bits'
 export function StarRating({ n, max = 5, label }: { n: number; max?: number; label: string }) {
   return (
     <span className="stars" role="img" aria-label={`${label}: ${n} of ${max}`}>
-      {'★'.repeat(n)}<span className="off">{'★'.repeat(max - n)}</span>
+      {'★'.repeat(n)}<span className="off" aria-hidden="true" data-off={'★'.repeat(max - n)} />
     </span>
   )
 }

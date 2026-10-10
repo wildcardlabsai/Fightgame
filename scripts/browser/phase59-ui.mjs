@@ -27,7 +27,7 @@ for (const w of [1280, 1024, 390]) {
     fightId = await page.evaluate(() => {
       const s = window.__fe.useGame.getState(), g = s.game
       const mine = Object.values(g.contracts).filter((c) => c.promotionId === g.playerPromotionId && c.status === 'active').map((c) => c.fighterId)
-      for (const m of mine) for (const o of Object.values(g.fighters).filter((f) => f.weightClass === g.fighters[m].weightClass && f.id !== m && !f.retired)) { const id = s.approachOpponent(m, o.id); if (id) return id }
+      for (const m of mine) for (const o of Object.values(g.fighters).filter((f) => f.weightClass === g.fighters[m].weightClass && f.id !== m && !f.retired)) { const id = s.approachOpponent(m, o.id); if (id && window.__fe.useGame.getState().game.fights[id]?.status === 'negotiating') return id }
       return null
     })
     if (fightId) break
@@ -40,6 +40,11 @@ for (const w of [1280, 1024, 390]) {
     await page.getByTestId('ask-priorities').click(); await page.waitForTimeout(400)
     const log = await page.getByTestId('talk-log').innerText()
     check(`${w} asking what the camp needs gives pounds`, /purse, with a win bonus of £/.test(log), log.slice(-300))
+    // a light (but not insulting) offer, so the talk carries on whoever the world has put on the other side (a generous one can settle it at once)
+    const tog = page.getByTestId('offer-editor').locator('button.n54-toggle')
+    if ((await tog.count()) && (await tog.getAttribute('aria-expanded')) === 'false') await tog.click()
+    const purseIn = page.getByLabel('Their purse', { exact: true })
+    if (await purseIn.count()) { const cur = Number((await purseIn.inputValue()).replace(/[^0-9]/g, '')); await purseIn.fill(String(Math.round((cur * 0.6) / 100) * 100)); await purseIn.blur() }
     await page.getByTestId('talk-propose').click(); await page.waitForTimeout(500)
     const log2 = await page.getByTestId('talk-log').innerText()
     check(`${w} after an offer the log says how it compares`, /against the going/i.test(log2) && /(generous|reasonable|light) offer|lowball/i.test(log2), log2.slice(-400))

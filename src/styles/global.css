@@ -471,6 +471,7 @@ a { color: inherit; text-decoration: none; }
 .card-j .sc .w { color: var(--gold); }
 .stars { letter-spacing: 2px; color: var(--gold); white-space: nowrap; }
 .stars .off { color: #34343e; }
+.stars .off::before { content: attr(data-off); } /* unfilled stars are decoration drawn by CSS, not text: the label carries the value */
 .opp-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 10px; margin-bottom: 18px; }
 .pick { text-align: left; padding: 12px 14px; border: 1px solid var(--line-strong); background: var(--bg-2); border-left: 3px solid var(--blue); }
 .pick:hover { border-color: var(--red); }
