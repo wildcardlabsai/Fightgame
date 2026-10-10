@@ -8,6 +8,7 @@ import { emitGameEvent } from '../../store/gameEvents'
 import { useGame } from '../../store/gameStore'
 import { AudioToggle } from '../components/AudioStatus'
 import { usePrefs } from '../../store/prefs'
+import { TitleBanner } from '../components/TitleBanner'
 import { CountUp } from './CountUp'
 import { cardFighter, FighterCard } from './FighterCard'
 import { FighterPortrait } from './FighterPortrait'
@@ -173,6 +174,19 @@ export function LiveFight({ fv, r, live, onDone }: { fv: FightView; r: ResultVie
       <div className="caps gold">Final result</div>
       <div className="display t">{fin.kind === 'draw' ? fin.title : fin.kind === 'ko' ? fin.title : `${fin.winnerName} WINS`}</div>
       <div className="display s">{fin.kind === 'ko' ? fin.subtitle : fin.kind === 'draw' ? fin.subtitle : fin.method.toUpperCase()}</div>
+      {r.cards.length > 0 && (
+        <div className="lf-cards-wrap" data-testid="lf-scorecards">
+          <div className="caps gold lf-cards-t">Official scorecards · {r.methodLabel}</div>
+          <div className="dim lf-cards-n" data-testid="scorecard-order">Scores read {names.a} – {names.b}</div>
+          <div className="lf-cards">{r.cards.map((c, i) => (
+            <div className="card-j" key={i} data-testid="scorecard">
+              <div className="caps">Judge {i + 1}</div>
+              <div className="sc"><span className={c.a > c.b ? 'w' : ''}>{c.a}</span> – <span className={c.b > c.a ? 'w' : ''}>{c.b}</span></div>
+              <div className="fav dim">{c.a === c.b ? 'Scored a draw' : `for ${c.a > c.b ? names.a : names.b}`}</div>
+            </div>))}</div>
+        </div>
+      )}
+      {fv.titleStake && <TitleBanner stake={fv.titleStake} compact />}
       <div className="fn-duo" data-testid="result-duo">
         {([r.winner ?? 0, r.winner === null ? 1 : 1 - r.winner] as (0 | 1)[]).map((i, k) => {
           const f = i === 0 ? fv.a : fv.b
@@ -197,7 +211,11 @@ export function LiveFight({ fv, r, live, onDone }: { fv: FightView; r: ResultVie
         <div><span className="caps">Punches landed</span><b>{r.stats.landed[0]}–{r.stats.landed[1]} ({r.stats.acc[0]}% / {r.stats.acc[1]}%)</b></div>
         <div><span className="caps">Power punches</span><b>{r.stats.power[0]}–{r.stats.power[1]}</b></div>
       </div>
-      {r.cards.length > 0 && <div className="lf-cards-wrap"><div className="caps gold lf-cards-t">Official scorecards · {r.methodLabel}</div><div className="dim lf-cards-n">{names.a} – {names.b}</div><div className="lf-cards">{r.cards.map((c, i) => <div className="card-j" key={i}><div className="caps">Judge {i + 1}</div><div className="sc"><span className={c.a > c.b ? 'w' : ''}>{c.a}</span> – <span className={c.b > c.a ? 'w' : ''}>{c.b}</span></div></div>)}</div></div>}
+      {(r.consequences ?? []).length > 0 && (
+        <div className="fn-conseq" data-testid="lf-consequences"><div className="caps">What it means</div>
+          <ul>{(r.consequences ?? []).map((c, i) => <li key={i} data-tone={c.tone} className={c.tone}>{c.text}</li>)}</ul>
+        </div>
+      )}
       <div className="fn-events"><div className="caps">Important moments</div>
         {keyTl.filter((e) => e.type !== 'result' && e.type !== 'intro').map((e) => <div key={e.id} className="fn-ev"><b>{e.round ? `R${e.round}` : '—'}</b><span><i>{e.title}</i> {e.detail}</span></div>)}
         {keyTl.filter((e) => e.type !== 'result' && e.type !== 'intro').length === 0 && <p className="dim">A tactical fight with no knockdowns or stoppage.</p>}
@@ -229,17 +247,17 @@ export function LiveFight({ fv, r, live, onDone }: { fv: FightView; r: ResultVie
         <span className="lf-round" aria-live="polite" data-testid="lf-round">{finished && r.stoppage ? `ENDED R${r.round}` : `ROUND ${roundNo} / ${scheduled}`}</span>
         <span className="fn-clock num" data-testid="lf-clock" aria-label="Round clock">{mmss(clockSec)}</span>
         <span className="fn-crowd" data-testid="lf-crowd">CROWD · {crowd}</span>
-        {fv.title && <span className="lf-title" data-testid="lf-title">{fv.title.label} · {fv.title.titleName}</span>}
+        {fv.title && !finished && <span className="lf-title" data-testid="lf-title">{fv.title.label} · {fv.title.titleName}</span>}
         <span className="lf-div dim">{fv.division}{fv.eventName ? ` · ${fv.eventName}` : ''}</span>
       </div>
-      {fighters}
-      <div className="lf-momentum" role="img" aria-label={`Round control: ${edge}`} data-testid="lf-momentum">
+      {finished ? resultPanel : fighters}
+      {!finished && <div className="lf-momentum" role="img" aria-label={`Round control: ${edge}`} data-testid="lf-momentum">
         <span className="n">{names.a}</span>
         <div className="bar">{ctrl !== null ? <><i className="a" style={{ width: `${ctrl}%` }} /><i className="b" style={{ width: `${100 - ctrl}%` }} /><b style={{ left: `${ctrl}%` }} /></> : <i style={{ width: '100%', background: '#2a2a33' }} />}</div>
         <span className="n">{names.b}</span>
         <div className="cap dim">Control · {edge}</div>
-      </div>
-      {finished ? resultPanel : (
+      </div>}
+      {finished ? null : (
         <>
           {cur?.type === 'intro' && <div className="fn-intro" role="status"><div className="display">{cur.title}</div><div>{cur.detail}</div></div>}
           {cur?.type === 'roundStart' && <div className="lf-bellcard" role="status" key={`b-${run}-${cur.id}`}><span className="display">{cur.title} OF {scheduled}</span></div>}
@@ -299,20 +317,20 @@ export function LiveFight({ fv, r, live, onDone }: { fv: FightView; r: ResultVie
 
   const controls = (
     <div className="fn-controls" role="toolbar" aria-label="Fight Night controls">
-      <div className="seg" role="group" aria-label="Presentation mode">
+      {!finished && <div className="seg" role="group" aria-label="Presentation mode">
         {PLAY_MODES.map((m) => <button key={m.id} type="button" className={`seg-b${m.id === 'quick' ? (quick ? ' on' : '') : !quick && m.id === stage ? ' on' : ''}`} aria-pressed={m.id === 'quick' ? quick : !quick && m.id === stage} title={m.hint} data-mode={m.id} onClick={() => chooseMode(m.id)}>{m.id === 'watch' ? 'Watch fight' : m.id === 'key' ? 'Key events' : 'Quick sim'}</button>)}
-      </div>
-      <div className="seg speed" role="group" aria-label="Playback speed">
+      </div>}
+      {!finished && <div className="seg speed" role="group" aria-label="Playback speed">
         {SPEEDS.map((s) => <button key={s} type="button" className={`seg-b${speed === s ? ' on' : ''}`} aria-pressed={speed === s} data-speed={s} onClick={() => setSpeed(s)}>{s}×</button>)}
         <button type="button" className={`seg-b pause${paused ? ' on' : ''}`} aria-pressed={paused} data-testid="lf-pause" disabled={finished} onClick={() => setPaused((p) => !p)}>{paused ? '▶ Play' : '❚❚ Pause'}</button>
-      </div>
+      </div>}
       <div className="lf-actions">
         {stage === 'key' && !finished && <button type="button" className="btn small ghost" data-testid="key-prev" onClick={() => setPb((p) => previousEvent(p))}>◂◂ Prev</button>}
         {stage === 'key' && !finished && <button type="button" className="btn small ghost" data-testid="key-replay-event" onClick={() => setPb((p) => restartEvent(p))}>↺ Replay event</button>}
         {stage === 'key' && !finished && <button type="button" className="btn small ghost" data-testid="key-next" onClick={() => setPb((p) => nextEvent(keyTl, p))}>Next ▸▸</button>}
         {!finished && <button type="button" className="btn small ghost" data-testid="lf-skip" onClick={skip}>Skip to result</button>}
         <button type="button" className="btn small ghost" data-testid="lf-replay" onClick={replay}>Replay</button>
-        {nextBout && <button type="button" className="btn small primary" data-testid="lf-next-fight" onClick={() => runNext(night!.eventId)} aria-label={`${nextLabel}: ${nextBout.aName} versus ${nextBout.bName}`}>{nextLabel} ▸ <span className="lf-next-who">{nextBout.aName} v {nextBout.bName}</span></button>}
+        {nextBout && <button type="button" className="btn small primary" data-testid="lf-next-fight" onClick={() => runNext(night!.eventId)} aria-label={`${nextLabel}: ${nextBout.aName} versus ${nextBout.bName}`}><span className="lf-next-l">{nextLabel} ▸</span><span className="lf-next-who">{nextBout.aName} v {nextBout.bName}</span></button>}
         {finished && eventDone && <button type="button" className="btn small primary" data-testid="lf-end-event" onClick={exit}>End event ▸</button>}
         {finished && <button type="button" className="btn small ghost" data-testid="lf-full" onClick={() => begin('watch')}>View full fight</button>}
         {finished && <button type="button" className="btn small ghost" data-testid="lf-keys" onClick={() => begin('key')}>View key events</button>}

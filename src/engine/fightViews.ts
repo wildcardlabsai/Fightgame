@@ -12,6 +12,8 @@ import { assess, type Assessment } from './matchmaking'
 import { viewsOf, type FighterView } from './view'
 import { bodyIdentity } from '../data/mediaIdentity'
 import { fightStakes } from './business/stakes'
+import { fightConsequences, titleStakeOf, type ConsequenceView, type TitleStakeView } from './fightStakes'
+export type { ConsequenceView, TitleStakeView } from './fightStakes'
 import type { FightMethod, FightOffer, FightPrep, GameState, Id, Mood } from './types'
 
 export interface FightListItem {
@@ -97,6 +99,8 @@ export interface ResultView {
   context?: [string[], string[]]
   injuries: [{ kind: string; severity: string; weeks: number } | null, { kind: string; severity: string; weeks: number } | null]
   money: { label: string; amount: number }[]
+  /** What the career record logged for each fighter on the day (title changes, defences, upsets, streaks, rankings): empty if nothing was logged. */
+  consequences?: ConsequenceView[]
 }
 
 export interface FightSideView {
@@ -148,6 +152,8 @@ export interface FightView {
   headline: string
   seriesNote: string | null
   title: TitleView | null
+  /** The belt at stake (champion, challenger, vacancy, and after the bell what was logged for it). Null for an ordinary bout. */
+  titleStake: TitleStakeView | null
 }
 
 const label = (n: number) => `${n}`
@@ -222,7 +228,7 @@ export function fightView(state: GameState, id: Id): FightView | null {
   const matchup = my && opp && ['negotiating', 'agreed', 'scheduled', 'training', 'fightNight'].includes(fight.status) ? assess(my, opp) : null
   const neg = fight.negotiation
   const r = fight.result
-  const res: ResultView | null = r ? buildResult(fight, nA, nB, mine, isPlayerOrg) : null
+  const res: ResultView | null = r ? buildResult(fight, nA, nB, mine, isPlayerOrg, fightConsequences(state, fight)) : null
   const prev = [...va.fightHistory].filter((h) => h.opponentId === vb.id && h.fightId !== fight.id).length
   const stakes: string[] = []
   if (['scheduled', 'training', 'fightNight', 'agreed', 'negotiating'].includes(fight.status)) {
@@ -245,7 +251,7 @@ export function fightView(state: GameState, id: Id): FightView | null {
     scheduleOptions: fight.status === 'agreed' ? scheduleOptions(state, id) : [],
     stakes, matchup, previousMeetings: prev, canRunNight: fight.status === 'fightNight' && mine && isPlayerOrg, eventId: fight.eventId ?? null, eventName: fight.eventId ? state.events[fight.eventId]?.name ?? null : null, cancelReason: fight.cancelReason ?? null, result: res,
     headline: r ? resultHeadline(fight, nA, nB) : `${nA} vs ${nB}`,
-    title: titleView(fight.title),
+    title: titleView(fight.title), titleStake: titleStakeOf(state, fight),
     seriesNote: fight.seriesOf ? 'Second fight of a two-fight deal' : Object.values(state.fights).some((x) => x.seriesOf === id) ? 'First fight of a two-fight deal' : null,
   }
 }
@@ -253,7 +259,7 @@ export function fightView(state: GameState, id: Id): FightView | null {
 import { suggestedFightOffer } from './fightNegotiation'
 const suggested = (state: GameState, oppId: Id) => suggestedFightOffer(state, oppId)
 
-function buildResult(fight: NonNullable<GameState['fights'][string]>, nA: string, nB: string, mine: boolean, isPlayerOrg: boolean): ResultView {
+function buildResult(fight: NonNullable<GameState['fights'][string]>, nA: string, nB: string, mine: boolean, isPlayerOrg: boolean, consequences: ConsequenceView[]): ResultView {
   const r = fight.result!
   const sA = nA.split(' ').slice(-1)[0], sB = nB.split(' ').slice(-1)[0]
   const t = r.tot
@@ -289,7 +295,7 @@ function buildResult(fight: NonNullable<GameState['fights'][string]>, nA: string
     assessment: [performanceNote(sA, t[1], t[0], t[5], t[3], r.kd[0], wA === null ? null : wA), performanceNote(sB, t[5], t[4], t[1], t[7], r.kd[1], wA === null ? null : !wA)],
     upsetLabel: r.upset > 0.62 ? 'Major upset' : r.upset > 0.45 ? 'Upset' : null,
     after: [afterRecord(fight.sideA.preRecord, 0, r), afterRecord(fight.sideB.preRecord, 1, r)],
-    dRep: r.dRep, dPop: r.dPop, context: r.notes ?? [[], []], injuries: [inj(r.injuries[0]), inj(r.injuries[1])], money,
+    dRep: r.dRep, dPop: r.dPop, context: r.notes ?? [[], []], injuries: [inj(r.injuries[0]), inj(r.injuries[1])], money, consequences,
   }
 }
 import type { Injury } from './types'

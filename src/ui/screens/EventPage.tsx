@@ -1,3 +1,4 @@
+import { StakeChip } from '../components/TitleBanner'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { CampaignPanel } from '../office/CampaignPanel'
 import { formatDay } from '../../engine/calendar'
@@ -75,9 +76,11 @@ export function EventPage({ id }: { id: string }) {
         {main && (
           <div className="ev-main" data-testid="ev-main">
             <div className="caps gold">Main event · {main.division} · {main.rounds} rounds</div>
+            {main.stake && <StakeChip label={main.stake.label} name={main.stake.name} />}
             <button className="ev-duel display" onClick={() => navigate('fight', main.fightId)} aria-label={`Tale of the tape: ${main.aName} versus ${main.bName}`}>
               <span>{main.aName}</span><i>VS</i><span>{main.bName}</span>
             </button>
+            {(main.aMine || main.bMine) && <div className="ev-yours" data-testid="ev-yours"><span className="chip blue">Your fighter{main.aMine && main.bMine ? 's' : ''}</span> {[main.aMine ? main.aName : null, main.bMine ? main.bName : null].filter(Boolean).join(' · ')}</div>}
             <div className="ev-recs"><span className="num">{main.aRecord}</span><span className="dim">{main.status}</span><span className="num">{main.bRecord}</span></div>
             <div className="ev-stats">
               <div><span className="caps">Tickets</span><b className="num">{num(v.sales.total)} / {num(v.sales.capacity)}</b></div>
@@ -91,6 +94,7 @@ export function EventPage({ id }: { id: string }) {
       </div>
       {poster && <EventPoster v={poster} size="lead" />}
       </div>
+      {!v.mine && <div className="attn info ext-banner" data-testid="external-banner" role="note"><div className="t">{v.promotion} stage this show: the card, the venue and the night belong to them. {v.card.some((c) => c.aMine || c.bMine) ? 'Your fighter is on it; the result is reported when the bell goes.' : ''}</div></div>}
       {v.mine && v.nextStep && v.statusKey !== 'cancelled' && <div className="attn info" style={{ marginTop: 14 }}><div className="t">{v.nextStep}</div></div>}
       {v.statusKey === 'cancelled' && <p className="attn critical">This show was cancelled: {v.cancelReason}.</p>}
 
@@ -298,6 +302,7 @@ function SlotRow({ s, n, editable, eventId }: { s: CardSlot; n: number; editable
           <FighterCard f={slotFighter(s.bId, s.bName, s.bRecord, s.division)} size="compact" badge={s.winner === 1 ? <span className="chip gold">WINNER</span> : undefined} />
         </div>
         <div className="fighter-sub">{s.aRecord} / {s.bRecord} · {s.division} · {s.rounds} rds · {s.appealLabel}</div>
+        {(s.stake || s.aMine || s.bMine) && <div className="slot-marks">{s.stake && <StakeChip label={s.stake.label} name={s.stake.name} />}{(s.aMine || s.bMine) && <span className="chip blue" data-testid="slot-yours">Your fighter: {[s.aMine ? s.aName : null, s.bMine ? s.bName : null].filter(Boolean).join(' · ')}</span>}</div>}
         {s.result && <div className="fighter-sub">{s.result}</div>}
       </div>
       {!s.result && <span className="dim" style={{ fontSize: 12.5 }}>{s.status}</span>}
@@ -392,7 +397,7 @@ function NightBar({ eventId, runNext }: { eventId: string; runNext: (id: string)
         <div className="nb-text">
           <span className="caps">{p.done} of {p.total} bouts fought · {main ? 'Main event next' : p.next.position}</span>
           <b>{p.next.aName} <span className="dim">v</span> {p.next.bName}</b>
-          <span className="dim">{p.next.slot.toLowerCase()} · {p.next.division} · {p.next.rounds} rounds{p.next.stake ? ` · ${p.next.stake}` : ''}</span>
+          <span className="dim">{p.next.slot.toLowerCase()} · {p.next.division} · {p.next.rounds} rounds{p.next.stake ? ` · ${p.next.stake.label}` : ''}</span>
         </div>
         <button className="btn primary big" data-testid="next-fight" onClick={() => runNext(eventId)}>{main ? 'Main event: ring the bell ▸' : 'Next fight ▸'}</button>
       </div>
@@ -432,6 +437,7 @@ function NightPanel({ v, runNext, nightFight }: { v: EventView; runNext: (id: st
       {mainNext && next && (
         <div className="main-card">
           <div className="caps">Main event · {next.rounds} rounds · {next.division}</div>
+          {next.stake && <StakeChip label={next.stake.label} name={next.stake.name} />}
           <div className="display" style={{ fontSize: 40, marginTop: 6 }}>{next.aName} <span className="dim">vs</span> {next.bName}</div>
           <div className="dim">{next.aRecord} · {next.bRecord} · {next.appealLabel}</div>
         </div>

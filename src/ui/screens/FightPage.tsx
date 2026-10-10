@@ -1,3 +1,4 @@
+import { TitleBanner } from '../components/TitleBanner'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { formatDay } from '../../engine/calendar'
 import { eventList } from '../../engine/eventViews'
@@ -101,6 +102,7 @@ function ResultSection({ fv, r, done }: { fv: FightView; r: ResultView; done: bo
                 <div className="kv"><dt>Records</dt><dd>{a.lastName} {r.after[0]} · {b.lastName} {r.after[1]}</dd></div>
                 <div className="kv"><dt>Reputation</dt><dd>{a.lastName} <b className={r.dRep[0] >= 0 ? 'good' : 'red'}>{r.dRep[0] >= 0 ? '+' : ''}{r.dRep[0]}</b> · {b.lastName} <b className={r.dRep[1] >= 0 ? 'good' : 'red'}>{r.dRep[1] >= 0 ? '+' : ''}{r.dRep[1]}</b></dd></div>
                 <div className="kv"><dt>Popularity</dt><dd>{a.lastName} <b className={r.dPop[0] >= 0 ? 'good' : 'red'}>{r.dPop[0] >= 0 ? '+' : ''}{r.dPop[0]}</b> · {b.lastName} <b className={r.dPop[1] >= 0 ? 'good' : 'red'}>{r.dPop[1] >= 0 ? '+' : ''}{r.dPop[1]}</b></dd></div>
+                {(r.consequences ?? []).map((c, i) => <div className="kv" key={`cq${i}`} data-testid="consequence" data-tone={c.tone}><dt>{c.tone === 'title' ? 'The belt' : 'Career'}</dt><dd className={c.tone === 'bad' ? 'red' : c.tone === 'title' ? 'gold' : 'good'}>{c.text}</dd></div>)}
                 {(r.context ?? []).map((lines, i) => lines.length > 0 && <div className="kv" key={`ctx${i}`} data-testid="result-context"><dt>In context</dt><dd>{(i === 0 ? a : b).lastName}: {lines.join('. ')}.</dd></div>)}
                 {r.injuries.map((inj, i) => inj && <div className="kv" key={i}><dt>Injury</dt><dd className="warn">{(i === 0 ? a : b).lastName}: {inj.severity} {inj.kind} — out about {inj.weeks} weeks</dd></div>)}
                 {r.stoppage && <div className="kv"><dt>Medical</dt><dd>{r.winner !== null ? (r.winner === 0 ? b : a).lastName : ''} faces a medical suspension.</dd></div>}
@@ -172,6 +174,7 @@ function FightPageInner({ id }: { id: string }) {
   return (
     <>
       <Hero fv={fv} after={fv.result?.after} showWinner={revealed} hideMatchup={!!fv.result?.rounds || (!fv.result && !['cancelled', 'negotiating'].includes(fv.statusKey))} />
+      {fv.titleStake && <TitleBanner stake={fv.titleStake} />}
       {!fv.result && !['cancelled', 'negotiating'].includes(fv.statusKey) && <TaleOfTape a={fv.a.fighter} b={fv.b.fighter} rounds={fv.rounds} division={fv.division} onBell={fv.statusKey === 'fightNight' && fv.canRunNight ? () => (fv.eventId ? navigate('event', fv.eventId!) : run(id)) : undefined} bellLabel={fv.eventId ? 'Ring the bell · go to the show' : 'Ring the bell'} />}
       {fv.result?.rounds && <LiveFight fv={fv} r={fv.result} live={animate} onDone={onDone} />}
       <FightMediaPanel fightId={id} />

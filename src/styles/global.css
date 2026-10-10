@@ -1191,3 +1191,46 @@ tr.row.proposal td:first-child { box-shadow: inset 3px 0 0 var(--warn); }
 .lf-next-who { font-weight: 500; opacity: .85; }
 .fn-controls .lf-actions .btn[data-testid=lf-next-fight], .lf-actions .btn[data-testid=lf-next-fight] { order: -1; flex: 1 1 100%; min-height: 46px; }
 @media (max-width: 860px) { .night-bar { bottom: calc(64px + env(safe-area-inset-bottom)); } .night-bar .btn { flex: 1 1 100%; } }
+
+/* ===== Phase 6.4: the belt at stake, results first, external cards ===== */
+.title-banner { text-align: left; margin: 14px 0; padding: 14px 18px 16px; border: 1px solid var(--gold); background: linear-gradient(100deg, rgba(212,162,76,.22), rgba(212,162,76,.05) 55%, rgba(20,14,6,.4)); position: relative; }
+.title-banner::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: var(--gold); }
+.title-banner .tb-top { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.title-banner .tb-tier { background: var(--gold); color: #1a1205; padding: 2px 8px; font-weight: 700; letter-spacing: .12em; }
+.title-banner .tb-kind { color: var(--gold); letter-spacing: .12em; }
+.title-banner .tb-name { font-size: 30px; line-height: 1.05; margin: 6px 0 4px; color: #fff; overflow-wrap: anywhere; }
+.title-banner .tb-line { margin: 4px 0 8px; color: var(--text); max-width: 70ch; }
+.title-banner .tb-roles { display: flex; gap: 22px; flex-wrap: wrap; margin-top: 6px; }
+.title-banner .tb-role { display: flex; flex-direction: column; gap: 1px; }
+.title-banner .tb-role .caps { color: var(--gold); font-size: 11.5px; letter-spacing: .14em; }
+.title-banner .tb-role.champ b { color: var(--gold-hi); }
+.title-banner .tb-outcome { list-style: none; margin: 10px 0 0; padding: 8px 0 0; border-top: 1px solid rgba(212,162,76,.4); display: grid; gap: 4px; }
+.title-banner .tb-outcome li { font-weight: 700; color: var(--gold-hi); }
+.title-banner.compact { margin: 10px 0; padding: 10px 14px; }
+.title-banner.compact .tb-name { font-size: 22px; }
+.stake-chip { display: inline-flex; flex-wrap: wrap; gap: 0 2px; align-items: baseline; margin: 6px 0 2px; padding: 3px 9px; border: 1px solid var(--gold); background: rgba(212,162,76,.14); color: var(--gold-hi); font-size: 13px; letter-spacing: .04em; }
+.stake-chip b { font-family: var(--display); letter-spacing: .1em; }
+.slot-marks { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 4px; }
+.ev-yours { margin: 6px 0; font-size: 14px; }
+.ext-banner { margin-top: 14px; }
+.fn-conseq { margin: 14px 0; padding: 10px 14px; border: 1px solid var(--line-strong); background: rgba(0,0,0,.28); text-align: left; }
+.fn-conseq ul { list-style: none; margin: 6px 0 0; padding: 0; display: grid; gap: 4px; }
+.fn-conseq li { padding-left: 10px; border-left: 3px solid var(--line-strong); }
+.fn-conseq li.title { border-left-color: var(--gold); color: var(--gold-hi); font-weight: 700; }
+.fn-conseq li.bad { border-left-color: var(--red); }
+.fn-conseq li.good { border-left-color: #3fae6a; }
+.lf-cards .card-j .fav { font-size: 12.5px; margin-top: 2px; }
+.lf-cards-wrap { margin: 12px 0; }
+.lf-actions .btn[data-testid=lf-next-fight] { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; text-align: left; white-space: normal; }
+.lf-actions .btn[data-testid=lf-next-fight] .lf-next-l { font-weight: 700; letter-spacing: .08em; }
+.lf-actions .btn[data-testid=lf-next-fight] .lf-next-who { font-weight: 500; font-size: 13px; opacity: .92; overflow-wrap: anywhere; }
+@media (max-width: 860px) {
+  .title-banner .tb-name { font-size: 24px; }
+  .fn-controls { padding-top: 8px; padding-bottom: calc(8px + env(safe-area-inset-bottom)); }
+}
+
+/* toasts must never sit on the Fight Night controls: during the presentation they move to the top, under the header */
+body.fight-night .toasts { bottom: auto; top: 72px; right: 14px; left: auto; }
+@media (max-width: 860px) { body.fight-night .toasts { left: 10px; right: 10px; top: 64px; bottom: auto; } }
+
+@media (max-width: 860px) { .bell { white-space: normal; font-size: 21px; line-height: 1.15; padding: 14px 14px; } }

@@ -106,6 +106,10 @@ export interface CardSlot {
   appeal: number; appealLabel: string
   status: string; statusKey: string
   purses: number
+  /** Which sides are your fighters (a rival's card carries yours too). */
+  aMine: boolean; bMine: boolean
+  /** The belt (or eliminator) on the line, as the fight itself carries it. */
+  stake: { label: string; name: string; kind: 'title' | 'unification' | 'eliminator' } | null
   result?: string
   winner?: 0 | 1 | null
   method?: string
@@ -168,7 +172,9 @@ export function cardSlots(state: GameState, ev: BoxingEvent): CardSlot[] {
       fightId: f.id, index: i, slot: slotOf(i, fights.length), aId: A.id, bId: Bf.id, aName: fighterName(A), bName: fighterName(Bf),
       aRecord: f.sideA.preRecord, bRecord: f.sideB.preRecord, division: weightClassLabel(f.weightClass), rounds: f.scheduledRounds,
       appeal: Math.round(ap), appealLabel: appealLabel(ap), status: STATUS_LABEL[f.status], statusKey: f.status,
-      purses: f.terms.purseA + f.terms.purseB, result: r ? resultHeadline(f, fighterName(A), fighterName(Bf)) : undefined,
+      purses: f.terms.purseA + f.terms.purseB, aMine: f.sideA.promotionId === state.playerPromotionId, bMine: f.sideB.promotionId === state.playerPromotionId,
+      stake: f.title ? { label: ({ regional: 'REGIONAL TITLE', national: 'NATIONAL TITLE', international: 'INTERNATIONAL TITLE', world: 'WORLD TITLE' } as const)[f.title.tier], name: f.title.name, kind: f.title.kind ?? 'title' } : null,
+      result: r ? resultHeadline(f, fighterName(A), fighterName(Bf)) : undefined,
       winner: r ? r.winner : undefined, method: r ? r.method : undefined,
     }
   })
@@ -179,7 +185,7 @@ export interface NightProgress {
   eventId: Id; name: string; mine: boolean
   total: number; done: number; remaining: number
   /** The next bout to be run, or null when every bout is fought. */
-  next: (CardSlot & { stake: string | null; position: string }) | null
+  next: (CardSlot & { stakeLabel: string | null; position: string }) | null
   /** Every bout is fought: the show is complete (or about to settle). */
   complete: boolean
   /** The night can be advanced by the player right now (the show is theirs and in fight week / live). */
@@ -195,7 +201,7 @@ export function nightProgress(state: GameState, eventId: Id): NightProgress | nu
   const mine = ev.promotionId === state.playerPromotionId
   return {
     eventId, name: ev.name, mine, total: slots.length, done, remaining: slots.length - done,
-    next: nx ? { ...nx, stake: fightListItem(state, nx.fightId)?.stake?.label ?? null, position: `Bout ${slots.indexOf(nx) + 1} of ${slots.length}` } : null,
+    next: nx ? { ...nx, stakeLabel: fightListItem(state, nx.fightId)?.stake?.label ?? null, position: `Bout ${slots.indexOf(nx) + 1} of ${slots.length}` } : null,
     complete: slots.length > 0 && done === slots.length,
     canRun: mine && ['fightWeek', 'live'].includes(ev.status),
   }
