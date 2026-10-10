@@ -476,6 +476,8 @@ export function settleTitleFight(state: GameState, media: MediaState, fight: Fig
     const rec = media.titles[k]
     if (!rec) continue
     const level = levelOf(body)
+    // A fight booked as a lower title stays on the card, but if either man has since won a higher belt in the division the lower one is no longer on the line (the ladder of levels).
+    if (higherBeltOf(media, A, fight.weightClass, level) || higherBeltOf(media, B, fight.weightClass, level)) continue
     if (rec.c && (rec.c === A || rec.c === B)) {
       const challenger = rec.c === A ? B : A
       if (W === null || W === rec.c) {

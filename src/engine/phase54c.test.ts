@@ -159,17 +159,22 @@ describe('incoming fight offers', () => {
     expect(r.state.events[o.eventId!].card).toContain(f.id)
     expect(f.status).toBe('scheduled')
     expect(f.sideB.promotionId).toBe(r.state.playerPromotionId)
-    // run the show: the fee arrives, the fighter is paid, nothing doubles
+    // run the show: the fee arrives, the fighter is paid, nothing doubles. A camp injury can cancel a show for either man, so
+    // try a few worlds' luck and check the accounting on the first one where the fight is actually fought.
     let t = r.state
-    const ledger0 = t.ledger.length
-    const cash0 = player(t).cash
-    for (let i = 0; i < 20 && !t.fights[f.id].result; i++) t = advanceOneWeek(t)
+    for (let k = 0; k < 8; k++) {
+      t = clone(r.state); t.seed = `${r.state.seed}-try${k}`
+      for (let i = 0; i < 20 && !t.fights[f.id].result && t.fights[f.id].status !== 'cancelled'; i++) t = advanceOneWeek(t)
+      if (t.fights[f.id].result) break
+    }
     expect(t.fights[f.id].result, 'the fight was fought on the rival show').toBeTruthy()
     const lines = t.ledger.filter((x) => x.description.includes('Loan fee'))
     expect(lines).toHaveLength(1)
     expect(lines[0].amount).toBeGreaterThanOrEqual(9000)
-    expect(t.ledger.filter((x) => x.category === 'purses' && x.description.includes(r.state.fighters[o.mine].lastName))).toHaveLength(1)
-    void ledger0; void cash0
+    // one purse line, and (if the fighter won) one win-bonus line: nothing doubles
+    const name = r.state.fighters[o.mine].lastName
+    expect(t.ledger.filter((x) => x.category === 'purses' && x.description.startsWith('Purse') && x.description.includes(name))).toHaveLength(1)
+    expect(t.ledger.filter((x) => x.category === 'purses' && x.description.startsWith('Win bonus') && x.description.includes(name)).length).toBeLessThanOrEqual(1)
     expect(t.fights[f.id].paid).toBe(true)
   })
 

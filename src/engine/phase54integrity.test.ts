@@ -192,6 +192,23 @@ describe('the ladder of levels', () => {
     return { s, wc, x, hold }
   }
 
+  it('a lower title booked before a fighter moved up is not awarded to them: the fight stands, the belt stays open, no zero-length reign appears', () => {
+    const { s, wc, x, hold } = setup()
+    hold('atlas')                                                        // x now holds a world belt
+    s.media!.titles[titleKey('european', wc)] = { c: null, since: s.today - 200, defences: 0, lastFight: s.today - 200, vacantSince: s.today - 200 }
+    touchTitles(s.media!)
+    const y = Object.values(s.fighters).find((f) => f.status === 'active' && f.weightClass === wc && f.id !== x.id && !titlesHeldBy(s.media!, f.id).length)!
+    const fight = agreedFight(s, x.id, y.id)
+    fight.weightClass = wc
+    s.media!.titleFights[fight.id] = ['european']                        // flagged as a European fight when it was booked
+    ;(fight as { result: unknown }).result = { winner: 0, method: 'UD', round: 12, second: 0, cards: [[1, 0], [1, 0], [1, 0]], kd: [0, 0], tot: [0, 0, 0, 0, 0, 0, 0, 0], deductions: [0, 0], pExpA: 0.5, dRep: [0, 0], dPop: [0, 0], perf: [0, 0], injuries: [null, null], importance: 10, upset: 0 }
+    const reignsBefore = getReigns(s.media!).length
+    settleTitleFight(s, s.media!, fight)
+    expect(s.media!.titles[titleKey('european', wc)].c, 'the European belt is not given to a world champion').toBeNull()
+    expect(getReigns(s.media!).length).toBe(reignsBefore)
+    expect(titlesHeldBy(s.media!, x.id).map((t) => t.body)).toEqual(['atlas'])
+  })
+
   it('winning a world belt closes every lower reign in the same transition, with an explicit, dated reason; history is kept', () => {
     const { s, wc, x, hold } = setup()
     for (const b of ['european', 'british', 'commonwealth', 'area_eng', 'atlas']) hold(b)
@@ -217,6 +234,8 @@ describe('the ladder of levels', () => {
     expect(titlesHeldBy(t.s.media!, t.x.id).map((q) => q.body).sort()).toEqual(['british', 'commonwealth'])
     expect(currentTitleLabel(t.s, t.x.id)).toBe('Domestic champion')
     const u = setup()
+    // "unified" means some world belts of the division are held by others: make sure the other two exist (as open belts) whatever the world has made of this division
+    for (const b of worlds.filter((w) => w !== 'atlas' && w !== 'pioneer')) if (!u.s.media!.titles[titleKey(b, u.wc)]) u.s.media!.titles[titleKey(b, u.wc)] = { c: null, since: u.s.today, defences: 0, lastFight: u.s.today, vacantSince: u.s.today }
     u.hold('atlas'); u.hold('pioneer')
     enforceHierarchy(u.s, u.s.media!)
     expect(currentTitleLabel(u.s, u.x.id)).toBe('Unified world champion')

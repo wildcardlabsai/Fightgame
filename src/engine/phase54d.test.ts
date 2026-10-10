@@ -305,7 +305,7 @@ describe('careers that stop working', () => {
     const rec = JSON.stringify(f.record), fights = [...f.recentFights]
     f.birthDay = s.today - 41 * 365 // certain to retire (hazard capped at 0.25 a week: run a few draws)
     const rng = new Rng(77)
-    for (let i = 0; i < 40 && f.status === 'active'; i++) processRetirements(s, rng)
+    for (let i = 0; i < 600 && f.status === 'active'; i++) processRetirements(s, rng) // the hazard depends on the fighter's record and wear: allow enough draws for any of them
     expect(f.status).toBe('retired')
     expect(JSON.stringify(f.record)).toBe(rec)
     expect(f.recentFights).toEqual(fights)
