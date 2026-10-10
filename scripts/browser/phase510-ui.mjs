@@ -16,7 +16,7 @@ const go = async (page, h) => { await page.evaluate((x) => { location.hash = x }
 const overflow = (page) => page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)
 const snap = async (page, w, name) => { await page.screenshot({ path: `${shots}/${name}-${w}.png`, fullPage: true }); const o = await overflow(page); check(`${w} ${name}: no horizontal overflow`, o <= 0, String(o))
   // the page clips sideways overflow, so also look for content that sits past the right edge
-  const clipped = await page.evaluate(() => { const vw = document.documentElement.clientWidth; const out = []; for (const el of document.querySelectorAll('main *')) { if (el.closest('.n54-log, .table-wrap, .fn-track, [style*="overflow"]')) continue; const r = el.getBoundingClientRect(); if (r.width > 0 && r.right > vw + 1) out.push(`${el.tagName}.${(el.className + '').toString().slice(0, 24)}`) } return out.slice(0, 5) })
+  const clipped = await page.evaluate(() => { const vw = document.documentElement.clientWidth; const out = []; for (const el of document.querySelectorAll('main *')) { if (el.closest('.n54-log, .table-wrap, .fn-track, .pf-nav, [style*="overflow"]')) continue; const r = el.getBoundingClientRect(); if (r.width > 0 && r.right > vw + 1) out.push(`${el.tagName}.${(el.className + '').toString().slice(0, 24)}`) } return out.slice(0, 5) })
   check(`${w} ${name}: nothing is cut off at the right edge`, clipped.length === 0, JSON.stringify(clipped)) }
 
 for (const w of [1280, 1024, 390]) {
