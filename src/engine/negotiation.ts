@@ -213,7 +213,7 @@ export function submitOffer(input: GameState, fighterId: Id, rawOffer: Offer, ki
     if (!c || c.promotionId !== p0.id) return fail(input, 'That fighter is not on your roster.')
     if (!renewalWindowOpen(input, c)) return fail(input, 'Renewal talks open six months before a contract ends.')
   }
-  if (!canAfford(input, offer.signingBonus)) return fail(input, `You cannot afford a £${offer.signingBonus.toLocaleString('en-GB')} signing bonus.`)
+  if (!canAfford(input, offer.signingBonus)) return fail(input, `You cannot afford a £${offer.signingBonus.toLocaleString('en-GB')} signing bonus.${input.promotions[input.playerPromotionId].cash < 0 ? ' The account is overdrawn: Finances shows the way back.' : ''}`)
 
   const state = structuredClone(input)
   const f = state.fighters[fighterId]

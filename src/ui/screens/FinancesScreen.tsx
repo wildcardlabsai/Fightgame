@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { formatDay } from '../../engine/calendar'
 import { WEEKLY_COSTS } from '../../engine/config'
-import { allAdvice, financeAdvisor } from '../../engine/advisor'
+import { allAdvice, bridgeView, financeAdvisor } from '../../engine/advisor'
 import { tierLabel } from '../../engine/tiers'
 import { sponsorView } from '../../engine/sponsors'
 import { cashRunwayWeeks, financialHealth, overheadCost, player, weeklyBurn } from '../../engine/selectors'
@@ -15,7 +15,7 @@ import { money } from '../format'
 
 const CAT_LABEL: Record<TransactionCategory, string> = {
   startingFunds: 'Capital', office: 'Office', staff: 'Staff', gym: 'Gym', insurance: 'Insurance', retainers: 'Retainers',
-  purses: 'Purses', tickets: 'Tickets', sponsorship: 'Event sponsorship', standingSponsor: 'Standing sponsors', ppv: 'PPV', venue: 'Venue', scouting: 'Scouting', signingBonus: 'Signing bonus', releaseFees: 'Release fee', loanFee: 'Loan fees', coaching: 'Coaching staff', other: 'Other',
+  purses: 'Purses', tickets: 'Tickets', sponsorship: 'Event sponsorship', standingSponsor: 'Standing sponsors', ppv: 'PPV', venue: 'Venue', scouting: 'Scouting', signingBonus: 'Signing bonus', releaseFees: 'Release fee', loanFee: 'Loan fees', loan: 'Bridge loan', loanRepayment: 'Loan repayment', coaching: 'Coaching staff', other: 'Other',
   broadcast: 'Broadcast', marketing: 'Marketing', officials: 'Officials & medical', production: 'Production', security: 'Security',
 }
 
@@ -41,7 +41,7 @@ export function FinancesScreen() {
   const sumCat = (c: TransactionCategory) => game.ledger.filter((t) => t.category === c && t.day > yearAgo).reduce((n, t) => n + t.amount, 0)
   const eventSpons = sumCat('sponsorship'), standingSpons = sumCat('standingSponsor')
   const finKey = fin.standing.split(' ')[0]
-  const yearNet = game.ledger.filter((t) => t.day > yearAgo && t.category !== 'startingFunds').reduce((n, t) => n + t.amount, 0)
+  const yearNet = game.ledger.filter((t) => t.day > yearAgo && t.category !== 'startingFunds' && t.category !== 'loan' && t.category !== 'loanRepayment').reduce((n, t) => n + t.amount, 0)
   const spent = game.ledger.filter((t) => t.amount < 0).reduce((s, t) => s - t.amount, 0)
 
   return (
@@ -67,6 +67,8 @@ export function FinancesScreen() {
         </div>
         <AdvicePanel list={allAdvice(game).filter((a) => a.topic === 'event' || a.topic === 'contract')} cap={3} compact />
       </Section>
+
+      <BridgePanel />
 
       <Section title="Sponsorship income" right={<button className="linkbtn" onClick={() => navigate('sponsors')}>Sponsors</button>}>
         <dl>
@@ -145,3 +147,36 @@ const INCOME: TransactionCategory[] = ['tickets', 'sponsorship', 'ppv', 'broadca
 const SHOW_COSTS: TransactionCategory[] = ['venue', 'marketing', 'production', 'purses', 'officials', 'security']
 const income12 = (g: GameState) => g.ledger.filter((t) => t.day > g.today - 365 && INCOME.includes(t.category)).reduce((n, t) => n + t.amount, 0)
 const showCosts12 = (g: GameState) => g.ledger.filter((t) => t.day > g.today - 365 && SHOW_COSTS.includes(t.category)).reduce((n, t) => n - Math.min(0, t.amount) + 0, 0)
+
+/** The way back from a hole that cannot be traded out of: shown only to a promotion in distress, or while a loan is running. */
+function BridgePanel() {
+  const game = useGame((s) => s.game)!
+  const takeBridge = useGame((s) => s.takeBridge)
+  const v = bridgeView(game)
+  if (!v.loan && !v.offer && !(v.danger && v.unavailable)) return null
+  return (
+    <Section title="Bridge financing">
+      <div data-testid="bridge-panel">
+        {v.loan && (
+          <>
+            <p>The backers' bridge loan is running: <b>{money(v.loan.owed, false)}</b> still to repay, collected at {money(v.loan.weekly, false)} a week for {v.loan.weeksLeft} more weeks. It is part of your weekly cost, not profit.</p>
+          </>
+        )}
+        {!v.loan && v.danger && <p data-testid="bridge-why">{v.danger}</p>}
+        {v.offer && (
+          <>
+            <dl>
+              <div className="kv"><dt>Paid in</dt><dd className="num">{money(v.offer.principal, false)} <span className="dim">({v.offer.hole > 0 ? `covers the ${money(v.offer.hole, false)} overdraft plus ` : ''}a {money(v.offer.float, false)} working float)</span></dd></div>
+              <div className="kv"><dt>You repay</dt><dd className="num">{money(v.offer.owed, false)} <span className="dim">({money(v.offer.interest, false)} interest)</span></dd></div>
+              <div className="kv"><dt>Instalments</dt><dd className="num">{money(v.offer.weekly, false)} a week for {v.offer.weeks} weeks, on top of your running costs</dd></div>
+              <div className="kv"><dt>Cost to the promotion</dt><dd>Reputation −3. One loan at a time, and none again for two years.</dd></div>
+            </dl>
+            <p className="dim" style={{ fontSize: 13 }}>This is a lifeline, not income: it lets you hire a venue and pay a signing bonus again. Sign fighters and stage shows that make a profit, or the instalments will put you back in the same hole.</p>
+            <button className="btn primary" data-testid="bridge-accept" onClick={() => { if (window.confirm(`Take the bridge loan? You will owe ${money(v.offer!.owed, false)}.`)) takeBridge() }}>Take the bridge loan</button>
+          </>
+        )}
+        {!v.loan && !v.offer && v.unavailable && <p className="dim" data-testid="bridge-unavailable">{v.unavailable}</p>}
+      </div>
+    </Section>
+  )
+}

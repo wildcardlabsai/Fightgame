@@ -479,3 +479,4 @@ export function deskAdvice(state: GameState, mode: AdvisorMode, cap = 4): Advice
   return visibleAdvice(allAdvice(state), mode, cap)
 }
 
+export { bridgeView, type BridgeView } from './systems/bridge'

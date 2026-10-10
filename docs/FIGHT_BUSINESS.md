@@ -543,3 +543,52 @@ they retire by age); retired fighters keep their record and reigns. Bot promotio
 **Phase 5.5 verification.** Unit/integration 647 passed, 5 skipped (env-gated e2e/careers/bench suites), 0 failed; browser suites all green (championship 158/0 with the distance path reported as
 not exercised by that run; venues 113/0 with the previously skipped check now running; business 221/0). Weekly tick 8.3-9.0x (limit 10x). Balanced-bot viability at year 8 (8 seeds each):
 5.3 6/8 solvent, 5.4A 2/8, now 3/8 - a bimodal outcome (roster attrition, then fixed overheads of about 217k a year) that pre-dates this phase and is a candidate for the next one.
+
+## Economy resilience and the bridge loan (Phase 5.6, no save-version change)
+
+**Audit** (`scripts/audit/phase56-economy.ts <policy> [years] [seeds] [--stress=zero|lowcash|negative] [--per-seed]`, seeds `eco-1..8`, 8 years, a fresh Startup with £500k).
+A Startup pays about £5.7k a week before any fighter retainer (office 1.2k, staff 1.5k, gym 0.7k, insurance, one scout, then retainers): about £195k a year of overhead plus
+£100-200k of retainers, against a median profit of £40-75k a show. Seven or so shows a year cover it; fewer than five do not.
+
+| Policy (8 seeds, 8 years) | solvent at year 8 | median cash y8 | shows / year | loss-making shows |
+|---|---|---|---|---|
+| prospects | 8/8 | £5.1m | 14-15 | 10% |
+| superstar (bets late) | 8/8 | £1.6m | 7 | 5% |
+| conservative | 7/8 | £2.4m | 7 | 7% |
+| aggressive | 6/8 | £1.6m | 8-10 | 14% |
+| **balanced (the audit bot)** | **3/8** | **-£0.6m** | 9 then 0 | 23% |
+| passive (no shows) | 0/3 | - | 0 | - |
+
+So the economy is viable and rewarding for competent play (several strategies, £1-5m by year 8, sustained shows); the balanced bot is a weak promoter: it signs eight fighters at once (retainers £195k a
+year), accepts shows forecast to lose £10k, and when cash dips it stops promoting (an eight-week reserve gate makes `hire` impossible on a thin account) while the retainers and overheads carry on.
+
+**The structural trap that is the player-economy problem.** Once the account is overdrawn nothing earns money: a venue cannot be hired and a signing bonus cannot be paid without cash, so a promotion
+below zero stays there for the rest of the save (negative-cash stress, conservative bot: 0/5 recover; zero roster with cash intact recovers 5/5 through ordinary signings). Insolvency messages even told
+the player to "run a profitable show", which was impossible.
+
+**Player-economy change: backers' bridge loan** (`systems/bridge.ts`, Finances screen, attention item). Offered only when overdrawn, or with no fighters, no show on the books and under twelve weeks of
+costs. It pays in the overdraft plus a working float (twelve weeks of the promotion's real burn, floor £60k, cap £200k, scaled by tier), costs 25% interest collected weekly over 156 weeks through the ledger
+(`loan`/`loanRepayment`, excluded from profit), costs 3 reputation, one at a time, none for 104 weeks after taking one, and is refused (with the reason) for a hole deeper than £250k (closure stays a consequence).
+The no-fighters state now has its own attention item, and "cannot afford a signing bonus" says the account is overdrawn and points to Finances. Optional `GameState.bridge`; older saves are unaffected.
+Terms were tightened by measurement: at 20% over 78 weeks the instalments (about £200k a year) outweighed a Startup's margin and the loan did not rescue the negative stress (0/5); at 25% over 156 weeks they cost about £100k a year.
+
+**Bot-only changes (test harness, `sim/strategies.ts`)**: `balancedLean` (six fighters, no forecast losses), `rescue` (stage the cheapest sensible show with the cash there is instead of reserving eight weeks of burn),
+`renewShare`, and `useBridge` (take the loan when offered). Measured separately, 8 seeds x 8 years unless noted:
+
+| | solvent y8 | median cash y8 |
+|---|---|---|
+| balanced | 3/8 | -£569k |
+| + bridge only (production change, old terms) | 3/8 | -£575k |
+| + lean roster (bot) | 4/8 | +£1.14m |
+| + lean + rescue (bot) | 3/8 | -£216k |
+| + lean + rescue + bridge | 3/8 | -£240k |
+| + lean + rescue + renewals (+bridge) | 3/8 | -£450k |
+| Stress, conservative, 5 seeds x 6 years: low cash (£60k) | 1/5 | |
+| ...with rescue shows (bot) | 4/5 | |
+| ...with rescue + bridge | 5/5 | |
+| Stress: overdrawn £150k, no loan | 0/5 | |
+| ...with rescue + bridge (final terms) | 3/5 | |
+
+Honest reading: the bridge turns a certain dead end into a recoverable one (0/5 -> 3/5 in the overdrawn stress, and the last seed in the low-cash stress); the cash-stress policy fix is mostly the bot's (1/5 -> 4/5).
+The balanced bot's late collapse is **not** explained or fixed by either: in the failing seeds the cash peaks around year 3 and then four to six shows a year cannot carry about £330k of overhead and retainers.
+That points at show cadence and the thin Startup margin rather than at any one bad decision, and is left as the next phase's question (no blanket income multiplier was applied).

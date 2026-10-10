@@ -3,6 +3,8 @@
  * sign fighters, agree fights, pick a venue from the public forecast (or by its own appetite), price and promote,
  * run the night. They are deliberately imperfect — none of them sees hidden information.
  */
+import { bridgeOffer } from '../systems/bridge'
+import { takeBridgeLoan } from '../commands'
 import { addFightToEvent, approach, withdraw, chooseSponsor, createEvent, makeOffer, offerFight, putEventOnSale, runEventToEnd, setEventBroadcast, setEventMarketing, setEventPrices } from '../commands'
 import { suggestedFightOffer } from '../fightNegotiation'
 import { opponentCandidates } from '../matchmaking'
@@ -52,6 +54,12 @@ export interface Strategy {
   investAbove: number
   /** …and only once the promotion has grown to this tier: a star cannot pay in a building the promotion is not yet allowed to book. */
   betTier: PromotionTier
+  /** Phase 5.6: take the backers' bridge loan when the promotion qualifies for it (what a player in a hole would do). */
+  useBridge?: boolean
+  /** Phase 5.6 (bot only): when short of cash with nothing on the books, stage the cheapest sensible show with whatever cash there is, instead of holding back an eight-week reserve that a thin account never has. */
+  rescue?: boolean
+  /** Phase 5.6 (bot only): share of free cash a renewal may take (default 0.3). A promoter who lets the whole roster walk has no shows to sell. */
+  renewShare?: number
 }
 
 const M = (local: MarketingLevel, reg: MarketingLevel, nat: MarketingLevel, arena: MarketingLevel, stad: MarketingLevel): Record<VenueTier, MarketingLevel> => ({ local, regional: reg, national: nat, arena, stadium: stad })
@@ -63,6 +71,18 @@ export const STRATEGIES: Record<string, Strategy> = {
   superstar: { name: 'D Superstar betting', maxTier: 'stadium', venuePick: 'ambitious', minFill: 0.35, minForecastProfit: -1e9, marketing: M('major', 'major', 'major', 'major', 'major'), promo: 'superstar', priceMult: 1.15, priceSearch: true, broadcast: ['ppv', 'nationalTv', 'streaming'], ppvMinMainAppeal: 35, rosterTarget: 6, sign: 'stars', signShare: 0.45, signCashFloor: 900_000, maxConcurrent: 1, cardMin: 3, cardMax: 10, opponents: 'cheap', lead: 12, cashFloor: 30_000, hireShare: 0.3, maxLossShare: 0.4, investAbove: 1_500_000, betTier: 'National' },
   prospects: { name: 'E Prospect factory', maxTier: 'regional', venuePick: 'forecast', minFill: 0, minForecastProfit: -5_000, marketing: M('low', 'standard', 'standard', 'standard', 'standard'), promo: 'local', priceMult: 0.95, broadcast: ['none', 'localTv'], ppvMinMainAppeal: 999, rosterTarget: 9, sign: 'prospects', signShare: 0.08, signCashFloor: 200_000, maxConcurrent: 2, cardMin: 3, cardMax: 6, opponents: 'cheap', lead: 8, cashFloor: 50_000, hireShare: 0.1, maxLossShare: 0.05, investAbove: 0, betTier: 'Startup' },
 }
+
+// Phase 5.6 audit variants (test harness only): the same promoter as `balanced`, changed one thing at a time.
+STRATEGIES.balancedBridge = { ...STRATEGIES.balanced, name: 'B Balanced + bridge', useBridge: true }
+STRATEGIES.balancedLean = { ...STRATEGIES.balanced, name: 'B Balanced, leaner', rosterTarget: 6, minForecastProfit: 0 }
+STRATEGIES.balancedLeanBridge = { ...STRATEGIES.balanced, name: 'B Balanced, leaner + bridge', rosterTarget: 6, minForecastProfit: 0, useBridge: true }
+STRATEGIES.conservativeRescue = { ...STRATEGIES.conservative, name: 'A Conservative + rescue shows', rescue: true }
+STRATEGIES.conservativeRescueBridge = { ...STRATEGIES.conservative, name: 'A Conservative + rescue + bridge', rescue: true, useBridge: true }
+STRATEGIES.balancedLeanRescue = { ...STRATEGIES.balanced, name: 'B Balanced, leaner + rescue', rosterTarget: 6, minForecastProfit: 0, rescue: true }
+STRATEGIES.balancedLeanRescueBridge = { ...STRATEGIES.balanced, name: 'B Balanced, leaner + rescue + bridge', rosterTarget: 6, minForecastProfit: 0, rescue: true, useBridge: true }
+STRATEGIES.balancedPro = { ...STRATEGIES.balanced, name: 'B Balanced, leaner + rescue + renewals + bridge', rosterTarget: 6, minForecastProfit: 0, rescue: true, renewShare: 0.6, useBridge: true }
+STRATEGIES.balancedProNoBridge = { ...STRATEGIES.balancedPro, name: 'B Balanced, leaner + rescue + renewals', useBridge: false }
+STRATEGIES.conservativeBridge = { ...STRATEGIES.conservative, name: 'A Conservative + bridge', useBridge: true }
 
 export interface ShowRecord { day: number; tier: VenueTier; venue: string; fights: number; attendance: number; capacity: number; revenue: number; costs: number; profit: number; ppv: number; broadcast: BroadcastKind; sponsor: number; tickets: number; purses: number; forecastAtt?: [number, number]; priceGa: number; mainAppeal: number }
 export interface StrategyLog { shows: ShowRecord[]; planned: number; noCard: number; noVenue: number; signed: number; seen: Set<string>; /** Planning is skipped until this day after a failed attempt (keeps the audit fast; a human would also wait). */ why: Record<string, number>; coolUntil: number; /** Downshifted to conservative play after a failed attempt or a cash scare (a human would too); cleared once cash has recovered. */ recover: boolean; /** The high-risk strategy has placed its bet (reached its stake). */ bet: boolean; betDay: number | null }
@@ -115,7 +135,7 @@ function manageRoster(input: GameState, st: Strategy, log: StrategyLog): GameSta
     const c = s.contracts[f.contractId!]
     if (!c || c.endDay - s.today > 26 * 7 || f.reputation < 10) continue
     const base = suggestedOffer(s, f, 'renewal')
-    if (base.signingBonus + base.basePurse * 2 > free() * 0.3 && st.sign !== 'stars') continue
+    if (base.signingBonus + base.basePurse * 2 > free() * (st.renewShare ?? 0.3) && st.sign !== 'stars') continue
     if (base.basePurse > purseCap(s, st)) continue // a smart promoter lets a fighter walk rather than pay more than the gate can bear
     for (const k of [1, 1.15, 1.35, 1.6]) {
       const out = makeOffer(s, f.id, { ...base, basePurse: base.basePurse * k, weeklyRetainer: base.weeklyRetainer * k, signingBonus: base.signingBonus * k }, 'renewal')
@@ -179,7 +199,9 @@ function recordShows(s: GameState, log: StrategyLog): void {
 }
 
 /** One week of management. Returns the new state (call advanceOneWeek afterwards). */
-export function playWeek(input: GameState, st0: Strategy, log: StrategyLog): GameState {
+export function playWeek(input0: GameState, st0: Strategy, log: StrategyLog): GameState {
+  let input = input0
+  if (st0.useBridge && bridgeOffer(input)) { const r = takeBridgeLoan(input); if (r.ok) input = r.state }
   // Betting strategies build a stake first (they play like the conservative promoter), then commit.
   if (st0.investAbove > 0 && !log.bet && input.promotions[input.playerPromotionId].cash >= st0.investAbove && TIER_DEFS[input.promotions[input.playerPromotionId].tier].rank >= TIER_DEFS[st0.betTier].rank) { log.bet = true; log.betDay = input.today }
   const cash0 = input.promotions[input.playerPromotionId].cash
@@ -192,7 +214,8 @@ export function playWeek(input: GameState, st0: Strategy, log: StrategyLog): Gam
   recordShows(s, log)
   const open = playerOpenEvents(s)
   const cashNow = s.promotions[s.playerPromotionId].cash
-  const cash = Math.max(0, cashNow - weeklyBurn(s).total * 8)
+  const stuck = !!st0.rescue && cashNow > 0 && playerOpenEvents(s).length === 0
+  const cash = stuck ? cashNow : Math.max(0, cashNow - weeklyBurn(s).total * 8)
   if (open.length >= st.maxConcurrent || cashNow < st.cashFloor || s.today < log.coolUntil) return s
   const roster = playerRoster(s).filter((f) => !f.activeFightId && !f.injury && f.status === 'active')
   if (roster.length < Math.min(st.cardMin, 3)) return s
@@ -218,7 +241,7 @@ export function playWeek(input: GameState, st0: Strategy, log: StrategyLog): Gam
       if (!tierAllowsVenue(state.promotions[state.playerPromotionId].tier, v)) { rej('tier'); continue }
       if (TIERS.indexOf(v.tier) > TIERS.indexOf(maxTier)) { rej('maxTier'); continue }
       if (v.minFights > ids.length || v.maxFights < ids.length) { rej('cardSize'); continue }
-      if (hireFor(state, v, state.playerPromotionId) > cash * (relax ? 0.15 : st.hireShare)) { rej('hire'); continue }
+      if (hireFor(state, v, state.playerPromotionId) > cash * (relax ? (stuck ? 0.5 : 0.15) : st.hireShare)) { rej('hire'); continue }
       if (venueBookedOn(state, v.id, day)) { rej('booked'); continue }
       const ev = draftEvent(state, state.promotions[state.playerPromotionId], fights, v, day)
       ev.kind = 'player'

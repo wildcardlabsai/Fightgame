@@ -243,7 +243,7 @@ export function talkMove(input: GameState, talkId: string, move: ContractMove): 
   if (!f0) return fail(input, 'Unknown fighter.')
   if (move.kind === 'propose') {
     const o = normaliseOffer(move.offer)
-    if (!canAfford(input, o.signingBonus)) return fail(input, `You cannot afford a £${o.signingBonus.toLocaleString('en-GB')} signing bonus.`)
+    if (!canAfford(input, o.signingBonus)) return fail(input, `You cannot afford a £${o.signingBonus.toLocaleString('en-GB')} signing bonus.${input.promotions[input.playerPromotionId].cash < 0 ? ' The account is overdrawn: Finances shows the way back.' : ''}`)
     if (o.pathway && !pathwayIsReal(input, f0, o.pathway)) return fail(input, 'That pathway is not available to this fighter.')
   }
   const state = structuredClone(input)
@@ -320,7 +320,7 @@ export function talkMove(input: GameState, talkId: string, move: ContractMove): 
     offer = normaliseOffer(move.offer)
     pushLine(t, day, 'you', 'offer', offerLine(offer))
   }
-  if (!canAfford(state, offer.signingBonus)) return fail(input, `You cannot afford a £${offer.signingBonus.toLocaleString('en-GB')} signing bonus.`)
+  if (!canAfford(state, offer.signingBonus)) return fail(input, `You cannot afford a £${offer.signingBonus.toLocaleString('en-GB')} signing bonus.${input.promotions[input.playerPromotionId].cash < 0 ? ' The account is overdrawn: Finances shows the way back.' : ''}`)
   if (kind === 'signing' && rosterFull(state, promo.id)) return fail(input, 'Your roster is full.')
 
   // The same offer again is not a move.

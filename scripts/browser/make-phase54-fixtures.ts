@@ -12,6 +12,7 @@ import { levelOf } from '../../src/engine/business/titleDefs'
 import { cancelEventCommand, createEvent, createEventInternal, venueBookedOn } from '../../src/engine/events/events'
 import { venueViews } from '../../src/engine/eventViews'
 import { startPursuit } from '../../src/engine/world/pursuit'
+import { post } from '../../src/engine/ledger'
 import { officeOf } from '../../src/engine/office/state'
 import { offerProblem } from '../../src/engine/office/offers'
 import { createFight } from '../../src/engine/fights'
@@ -179,4 +180,13 @@ for (const seedName of ['p54c-passive', 'p54c-b', 'p54c-c', 'p54c-d', 'p54c-e', 
   o.reviews.rv_f2 = { id: 'rv_f2', kind: 'setback', fighterId: b.id, oppId: opp(b).id, fightId: 'none', createdDay: w.today, expiresDay: w.today + 42, status: 'open' }
   writeFileSync(`${out}/p54d-reviews.json`, serialiseGame(w))
   console.log('p54d-reviews: decisions on', a.id, b.id)
+}
+
+// Phase 5.6: a promotion that has run out of road (overdrawn, no show on the books) and the same save with no fighters.
+{
+  const d = structuredClone(s)
+  for (const e of Object.values(d.events)) if (e.promotionId === d.playerPromotionId && !['settled', 'archived', 'cancelled'].includes(e.status)) e.status = 'cancelled'
+  post(d, 'other', -90_000 - d.promotions[d.playerPromotionId].cash, 'Fixture: overdrawn')
+  writeFileSync(`${out}/p56-distress.json`, serialiseGame(d))
+  console.log('p56-distress: cash', d.promotions[d.playerPromotionId].cash)
 }

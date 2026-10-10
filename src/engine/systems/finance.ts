@@ -2,6 +2,7 @@ import { MAX_FINANCE_HISTORY, WEEKLY_COSTS } from '../config'
 import { coachWeekly } from '../office/trainer'
 import { post as record } from '../ledger'
 import { postMessage } from '../messages'
+import { processBridge } from './bridge'
 import { cashRunwayWeeks, financialHealth, overheadCost, player } from '../selectors'
 import type { GameState } from '../types'
 
@@ -21,6 +22,7 @@ export function processWeeklyFinance(state: GameState): void {
   const coaching = coachWeekly(state)
   if (coaching > 0) record(state, 'coaching', -coaching, 'Coaching staff')
   record(state, 'retainers', -retainers, 'Fighter retainers')
+  processBridge(state)
 
   const expenses = overheadCost(state) + retainers + coaching + state.scouts.reduce((n, x) => n + x.weeklyWage, 0)
   state.financeHistory.push({ day: state.today, cash: p.cash, income: 0, expenses })
@@ -29,7 +31,7 @@ export function processWeeklyFinance(state: GameState): void {
   const health = financialHealth(state)
   if (health.state === 'insolvent') {
     postMessage(state, { from: 'Accounts', category: 'finance', priority: 'important', key: 'insolvent', cooldownWeeks: 26,
-      subject: 'The promotion is insolvent', body: 'Creditors are circling. You cannot book venues, sign fighters or start negotiations until cash recovers. Cut costs, sell tickets, or run a profitable show.', link: { kind: 'screen', screen: 'finances' } })
+      subject: 'The promotion is insolvent', body: 'Creditors are circling. You cannot book venues, sign fighters or start negotiations until cash recovers. Cut costs or run a profitable show - and if the account is overdrawn, the backers\' bridge loan on the Finances screen is the way to get a venue and a roster back.', link: { kind: 'screen', screen: 'finances' } })
   } else if (health.state === 'critical') {
     postMessage(state, { from: 'Accounts', category: 'finance', priority: 'important', key: 'fin-critical', cooldownWeeks: 26,
       subject: 'Finances are critical', body: health.reason, link: { kind: 'screen', screen: 'finances' } })

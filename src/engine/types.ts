@@ -476,7 +476,7 @@ export type FinancialHealth = 'healthy' | 'concern' | 'critical' | 'insolvent'
 
 export type TransactionCategory =
   | 'startingFunds' | 'office' | 'staff' | 'gym' | 'insurance' | 'retainers'
-  | 'purses' | 'tickets' | 'sponsorship' | 'standingSponsor' | 'ppv' | 'venue' | 'marketing' | 'production' | 'broadcast' | 'officials' | 'security' | 'scouting' | 'signingBonus' | 'releaseFees' | 'loanFee' | 'coaching' | 'other'
+  | 'purses' | 'tickets' | 'sponsorship' | 'standingSponsor' | 'ppv' | 'venue' | 'marketing' | 'production' | 'broadcast' | 'officials' | 'security' | 'scouting' | 'signingBonus' | 'releaseFees' | 'loanFee' | 'coaching' | 'loan' | 'loanRepayment' | 'other'
 
 export interface Transaction {
   id: Id
@@ -819,6 +819,8 @@ export interface GameState {
   world?: import('./world/types').WorldState
   /** Phase 5.4C: the promoter's office - incoming offers, career objectives, relationships, campaigns, strategy (see engine/office). Created by migration. */
   office?: import('./office/types').OfficeState
+  /** Phase 5.6: the backers' bridge loan, if the promotion has ever needed one. Absent in older saves. */
+  bridge?: import('./systems/bridge').BridgeState
 }
 
 export const GAME_STATE_VERSION = 12

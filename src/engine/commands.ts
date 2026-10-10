@@ -11,6 +11,7 @@ import { fightMove, openFightTalk, type FightMove, type FightTalkOutcome } from 
 import { setPlan } from './business/plans'
 import { applyDivisionMove, campAgrees } from './business/divisions'
 import type { DevPlan } from './business/types'
+import { takeBridge } from './systems/bridge'
 import type { GameState, Id, NegotiationKind, Offer, ScoutDepth } from './types'
 
 export interface CommandResult {
@@ -168,4 +169,11 @@ export function changeDivision(state: GameState, fighterId: Id, to: import('./ty
   if (err) return { ok: false, error: err, state }
   if (next.media) processMedia(next)
   return { ok: true, state: next }
+}
+
+/** Phase 5.6: accept the backers' bridge loan (only offered to a promotion in real distress; see systems/bridge.ts). */
+export function takeBridgeLoan(input: GameState): CommandResult {
+  const state = structuredClone(input)
+  const r = takeBridge(state)
+  return r.ok ? { ok: true, state } : { ok: false, error: r.error, state: input }
 }

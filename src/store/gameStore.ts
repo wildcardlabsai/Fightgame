@@ -81,6 +81,8 @@ interface GameStore {
   sponsorAccept: (offerId: Id, years: 1 | 2 | 3) => boolean
   sponsorNegotiate: (offerId: Id) => void
   sponsorDecline: (offerId: Id) => void
+  /** Phase 5.6: accept the backers' bridge loan. */
+  takeBridge: () => boolean
   // ---- Phase 5: the media world ----
   /** Run a media decision (answer a request, hold a press conference, accept a broadcast offer...). Toasts the outcome. */
   mediaDo: <K extends MediaCmd>(name: K, ...args: Parameters<(typeof MEDIA_COMMANDS)[K]> extends [GameState, ...infer R] ? R : never) => boolean
@@ -283,6 +285,15 @@ export const useGame = create<GameStore>((set, get) => {
       set({ game: r.state })
       const m = r.state.inbox[0]
       if (m) get().notify(m.subject, 'neutral')
+    },
+    takeBridge: () => {
+      const g = get().game
+      if (!g) return false
+      const r = commands.takeBridgeLoan(g)
+      if (!r.ok) { get().notify(r.error ?? 'The backers will not lend.', 'bad'); return false }
+      set({ game: r.state })
+      get().notify('The backers have bridged the promotion. Rebuild carefully.', 'good', false)
+      return true
     },
     sponsorDecline: (offerId) => update((g) => { const r = commands.declineSponsorOffer(g, offerId); return r.ok ? r.state : g }),
 

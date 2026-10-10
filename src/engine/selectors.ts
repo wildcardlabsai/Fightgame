@@ -120,11 +120,16 @@ export function attentionItems(state: GameState): AttentionItem[] {
   const cash = player(state).cash
 
   if (cash < 0) {
-    items.push({ id: 'cash-neg', severity: 'critical', title: 'Promotion is overdrawn', detail: 'You are running at a loss with no money in the bank.', link: { kind: 'screen', screen: 'finances' }, actionLabel: 'Open finances' })
+    items.push({ id: 'cash-neg', severity: 'critical', title: 'Promotion is overdrawn', detail: 'An overdrawn promotion cannot hire a venue or pay a signing bonus. Finances shows the way back.', link: { kind: 'screen', screen: 'finances' }, actionLabel: 'Open finances' })
   } else if (runway !== null && runway < 8) {
     items.push({ id: 'cash-low', severity: 'critical', title: `Only ${runway} weeks of cash left`, detail: 'Weekly costs will exhaust your funds soon.', link: { kind: 'screen', screen: 'finances' }, actionLabel: 'Review costs' })
   } else if (runway !== null && runway < 26) {
     items.push({ id: 'cash-watch', severity: 'warning', title: `Cash runway: ${runway} weeks`, detail: 'Income needs to start covering the weekly burn.', link: { kind: 'screen', screen: 'finances' }, actionLabel: 'Review costs' })
+  }
+
+  // No fighters means no shows and no income: say so, and say where the way back is (the free-agent market, and Finances if the account is overdrawn).
+  if (playerRoster(state).length === 0) {
+    items.push({ id: 'no-roster', severity: 'critical', title: 'No fighters under contract', detail: cash < 0 ? 'Without fighters there are no shows and no income. Finances shows how to get the money to sign some.' : 'Without fighters there are no shows and no income. Sign someone from the free-agent market.', link: { kind: 'screen', screen: cash < 0 ? 'finances' : 'fighters' }, actionLabel: cash < 0 ? 'Open finances' : 'Find fighters' })
   }
 
   for (const f of playerRoster(state)) {
