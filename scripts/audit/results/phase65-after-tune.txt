@@ -1,0 +1,35 @@
+pipeline audit: 6 seeds x 8 years, prefix act1.. (127s sim, 50.7 ms/week)
+active AI-world fighters per seed-year-end: 318.2 (18.7 per division)   by stage: Contender 5.7, Declining 12.2, Journeyman 17.8, Prime 82.6, Prospect 81.0, Rising 85.6, Veteran 33.3
+per division per year-end - meeting floor: area 11.7, domestic 10.8, european 9.8, world 8.1
+per division per year-end - credible contenders: world 3.5 (min div-mean 1.2), european 5.3, domestic 8.1, area 8.6
+belt-weeks:  level  held  vacant  vacant%  episodes median p90 max
+  world       84445   22856     21%    589    28   84  214
+  european    11123    5784     34%    113    54   94  189
+  domestic    20645    8774     30%    224    32   72  187
+  area         7544    4431     37%     91    54   70  236
+by career stage (fights seen, win%, loss%, draw%, mean own rep, mean opponent rep):
+  Contender n=   776  W 87%  L 13%  D 0%  own 67.9  opp 50.9
+  Declining n=  1271  W 48%  L 49%  D 2%  own 46.2  opp 42.3
+  Journeyman n=  1312  W 23%  L 74%  D 3%  own 22.9  opp 32.0
+  Prime     n=  8137  W 50%  L 48%  D 2%  own 41.1  opp 41.8
+  Prospect  n=  6347  W 44%  L 51%  D 4%  own 31.1  opp 32.1
+  Retired   n=    34  W 50%  L 50%  D 0%  own 43.4  opp 40.3
+  Rising    n=  8543  W 50%  L 48%  D 2%  own 37.5  opp 38.0
+  Veteran   n=  3708  W 53%  L 45%  D 1%  own 46.0  opp 43.0
+prospect cohort (<= 6 fights when first seen; n=1325): outcome by end of run
+  all              n=1325  retired before floor 0%  reached world floor 25% (median 5.2y)  credible world 18% (median 5.1y)  still active below floor 75%
+  potential 75+    n= 167  retired before floor 0%  reached world floor 65% (median 4.7y)  credible world 60% (median 4.7y)  still active below floor 35%
+  potential 62-75  n= 387  retired before floor 0%  reached world floor 42% (median 5.2y)  credible world 32% (median 5.4y)  still active below floor 58%
+  potential <62    n= 771  retired before floor 1%  reached world floor 7% (median 6.3y)  credible world 2% (median 5.8y)  still active below floor 92%
+  potential 75+    still below the world floor at the end (n=58): short of 14 fights 88%, enough fights but short of 9 wins 12%; mean fights now 7.1
+  potential 62-75  still below the world floor at the end (n=225): short of 14 fights 77%, enough fights but short of 9 wins 23%; mean fights now 9.6
+  potential <62    still below the world floor at the end (n=711): short of 14 fights 82%, enough fights but short of 9 wins 18%; mean fights now 8.9
+  potential 75+    fights per year 2.5, win share 67%, median age at world floor 25.9
+  potential 62-75  fights per year 2.2, win share 55%, median age at world floor 26.3
+  potential <62    fights per year 1.5, win share 34%, median age at world floor 27.5
+  potential 75+    time under contract 94%; fights per year signed 2.8, unsigned 1.0
+  potential 62-75  time under contract 67%; fights per year signed 2.7, unsigned 1.4
+  potential <62    time under contract 19%; fights per year signed 2.4, unsigned 1.3
+  cohort with >= 5 years of observation (n=883): reached floor 37%, credible 27%, retired 0%, fights/yr while active 1.9
+title fights per seed-year 21.4; eliminator fights 1.2; eliminator orders 7.3; mandatory orders 26.8; retirements per seed-year 19.8; intake 19.8
+AI promotions at end: {"growing":28,"healthy":6,"critical":6,"struggling":4,"established":6} (collapsing 0)

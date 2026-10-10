@@ -9,7 +9,8 @@
  */
 import { regionOf } from '../../data/nations'
 import { BALANCE as B } from '../balance'
-import { fighterAge, publicFacts } from '../fighters'
+import { fighterAge, publicFacts, totalFights } from '../fighters'
+import { CONTENDER_CONFIG } from '../business/titleDefs'
 import { weightCompatible } from '../fight/profile'
 import { transition } from '../fight/lifecycle'
 import { chooseVenue, createFight, fightAvailability, lockKey, restUntil } from '../fights'
@@ -24,6 +25,20 @@ const SAT = 5
 export const aiTrace: { on: boolean; c: Record<string, number> } = { on: false, c: {} }
 export const tr = (k: string): void => { if (aiTrace.on) aiTrace.c[k] = (aiTrace.c[k] ?? 0) + 1 }
 export const weeksSince = (state: GameState, f: Fighter) => (f.lastFightDay === null ? 40 : Math.floor((state.today - f.lastFightDay) / 7))
+
+/**
+ * How badly a promoter wants this fighter on its next card. Mostly it is how long they have been idle; a young fighter who is winning and is still
+ * short of the experience a world body asks for gets a lift (Phase 6.5): that is who a promoter builds, and it is the career stage where bouts are
+ * scarcest. It only changes who is offered a slot first, never an opponent's quality or a result; weaker prospects lose their extra bouts as they lose.
+ */
+export function bookingNeed(state: GameState, f: Fighter): number {
+  const idle = weeksSince(state, f)
+  const dev = B.fights.ai.developmentPriority
+  if (dev <= 0) return idle
+  const n = totalFights(f)
+  if (n < CONTENDER_CONFIG.world.floor.fights && fighterAge(f, state.today) <= B.fights.ai.developmentMaxAge && f.record.wins * 2 >= n) return idle * (1 + dev)
+  return idle
+}
 
 export function bookable(state: GameState, f: Fighter, day: number): boolean {
   return f.status === 'active' && !f.activeFightId && fightAvailability(state, f, day).ok
@@ -90,10 +105,10 @@ export function aiMatchmaking(state: GameState, rng: Rng): void {
   }
 }
 
-/** A fighter whose mandatory defence is pending is not offered unrelated fights by other promoters. */
+/** A fighter whose mandatory defence or ordered eliminator is pending is not offered unrelated fights by other promoters. */
 function reservedForMandatory(state: GameState, id: Id, withId: Id): boolean {
   const ob = titleObligation(state, id)
-  return !!ob && ob.kind === 'mandatory' && ob.partner !== withId
+  return !!ob && (ob.kind === 'mandatory' || ob.kind === 'eliminator') && ob.partner !== withId
 }
 
 export function pickOpponent(state: GameState, promo: Promotion, x: Fighter, day: number, playerRoster: Set<Id>, rng: Rng, sampleSize = B.fights.ai.opponentSample): Fighter | null {

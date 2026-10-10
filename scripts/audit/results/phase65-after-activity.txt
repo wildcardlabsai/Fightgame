@@ -1,0 +1,34 @@
+activity audit: 6 seeds x 8 years, prefix act1.. (127s sim, 50.9 ms/week)
+fighter-years (active whole year, AI world): 14321
+bouts per fighter-year: mean 1.99 median 2   distribution 0 / 1 / 2 / 3 / 4+ : 6% / 27% / 34% / 28% / 5%
+unavailable (injured/suspended) 8.8% of fighter-weeks; bouts per AVAILABLE fighter-year 2.18
+zero bouts in 12 months: 6.3% (n=14321);  in 24 months: 7.8% (n=7210)
+by contract / tier:  n  mean  zero%  unavail%  mean-gap(wk)
+  Global         1460  2.80     0%      14%  18.38
+  Major          1400  2.80     0%      13%  18.56
+  National       1220  2.67     0%       9%  19.44
+  Regional       2864  2.42     0%      10%  21.59
+  Startup         302  1.92     4%       8%  29.45
+  free agent     7075  1.38    12%       6%  34.36
+by career stage:
+  prime          6334  2.17     5%      10%  23.04
+  prospect       5499  1.71     9%       6%  28.49
+  veteran        2488  2.15     5%      12%  23.13
+champions (hold a belt at year end): n=1614, mean bouts 2.76, zero 0%; everyone else 1.89
+stage x contract:
+  prime     contracted     3691  2.69     0%
+  prime     free agent     2643  1.44    11%
+  prospect  contracted     2115  2.39     1%
+  prospect  free agent     3384  1.29    14%
+  veteran   contracted     1440  2.63     0%
+  veteran   free agent     1048  1.49    11%
+division population (mean active AI-world fighters): 18.72;  free agents 9.63;  credible world challengers per division 3.53 (min 1.21, max 5.19)
+title fights per world-year: 21.42 per seed-year;  eliminators 1.19;  retirements per seed-year 19.79;  intake per seed-year 19.81
+belt-weeks:  level  held  vacant  vacant%  episodes median p90 max
+  world       84445   22856     21%    589    28   84  214
+  european    11123    5784     34%    113    54   94  189
+  domestic    20645    8774     30%    224    32   72  187
+  area         7544    4431     37%     91    54   70  236
+AI promotions at end: {"growing":28,"healthy":6,"critical":6,"struggling":4,"established":6} (collapsing 0)
+matchmaking trace (per seed-year): ev.elim.staged=12 ev.fail.fewFights=32 ev.free.booked=53 ev.free.noOpponent=1 ev.ok=60 ev.plan=91 ev.skip.cadence=194 ev.skip.cash=1 ev.skip.fighterBusy=16 ev.skip.noOpponent=16 ev.skip.openCap=86 opp.scoreTooLow=16
+event card sizes: 10:133 3:493 4:428 5:536 6:562 7:324 8:225 9:160   needy at planning: 0:401 1:515 2:563 3:479 4:397 5:387 6:347 7:322 8:220 9:186 10:152 11:120 12:316

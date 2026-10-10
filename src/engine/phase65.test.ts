@@ -1,0 +1,121 @@
+/**
+ * Phase 6.5 - fighter development and the championship pipeline: who a promoter books first, how soon a fighter can be put on the next card,
+ * and eliminators ordered by a title body actually being staged.
+ */
+import { describe, expect, it } from 'vitest'
+import { createNewGame } from './worldgen'
+import { advanceOneWeek } from './tick'
+import { clone } from './media/testing'
+import { BALANCE as B } from './balance'
+import { bookable, bookingNeed, pickOpponent, weeksSince } from './systems/aiFights'
+import { Rng } from './rng'
+import { fighterAge, totalFights } from './fighters'
+import type { Fighter, GameState } from './types'
+
+const logo = { monogram: 'P', color: '#fff', emblem: 'bolt' as const }
+const mk = (seed: string) => createNewGame({ seed, promotionName: 'P65', promoterName: 'T', homeCountry: 'ENG', difficulty: 'standard', logo }, 1_700_000_000_000)
+const world = (() => { let s: GameState | null = null; return () => (s ??= (() => { let g = mk('p65-world'); for (let i = 0; i < 104; i++) g = advanceOneWeek(g); return g })()) })()
+const ai = B.fights.ai as { developmentPriority: number; minIdleWeeks: number; developmentMaxAge: number }
+const withCfg = <T,>(cfg: Partial<typeof ai>, fn: () => T): T => { const old = { ...ai }; Object.assign(ai, cfg); try { return fn() } finally { Object.assign(ai, old) } }
+
+describe('booking order', () => {
+  it('with the lift off it is simply idle weeks; with it on, a young winning fighter short of the world floor goes first and nobody else changes', () => {
+    const s = clone(world())
+    const f = Object.values(s.fighters).find((x) => x.status === 'active' && x.lastFightDay !== null)!
+    f.lastFightDay = s.today - 20 * 7
+    withCfg({ developmentPriority: 0 }, () => expect(bookingNeed(s, f)).toBe(weeksSince(s, f)))
+    withCfg({ developmentPriority: 0.6, developmentMaxAge: 29 }, () => {
+      const young = clone(f); young.record = { ...young.record, wins: 6, losses: 2, draws: 0 }
+      young.birthDay = s.today - 22 * 365; expect(fighterAge(young, s.today)).toBeLessThanOrEqual(29)
+      expect(totalFights(young)).toBeLessThan(14)
+      expect(bookingNeed(s, young)).toBeCloseTo(weeksSince(s, young) * 1.6, 5)
+      const losing = clone(young); losing.record = { ...losing.record, wins: 2, losses: 6 }
+      expect(bookingNeed(s, losing)).toBe(weeksSince(s, losing)) // a losing prospect is not pushed
+      const old = clone(young); old.birthDay = s.today - 33 * 365
+      expect(bookingNeed(s, old)).toBe(weeksSince(s, old))
+      const veteran = clone(young); veteran.record = { ...veteran.record, wins: 20, losses: 4 }
+      expect(bookingNeed(s, veteran)).toBe(weeksSince(s, veteran)) // already past the world floor's fight count
+    })
+  })
+})
+
+describe('time between bouts', () => {
+  it('a fighter can be booked 4 weeks after their last bout, not 8, because the 8-14 week planning lead already spaces bouts', () => {
+    expect(ai.minIdleWeeks).toBeLessThan(B.fights.restWeeks + 2)
+    expect(ai.minIdleWeeks).toBeGreaterThanOrEqual(2)
+    // availability for the card's date still enforces real rest
+    const s = clone(world())
+    const f = Object.values(s.fighters).find((x) => x.status === 'active' && !x.activeFightId && !x.injury && x.suspendedUntil === null && x.contractId === null)!
+    f.lastFightDay = s.today - 3 * 7
+    expect(bookable(s, f, s.today + 9 * 7)).toBe(true)
+    expect(bookable(s, f, s.today + 2 * 7)).toBe(false)
+  })
+
+  it('over the same 2 years, easing the idle gate gives more bouts and no fighter is ever double-booked', () => {
+    const count = (idle: number) => withCfg({ minIdleWeeks: idle }, () => {
+      let s = clone(world()); const before = Object.values(s.fights).filter((f) => f.result).length
+      for (let i = 0; i < 52; i++) { s = advanceOneWeek(s); const booked = new Map<string, number>(); for (const f of Object.values(s.fights)) if (['agreed', 'scheduled', 'training', 'fightNight'].includes(f.status)) for (const id of [f.sideA.fighterId, f.sideB.fighterId]) booked.set(id, (booked.get(id) ?? 0) + 1); for (const [, n] of booked) expect(n).toBeLessThanOrEqual(1) }
+      return Object.values(s.fights).filter((f) => f.result).length - before
+    })
+    const slow = count(8), fast = count(4)
+    expect(fast).toBeGreaterThan(slow)
+    expect(fast).toBeLessThan(slow * 1.35) // a modest rise, not a flood
+  })
+})
+
+describe('ordered eliminators', () => {
+  /** Two rested, unbooked fighters of one division on DIFFERENT rival rosters (the hard case), with an eliminator ordered between them on a live belt. */
+  function ordered(s: GameState): { a: Fighter; b: Fighter; key: string } | null {
+    const media = s.media!
+    const free = Object.values(s.contracts).filter((c) => c.status === 'active' && s.promotions[c.promotionId]?.ai && !s.promotions[c.promotionId].ai!.fin.collapsing).map((c) => ({ f: s.fighters[c.fighterId], p: c.promotionId }))
+      .filter((x) => x.f && x.f.status === 'active' && !x.f.activeFightId && !x.f.injury && x.f.suspendedUntil === null && weeksSince(s, x.f) >= 10 && s.promotions[x.p].tier !== 'Startup')
+    for (const x of free) for (const y of free) {
+      if (x.f.id >= y.f.id || x.p === y.p || x.f.weightClass !== y.f.weightClass) continue
+      const key = Object.keys(media.titles).find((k) => k.endsWith(`|${x.f.weightClass}`) && media.titles[k].c && !media.titles[k].elim && !media.titles[k].mand && media.titles[k].c !== x.f.id && media.titles[k].c !== y.f.id)
+      if (!key) continue
+      for (const pid of [x.p, y.p]) s.promotions[pid].cash = Math.max(s.promotions[pid].cash, 5_000_000)
+      media.titles[key].elim = { a: x.f.id, b: y.f.id, ordered: s.today, due: s.today + 26 * 7 }
+      return { a: x.f, b: y.f, key }
+    }
+    return null
+  }
+
+  it('is made: the two meet on a show within the window, even when they belong to different promotions', () => {
+    let hit = 0, tried = 0
+    for (const seed of ['p65-world', 'p65-world-b', 'p65-world-c', 'p65-world-d', 'p65-world-e', 'p65-world-f', 'p65-world-g', 'p65-world-h']) {
+      let s = mk(seed); for (let i = 0; i < 104; i++) s = advanceOneWeek(s)
+      const o = ordered(s); if (!o) continue
+      tried++
+      let fought = false
+      for (let w = 0; w < 26 && !fought; w++) {
+        s = advanceOneWeek(s)
+        fought = Object.values(s.fights).some((f) => f.status !== 'cancelled' && [f.sideA.fighterId, f.sideB.fighterId].includes(o.a.id) && [f.sideA.fighterId, f.sideB.fighterId].includes(o.b.id) && f.day > 0)
+      }
+      if (fought) hit++
+    }
+    expect(tried, 'enough worlds had such a pair').toBeGreaterThanOrEqual(3)
+    expect(hit, `every eliminator ordered here is staged (${hit} of ${tried})`).toBe(tried)
+  })
+
+  it('is never staged for the player\'s fighters, and the fighters are never double-booked', () => {
+    const s = clone(world())
+    const mine = Object.values(s.contracts).filter((c) => c.promotionId === s.playerPromotionId).map((c) => c.fighterId)
+    const o = ordered(s)
+    if (o && mine.length) { /* the pair above is a rival's; a player's fighter in an order is left for the player */ }
+    let t = s
+    for (let w = 0; w < 20; w++) {
+      t = advanceOneWeek(t)
+      for (const f of Object.values(t.fights)) if (['agreed', 'scheduled', 'training', 'fightNight'].includes(f.status) && f.kind === 'ai') for (const id of mine) expect([f.sideA.fighterId, f.sideB.fighterId]).not.toContain(id)
+    }
+  })
+
+  it('other promoters do not pick a fighter under an eliminator order as an unrelated opponent', () => {
+    const s = clone(world())
+    const o = ordered(s)
+    expect(o).toBeTruthy()
+    const promo = Object.values(s.promotions).find((p) => !p.isPlayer && p.ai && p.id !== s.fighters[o!.a.id].contractId)!
+    const x = Object.values(s.fighters).find((f) => f.status === 'active' && f.weightClass === o!.a.weightClass && f.id !== o!.a.id && f.id !== o!.b.id && !f.activeFightId)!
+    const roster = new Set<string>()
+    for (let i = 0; i < 40; i++) { const opp = pickOpponent(s, promo, x, s.today + 10 * 7, roster, new Rng(i), 400); if (opp) expect([o!.a.id, o!.b.id]).not.toContain(opp.id) }
+  })
+})

@@ -212,6 +212,11 @@ export const BALANCE = {
     ai: { perPromoPerWeek: 0.6, rosterPerAttempt: 8, maxOpenShare: 0.4, minWeeksNotice: 6, maxWeeksNotice: 14, journeymanPurseFactor: 0.5, freeAgentChance: 0.22,
       /** Independent (uncontracted) fighters may take at most this share of an AI card as principals, plus whatever is needed to reach the three-fight minimum of a show. */
       /** Master switch for independents taking places on AI cards (the audit turns it off to reproduce the old world). */
+      /** Phase 6.5: lift in a promoter's booking order for a young, winning fighter still short of the world floor's fight count (0 = idle weeks only, as before). */
+      /** Weeks since a fighter's last bout before a promoter will put them on a card being planned. The planning lead time (8-14 weeks) already spaces bouts, so stacking a full rest period on top of it (restWeeks + 2 = 8) capped a fighter near 2.4 bouts a year. */
+      minIdleWeeks: 4,
+      developmentPriority: 0.6,
+      developmentMaxAge: 29,
       freeAgentFill: true,
       /** Whether independents may also rescue a card that would otherwise fall short of three fights (more shows: they compete for the same Saturdays and crowds as the player's). */
       freeAgentRescue: false,

@@ -1,0 +1,9 @@
+seed 1 bot 5y: problems=0 titleFights=196 rounds={"10":13,"12":183} short(<=4)=0 maxWorldBeltsHeld=3 hierarchyRelinquishments=17
+seed 1 passive 5y: problems=0 titleFights=168 rounds={"10":8,"12":160} short(<=4)=0 maxWorldBeltsHeld=4 hierarchyRelinquishments=13
+seed 2 bot 5y: problems=0 titleFights=170 rounds={"10":7,"12":163} short(<=4)=0 maxWorldBeltsHeld=4 hierarchyRelinquishments=21
+seed 2 passive 5y: problems=0 titleFights=133 rounds={"10":4,"12":129} short(<=4)=0 maxWorldBeltsHeld=4 hierarchyRelinquishments=18
+seed 3 bot 5y: problems=0 titleFights=157 rounds={"10":2,"12":155} short(<=4)=0 maxWorldBeltsHeld=4 hierarchyRelinquishments=18
+seed 3 passive 5y: problems=0 titleFights=141 rounds={"10":6,"12":135} short(<=4)=0 maxWorldBeltsHeld=4 hierarchyRelinquishments=25
+seed 4 bot 5y: problems=0 titleFights=222 rounds={"10":12,"12":210} short(<=4)=0 maxWorldBeltsHeld=4 hierarchyRelinquishments=19
+seed 4 passive 5y: problems=0 titleFights=180 rounds={"10":8,"12":172} short(<=4)=0 maxWorldBeltsHeld=4 hierarchyRelinquishments=19
+ALL CLEAN

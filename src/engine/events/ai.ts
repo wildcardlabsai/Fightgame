@@ -9,11 +9,12 @@
  */
 import { BALANCE as B } from '../balance'
 import { transition } from '../fight/lifecycle'
-import { cancelFight, createFight } from '../fights'
+import { cancelFight, createFight, lockKey } from '../fights'
+import { weightCompatible } from '../fight/profile'
 import { keyedFloat, keyedNormal, type Rng } from '../rng'
 import type { BoxingEvent, BroadcastKind, Fight, GameState, Id, MarketingLevel, Promotion, PromoStrategy, Venue, VenueTier } from '../types'
 import { baseMoney, valueOf } from '../market'
-import { bookable, pickOpponent, tr, weeksSince } from '../systems/aiFights'
+import { bookable, bookingNeed, pickOpponent, tr, weeksSince } from '../systems/aiFights'
 import { behaviour } from '../systems/aiFinance'
 import { broadcastTerms, cardFights, demandFor, eventInterest, fightAppeal, ppvBuysFor, ppvRefPrice, refPrices, soldFromDemand } from './demand'
 import { attachFight, createEventInternal, startSales, venueBookedOn } from './events'
@@ -83,13 +84,45 @@ function planEvent(state: GameState, promo: Promotion, rng: Rng, playerRoster: S
   const contracts = Object.values(state.contracts).filter((c) => c.promotionId === promo.id)
   const needy = contracts
     .map((c) => ({ c, f: state.fighters[c.fighterId] }))
-    .filter((x) => x.f && !reserve?.has(x.f.id) && bookable(state, x.f, day) && weeksSince(state, x.f) >= B.fights.restWeeks + 2)
-    .sort((a, b) => weeksSince(state, b.f) - weeksSince(state, a.f))
+    .filter((x) => x.f && !reserve?.has(x.f.id) && bookable(state, x.f, day) && weeksSince(state, x.f) >= B.fights.ai.minIdleWeeks)
+    .sort((a, b) => bookingNeed(state, b.f) - bookingNeed(state, a.f))
 
   // Build the fights first (agreed, unscheduled); the venue follows from how good the card is.
   const fights: Fight[] = []
   let committed = 0
   const cashCover = ai.fin.state === 'healthy' || ai.fin.state === 'established' || ai.fin.state === 'growing' ? 1.4 : 2.4
+  // An eliminator ordered by a title body is staged first (Phase 6.5). Before this, only the usual opponent-picking bonus favoured it and 85% lapsed
+  // unfought, mostly because one of the two was booked elsewhere in the meantime. Both must be free on the day and under no one else's claim; the
+  // promotion that has one of them on its roster puts it on, paying both as it would any bout.
+  const seenOrder = new Set<string>()
+  for (const rec of Object.values(state.media?.titles ?? {})) {
+    if (fights.length >= target) break
+    const el = rec.elim
+    if (!el || el.fightId) continue
+    const okey = el.a < el.b ? `${el.a}|${el.b}` : `${el.b}|${el.a}`
+    if (seenOrder.has(okey)) continue
+    seenOrder.add(okey)
+    const f1 = state.fighters[el.a], f2 = state.fighters[el.b]
+    if (!f1 || !f2 || playerRoster.has(f1.id) || playerRoster.has(f2.id) || reserve?.has(f1.id) || reserve?.has(f2.id)) continue
+    const mineHere = (f: typeof f1) => !!f.contractId && state.contracts[f.contractId]?.promotionId === promo.id
+    if (!mineHere(f1) && !mineHere(f2)) continue
+    if (!bookable(state, f1, day) || !bookable(state, f2, day) || state.fightLocks[lockKey(f1.id, f2.id)] > state.today || weightCompatible(f1.weightClass, f2.weightClass) === 'no') continue
+    const [x, y] = mineHere(f1) ? [f1, f2] : [f2, f1]
+    const purseOf = (f: typeof x) => { const ct = f.contractId ? state.contracts[f.contractId] : null; return ct ? { p: ct.basePurse, w: ct.winBonus } : { p: Math.round((baseMoney(valueOf(state, f)).purse * B.fights.ai.journeymanPurseFactor) / 100) * 100, w: 0 } }
+    const px = purseOf(x), py = purseOf(y)
+    const wx = x.contractId ? px.w : Math.round((px.p * 0.1) / 100) * 100, wy = y.contractId ? py.w : Math.round((py.p * 0.1) / 100) * 100
+    const cost = px.p + wx + py.p + wy
+    if (promo.cash < (committed + cost) * cashCover) { tr('ev.elim.cash'); continue }
+    committed += cost
+    const fight = createFight(state, x.id, y.id, promo.id, 'ai', { purseA: px.p, winBonusA: wx, purseB: py.p, winBonusB: wy })
+    transition(fight, 'agreed')
+    y.activeFightId = fight.id
+    for (const [side, f] of [[fight.sideA, x], [fight.sideB, y]] as const) {
+      side.prep.plan = ['Pressure Fighter', 'Swarmer', 'Power Puncher'].includes(f.style) ? 'aggressive' : ['Defensive Specialist', 'Counter Puncher'].includes(f.style) ? 'cautious' : 'balanced'
+    }
+    fights.push(fight)
+    tr('ev.elim.staged')
+  }
   for (const { c, f: x } of needy) {
     if (fights.length >= target) break
     if (x.activeFightId || !bookable(state, x, day)) { tr('ev.skip.fighterBusy'); continue }
@@ -121,9 +154,9 @@ function planEvent(state: GameState, promo: Promotion, rng: Rng, playerRoster: S
     const live = state.world?.pursuits ?? {}
     // A promoter knows a handful of names, not the whole market: a random dozen of the available independents, longest idle first.
     const free = rng.shuffle(Object.values(state.fighters)
-      .filter((f) => f.status === 'active' && f.contractId === null && !f.activeFightId && !live[f.id] && !playerRoster.has(f.id) && bookable(state, f, day) && weeksSince(state, f) >= B.fights.restWeeks + 2)
+      .filter((f) => f.status === 'active' && f.contractId === null && !f.activeFightId && !live[f.id] && !playerRoster.has(f.id) && bookable(state, f, day) && weeksSince(state, f) >= B.fights.ai.minIdleWeeks)
       .sort((a, b) => (a.id < b.id ? -1 : 1))).slice(0, B.fights.ai.freeAgentKnown)
-      .sort((a, b) => weeksSince(state, b) - weeksSince(state, a) || (a.id < b.id ? -1 : 1))
+      .sort((a, b) => bookingNeed(state, b) - bookingNeed(state, a) || (a.id < b.id ? -1 : 1))
     let tried = 0
     for (const x of free) {
       if (fights.length >= target || freeBooked >= freeCap || tried >= freeCap * 2 + 2) break
