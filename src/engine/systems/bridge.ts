@@ -107,3 +107,6 @@ export function bridgeView(state: GameState): BridgeView {
   return { loan: l ? { owed: l.owed, weekly: l.weekly, weeksLeft: l.weeksLeft, principal: l.principal } : null, offer: bridgeOffer(state), unavailable: bridgeUnavailable(state), danger: distress(state) }
 }
 void eventCommitments
+
+/** The weekly instalment currently being collected (0 when there is no loan). */
+export const loanWeekly = (state: GameState): number => (state.bridge?.loan ? Math.min(state.bridge.loan.weekly, state.bridge.loan.owed) : 0)

@@ -60,6 +60,8 @@ export interface Strategy {
   rescue?: boolean
   /** Phase 5.6 (bot only): share of free cash a renewal may take (default 0.3). A promoter who lets the whole roster walk has no shows to sell. */
   renewShare?: number
+  /** Phase 5.7, DIAGNOSTIC ONLY: an idealised scheduler. It books whenever a valid, legal show it can pay for exists: no recover-mode downshift, no cool-down, no reserve. Never a player strategy. */
+  ideal?: boolean
 }
 
 const M = (local: MarketingLevel, reg: MarketingLevel, nat: MarketingLevel, arena: MarketingLevel, stad: MarketingLevel): Record<VenueTier, MarketingLevel> => ({ local, regional: reg, national: nat, arena, stadium: stad })
@@ -82,11 +84,25 @@ STRATEGIES.balancedLeanRescue = { ...STRATEGIES.balanced, name: 'B Balanced, lea
 STRATEGIES.balancedLeanRescueBridge = { ...STRATEGIES.balanced, name: 'B Balanced, leaner + rescue + bridge', rosterTarget: 6, minForecastProfit: 0, rescue: true, useBridge: true }
 STRATEGIES.balancedPro = { ...STRATEGIES.balanced, name: 'B Balanced, leaner + rescue + renewals + bridge', rosterTarget: 6, minForecastProfit: 0, rescue: true, renewShare: 0.6, useBridge: true }
 STRATEGIES.balancedProNoBridge = { ...STRATEGIES.balancedPro, name: 'B Balanced, leaner + rescue + renewals', useBridge: false }
+STRATEGIES.idealised = { ...STRATEGIES.balanced, name: 'Diagnostic: idealised scheduler', rosterTarget: 6, minForecastProfit: -1e9, hireShare: 0.9, maxLossShare: 0.9, cashFloor: 5_000, ideal: true }
+STRATEGIES.idealisedLean = { ...STRATEGIES.idealised, name: 'Diagnostic: idealised scheduler, forecast-profit only', minForecastProfit: 0 }
+STRATEGIES.reference5 = { ...STRATEGIES.balanced, name: 'Reference (5 fighters)', rosterTarget: 5, minForecastProfit: 0, rescue: true, useBridge: true }
+STRATEGIES.reference6 = { ...STRATEGIES.balanced, name: 'Reference (6 fighters)', rosterTarget: 6, minForecastProfit: 0, rescue: true, useBridge: true }
+STRATEGIES.idealised8 = { ...STRATEGIES.idealised, name: 'Diagnostic: idealised scheduler, 8 fighters', rosterTarget: 8 }
+STRATEGIES.balSignProspects = { ...STRATEGIES.balanced, name: 'Balanced, signs prospects', sign: 'prospects', signShare: 0.08 }
+STRATEGIES.balSignCheap = { ...STRATEGIES.balanced, name: 'Balanced, signs cheap', sign: 'cheap' }
+STRATEGIES.balProspectsCadence = { ...STRATEGIES.balanced, name: 'Balanced, prospects + prospect-factory cadence', sign: 'prospects', signShare: 0.08, lead: 8, cardMax: 6, rosterTarget: 9 }
+STRATEGIES.balProspects6 = { ...STRATEGIES.balanced, name: 'Balanced, prospects, 6 fighters', sign: 'prospects', signShare: 0.08, rosterTarget: 6 }
+// Phase 5.7: the competent reference bot. `balanced` keeps its name and behaviour (many audits and tests are built on its trajectories); it is a known-weak
+// promoter. The audit (phase57-cadence.ts) traced its failures to signing established fighters ('solid') at Startup scale, so this one signs prospects, keeps
+// a nine-strong roster, plans a week earlier and keeps cards to six bouts - the habits of the strategies that survive - and changes nothing else.
+STRATEGIES.reference = { ...STRATEGIES.balanced, name: 'Reference promoter', sign: 'prospects', signShare: 0.08, lead: 8, cardMax: 6, rosterTarget: 9 }
+STRATEGIES.referenceRecover = { ...STRATEGIES.reference, name: 'Reference promoter, uses rescue shows and the bridge', rescue: true, useBridge: true }
 STRATEGIES.conservativeBridge = { ...STRATEGIES.conservative, name: 'A Conservative + bridge', useBridge: true }
 
 export interface ShowRecord { day: number; tier: VenueTier; venue: string; fights: number; attendance: number; capacity: number; revenue: number; costs: number; profit: number; ppv: number; broadcast: BroadcastKind; sponsor: number; tickets: number; purses: number; forecastAtt?: [number, number]; priceGa: number; mainAppeal: number }
-export interface StrategyLog { shows: ShowRecord[]; planned: number; noCard: number; noVenue: number; signed: number; seen: Set<string>; /** Planning is skipped until this day after a failed attempt (keeps the audit fast; a human would also wait). */ why: Record<string, number>; coolUntil: number; /** Downshifted to conservative play after a failed attempt or a cash scare (a human would too); cleared once cash has recovered. */ recover: boolean; /** The high-risk strategy has placed its bet (reached its stake). */ bet: boolean; betDay: number | null }
-export const newLog = (): StrategyLog => ({ shows: [], planned: 0, noCard: 0, noVenue: 0, signed: 0, seen: new Set(), why: {}, coolUntil: 0, recover: false, bet: false, betDay: null })
+export interface StrategyLog { /** Phase 5.7 diagnostics: why a week did or did not produce a show, by year (`y3:noCard`). */ trace: Record<string, number>; shows: ShowRecord[]; planned: number; noCard: number; noVenue: number; signed: number; seen: Set<string>; /** Planning is skipped until this day after a failed attempt (keeps the audit fast; a human would also wait). */ why: Record<string, number>; coolUntil: number; /** Downshifted to conservative play after a failed attempt or a cash scare (a human would too); cleared once cash has recovered. */ recover: boolean; /** The high-risk strategy has placed its bet (reached its stake). */ bet: boolean; betDay: number | null }
+export const newLog = (): StrategyLog => ({ trace: {}, shows: [], planned: 0, noCard: 0, noVenue: 0, signed: 0, seen: new Set(), why: {}, coolUntil: 0, recover: false, bet: false, betDay: null })
 
 /**
  * What one fighter's purse may cost for a promotion of this size: roughly £11 per seat of the biggest building it may book
@@ -98,6 +114,10 @@ function purseCap(s: GameState, st: Strategy): number {
   return Math.min(cap, 60_000) * 11 * stretch
 }
 
+let TRACE: { log: StrategyLog; year: number } | null = null
+const mark = (log: StrategyLog, s: GameState, key: string): void => { const k = `y${Math.floor((s.today - s.startDay) / 365) + 1}:${key}`; log.trace[k] = (log.trace[k] ?? 0) + 1 }
+const markHere = (key: string): void => { if (TRACE) { const k = `y${TRACE.year}:${key}`; TRACE.log.trace[k] = (TRACE.log.trace[k] ?? 0) + 1 } }
+
 function agreeOne(s: GameState, myId: Id, taken: Set<Id>, st: Strategy): { state: GameState; fightId: Id } | null {
   let cands = opponentCandidates(s, myId, {}).filter((x) => x.canApproach && !taken.has(x.view.id))
   const mine = s.fighters[myId]
@@ -106,21 +126,22 @@ function agreeOne(s: GameState, myId: Id, taken: Set<Id>, st: Strategy): { state
   else cands.sort((a, b) => Math.abs(a.view.reputation - mine.reputation) - Math.abs(b.view.reputation - mine.reputation))
   if (st.opponents === 'big') cands = cands.slice(0, 12)
   const cash = s.promotions[s.playerPromotionId].cash
+  if (cands.length === 0) markHere('agree.noCandidates')
   for (const c of cands.slice(0, 6)) {
     const ap = approach(s, myId, c.view.id)
-    if (!ap.ok) continue
+    if (!ap.ok) { markHere('agree.approachRefused'); continue }
     let state = ap.state
     const fightId = ap.fightId!
     for (let i = 0; i < 5; i++) {
       const base = suggestedFightOffer(state, c.view.id)
-      if (base.purseB > cash * 0.2) break // cannot afford this opponent
+      if (base.purseB > cash * 0.2) { markHere('agree.tooExpensive'); break } // cannot afford this opponent
       const offer: FightOffer = { ...base, purseB: base.purseB * (1 + i * 0.3), winBonusB: base.winBonusB }
       const out = offerFight(state, fightId, offer)
-      if (!out.ok) break
+      if (!out.ok) { markHere('agree.offerError'); break }
       state = out.state
       const status = state.fights[fightId].status
       if (status === 'agreed') { taken.add(c.view.id); return { state, fightId } }
-      if (status === 'cancelled') break
+      if (status === 'cancelled') { markHere('agree.campWalked'); break }
     }
   }
   return null
@@ -205,6 +226,7 @@ export function playWeek(input0: GameState, st0: Strategy, log: StrategyLog): Ga
   // Betting strategies build a stake first (they play like the conservative promoter), then commit.
   if (st0.investAbove > 0 && !log.bet && input.promotions[input.playerPromotionId].cash >= st0.investAbove && TIER_DEFS[input.promotions[input.playerPromotionId].tier].rank >= TIER_DEFS[st0.betTier].rank) { log.bet = true; log.betDay = input.today }
   const cash0 = input.promotions[input.playerPromotionId].cash
+  if (st0.ideal) { log.recover = false; log.coolUntil = 0 }
   if (log.recover && cash0 >= Math.max(3 * st0.cashFloor, 250_000)) log.recover = false
   if (!log.recover && cash0 < st0.cashFloor * 1.5) log.recover = true
   const st: Strategy = log.recover || (st0.investAbove > 0 && !log.bet) ? { ...STRATEGIES.conservative, name: st0.name, cashFloor: 15_000, signCashFloor: st0.signCashFloor } : st0
@@ -214,11 +236,15 @@ export function playWeek(input0: GameState, st0: Strategy, log: StrategyLog): Ga
   recordShows(s, log)
   const open = playerOpenEvents(s)
   const cashNow = s.promotions[s.playerPromotionId].cash
-  const stuck = !!st0.rescue && cashNow > 0 && playerOpenEvents(s).length === 0
+  const stuck = (!!st0.rescue || !!st0.ideal) && cashNow > 0 && playerOpenEvents(s).length === 0
   const cash = stuck ? cashNow : Math.max(0, cashNow - weeklyBurn(s).total * 8)
-  if (open.length >= st.maxConcurrent || cashNow < st.cashFloor || s.today < log.coolUntil) return s
+  TRACE = { log, year: Math.floor((s.today - s.startDay) / 365) + 1 }
+  if (open.length >= st.maxConcurrent) { mark(log, s, 'wait.showsOpen'); return s }
+  if (cashNow < st.cashFloor) { mark(log, s, 'wait.cashFloor'); return s }
+  if (s.today < log.coolUntil) { mark(log, s, 'wait.coolDown'); return s }
   const roster = playerRoster(s).filter((f) => !f.activeFightId && !f.injury && f.status === 'active')
-  if (roster.length < Math.min(st.cardMin, 3)) return s
+  if (roster.length < Math.min(st.cardMin, 3)) { mark(log, s, playerRoster(s).length < Math.min(st.cardMin, 3) ? 'wait.rosterTooSmall' : 'wait.fightersUnavailable'); return s }
+  mark(log, s, 'attempt')
 
   const taken = new Set<Id>()
   const agreed: Id[] = []
@@ -229,15 +255,16 @@ export function playWeek(input0: GameState, st0: Strategy, log: StrategyLog): Ga
     const a = agreeOne(state, f.id, taken, st)
     if (a) { state = a.state; agreed.push(a.fightId) }
   }
-  if (agreed.length < st.cardMin) { log.noCard++; log.coolUntil = s.today + 21; log.recover = true; return s }
+  if (agreed.length < st.cardMin) { mark(log, s, 'fail.noCard'); log.noCard++; log.coolUntil = s.today + 21; log.recover = true; return s }
 
   const day = state.today + 5 + 7 * (st.lead - 1)
+  const attemptRej: Record<string, number> = {}
   const evaluate = (ids: Id[], relax: boolean) => {
     const fights = ids.map((id) => state.fights[id])
     const out: { v: Venue; mid: number; cap: number; fill: number; pm: number }[] = []
     for (const v of Object.values(state.venues).filter((x) => !x.legacy)) {
       const maxTier = relax ? 'regional' : st.maxTier
-      const rej = (k: string) => { log.why[k] = (log.why[k] ?? 0) + 1 }
+      const rej = (k: string) => { log.why[k] = (log.why[k] ?? 0) + 1; attemptRej[k] = (attemptRej[k] ?? 0) + 1 }
       if (!tierAllowsVenue(state.promotions[state.playerPromotionId].tier, v)) { rej('tier'); continue }
       if (TIERS.indexOf(v.tier) > TIERS.indexOf(maxTier)) { rej('maxTier'); continue }
       if (v.minFights > ids.length || v.maxFights < ids.length) { rej('cardSize'); continue }
@@ -277,7 +304,7 @@ export function playWeek(input0: GameState, st0: Strategy, log: StrategyLog): Ga
     }
     if (best) break
   }
-  if (!best) { log.noVenue++; log.coolUntil = s.today + 14; log.recover = true; return s }
+  if (!best) { const top = Object.entries(attemptRej).filter(([k]) => k !== 'tier' && k !== 'maxTier' && k !== 'cardSize' && k !== 'booked').sort((a, b) => b[1] - a[1])[0]; mark(log, s, `fail.noVenue.${top ? top[0] : (attemptRej.booked ? 'allBooked' : 'noneFit')}`); log.noVenue++; log.coolUntil = s.today + 14; log.recover = true; return s }
   // Release the fights that did not make the card.
   for (const id of agreed.slice(best.n)) { const w = withdraw(state, id); if (w.ok) state = w.state }
   agreed.length = best.n
@@ -285,11 +312,12 @@ export function playWeek(input0: GameState, st0: Strategy, log: StrategyLog): Ga
   const tierOf = pick.v.tier
 
   const made = createEvent(state, { name: `Show ${log.planned + 1}`, day, venueId: pick.v.id })
-  if (!made.ok) { log.noVenue++; if (process.env.DBG) console.log('createEvent failed:', made.error); return s }
+  if (!made.ok) { mark(log, s, 'fail.createEvent'); log.noVenue++; if (process.env.DBG) console.log('createEvent failed:', made.error); return s }
   state = made.state
   const eid = made.eventId!
   for (const id of agreed) state = addFightToEvent(state, eid, id).state
   log.planned++
+  mark(log, s, 'planned')
   const base = refPrices(eventInterest(state, state.events[eid]))
   const pm = pick.pm
   state = setEventPrices(state, eid, { ga: Math.max(8, Math.round(base.ga * pm)), premium: Math.round(base.premium * pm), vip: Math.round(base.vip * pm) }).state
@@ -306,7 +334,7 @@ export function playWeek(input0: GameState, st0: Strategy, log: StrategyLog): Ga
   }
   if (bk !== 'none') state = setEventBroadcast(state, eid, bk).state
   const put = putEventOnSale(state, eid)
-  if (!put.ok) return s
+  if (!put.ok) { mark(log, s, 'fail.putOnSale'); return s }
   state = put.state
   const offers = state.events[eid].sponsor.offers.slice().sort((a, b) => b.fixedFee - a.fixedFee)
   if (offers[0]) state = chooseSponsor(state, eid, offers[0].id).state

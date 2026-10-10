@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { formatDay } from '../../engine/calendar'
 import { WEEKLY_COSTS } from '../../engine/config'
-import { allAdvice, bridgeView, financeAdvisor } from '../../engine/advisor'
+import { allAdvice, breakEven, bridgeView, financeAdvisor } from '../../engine/advisor'
 import { tierLabel } from '../../engine/tiers'
 import { sponsorView } from '../../engine/sponsors'
 import { cashRunwayWeeks, financialHealth, overheadCost, player, weeklyBurn } from '../../engine/selectors'
@@ -67,6 +67,8 @@ export function FinancesScreen() {
         </div>
         <AdvicePanel list={allAdvice(game).filter((a) => a.topic === 'event' || a.topic === 'contract')} cap={3} compact />
       </Section>
+
+      <BreakEvenPanel />
 
       <BridgePanel />
 
@@ -176,6 +178,26 @@ function BridgePanel() {
           </>
         )}
         {!v.loan && !v.offer && v.unavailable && <p className="dim" data-testid="bridge-unavailable">{v.unavailable}</p>}
+      </div>
+    </Section>
+  )
+}
+
+/** What staying open costs a year and how many shows that takes, from the books (ledger costs and completed-show results). */
+function BreakEvenPanel() {
+  const game = useGame((s) => s.game)!
+  const b = breakEven(game)
+  return (
+    <Section title="What staying open costs" right={<span className={`chip hp ${b.verdict === 'short' ? 'critical' : b.verdict === 'covering' ? 'healthy' : 'concern'}`}>{b.verdict === 'short' ? 'SHORT' : b.verdict === 'covering' ? 'COVERED' : 'TOO EARLY'}</span>}>
+      <div data-testid="break-even">
+        <dl>
+          <div className="kv"><dt>Running costs a year</dt><dd className="num">{money(b.annualRunning, false)} <span className="dim">(overhead {money(b.overhead, false)} · retainers {money(b.retainers, false)}{b.staff > 0 ? ` · scouts and coaching ${money(b.staff, false)}` : ''}{b.debtService > 0 ? ` · loan instalments ${money(b.debtService, false)}` : ''})</span></dd></div>
+          <div className="kv"><dt>Shows in the last 12 months</dt><dd className="num">{b.shows}{b.lossMaking > 0 ? ` (${b.lossMaking} lost money)` : ''}</dd></div>
+          <div className="kv"><dt>Profit per show, after its own costs</dt><dd className="num">{b.avgProfit === null ? '—' : `${b.avgProfit < 0 ? '−' : ''}${money(Math.abs(b.avgProfit), false)} average · ${money(b.medianProfit ?? 0, false)} median`}</dd></div>
+          <div className="kv"><dt>Bouts per fighter, last 12 months</dt><dd className="num">{b.fightsPerFighter === null ? '—' : b.fightsPerFighter}</dd></div>
+          <div className="kv"><dt>Shows a year needed to cover running costs</dt><dd className="num">{b.neededShows === null ? '—' : `about ${Math.ceil(b.neededShows)}`}</dd></div>
+        </dl>
+        <p className="dim" style={{ fontSize: 13 }} data-testid="break-even-note">{b.note}</p>
       </div>
     </Section>
   )

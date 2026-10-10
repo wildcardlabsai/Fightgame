@@ -84,7 +84,7 @@ export function createEvent(input: GameState, spec: CreateEventSpec): EvResult {
   const ptier = input.promotions[input.playerPromotionId].tier
   if (!tierAllowsVenue(ptier, v)) return bad(input, `${v.name} seats ${v.capacity.toLocaleString('en-GB')}. A ${tierDef(ptier).label} promotion can book up to ${tierDef(ptier).maxCapacity.toLocaleString('en-GB')}; it opens up once you are a ${tierDef(tierNeededForVenue(v)).label} promotion.`)
   if (playerOpenEvents(input).length >= 3) return bad(input, 'You can only run three events at once.')
-  if (!canAfford(input, hireFor(input, v, input.playerPromotionId))) return bad(input, `The venue hire (£${hireFor(input, v, input.playerPromotionId).toLocaleString('en-GB')}) is more than you have in the bank.`)
+  if (!canAfford(input, hireFor(input, v, input.playerPromotionId))) return bad(input, `The venue hire (£${hireFor(input, v, input.playerPromotionId).toLocaleString('en-GB')}) is more than you have in the bank.${input.promotions[input.playerPromotionId].cash < 0 ? ' The account is overdrawn: Finances shows the way back.' : ''}`)
   if (playerOpenEvents(input).some((e) => Math.abs(e.day - spec.day) < 7)) return bad(input, 'Leave at least a week between your shows.')
   const state = structuredClone(input)
   const ev = createEventInternal(state, state.playerPromotionId, { ...spec, name }, 'player')

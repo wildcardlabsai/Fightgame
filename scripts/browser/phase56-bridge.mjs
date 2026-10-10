@@ -33,6 +33,10 @@ for (const w of [1280, 1024, 390]) {
   await page.evaluate((j) => window.__fe.useGame.getState().importGame(j), played); await page.waitForTimeout(300)
   await go(page, '#/dashboard'); await go(page, '#/finances')
   check('healthy: no bridge panel', (await page.getByTestId('bridge-panel').count()) === 0)
+  check('finances: shows what staying open costs, from the books', (await page.getByTestId('break-even').count()) === 1 && /Running costs a year/.test(await page.getByTestId('break-even').innerText()) && /Bouts per fighter/.test(await page.getByTestId('break-even').innerText()))
+  const be = await page.getByTestId('break-even').innerText()
+  check('finances: gives a verdict note and a shows-needed figure or says it is too early', (await page.getByTestId('break-even-note').innerText()).length > 20 && /Shows a year needed/.test(be))
+  check('finances: break-even has no horizontal overflow', (await overflow(page)) <= 1, String(await overflow(page)))
 
   // a promotion in a hole
   await page.evaluate((j) => window.__fe.useGame.getState().importGame(j), distress); await page.waitForTimeout(300)

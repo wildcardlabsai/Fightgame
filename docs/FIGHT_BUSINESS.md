@@ -592,3 +592,44 @@ Terms were tightened by measurement: at 20% over 78 weeks the instalments (about
 Honest reading: the bridge turns a certain dead end into a recoverable one (0/5 -> 3/5 in the overdrawn stress, and the last seed in the low-cash stress); the cash-stress policy fix is mostly the bot's (1/5 -> 4/5).
 The balanced bot's late collapse is **not** explained or fixed by either: in the failing seeds the cash peaks around year 3 and then four to six shows a year cannot carry about £330k of overhead and retainers.
 That points at show cadence and the thin Startup margin rather than at any one bad decision, and is left as the next phase's question (no blanket income multiplier was applied).
+
+## Startup sustainability and the reference bot (Phase 5.7, no save-version change, production economics unchanged)
+
+**Question.** Why does a promotion that starts healthy lose its show cadence? (`scripts/audit/phase57-cadence.ts <policy> [years] [seeds] [--first=N] [--per-seed]`; the bot now traces why each week did or did not produce a
+show: `wait.*` before an attempt, `agree.*` inside card-building, `fail.*` at the venue/booking stage, `planned`.)
+
+**Verified.** £195k a year overhead (3,750 a week) is exact; retainers are £86k a year for five cheap fighters and £190-250k for eight to nine established ones; median profit per show is £15-35k in year 1 and £40-100k+
+by year 3-4 (it grows with the promotion's name), so the "£40-75k" figure only holds from year 2. There is no cadence *decline* in a healthy career: surviving balanced seeds stage 8-12 shows a year in every year.
+The "decline in years 4-6" is a cliff in individual seeds: three of eight seeds (2, 4, 8) go to 0 shows from year 2, a fourth (6) in year 4. Planned and completed shows match (366 planned, no cancellations in 8 careers).
+
+**Why the balanced bot stops (weeks it did not stage a show, 8 seeds x 8 years; "attempts" are weeks where it tried):**
+
+| Rank | Cause | Weeks / attempts | Impossible or avoidable? |
+|---|---|---|---|
+| 1 | cash below its own floor (`wait.cashFloor`: £80k, plus an eight-week reserve) | 1,340 weeks, 0 in year 1, 118 / 156 / 167 / 208 / 208 / 228 / 255 by year | policy gate, but the cause upstream is a cash drain (below) |
+| 2 | cool-down after a failed attempt | 446 weeks | consequence of 3-5 |
+| 3 | no willing opponent found for a fighter (`agree.noCandidates`) | 572 searches; 147 of 675 attempts end with too few bouts (`fail.noCard`) | partly impossible (thin division), partly the bot's matching rule |
+| 4 | camp walked away from a fight offer (`agree.campWalked`) | 442 | real negotiation outcome, handled by trying the next opponent |
+| 5 | opponent too expensive for the bot's purse rule | 253 | policy |
+| 6 | too few fighters free (`wait.fightersUnavailable`) | 190 | injuries and bookings |
+| 7 | every venue's forecast loss above the bot's tolerance (`fail.noVenue.loss`) | 141 | deliberate, mostly year 1 (78 of 141) |
+| 8 | the show could not be put on sale | 39 | event lifecycle: rare |
+Benign: two shows already open (677 weeks) is the bot's own concurrency limit.
+
+**The cash drain upstream.** In year 1 the balanced bot signs eight established fighters: £243k of retainers on top of £195k overhead, against six shows earning £24k each, and each fighter fights 2.5 times a year. Three seeds end
+year 1 with £60-320k, go negative in year 2, and cannot hire a venue or pay a bonus. The same economy supports other policies: prospects 14 shows a year at 4.8-6.2 bouts per fighter (8/8 solvent, median £5.1m), conservative 7 shows with five cheap fighters
+(7/8), the balanced bot with only its signing mode changed to prospects or cheap 7/8 (10-11 shows a year). The mechanism is the *kind* of fighter signed (established fighters' purses and retainers eat a Startup's gate), not the number of shows.
+
+**Idealised scheduler (diagnostic only, `ideal`).** Opening every bot gate (no reserve, no cool-down, no profit floor) with the balanced signing policy still ends 3/8 (six fighters) and 2/8 (eight fighters, 9-11 shows a year in
+the good seeds): cadence is not the binding limit, margin per show is. Lean rosters (six fighters) did not help either (4/8).
+
+**Reference bot (`reference`, test harness).** Balanced reach and marketing, but signing prospects (`signShare .08`), nine fighters, planning one week earlier, cards of at most six: 8/8 solvent on seeds 1-8 (median £8.8m, 11-15 shows a year,
+5.1 bouts per fighter) and 7/8 on held-out seeds 9-16 (median £9.0m, 12-13 shows), against 3/8 and 3/8 for `balanced` on the same seeds. `balanced` itself is unchanged (many tests and audits are built on its trajectories) and is kept as the known-weak baseline.
+
+**Verdict.** The production economy is viable and rewards cadence and cheap young talent; the failures are a bot policy. No economy numbers were changed. Recovery still works (stress, conservative + rescue shows + bridge, final code, 5 seeds x 6 years):
+zero roster 5/5, £60k cash 5/5, overdrawn £150k 3/5 (0/5 without the bridge). Reckless play still fails: balanced 3/8 on both seed sets, and a second loan is refused while one runs.
+
+**Player information (the only game change).** Finances gains "What staying open costs": running costs a year split into overhead, retainers, scouts and coaching and loan instalments (the bridge's weekly instalment is part of the cost), the shows of the last 12 months with their average and median profit
+after their own costs (from the event results, the ledger's source), bouts per fighter, and the number of shows a year that would cover the running costs at that pace, with a plain note ("too few shows yet", "not making money", or "you need about N and staged M"). The hire refusal says when the account is overdrawn.
+
+**Remaining.** Year 1 is the dangerous year for any policy that pays market-rate retainers; the panel makes this visible but the game does not warn at signing time that a roster's retainers need a given number of shows. A signing-time cost-of-roster line would be the next small step.
