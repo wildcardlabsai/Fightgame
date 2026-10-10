@@ -100,7 +100,8 @@ function planEvent(state: GameState, promo: Promotion, rng: Rng, playerRoster: S
   // longest idle first, the same way a promoter books a prospect or a journeyman. They are never reserved: the player can book them too.
   // Only a promotion in good financial health takes on extra per-fight purses; a struggling one stages what its own roster can carry, as before.
   const sound = ai.fin.state === 'healthy' || ai.fin.state === 'established' || ai.fin.state === 'growing'
-  const freeCap = !B.fights.ai.freeAgentFill || !sound ? 0 : Math.max(Math.ceil(target * B.fights.ai.freeAgentCardShare), 3 - fights.length)
+  const standing = fights.length >= 3 || B.fights.ai.freeAgentRescue // a card already standing, or one the independents are allowed to save
+  const freeCap = !B.fights.ai.freeAgentFill || !sound || !standing ? 0 : Math.max(Math.ceil(target * B.fights.ai.freeAgentCardShare), B.fights.ai.freeAgentRescue ? 3 - fights.length : 0)
   let freeBooked = 0
   if (freeCap > 0 && fights.length < target) {
     const live = state.world?.pursuits ?? {}

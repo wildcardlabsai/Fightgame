@@ -213,7 +213,9 @@ export const BALANCE = {
       /** Independent (uncontracted) fighters may take at most this share of an AI card as principals, plus whatever is needed to reach the three-fight minimum of a show. */
       /** Master switch for independents taking places on AI cards (the audit turns it off to reproduce the old world). */
       freeAgentFill: true,
-      freeAgentCardShare: 0,
+      /** Whether independents may also rescue a card that would otherwise fall short of three fights (more shows: they compete for the same Saturdays and crowds as the player's). */
+      freeAgentRescue: false,
+      freeAgentCardShare: 0.3,
       /** How many independents a promoter weighs up when filling a card. */
       freeAgentKnown: 10,
       /** Opponents weighed for an independent's bout (a plain card slot weighs 60). */
@@ -304,7 +306,7 @@ export const BALANCE = {
     ai: {
       cadenceWeeks: { Startup: 6, Regional: 4, National: 4, Major: 3, Global: 3 } as Record<PromotionTier, number>,
       /** Stretches every promotion's planning interval. Planning attempts that could not be filled used to throttle shows by accident; now that cards fill, this sets the pace on purpose. */
-      cadenceScale: 1.25,
+      cadenceScale: 1,
       leadWeeks: [8, 14] as [number, number],
       marketingShare: { traditional: 0.04, prospectFactory: 0.02, money: 0.07, regional: 0.03 } as Record<string, number>,
       overheadPerWeek: { Startup: 0, Regional: 2_000, National: 8_000, Major: 35_000, Global: 90_000 } as Record<PromotionTier, number>,

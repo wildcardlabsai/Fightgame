@@ -11,6 +11,8 @@ import type { GameState } from '../../src/engine/types'
 import { BALANCE } from '../../src/engine/balance'
 // Phase 6.1 comparison switches (environment, so the default run is the shipped configuration): P61_FILL=0 turns independents-on-cards off; P61_SCALE=x sets the AI show-planning interval scale.
 if (process.env.P61_FILL === '0') (BALANCE.fights.ai as { freeAgentFill: boolean }).freeAgentFill = false
+if (process.env.P61_RESCUE) (BALANCE.fights.ai as { freeAgentRescue: boolean }).freeAgentRescue = process.env.P61_RESCUE === '1'
+if (process.env.P61_SHARE) (BALANCE.fights.ai as { freeAgentCardShare: number }).freeAgentCardShare = Number(process.env.P61_SHARE)
 if (process.env.P61_SCALE) (BALANCE.events.ai as { cadenceScale: number }).cadenceScale = Number(process.env.P61_SCALE)
 
 const policy = process.argv[2] ?? 'balanced'
