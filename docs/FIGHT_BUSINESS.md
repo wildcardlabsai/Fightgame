@@ -684,3 +684,25 @@ Before: 1.47 bouts per fighter-year, 23% of fighters with no bout in 12 months. 
 **A real defect found on the way**: a title fight booked as a lower belt kept that flag after a fighter won a higher belt, so settling it could crown a world champion at the lower level and close the reign the same day (overlapping reigns in one world). Settlement now skips any belt a fighter has moved above; regression test in `phase54integrity.test.ts`.
 
 **Championship supply did not change, and should not.** Credible world challengers per division stayed at about 3.2 (held-out 2.9), and world belts are vacant about 22–27% of belt-weeks before and after. The funnel shows why: about 20% of active fighters meet the world experience floor and about 10% are credible challengers. Extra bouts push independents past the fight-count floor but not through "needs a better record" or "needs a win over a credible contender". Credible supply is a matter of talent and matchmaking quality, not volume. Eligibility was not touched; a vacant belt now says how many credible contenders exist and what a challenger needs.
+
+## Phase 6.3 - rival-staged offers and the Fight Night flow
+
+**Root cause (offers).** `generateOffers` gave each proposal a 60% chance of being a place on an existing rival show, and only if a rival show with room
+existed 5-14 weeks out. In practice ~70% of offers were `host: 'you'`: the rival supplied a fighter and the player was left to pick a date and a card of
+their own - the "go back and arrange it myself" experience. Part 2 (rivals offering their own fighters against yours) already existed - the offer is always
+*their* contracted fighter v *yours* - but most of it was invisible because the booking half was missing.
+
+**Now.** Every new proposal is a place on the rival's own show (`host: 'them'`). If the rival has no open show with room (window 5-15 weeks), it puts one
+together with the weekly planner (`stageRivalShow`, a keyed RNG so the world's own stream is untouched, the same finance, roster and open-show limits as any
+AI show, and the offered fighter held back from the card). No show can be staged -> no offer. Accepting runs the existing `createAgreedFight` ->
+`attachFight` path: one bout, rival-organised, on the rival event, both fighters' `activeFightId` set, offer closed (`agreed`), the event settled by the
+ordinary AI-event path, fee and purse through the ledger exactly as before. Legacy `host: 'you'` offers in old saves still work unchanged (no migration).
+Offers per seed-year fell from 2.9 to 2.1 (a new show is staged for ~30% of offers; ~30% find no show and make no offer).
+
+**UI.** Fights list rows carry a "Your show / On X's card" chip (`FightListItem.external`, `organiser`); the offer card says "Staged by - Their card: <event>";
+closed offers are listed newest first; a rival's fight never shows a "ring the bell" action to the player (`canRunNight` requires the player to be the organiser).
+
+**Fight Night.** `nightProgress(state, eventId)` (eventViews) reports done/total, the next bout in card order (the same order `runNextFight` uses), its slot,
+division, rounds and stake, and completion. The Fight Night overlay shows "Next fight / Main event: ring the bell" (`lf-next-fight`) once a result is revealed;
+the event page keeps a sticky `night-bar` (above the mobile bottom nav) with the same action, and after the last bout it reads "Show complete". The action
+calls the existing `runNextEventFight`; nothing about the bell, simulation, post-fight or settlement logic changed.
