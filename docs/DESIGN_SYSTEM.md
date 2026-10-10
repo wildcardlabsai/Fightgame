@@ -37,3 +37,13 @@ Fixed top navigation with grouped tabs and a second sub-nav row (desktop), botto
 5. The dashboard buried urgent items below the event hero and three summary columns.
 6. The fighter profile is about 5,800px tall at 1280 with no way to jump around it.
 7. Sideways overflow is hidden at the page level (`overflow-x: clip`), so a plain scroll-width check cannot catch clipped content; the browser checks look at element edges.
+
+## Phase 6.0 changes
+- **Dashboard.** A five-tile command strip (cash and runway, roster fitness and contracts, next show, offers and talks, titles) sits directly under the header, and the three most pressing items ("Needs you") sit above the next-event hero. Both read existing selectors (`attentionItems`, `offersWaiting`, `myTitlePaths`, `financialHealth`); nothing is calculated twice.
+- **Fighter profile.** A tag row says in words: YOUR FIGHTER (blue), the champion label (gold), the contender status, the career stage, Inactive. An "at a glance" strip shows contract, next fight, titles and standing, and condition. A sticky jump bar moves around the 5,800px page. The next step for a fighter under the experience floor now states the floor.
+- **Fights list.** Every open fight is marked Proposal (dashed amber) or Booked (green), and title, eliminator, unification and mandatory bouts carry a labelled stake chip, read from the title system (`FightListItem.stake`, `.phase`).
+- **Matchmaking.** Fighter tiles show availability as a chip and carry the blue edge that means "yours".
+- **Office.** Every choice says "Current choice" or "Select" in words; the selected card is white-edged, not gold.
+- **Fight Night.** The logo replaces the old text brand; your fighter's tag is blue with white text.
+- **Colour meaning.** Gold = champion/title, blue = your fighter, red = action and danger. Table rows for your fights, ranking rows, belt cards and the fight-night owner tag all moved from gold to blue.
+- **Accessibility.** White focus ring with a red halo (selects included); `--faint` raised so secondary text passes AA; the blue chip darkened for contrast; tap targets on mobile. `scripts/browser/phase60-a11y.mjs` checks names, alt text, one h1, clipping, contrast and focus on nine screens at three widths.
