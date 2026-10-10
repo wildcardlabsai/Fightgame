@@ -8,6 +8,10 @@ import { advanceOneWeek } from '../../src/engine/tick'
 import { newLog, playWeek, STRATEGIES } from '../../src/engine/sim/strategies'
 import { playerRoster, weeklyBurn } from '../../src/engine/selectors'
 import type { GameState } from '../../src/engine/types'
+import { BALANCE } from '../../src/engine/balance'
+// Phase 6.1 comparison switches (environment, so the default run is the shipped configuration): P61_FILL=0 turns independents-on-cards off; P61_SCALE=x sets the AI show-planning interval scale.
+if (process.env.P61_FILL === '0') (BALANCE.fights.ai as { freeAgentFill: boolean }).freeAgentFill = false
+if (process.env.P61_SCALE) (BALANCE.events.ai as { cadenceScale: number }).cadenceScale = Number(process.env.P61_SCALE)
 
 const policy = process.argv[2] ?? 'balanced'
 const years = Number(process.argv[3] ?? 8), seeds = Number(process.argv[4] ?? 8)
