@@ -13,13 +13,16 @@ import { fighterAge, publicFacts } from '../fighters'
 import { weightCompatible } from '../fight/profile'
 import { transition } from '../fight/lifecycle'
 import { chooseVenue, createFight, fightAvailability, lockKey, restUntil } from '../fights'
-import { appraise, baseMoney, valueOf } from '../market'
-import { titleBonus, titlePartners } from '../media/titles'
+import { appraiseRating, baseMoney, valueOf } from '../market'
+import { titleBonus, titlePartners, titleRelevant } from '../media/titles'
 import { titleObligation, unificationPartner } from '../business/titleEco'
 import type { Rng } from '../rng'
 import type { Contract, Fighter, GameState, Id, Promotion } from '../types'
 
 const SAT = 5
+/** Diagnostics for the activity audit (never game state): why a matchmaking attempt did or did not make a fight. Off unless a script switches it on. */
+export const aiTrace: { on: boolean; c: Record<string, number> } = { on: false, c: {} }
+export const tr = (k: string): void => { if (aiTrace.on) aiTrace.c[k] = (aiTrace.c[k] ?? 0) + 1 }
 export const weeksSince = (state: GameState, f: Fighter) => (f.lastFightDay === null ? 40 : Math.floor((state.today - f.lastFightDay) / 7))
 
 export function bookable(state: GameState, f: Fighter, day: number): boolean {
@@ -37,9 +40,10 @@ export function aiMatchmaking(state: GameState, rng: Rng): void {
    // Bigger promotions run more shows: several booking attempts a week, scaled by roster size.
    const attempts = Math.ceil(roster.length / B.fights.ai.rosterPerAttempt)
    for (let attempt = 0; attempt < attempts; attempt++) {
-    if (!rng.chance(B.fights.ai.perPromoPerWeek)) continue
+    tr('mm.attempt')
+    if (!rng.chance(B.fights.ai.perPromoPerWeek)) { tr('mm.skip.chance'); continue }
     const contracts = roster
-    if ((activeByPromo[promo.id] ?? 0) >= Math.max(2, Math.ceil(contracts.length * B.fights.ai.maxOpenShare))) continue
+    if ((activeByPromo[promo.id] ?? 0) >= Math.max(2, Math.ceil(contracts.length * B.fights.ai.maxOpenShare))) { tr('mm.skip.openCap'); continue }
     const day = state.today + SAT + 7 * rng.int(B.fights.ai.minWeeksNotice, B.fights.ai.maxWeeksNotice)
 
     // Who most needs a fight?
@@ -48,27 +52,27 @@ export function aiMatchmaking(state: GameState, rng: Rng): void {
       .filter((x) => x.f && bookable(state, x.f, day))
       .sort((a, b) => (titleObligation(state, b.f.id) ? 1000 : 0) + weeksSince(state, b.f) - ((titleObligation(state, a.f.id) ? 1000 : 0) + weeksSince(state, a.f)))
       .slice(0, 4)
-    if (needy.length === 0) continue
+    if (needy.length === 0) { tr('mm.skip.noBookable'); continue }
     const { c, f: x } = needy[Math.min(needy.length - 1, rng.int(0, 1))]
-    if (weeksSince(state, x) < B.fights.restWeeks + 2) continue
+    if (weeksSince(state, x) < B.fights.restWeeks + 2) { tr('mm.skip.rest'); continue }
 
     // A title obligation (mandatory defence, eliminator, a vacant belt) is honoured first when the other side can be booked — the same rules the player faces.
     const ob = titleObligation(state, x.id)
     const obOpp = ob ? state.fighters[ob.partner] : undefined
     // While a mandatory defence is pending, neither man takes an unrelated fight if the order can still be met.
-    if (ob && ob.kind === 'mandatory' && (!obOpp || playerRoster.has(obOpp.id) || !bookable(state, obOpp, day))) continue
+    if (ob && ob.kind === 'mandatory' && (!obOpp || playerRoster.has(obOpp.id) || !bookable(state, obOpp, day))) { tr('mm.skip.mandatoryWait'); continue }
     const uniId = ob ? null : unificationPartner(state, x.id)
     const uni = uniId ? state.fighters[uniId] : undefined
     const opp = obOpp && !playerRoster.has(obOpp.id) && bookable(state, obOpp, day) && !(state.fightLocks[lockKey(x.id, obOpp.id)] > state.today) && !rng.chance(0.2) ? obOpp
       : uni && !playerRoster.has(uni.id) && bookable(state, uni, day) && !(state.fightLocks[lockKey(x.id, uni.id)] > state.today) ? uni
       : pickOpponent(state, promo, x, day, playerRoster, rng)
-    if (!opp) continue
+    if (!opp) { tr('mm.skip.noOpponent'); continue }
     // Cost
     const ct = opp.contractId ? state.contracts[opp.contractId] : null
     const fa = baseMoney(valueOf(state, opp)).purse * B.fights.ai.journeymanPurseFactor
     const purseB = ct ? ct.basePurse : Math.round(fa / 100) * 100
     const winB = ct ? ct.winBonus : Math.round((purseB * 0.1) / 100) * 100
-    if (promo.cash < (c.basePurse + purseB + c.winBonus + winB) * 1.2) continue
+    if (promo.cash < (c.basePurse + purseB + c.winBonus + winB) * 1.2) { tr('mm.skip.cash'); continue }
 
     const fight = createFight(state, x.id, opp.id, promo.id, 'ai', { purseB, winBonusB: winB })
     transition(fight, 'agreed')
@@ -81,6 +85,7 @@ export function aiMatchmaking(state: GameState, rng: Rng): void {
       side.prep.plan = ['Pressure Fighter', 'Swarmer', 'Power Puncher'].includes(f.style) ? 'aggressive' : ['Defensive Specialist', 'Counter Puncher'].includes(f.style) ? 'cautious' : 'balanced'
     }
     activeByPromo[promo.id] = (activeByPromo[promo.id] ?? 0) + 1
+    tr('mm.ok')
    }
   }
 }
@@ -91,9 +96,9 @@ function reservedForMandatory(state: GameState, id: Id, withId: Id): boolean {
   return !!ob && ob.kind === 'mandatory' && ob.partner !== withId
 }
 
-export function pickOpponent(state: GameState, promo: Promotion, x: Fighter, day: number, playerRoster: Set<Id>, rng: Rng): Fighter | null {
+export function pickOpponent(state: GameState, promo: Promotion, x: Fighter, day: number, playerRoster: Set<Id>, rng: Rng, sampleSize = B.fights.ai.opponentSample): Fighter | null {
   const strat = promo.ai!.strategy
-  const aX = appraise(state, promo, x).rating
+  const aX = appraiseRating(state, promo, x)
   const recent = new Set<Id>()
   for (const fid of x.recentFights.slice(-6)) {
     const ft = state.fights[fid]
@@ -102,20 +107,21 @@ export function pickOpponent(state: GameState, promo: Promotion, x: Fighter, day
   const pool = Object.values(state.fighters).filter((o) =>
     o.id !== x.id && o.status === 'active' && !playerRoster.has(o.id) && weightCompatible(x.weightClass, o.weightClass) !== 'no' && bookable(state, o, day) &&
     !(state.fightLocks[lockKey(x.id, o.id)] > state.today) && !reservedForMandatory(state, o.id, x.id))
-  if (pool.length === 0) return null
-  const sample = rng.shuffle(pool).slice(0, 60)
+  if (pool.length === 0) { tr('opp.emptyPool'); return null }
+  const sample = rng.shuffle(pool).slice(0, sampleSize)
   // A body's champion, mandatory challenger or the top two for a vacant belt are always worth a look (no extra randomness used).
   for (const id of titlePartners(state, x.id, x.weightClass)) { const o = state.fighters[id]; if (o && pool.includes(o) && !sample.includes(o)) sample.push(o) }
   let best: { o: Fighter; score: number } | null = null
+  const xTitled = titleRelevant(state, x.id, x.weightClass)
   for (const o of sample) {
-    const aO = appraise(state, promo, o).rating
+    const aO = appraiseRating(state, promo, o)
     const diff = aO - aX
     const age = fighterAge(x, state.today)
     const target = strat === 'prospectFactory' ? (age <= 25 ? -10 : -2) : strat === 'traditional' ? 0 : strat === 'money' ? 1 : -3
     let score = -Math.abs(diff - target)
     if (weightCompatible(x.weightClass, o.weightClass) === 'catchweight') score -= 6
     if (strat === 'money') score += o.popularity * 0.12
-    score += titleBonus(state, x.id, o.id, x.weightClass)
+    if (xTitled) score += titleBonus(state, x.id, o.id, x.weightClass)
     if (strat === 'regional' && regionOf(o.nationality) === regionOf(promo.homeCountry)) score += 6
     if (recent.has(o.id)) score -= 14
     // The public tires of the same two fighters: every prior meeting in recent memory costs, and three is a trilogy — enough.
@@ -130,13 +136,14 @@ export function pickOpponent(state: GameState, promo: Promotion, x: Fighter, day
     const op = oc && oc.promotionId !== promo.id ? state.promotions[oc.promotionId] : null
     if (op) {
       const oAge = fighterAge(o, state.today)
-      const aXfromO = appraise(state, op, x).rating
-      const aOfromO = appraise(state, op, o).rating
+      const aXfromO = appraiseRating(state, op, x)
+      const aOfromO = appraiseRating(state, op, o)
       if (op.ai?.strategy === 'prospectFactory' && oAge <= 24 && aXfromO > aOfromO + 8) continue
       if (rng.chance(0.15)) continue // plain scheduling friction
     }
     if (!best || score > best.score) best = { o, score }
   }
+  if (!best || best.score <= -18) { tr(best ? 'opp.scoreTooLow' : 'opp.noneAcceptable') }
   return best && best.score > -18 ? best.o : null
 }
 

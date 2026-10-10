@@ -183,12 +183,13 @@ export function activateTitles(state: GameState, media: MediaState): TitleEvent[
       const entries = (getList(media, org.id, w.id)?.e ?? []).filter((e) => e.r >= 1)
       const depth = entries.length
       // A belt is contested only when the division has enough fighters with the record of a credible challenger, not merely enough rated ones.
-      const credible = entries.filter((e) => qualifiesFor(state, org.id, e.f)).length
+      // Counted only when a decision needs it, and only up to the number that decides it (a held belt needs neither).
+      const credibleAtLeast = (atLeast: number): boolean => { let n = 0; for (const e of entries) { if (qualifiesFor(state, org.id, e.f) && ++n >= atLeast) return true } return atLeast <= 0 }
       const need = d.level === 'world' ? 4 : 3
-      if (!rec && depth >= d.minPool && credible >= need) {
+      if (!rec && depth >= d.minPool && credibleAtLeast(need)) {
         media.titles[k] = { c: null, since: state.today, defences: 0, lastFight: state.today, vacantSince: state.today }
         ev.push({ kind: 'TITLE_OPEN', body: org.id, wc: w.id })
-      } else if (rec && !rec.c && !rec.elim && (depth < d.minPool || credible < 2) && rec.vacantSince !== undefined && state.today - rec.vacantSince > WEEKS(52)) {
+      } else if (rec && !rec.c && !rec.elim && rec.vacantSince !== undefined && state.today - rec.vacantSince > WEEKS(52) && (depth < d.minPool || !credibleAtLeast(2))) {
         delete media.titles[k]
       }
     }
@@ -521,6 +522,19 @@ export function settleTitleFight(state: GameState, media: MediaState, fight: Fig
 }
 
 /** AI booking nudge: how much a title-relevant pairing is worth to a rival (0 = nothing). Never changes a result. */
+/** Could `titleBonus` be non-zero for this fighter at all? It needs them on a live belt's list (or in an eliminator): most fighters are on none, so a matchmaker asks once instead of once per candidate. */
+export function titleRelevant(state: GameState, x: Id, wc: WeightClassId): boolean {
+  const media = state.media
+  if (!media?.effects) return false
+  for (const org of SANCTIONING) {
+    const rec = media.titles[titleKey(org.id, wc)]
+    if (!rec) continue
+    if (rec.elim && (rec.elim.a === x || rec.elim.b === x)) return true
+    if (rankIn(media, org.id, wc, x) !== null) return true
+  }
+  return false
+}
+
 export function titleBonus(state: GameState, x: Id, o: Id, wc: WeightClassId): number {
   const media = state.media
   if (!media?.effects) return 0

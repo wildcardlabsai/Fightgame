@@ -209,7 +209,17 @@ export const BALANCE = {
     keepRoundsForAi: false,
     /** AI fights older than this (years) are pruned from state if not on any recent list. */
     pruneYears: 3,
-    ai: { perPromoPerWeek: 0.6, rosterPerAttempt: 8, maxOpenShare: 0.4, minWeeksNotice: 6, maxWeeksNotice: 14, journeymanPurseFactor: 0.5, freeAgentChance: 0.22 },
+    ai: { perPromoPerWeek: 0.6, rosterPerAttempt: 8, maxOpenShare: 0.4, minWeeksNotice: 6, maxWeeksNotice: 14, journeymanPurseFactor: 0.5, freeAgentChance: 0.22,
+      /** Independent (uncontracted) fighters may take at most this share of an AI card as principals, plus whatever is needed to reach the three-fight minimum of a show. */
+      /** Master switch for independents taking places on AI cards (the audit turns it off to reproduce the old world). */
+      freeAgentFill: true,
+      freeAgentCardShare: 0,
+      /** How many independents a promoter weighs up when filling a card. */
+      freeAgentKnown: 10,
+      /** Opponents weighed for an independent's bout (a plain card slot weighs 60). */
+      freeAgentSample: 20,
+      /** Opponents a matchmaker weighs for an ordinary card slot. */
+      opponentSample: 40 },
     recentListSize: 12,
     /** Bouts kept for fighters the player has no relationship with. */
     untrackedRecent: 6,
@@ -293,6 +303,8 @@ export const BALANCE = {
     archiveAfterWeeks: 26,
     ai: {
       cadenceWeeks: { Startup: 6, Regional: 4, National: 4, Major: 3, Global: 3 } as Record<PromotionTier, number>,
+      /** Stretches every promotion's planning interval. Planning attempts that could not be filled used to throttle shows by accident; now that cards fill, this sets the pace on purpose. */
+      cadenceScale: 1.25,
       leadWeeks: [8, 14] as [number, number],
       marketingShare: { traditional: 0.04, prospectFactory: 0.02, money: 0.07, regional: 0.03 } as Record<string, number>,
       overheadPerWeek: { Startup: 0, Regional: 2_000, National: 8_000, Major: 35_000, Global: 90_000 } as Record<PromotionTier, number>,

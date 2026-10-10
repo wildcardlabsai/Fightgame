@@ -24,7 +24,7 @@ import { negStage, STAGE_LABEL } from './stage'
 import { expectedContractTerms, type ExpectedContractTerms } from './terms'
 import { LADDER, STATUS_LABEL, currentTitleLabel, allEligibility, championObligations, contenderStatus, nextMilestone, titleOpportunities, type ContenderStatus, type Eligibility, type Opportunity } from './titleEco'
 import { assessChallenger } from './contender'
-import { LEVEL_LABEL, LEVEL_ORDER, TITLE_DEF_BY_ID, levelOf, type TitleLevel } from './titleDefs'
+import { LEVEL_LABEL, LEVEL_ORDER, TITLE_DEF_BY_ID, levelOf, rankingFloor, type TitleLevel } from './titleDefs'
 import { planOf } from './plans'
 
 // ------------------------------------------------------------------ title boards (Titles screen)
@@ -104,7 +104,8 @@ export function titleBoard(state: GameState, level: TitleLevel, wc: WeightClassI
         const top = contenders.filter((c) => c.status === 'contender' || c.status === 'mandatory' || c.status === 'eliminator').slice(0, 2)
         note = t.vacantSince ? `Vacant for ${weeksBetween(t.vacantSince, state.today)} weeks.` : 'Vacant.'
         if (top.length >= 2) note += ` The leading contenders are ${top[0].name} and ${top[1].name}.`
-        else note += ' Waiting for enough rated contenders to fill it.'
+        else if (top.length === 1) note += ` Only ${top[0].name} is a credible contender so far; a vacant belt is filled when two of them meet in the ring.`
+        else { const fl = d ? rankingFloor(d) : null; note += ` No fighter in ${weightClassLabel(wc)} has yet met the standard of a credible challenger${fl ? ` (${fl.fights} fights, ${fl.wins} wins and wins over credible opposition)` : ''}, so the belt stays vacant until one does.` }
       }
     }
     out.push({

@@ -205,6 +205,12 @@ export function appraise(state: GameState, promo: Promotion, f: Fighter): { rati
   }
 }
 
+/** Just the rating half of `appraise` (same number, without the potential's noise): a matchmaker weighing opponents only needs this. */
+export function appraiseRating(state: GameState, promo: Promotion, f: Fighter): number {
+  const sd = B.ai.appraisalSd[promo.tier] * B.events.ai.competence[promo.ai?.competence ?? 'average'].appraisal
+  return rawRating(f) + keyedNormal(state.seed, 'ai-r', promo.id, f.id, Math.floor(state.today / 91)) * sd
+}
+
 function rawRating(f: Fighter): number {
   const a = f.attributes
   return a.power * 0.15 + a.speed * 0.12 + a.defence * 0.14 + a.stamina * 0.11 + a.chin * 0.13 + a.ringIQ * 0.13 + a.heart * 0.09 + a.aggression * 0.05 + a.adaptability * 0.08

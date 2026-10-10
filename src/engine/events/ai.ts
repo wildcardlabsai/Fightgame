@@ -13,7 +13,7 @@ import { cancelFight, createFight } from '../fights'
 import { keyedFloat, keyedNormal, type Rng } from '../rng'
 import type { BoxingEvent, BroadcastKind, Fight, GameState, Id, MarketingLevel, Promotion, PromoStrategy, Venue, VenueTier } from '../types'
 import { baseMoney, valueOf } from '../market'
-import { bookable, pickOpponent, weeksSince } from '../systems/aiFights'
+import { bookable, pickOpponent, tr, weeksSince } from '../systems/aiFights'
 import { behaviour } from '../systems/aiFinance'
 import { broadcastTerms, cardFights, demandFor, eventInterest, fightAppeal, ppvBuysFor, ppvRefPrice, refPrices, soldFromDemand } from './demand'
 import { attachFight, createEventInternal, startSales, venueBookedOn } from './events'
@@ -39,10 +39,11 @@ export function aiEvents(state: GameState, rng: Rng): void {
     const b = behaviour(promo)
     const open = Object.values(state.events).filter((e) => e.promotionId === promo.id && isEventOpen(e))
     const maxOpen = ai.fin.state === 'struggling' || ai.fin.state === 'critical' ? 1 : MAX_OPEN[promo.tier] + (ai.strategy === 'prospectFactory' ? 1 : 0)
-    if (open.length >= maxOpen) continue
+    if (open.length >= maxOpen) { tr('ev.skip.openCap'); continue }
     const style = ai.strategy === 'prospectFactory' ? 0.7 : ai.strategy === 'money' ? 1.15 : 1
-    const cadence = E.ai.cadenceWeeks[promo.tier] * b.cadence * style
-    if (!rng.chance(1 / cadence)) continue
+    const cadence = E.ai.cadenceWeeks[promo.tier] * E.ai.cadenceScale * b.cadence * style
+    if (!rng.chance(1 / cadence)) { tr('ev.skip.cadence'); continue }
+    tr('ev.plan')
     planEvent(state, promo, rng, playerRoster)
   }
 }
@@ -77,15 +78,15 @@ function planEvent(state: GameState, promo: Promotion, rng: Rng, playerRoster: S
   const cashCover = ai.fin.state === 'healthy' || ai.fin.state === 'established' || ai.fin.state === 'growing' ? 1.4 : 2.4
   for (const { c, f: x } of needy) {
     if (fights.length >= target) break
-    if (x.activeFightId || !bookable(state, x, day)) continue
+    if (x.activeFightId || !bookable(state, x, day)) { tr('ev.skip.fighterBusy'); continue }
     const opp = pickOpponent(state, promo, x, day, playerRoster, rng)
-    if (!opp) continue
+    if (!opp) { tr('ev.skip.noOpponent'); continue }
     const ct = opp.contractId ? state.contracts[opp.contractId] : null
     const fa = baseMoney(valueOf(state, opp)).purse * B.fights.ai.journeymanPurseFactor
     const purseB = ct ? ct.basePurse : Math.round(fa / 100) * 100
     const winB = ct ? ct.winBonus : Math.round((purseB * 0.1) / 100) * 100
     const cost = c.basePurse + purseB + c.winBonus + winB
-    if (promo.cash < (committed + cost) * cashCover) continue
+    if (promo.cash < (committed + cost) * cashCover) { tr('ev.skip.cash'); continue }
     committed += cost
     const fight = createFight(state, x.id, opp.id, promo.id, 'ai', { purseB, winBonusB: winB })
     transition(fight, 'agreed')
@@ -95,13 +96,51 @@ function planEvent(state: GameState, promo: Promotion, rng: Rng, playerRoster: S
     }
     fights.push(fight)
   }
+  // Independent fighters (no contract) are the other half of the world's talent: a card with room left offers them a purse per fight,
+  // longest idle first, the same way a promoter books a prospect or a journeyman. They are never reserved: the player can book them too.
+  // Only a promotion in good financial health takes on extra per-fight purses; a struggling one stages what its own roster can carry, as before.
+  const sound = ai.fin.state === 'healthy' || ai.fin.state === 'established' || ai.fin.state === 'growing'
+  const freeCap = !B.fights.ai.freeAgentFill || !sound ? 0 : Math.max(Math.ceil(target * B.fights.ai.freeAgentCardShare), 3 - fights.length)
+  let freeBooked = 0
+  if (freeCap > 0 && fights.length < target) {
+    const live = state.world?.pursuits ?? {}
+    // A promoter knows a handful of names, not the whole market: a random dozen of the available independents, longest idle first.
+    const free = rng.shuffle(Object.values(state.fighters)
+      .filter((f) => f.status === 'active' && f.contractId === null && !f.activeFightId && !live[f.id] && !playerRoster.has(f.id) && bookable(state, f, day) && weeksSince(state, f) >= B.fights.restWeeks + 2)
+      .sort((a, b) => (a.id < b.id ? -1 : 1))).slice(0, B.fights.ai.freeAgentKnown)
+      .sort((a, b) => weeksSince(state, b) - weeksSince(state, a) || (a.id < b.id ? -1 : 1))
+    let tried = 0
+    for (const x of free) {
+      if (fights.length >= target || freeBooked >= freeCap || tried >= freeCap * 2 + 2) break
+      if (x.activeFightId || !bookable(state, x, day)) continue
+      tried++
+      const opp = pickOpponent(state, promo, x, day, playerRoster, rng, B.fights.ai.freeAgentSample)
+      if (!opp) { tr('ev.free.noOpponent'); continue }
+      const purseOf = (f: typeof x) => { const ct = f.contractId ? state.contracts[f.contractId] : null; return ct ? { p: ct.basePurse, w: ct.winBonus } : { p: Math.round((baseMoney(valueOf(state, f)).purse * B.fights.ai.journeymanPurseFactor) / 100) * 100, w: 0 } }
+      const px = purseOf(x), po = purseOf(opp)
+      const wx = Math.round((px.p * 0.1) / 100) * 100, wo = opp.contractId ? po.w : Math.round((po.p * 0.1) / 100) * 100
+      const cost = px.p + wx + po.p + wo
+      if (promo.cash < (committed + cost) * cashCover) { tr('ev.skip.cash'); continue }
+      committed += cost
+      const fight = createFight(state, x.id, opp.id, promo.id, 'ai', { purseA: px.p, winBonusA: wx, purseB: po.p, winBonusB: wo })
+      transition(fight, 'agreed')
+      opp.activeFightId = fight.id
+      for (const [side, f] of [[fight.sideA, x], [fight.sideB, opp]] as const) {
+        side.prep.plan = ['Pressure Fighter', 'Swarmer', 'Power Puncher'].includes(f.style) ? 'aggressive' : ['Defensive Specialist', 'Counter Puncher'].includes(f.style) ? 'cautious' : 'balanced'
+      }
+      fights.push(fight)
+      freeBooked++
+      tr('ev.free.booked')
+    }
+  }
   const abort = () => { for (const f of fights) if (f.status === 'agreed') cancelFight(state, f, 'the show was never put together') }
-  if (fights.length < 3) { stat(promo).fewFights++; return abort() }
+  tr(`ev.needy.${Math.min(needy.length, 12)}`)
+  if (fights.length < 3) { stat(promo).fewFights++; tr('ev.fail.fewFights'); return abort() }
 
   const u = perceptionFactor(state, promo, day)
   const mktMult = E.ai.competence[ai.competence].mktRange[0] + (E.ai.competence[ai.competence].mktRange[1] - E.ai.competence[ai.competence].mktRange[0]) * keyedFloat(state.seed, 'aimkt', promo.id, day)
   const venue = pickVenue(state, promo, fights, day, committed, u, mktMult)
-  if (!venue) { stat(promo).noVenue++; return abort() }
+  if (!venue) { stat(promo).noVenue++; tr('ev.fail.noVenue'); return abort() }
   while (fights.length > venue.maxFights) { const f = fights.pop()!; cancelFight(state, f, 'dropped from the card') }
 
   const ev = createEventInternal(state, promo.id, { name: eventName(state, promo, venue), day, venueId: venue.id }, 'ai')
@@ -109,6 +148,7 @@ function planEvent(state: GameState, promo: Promotion, rng: Rng, playerRoster: S
   configure(state, ev, promo, rng, u, mktMult)
   startSales(state, ev)
   stat(promo).ok++
+  tr('ev.ok'); tr(`ev.fights.${fights.length}`)
   // The promoter's OWN expectation (its read of demand, with its own error band) — kept so the audit can compare it with what happens.
   {
     const c = E.ai.competence[ai.competence]
