@@ -127,3 +127,4 @@
 .bz-card.mine { box-shadow: inset 4px 0 0 var(--blue); }
 .bz-crow.mine { box-shadow: inset 4px 0 0 var(--blue); background: linear-gradient(90deg, rgba(59,130,246,.18), transparent 70%); }
 .bz-eyebrow { color: var(--gold); letter-spacing: .14em; font-size: 12px; } .bz-champ.mine .bz-eyebrow { color: #7fb0ff; }
+.bz-champ .chip.mine, .bz-who .chip.mine { margin-left: 8px; vertical-align: middle; }

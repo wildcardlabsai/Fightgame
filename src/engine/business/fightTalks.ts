@@ -257,7 +257,7 @@ export function fightMove(input: GameState, talkId: string, move: FightMove): Fi
   const u = fightUtility(state, fight, offer)
   t.fightOffer = offer
   t.mood = moodOf(u.ratio)
-  const verdict = moneyLine(state, fight, offer, move.kind === 'acceptCounter' ? 'their' : 'your', u.ratio >= 1 ? null : u.unmet)
+  const verdict = moneyLine(state, fight, offer, move.kind === 'acceptCounter' ? 'their' : 'your', u.ratio >= 1 ? null : u.unmet, u.ratio >= 1)
 
   if (u.ratio >= 1) {
     pushLine(t, day, 'mgr', 'accept', say('accept', null))
@@ -308,14 +308,15 @@ export function fightMove(input: GameState, talkId: string, move: FightMove): Fi
 const m0 = (n: number): string => `£${Math.round(n).toLocaleString('en-GB')}`
 
 /** The camp's own read of the money in plain figures: the going range for this fight, and (when an offer is given) where that offer sits against it. */
-function moneyLine(state: GameState, fight: Fight, offer?: FightOffer, who: 'your' | 'their' = 'your', blocker: Priority | null = null): string | null {
+function moneyLine(state: GameState, fight: Fight, offer?: FightOffer, who: 'your' | 'their' = 'your', blocker: Priority | null = null, accepted = false): string | null {
   const x = expectedFightTerms(state, fight.id, offer ?? null)
   if (!x) return null
   const range = `${m0(x.purse.lo)} to ${m0(x.purse.hi)} purse, with a win bonus of ${m0(x.winBonus.lo)} to ${m0(x.winBonus.hi)}`
   if (!offer) return `Money-wise, for a fight like this we would expect ${range}.`
   const fine = x.assessment === 'Generous offer' || x.assessment === 'Reasonable offer'
+  const where = x.position === 'low' ? ' (at the low end of the range)' : x.position === 'high' ? ' (at the high end of the range)' : ''
   const tail = blocker && fine ? ` If they still say no, it is not the money: it is ${PRIORITY_LABEL[blocker].toLowerCase()}.` : ''
-  return `${who === 'your' ? 'Your' : 'Their'} ${m0(offer.purseB)} purse and ${m0(offer.winBonusB)} win bonus against the going ${range}: ${x.assessment.toLowerCase()}. ${FIGHT_ASSESS_HINT[x.assessment]}${tail}`
+  return `${who === 'your' ? 'Your' : 'Their'} ${m0(offer.purseB)} purse and ${m0(offer.winBonusB)} win bonus against the going ${range}: ${x.assessment.toLowerCase()}${where}. ${accepted ? 'They accepted it.' : FIGHT_ASSESS_HINT[x.assessment]}${tail} This is an estimate from public ranges, not a promise.`
 }
 
 const sameFightOffer = (a: FightOffer, b: FightOffer): boolean => a.purseB === b.purseB && a.winBonusB === b.winBonusB && a.rematch === b.rematch && a.venuePref === b.venuePref && a.fights === b.fights && (a.rounds ?? 0) === (b.rounds ?? 0)

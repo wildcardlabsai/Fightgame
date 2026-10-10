@@ -3,7 +3,7 @@ import '../../styles/negotiation54.css'
 import { fightTalkAdvice } from '../../engine/advisor'
 import type { FightMove } from '../../engine/business/fightTalks'
 import { FIGHT_ASSESS_HINT } from '../../engine/advisor'
-import { assessFightDraft, fightTalkView, openFightTalkId } from '../../engine/business/talkViews'
+import { fightDraftVerdict, fightTalkView, openFightTalkId } from '../../engine/business/talkViews'
 import { fightView } from '../../engine/fightViews'
 import type { FightOffer } from '../../engine/types'
 import { useGame } from '../../store/gameStore'
@@ -52,7 +52,8 @@ export function FightDealScreen({ id }: { id: string }) {
   const seed = v ? `${v.header.talkId}|${v.header.turn}` : ''
   useEffect(() => { if (v) setDraft(seedOffer()) }, [seed]) // eslint-disable-line react-hooks/exhaustive-deps
   const offer = draft ?? seedOffer()
-  const assessment = useMemo(() => (offer && v?.expected ? assessFightDraft(game, id, offer) : null), [game, id, offer, v?.expected])
+  const verdict = useMemo(() => (offer && v?.expected ? fightDraftVerdict(game, id, offer) : null), [game, id, offer, v?.expected])
+  const assessment = verdict?.assessment ?? null
   const advice = useMemo(() => fightTalkAdvice(game, id), [game, id])
 
   if (!fx) return <><h1 className="display" style={{ fontSize: 44 }}>Fight not found</h1><button className="btn n54-btn" onClick={() => navigate('matchmaking')}>Back</button></>
@@ -75,7 +76,7 @@ export function FightDealScreen({ id }: { id: string }) {
   const open = v.header.open
   const run = (m: FightMove) => { const r = move(t, m); if (r === 'agreed') navigate('fight', id); return r }
   const counterCard = v.counter ? <FightCounterCard v={v} onAccept={() => run({ kind: 'acceptCounter' })} onLoad={() => { setDraft(v.counter); setEditorOpen(true) }} /> : null
-  const exp = v.expected && assessment ? { ...v.expected, assessment } : v.expected
+  const exp = v.expected && verdict ? { ...v.expected, assessment: verdict.assessment, position: verdict.position } : v.expected
   const locked = v.header.status === 'broken' ? 'Their camp ended the conversation and the fight is off. You cannot talk about this fight for 12 weeks and their relationship with you has fallen.'
     : v.header.status === 'withdrawn' ? 'You walked away and the fight is off. Your fighter is free to take another opponent.'
       : 'The terms are agreed. Set a date on the fight page.'
@@ -102,8 +103,8 @@ export function FightDealScreen({ id }: { id: string }) {
                 <div className="n54-draft" data-testid="draft-summary"><span className="caps dim">Current draft</span> {summary}</div>
                 {assessment && v.expected && (
                   <p className="n54-verdict" data-testid="draft-verdict" role="status">
-                    <b className={`as-${assessment.split(' ')[0]}`}>{assessment}</b> · the going rate is {money(v.expected.purse.lo, false)} to {money(v.expected.purse.hi, false)} purse and {money(v.expected.winBonus.lo, false)} to {money(v.expected.winBonus.hi, false)} win bonus.
-                    {' '}{FIGHT_ASSESS_HINT[assessment as keyof typeof FIGHT_ASSESS_HINT]}
+                    <b className={`as-${assessment.split(' ')[0]}`}>{assessment}</b>{verdict?.position === 'low' ? ' (low end of the range)' : verdict?.position === 'high' ? ' (high end of the range)' : verdict?.position === 'below' ? ' (below the range)' : verdict?.position === 'above' ? ' (above the range)' : ''} · the going rate is {money(v.expected.purse.lo, false)} to {money(v.expected.purse.hi, false)} purse and {money(v.expected.winBonus.lo, false)} to {money(v.expected.winBonus.hi, false)} win bonus.
+                    {' '}{FIGHT_ASSESS_HINT[assessment as keyof typeof FIGHT_ASSESS_HINT]} <span className="dim">An estimate from public ranges, not a promise.</span>
                   </p>
                 )}
                 <button type="button" className="btn primary big n54-btn" data-testid="talk-propose" onClick={() => run({ kind: 'propose', offer })}>Make this offer ▸</button>

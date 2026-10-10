@@ -74,7 +74,7 @@ export function PathCard({ view }: { view: TitlePathView }) {
           </div>
         ) : (
           <div className="bz-best" data-testid="path-best">
-            <div className="bz-best-t"><span className="caps">Next belt</span> <b>{best.shortName}</b> <span className="dim">{best.levelLabel}</span> <StandingChip t={best} /> <span className="chip">{best.rank ? `#${best.rank}` : 'UNRATED'}</span></div>
+            <div className="bz-best-t"><span className="caps">{best.standing === 'notEligible' ? 'Long-term goal' : 'Next belt'}</span> <b>{best.shortName}</b> <span className="dim">{best.levelLabel}</span> <StandingChip t={best} /> <span className="chip">{best.rank ? `#${best.rank}` : 'UNRATED'}</span></div>
             <ul className="bz-needs">{best.needs.map((n) => <li key={n}>{n}</li>)}</ul>
           </div>
         )

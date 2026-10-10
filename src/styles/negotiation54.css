@@ -18,7 +18,7 @@
 .n54-warn { color: var(--warn); margin: 0; font-size: 14px; }
 
 .n54-grid { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(320px, 1fr); gap: 24px; align-items: start; }
-.n54-left, .n54-right { display: grid; gap: 14px; min-width: 0; }
+.n54-left, .n54-right { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; min-width: 0; }
 .n54-right { align-content: start; }
 
 .n54-log { display: flex; flex-direction: column; gap: 12px; padding: 14px; background: var(--bg-2); border: 1px solid var(--line); max-height: min(62vh, 640px); min-height: 220px; overflow-y: auto; overscroll-behavior: contain; }
@@ -46,7 +46,7 @@
 .n54-confirm { display: inline-flex; gap: 8px; flex-wrap: wrap; }
 .btn.danger { border-color: var(--red); color: var(--red-hot, #e11d2a); }
 
-.n54-moves { display: grid; gap: 10px; padding: 14px; border: 1px solid var(--line-strong); border-left: 3px solid var(--gold); background: var(--bg-2); }
+.n54-moves { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; padding: 14px; border: 1px solid var(--line-strong); border-left: 3px solid var(--gold); background: var(--bg-2); }
 .n54-propose { display: flex; gap: 12px; align-items: center; justify-content: space-between; flex-wrap: wrap; border-top: 1px solid var(--line); padding-top: 10px; }
 .n54-draft { min-width: 0; flex: 1 1 220px; overflow-wrap: anywhere; }
 
@@ -113,4 +113,5 @@
 @media (max-width: 640px) { .sf-cols { grid-template-columns: 1fr; gap: 8px; } }
 
 /* The plain-words verdict on the draft, right above the button that sends it. */
-.n54-verdict { margin: 0; padding: 10px 12px; border-left: 3px solid var(--line); background: rgba(255,255,255,.03); font-size: 14px; line-height: 1.45; flex: 1 1 100%; }
+.n54-verdict { margin: 0; min-width: 0; overflow-wrap: anywhere; padding: 10px 12px; border-left: 3px solid var(--line); background: rgba(255,255,255,.03); font-size: 14px; line-height: 1.45; flex: 1 1 100%; }
+.n54-btn { max-width: 100%; white-space: normal; text-align: center; }

@@ -22,7 +22,7 @@ export type Assessment = 'Generous offer' | 'Reasonable offer' | 'Light offer' |
 /** What an assessment means for a fight offer, in the player's terms (judged on the purse and win bonus against the going range; venue and clauses also count in the room). */
 export const FIGHT_ASSESS_HINT: Record<Assessment, string> = {
   'Generous offer': 'Above the going rate. They should take it, and you may be paying more than you need to.',
-  'Reasonable offer': 'In line with the going rate. They may accept, or ask for small changes.',
+  'Reasonable offer': 'Within the going range. They may accept, or ask for changes.',
   'Light offer': 'Below the going rate. Expect a counter.',
   'Lowball': 'Far below the going rate. They are likely to turn it down, and it can cost you goodwill.',
   'Not yet judged': 'Nothing to compare yet.',
@@ -113,12 +113,21 @@ export function expectedContractTerms(state: GameState, fighterId: Id, kind: 'si
     const have = per(offer, offer.basePurse, offer.winBonus, offer.weeklyRetainer)
     const ratio = have / Math.max(1, mid)
     assessment = ratio >= 1.12 ? 'Generous offer' : ratio >= 0.93 ? 'Reasonable offer' : ratio >= 0.8 ? 'Light offer' : 'Lowball'
+    // Never contradict the ranges printed beside the verdict: terms inside them are not light or a lowball; terms below all of them are not reasonable.
+    const loV = per(offer, purse.lo, winBonus.lo, retainer.lo)
+    if (have >= loV && (assessment === 'Light offer' || assessment === 'Lowball')) assessment = 'Reasonable offer'
+    if (have < loV && assessment === 'Reasonable offer') assessment = 'Light offer'
   }
   const note = conf.level === 'LOW' ? 'You do not know this camp yet — treat the ranges as a rough guide.' : conf.level === 'MODERATE' ? 'You have some sense of where they stand.' : 'You know this camp well.'
   return { confidence: conf, purse, winBonus, retainer, signing, fightsPerYear: fpy, years: yrs, pathway: pathwayLine(state, f, conf, told), assessment, note }
 }
 
+/** Where an offer's money sits against the going range (purse plus 55% of the win bonus). */
+export type RangePosition = 'below' | 'low' | 'mid' | 'high' | 'above'
+
 export interface ExpectedFightTerms {
+  /** Where the offer sits against the range, null with no offer. */
+  position: RangePosition | null
   confidence: ConfidenceReport
   purse: Range
   winBonus: Range
@@ -154,11 +163,18 @@ export function expectedFightTerms(state: GameState, fightId: Id, offer?: FightO
   const location = toldOpp.includes('location') || conf.level === 'HIGH' ? (mgr.weights.exposure > 0.6 ? 'Prefers a big stage' : mgr.weights.security > 0.6 ? 'Prefers home ground' : 'Flexible') : 'Unknown'
   const timing = told.includes('timing') || toldOpp.includes('timing') || conf.level === 'HIGH' ? (mgr.weights.activity > 0.6 ? 'Wants it soon' : 'Flexible') : 'Unknown'
   let assessment: Assessment = 'Not yet judged'
+  let position: RangePosition | null = null
   if (offer) {
-    const ratio = (offer.purseB + 0.55 * offer.winBonusB) / Math.max(1, (purse.lo + purse.hi) / 2 + 0.55 * (winBonus.lo + winBonus.hi) / 2)
+    const have = offer.purseB + 0.55 * offer.winBonusB
+    const loV = purse.lo + 0.55 * winBonus.lo, hiV = purse.hi + 0.55 * winBonus.hi
+    const ratio = have / Math.max(1, (loV + hiV) / 2)
     assessment = ratio >= 1.12 ? 'Generous offer' : ratio >= 0.93 ? 'Reasonable offer' : ratio >= 0.8 ? 'Light offer' : 'Lowball'
+    // The verdict must never contradict the range printed beside it: money inside the going range is never called light or a lowball.
+    position = have < loV ? 'below' : have > hiV ? 'above' : have < loV + (hiV - loV) / 3 ? 'low' : have > hiV - (hiV - loV) / 3 ? 'high' : 'mid'
+    if (position !== 'below' && (assessment === 'Light offer' || assessment === 'Lowball')) assessment = 'Reasonable offer'
+    if (position === 'below' && assessment === 'Reasonable offer') assessment = 'Light offer'
   }
   const stake = ctx.kind === 'standard' ? 'Standard bout' : ctx.kind === 'eliminator' ? 'Eliminator' : ctx.kind === 'unification' ? 'Unification' : 'Title fight'
   const economics = b.limited === 'ceiling' ? 'The show cannot carry a purse that high — expect them to want a bigger event.' : b.limited === 'floor' ? 'On this card they would expect a bigger share than a journeyman’s purse.' : null
-  return { confidence: conf, purse, winBonus, location, timing, stake, assessment, economics, note: conf.level === 'LOW' ? 'You do not know this camp yet.' : conf.level === 'MODERATE' ? 'Some sense of where they stand.' : 'You know this camp well.' }
+  return { confidence: conf, purse, winBonus, location, timing, stake, assessment, position, economics, note: conf.level === 'LOW' ? 'You do not know this camp yet.' : conf.level === 'MODERATE' ? 'Some sense of where they stand.' : 'You know this camp well.' }
 }

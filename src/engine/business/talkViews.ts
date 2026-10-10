@@ -139,3 +139,6 @@ export const openFightTalkId = (state: GameState, fightId: Id): string | null =>
 /** How the current DRAFT compares with the public ranges (the same words the panel uses for the last offer sent). */
 export const assessContractDraft = (state: GameState, fighterId: Id, kind: 'signing' | 'renewal', offer: Offer) => expectedContractTerms(state, fighterId, kind, offer)?.assessment ?? 'Not yet judged'
 export const assessFightDraft = (state: GameState, fightId: Id, offer: FightOffer) => expectedFightTerms(state, fightId, offer)?.assessment ?? 'Not yet judged'
+
+/** The assessment and where the draft's money sits against the going range. */
+export const fightDraftVerdict = (state: GameState, fightId: Id, offer: FightOffer) => { const x = expectedFightTerms(state, fightId, offer); return x ? { assessment: x.assessment, position: x.position } : null }
