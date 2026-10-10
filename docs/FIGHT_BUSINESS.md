@@ -665,3 +665,20 @@ after their own costs (from the event results, the ledger's source), bouts per f
 - **Offer verdicts.** A fight or contract offer whose money sits inside the printed ranges is never called light or a lowball; one below all of them is never called reasonable. The note says where in the range it sits, quotes the proposed figures, and states that it is an estimate. An accepted offer is not described as likely to be refused. Notes are log text only.
 - **Mobile layout.** The signing and fight negotiation columns could grow wider than a 390px screen and clip the right edge (the page hides sideways overflow, so a scroll-width check missed it). Fixed, and the browser check now looks for clipped content directly.
 - **Vacancies.** See `scripts/audit/phase510-vacancy.ts`. Vacancy is a property of the world, not of the floor change: it is the same size before and after, and comes from thin supply of credible challengers (AI fighters average about 1.4 bouts a year, while a world challenge needs 14 fights and 9 wins).
+
+## Phase 6.1 — Living world: fighter activity and championship supply
+
+**Audit** (`scripts/audit/phase61-activity.ts`, 6 seeds x 8 years each, passive player, 14,000+ fighter-years per set; held-out seeds 11–16).
+
+Before: 1.47 bouts per fighter-year, 23% of fighters with no bout in 12 months. The average hid two worlds: fighters under contract fought 2.1–2.4 times a year (1–3% idle) while independents, half the world's fighters, fought 0.76 times (44% idle). Prospects without a contract, 3,662 of the 6,020 prospect-years, got 0.68 bouts and 48% had none.
+
+**Causes**
+1. AI promotions build cards only from their own signed roster. 43% of planned shows failed because fewer than three signed fighters were bookable, so promotions that meant to run a show every four weeks ran one or two a year.
+2. Independents only appear as opponents, never as principals. Promotions sign only fighters who meet a rating bar, so the unsigned half of the world is permanent.
+3. The old loose-bout matchmaker (`aiMatchmaking`) is not called anywhere; shows are the only route.
+
+**Change**: when a card would fall short of three fights, an AI promotion in good financial health offers a purse to independents it knows (a random ten, longest idle first). They fight on the same terms as anyone (per-fight purse in the fight terms); the player can still book them. A new `cadenceScale` (1.25) now sets show frequency on purpose, because failed plans used to throttle it by accident. The matchmaker also weighs 40 opponents, not 60, and skips title bonuses for fighters on no belt's list (identical results, tested) to pay for the extra shows.
+
+**Result (same seeds, same horizon)**: mean 1.47 → 1.57 (held-out 1.42 → 1.56); idle for 12 months 22.8% → 12.1% (24.5% → 12.6%); independents 0.76 → 1.05 bouts (44% → 23% idle); contracted and champion activity unchanged; failed shows 43% → 4%; retirements and prospect intake unchanged (about 20 each per world-year).
+
+**Championship supply did not change, and should not.** Credible world challengers per division stayed at about 3.2 (held-out 2.9), and world belts are vacant about 22–27% of belt-weeks before and after. The funnel shows why: about 20% of active fighters meet the world experience floor and about 10% are credible challengers. Extra bouts push independents past the fight-count floor but not through "needs a better record" or "needs a win over a credible contender". Credible supply is a matter of talent and matchmaking quality, not volume. Eligibility was not touched; a vacant belt now says how many credible contenders exist and what a challenger needs.
