@@ -10,6 +10,7 @@ import { useViews } from '../../store/hooks'
 import { AdvicePanel } from '../components/Advice'
 import { money } from '../format'
 import { ContractEditor, CounterCard, ExpectedContract } from '../negotiation/ContractParts'
+import { SigningForecastBox } from '../negotiation/SigningForecastBox'
 import { ChatLog, ClosedPanel, Collapsible, lastCounterIndex, TalkHeaderBar, ToldBox, Walk } from '../negotiation/parts'
 
 /** A first draft that sits inside the expected ranges the player can see, so the default is a serious number. */
@@ -72,7 +73,7 @@ export function NegotiationScreen({ id }: { id: string }) {
   const cash = game.promotions[game.playerPromotionId]?.cash ?? 0
   const cannotAfford = offer.signingBonus > cash
   const run = (m: ContractMove) => { const r = move(t, m); if (r === 'agreed') navigate('fighter', id); return r }
-  const counterCard = v.counter ? <CounterCard v={v} disabled={cannotAfford && v.counter.signingBonus > cash} onAccept={() => run({ kind: 'acceptCounter' })} onLoad={() => { setDraft(v.counter); setEditorOpen(true) }} /> : null
+  const counterCard = v.counter ? <><CounterCard v={v} disabled={cannotAfford && v.counter.signingBonus > cash} onAccept={() => run({ kind: 'acceptCounter' })} onLoad={() => { setDraft(v.counter); setEditorOpen(true) }} /><SigningForecastBox fighterId={id} offer={v.counter} kind={kind} label="if you accept their counter" testid="signing-forecast-counter" /></> : null
   const exp = v.expected && assessment ? { ...v.expected, assessment } : v.expected
   const locked = v.header.status === 'broken' ? 'Their camp ended the conversation. Talks are locked for 12 weeks and their relationship with you has fallen.'
     : v.header.status === 'withdrawn' ? 'You stepped away from the table. The camp will remember it, and your standing with them has taken a small hit. You can try again later.'
@@ -100,6 +101,7 @@ export function NegotiationScreen({ id }: { id: string }) {
                 <Walk onWalk={() => run({ kind: 'walk' })} />
               </div>
               <div className="n54-propose">
+                <SigningForecastBox fighterId={id} offer={offer} kind={kind} label="if you make this offer and it is accepted" />
                 <div className="n54-draft" data-testid="draft-summary"><span className="caps dim">Current draft</span> {summary}</div>
                 <button type="button" className="btn primary big n54-btn" data-testid="talk-propose" disabled={cannotAfford} onClick={() => run({ kind: 'propose', offer })}>Make this offer ▸</button>
               </div>

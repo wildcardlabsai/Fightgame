@@ -7,7 +7,13 @@ import { loanWeekly } from './bridge'
 import { playerRoster, weeklyBurn } from '../selectors'
 import type { GameState } from '../types'
 
+/** How much to trust a show-based estimate: by completed shows in the last 12 months (and half a year of history). The same rule on the Finances panel and at signing. */
+export type Confidence = 'insufficient' | 'early' | 'historical'
+export const confidenceOf = (shows: number, young: boolean): Confidence => (shows < 3 || young ? 'insufficient' : shows < 6 ? 'early' : 'historical')
+export const CONFIDENCE_LABEL: Record<Confidence, string> = { insufficient: 'Insufficient history', early: 'Early estimate', historical: 'Historical estimate' }
+
 export interface BreakEven {
+  confidence: Confidence
   annualRunning: number
   overhead: number
   retainers: number
@@ -42,6 +48,7 @@ export function breakEven(state: GameState): BreakEven {
   const avg = shows ? Math.round(sum / shows) : null
   const med = shows ? profits[Math.floor(shows / 2)] : null
   const young = state.today - state.startDay < 26 * 7
+  const confidence = confidenceOf(shows, young)
   const needed = avg !== null && avg > 0 ? annualRunning / avg : null
   const verdict: BreakEven['verdict'] = shows < 3 || young ? 'unknown' : sum >= annualRunning ? 'covering' : 'short'
   const note =
@@ -50,7 +57,7 @@ export function breakEven(state: GameState): BreakEven {
     : needed === null ? 'Recent shows are not making money, so no number of them would cover the running costs: fix the show economics first (venue, card, prices).'
     : `At the recent average you need about ${Math.ceil(needed)} shows a year to cover the running costs and you staged ${shows}. What has worked in the audited careers: more, smaller shows with younger, cheaper fighters, and fighters who fight about four times a year.`
   return {
-    annualRunning, overhead: Math.round(b.overheads * 52), retainers: Math.round(b.retainers * 52), staff: Math.round((b.scouting + b.coaching) * 52), debtService: Math.round(debt * 52),
+    confidence, annualRunning, overhead: Math.round(b.overheads * 52), retainers: Math.round(b.retainers * 52), staff: Math.round((b.scouting + b.coaching) * 52), debtService: Math.round(debt * 52),
     fightsPerFighter: roster ? Math.round((bouts / roster) * 10) / 10 : null, shows, avgProfit: avg, medianProfit: med, lossMaking: profits.filter((x) => x < 0).length, annualProfit: sum, neededShows: needed, verdict, note,
   }
 }

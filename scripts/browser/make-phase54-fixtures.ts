@@ -190,3 +190,12 @@ for (const seedName of ['p54c-passive', 'p54c-b', 'p54c-c', 'p54c-d', 'p54c-e', 
   writeFileSync(`${out}/p56-distress.json`, serialiseGame(d))
   console.log('p56-distress: cash', d.promotions[d.playerPromotionId].cash)
 }
+
+// Phase 5.8: a played promotion with one fighter whose contract is about to run out, so a renewal conversation opens.
+{
+  const r = structuredClone(s)
+  const c = Object.values(r.contracts).filter((x) => x.promotionId === r.playerPromotionId && x.status === 'active')[0]
+  if (c) c.endDay = r.today + 12 * 7
+  writeFileSync(`${out}/p58-renewal.json`, serialiseGame(r))
+  console.log('p58-renewal: contract of', c?.fighterId, 'ends in 12 weeks')
+}

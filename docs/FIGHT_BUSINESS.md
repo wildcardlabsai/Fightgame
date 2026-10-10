@@ -633,3 +633,20 @@ zero roster 5/5, £60k cash 5/5, overdrawn £150k 3/5 (0/5 without the bridge). 
 after their own costs (from the event results, the ledger's source), bouts per fighter, and the number of shows a year that would cover the running costs at that pace, with a plain note ("too few shows yet", "not making money", or "you need about N and staged M"). The hire refusal says when the account is overdrawn.
 
 **Remaining.** Year 1 is the dangerous year for any policy that pays market-rate retainers; the panel makes this visible but the game does not warn at signing time that a roster's retainers need a given number of shows. A signing-time cost-of-roster line would be the next small step.
+
+## Phase 5.8 — Signing-time financial intelligence
+
+**Flows covered.** Every roster commitment passes through the conversational `NegotiationScreen` and the single commit point `completeSigning`: new signings (including free-agent recruitment and contested signings) and renewals. The forecast is shown at both commit points — the draft offer ("if you make this offer and it is accepted") and an opposing counter ("if you accept their counter"). Fight deals are per-fight purses, not roster contracts, and are not covered.
+
+**Calculation.** `signingForecast(state, fighterId, offer, kind)` (`systems/signingForecast.ts`) is a pure, derived function recomputed on every render; nothing is stored and there is no cache. It reuses `breakEven` for current running costs and show history.
+- Recurring: weekly retainer × 52. Renewals replace the fighter's current retainer (`runningAfter = before − old + new`); roster size is unchanged.
+- One-off: the signing bonus, paid today. Cash after = cash − bonus, shown with weeks of running costs it covers.
+- Bridge-loan instalments are shown separately as existing commitments.
+- Per-fight purses and win bonuses are paid out of each show's takings, so they sit inside show profit, not running costs.
+- Shows needed per year is only stated when there is enough history, and only when the costs are not already covered.
+
+**Confidence** (shared with the Finances panel): *Insufficient history* (< 3 shows, or a young promotion), *Early estimate* (3–5), *Historical estimate* (6+). With insufficient history no show-income estimate is made.
+
+**Warnings** (non-blocking, at most 3, each quantified): capacity vs historical annual profit; working cash under 12 weeks of costs after the bonus; overdrawn promotion; loan instalments ≥ 25% of running costs. Nothing stops a signing.
+
+**Limits.** The estimate uses history, not promises; an early estimate is a small sample; it does not promise profitability.

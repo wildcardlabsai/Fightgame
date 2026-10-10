@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { formatDay } from '../../engine/calendar'
 import { WEEKLY_COSTS } from '../../engine/config'
-import { allAdvice, breakEven, bridgeView, financeAdvisor } from '../../engine/advisor'
+import { allAdvice, breakEven, bridgeView, CONFIDENCE_LABEL, financeAdvisor } from '../../engine/advisor'
 import { tierLabel } from '../../engine/tiers'
 import { sponsorView } from '../../engine/sponsors'
 import { cashRunwayWeeks, financialHealth, overheadCost, player, weeklyBurn } from '../../engine/selectors'
@@ -197,7 +197,7 @@ function BreakEvenPanel() {
           <div className="kv"><dt>Bouts per fighter, last 12 months</dt><dd className="num">{b.fightsPerFighter === null ? '—' : b.fightsPerFighter}</dd></div>
           <div className="kv"><dt>Shows a year needed to cover running costs</dt><dd className="num">{b.neededShows === null ? '—' : `about ${Math.ceil(b.neededShows)}`}</dd></div>
         </dl>
-        <p className="dim" style={{ fontSize: 13 }} data-testid="break-even-note">{b.note}</p>
+        <p className="dim" style={{ fontSize: 13 }} data-testid="break-even-note"><b>{CONFIDENCE_LABEL[b.confidence]}.</b> {b.note}</p>
       </div>
     </Section>
   )
