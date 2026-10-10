@@ -42,6 +42,7 @@ export function FighterProfile({ id }: { id: string }) {
   const mine = v.own !== null
   const scouted = v.knowledge.reports > 0 || mine
   const c = v.contract
+  const jump = (t: string) => { const el = document.getElementById(t); if (!el) return; let reduce = false; try { reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches } catch { /* default */ } el.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' }) }
 
   return (
     <>
@@ -51,8 +52,11 @@ export function FighterProfile({ id }: { id: string }) {
           <button className="linkbtn" onClick={() => navigate('fighters')}>◂ All fighters</button>
           <div className="ds-tags">
             <span className={`ds-status ${v.availability.status}`}>{v.status === 'retired' ? 'Retired' : v.availability.label}</span>
-            {mine && <span className="chip gold">On your roster</span>}
+            {mine && <span className="chip mine" data-testid="tag-mine">Your fighter</span>}
+            {bv?.currentLabel && <span className="chip gold" data-testid="tag-champion">{bv.currentLabel}</span>}
+            {bv && !bv.currentLabel && v.status === 'active' && !['PROSPECT', 'DEVELOPING', 'JOURNEYMAN'].includes(bv.status) && <span className="chip good" data-testid="tag-contender">{bv.statusLabel}</span>}
             <span className="chip">{v.stage}</span>
+            {v.status !== 'active' && v.status !== 'retired' && <span className="chip">Inactive</span>}
             {v.market.tags.filter((t) => t !== 'Looking for a promotion').slice(0, 2).map((t) => <span key={t} className="chip good">{t}</span>)}
           </div>
           {v.market.rivalOffer && !mine && (
@@ -81,9 +85,36 @@ export function FighterProfile({ id }: { id: string }) {
         </div>
       </header>
       <AdvicePanel list={fighterAdvice(v)} cap={2} />
-      <FighterMediaPanel id={v.id} revealPersona={v.personality.trait !== null} />
+      <section className="glance" aria-label="At a glance" data-testid="glance">
+        <div className="gl-cell">
+          <span className="caps">Contract</span>
+          <b>{c.kind === 'own' ? `${c.weeksLeft} weeks left` : c.kind === 'rival' ? c.promotionName : v.status === 'retired' ? 'Retired' : 'Free agent'}</b>
+          <small>{c.kind === 'own' ? `${money(c.contract.weeklyRetainer, false)} a week · ${c.contract.fightsRemaining} of ${c.contract.fightsTotal} fights left` : c.kind === 'rival' ? `about ${c.approxMonthsLeft} months left` : v.market.availableWeeks !== null ? `available ${v.market.availableWeeks} weeks` : '—'}</small>
+        </div>
+        <div className="gl-cell">
+          <span className="caps">Next fight</span>
+          <b>{upcoming ? `vs ${(upcoming.a.fighter.id === v.id ? upcoming.b : upcoming.a).fighter.name}` : 'Not booked'}</b>
+          <small>{upcoming ? `${upcoming.division} · ${upcoming.rounds} rounds · ${upcoming.day ? formatDay(upcoming.day) : 'date to be set'}` : v.lastFightWeeksAgo === null ? 'No bouts on file' : `last fought ${v.lastFightWeeksAgo} weeks ago`}</small>
+        </div>
+        <div className={`gl-cell${bv?.held.length ? ' gold' : ''}`}>
+          <span className="caps">Titles & standing</span>
+          <b>{bv?.held.length ? bv.held.map((h) => h.short).join(' · ') : v.mediaRank.rank !== null ? v.mediaRank.text : v.standing.rank > 0 ? `~#${v.standing.rank} in division` : 'Unrated'}</b>
+          <small>{bv?.held.length ? (bv.currentLabel ?? 'Champion') : bv ? bv.next.text : 'No official ranking'}</small>
+        </div>
+        <div className="gl-cell">
+          <span className="caps">Condition</span>
+          <b className={v.availability.status === 'available' ? 'good' : 'warn'}>{v.status === 'retired' ? 'Retired' : v.availability.label}{v.availability.weeks ? ` · ${v.availability.weeks} wk` : ''}</b>
+          <small>{v.own ? `fitness ${v.own.fitness.label.toLowerCase()} · morale ${v.own.morale.label.toLowerCase()}` : `form: ${v.momentumLabel}`}</small>
+        </div>
+      </section>
+      <nav className="pf-nav" aria-label="Sections of this profile" data-testid="pf-nav">
+        {[['pf-media', 'Media'], ...(bv && v.status === 'active' ? [['pf-career', 'Career & titles']] : []), ['pf-fights', 'Fights'], ['pf-contract', 'Contract'], ['pf-scout', 'Scouting']].map(([target, label]) => (
+          <button key={target} type="button" className="pf-jump" onClick={() => jump(target)}>{label}</button>
+        ))}
+      </nav>
+      <div id="pf-media" className="pf-anchor"><FighterMediaPanel id={v.id} revealPersona={v.personality.trait !== null} /></div>
       {bv && v.status === 'active' && (
-        <div className="biz-area">
+        <div className="biz-area pf-anchor" id="pf-career">
           <CareerPanel bv={bv} mine={mine} />
           <div className="biz-grid">
             <div>
@@ -113,6 +144,7 @@ export function FighterProfile({ id }: { id: string }) {
               </button>
             </Section>
           )}
+          <div id="pf-fights" className="pf-anchor" />
           <Section title="Fight history">
             {v.fightHistory.length === 0 ? <p className="empty">No recorded bouts yet in this game. Fights you arrange, and those you hear about, appear here.</p> : (
               <div className="table-wrap"><table className="table">
@@ -126,6 +158,7 @@ export function FighterProfile({ id }: { id: string }) {
             )}
           </Section>
 
+          <div id="pf-scout" className="pf-anchor" />
           <Section title="Scouting report" right={<span className="dim" style={{ fontSize: 13 }}>Intel: <b style={{ color: 'var(--text)' }}>{v.knowledge.level}</b> · {v.knowledge.confidence} confidence</span>}>
             {!scouted && <p className="dim" style={{ marginBottom: 10 }}>You have no scouting information on {v.firstName}. The “~” ranges below are guesses from the public record alone and could be well off.</p>}
             <div className="caps" style={{ margin: '6px 0 0' }}>Physical</div>
@@ -166,6 +199,7 @@ export function FighterProfile({ id }: { id: string }) {
         </div>
 
         <div>
+          <div id="pf-contract" className="pf-anchor" />
           <Section title="Contract">
             {c.kind === 'own' && (
               <dl>

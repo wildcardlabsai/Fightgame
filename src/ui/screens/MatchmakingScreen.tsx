@@ -52,7 +52,7 @@ export function MatchmakingScreen({ fighterId }: { fighterId?: string }) {
             <button key={m.id} className={`pick${myId === m.id ? ' on' : ''}${m.availability.status !== 'available' ? ' off' : ''}`} onClick={() => { setMyId(m.id); setPicked([]) }} aria-pressed={myId === m.id}>
               <div className="fighter-name">{m.name}</div>
               <div className="fighter-sub">{m.division} · {m.recordText} · {m.style}</div>
-              <div style={{ marginTop: 6, display: 'flex', gap: 8, alignItems: 'center' }}><FormDots form={m.form} /><span className={m.availability.status === 'available' ? 'good' : 'warn'} style={{ fontSize: 13 }}>{m.availability.label}{m.availability.weeks ? ` · ${m.availability.weeks}w` : ''}</span></div>
+              <div style={{ marginTop: 6, display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}><FormDots form={m.form} /><span className={`ph ${m.availability.status === 'available' ? 'ph-booked' : 'ph-negotiating'}`} style={{ margin: 0 }}>{m.availability.label}{m.availability.weeks ? ` · ${m.availability.weeks}w` : ''}</span></div>
             </button>
           ))}
         </div>

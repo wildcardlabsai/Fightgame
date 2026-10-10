@@ -8,7 +8,7 @@
 .w54-moves { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; font-size: 14px; }
 .w54-moves li { display: grid; grid-template-columns: 84px minmax(0, 1fr); gap: 10px; border-bottom: 1px solid var(--line); padding: 4px 0; }
 .w54-moves button { all: unset; cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
-.w54-moves button:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.w54-moves button:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
 .n54-rival, .ds-rival { margin: 8px 0; padding: 10px 14px; border: 1px solid var(--gold); border-left: 3px solid var(--gold); background: var(--bg-2); font-size: 14px; }
 .n54-rival b, .ds-rival b { color: var(--gold); }
 .w54-clash { margin: 8px 0; padding: 8px 12px; border-left: 3px solid var(--warn); background: var(--bg-2); font-size: 13.5px; }

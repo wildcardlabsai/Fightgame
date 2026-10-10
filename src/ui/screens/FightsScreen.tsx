@@ -12,14 +12,15 @@ function Row({ f }: { f: FightListItem }) {
   const go = () => navigate(f.statusKey === 'negotiating' ? 'deal' : 'fight', f.id)
   const w = f.winner
   return (
-    <tr className={`row${f.mine ? ' mine' : ''}`} tabIndex={0} onClick={go} onKeyDown={(e) => { if (e.key === 'Enter') go() }}>
+    <tr className={`row${f.mine ? ' mine' : ''}${f.stake ? ` has-stake ${f.stake.kind}` : ''}${f.phase === 'negotiating' ? ' proposal' : ''}`} tabIndex={0} onClick={go} onKeyDown={(e) => { if (e.key === 'Enter') go() }}>
       <td data-label="Date" className="num">{f.day ? formatDay(f.day, true) : 'TBC'}</td>
       <td className="primary" data-label="Fight">
         <div className="fighter-name"><span className={w === 0 ? 'gold' : ''}>{f.aName}</span> <span className="dim">vs</span> <span className={w === 1 ? 'gold' : ''}>{f.bName}</span></div>
         <div className="fighter-sub">{f.division} · {f.rounds} rounds{f.city ? ` · ${f.city}` : ''}</div>
+        {f.stake && <span className={`stake stake-${f.stake.kind}`} data-testid="stake-chip">{f.stake.label}</span>}
       </td>
       <td data-label="Records" className="num">{f.aRecord} / {f.bRecord}</td>
-      <td data-label="Status">{f.resultText ? <><div>{f.resultText}</div><div className="dim" style={{ fontSize: 13 }}>{f.method}</div></> : <span className={f.statusKey === 'fightNight' ? 'red' : ''}>{f.status}{f.weeksAway ? ` · ${f.weeksAway}w` : ''}</span>}</td>
+      <td data-label="Status">{f.phase !== 'done' && <span className={`ph ph-${f.phase}`} data-testid="phase-chip">{f.phase === 'negotiating' ? 'Proposal · in talks' : f.statusKey === 'fightNight' ? 'Fight night' : 'Booked'}</span>}{f.resultText ? <><div>{f.resultText}</div><div className="dim" style={{ fontSize: 13 }}>{f.method}</div></> : <span className={f.statusKey === 'fightNight' ? 'red' : ''}>{f.status}{f.weeksAway ? ` · ${f.weeksAway}w` : ''}</span>}</td>
     </tr>
   )
 }

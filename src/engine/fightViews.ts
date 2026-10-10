@@ -10,6 +10,8 @@ import { METHOD_LABEL, isStoppage, performanceNote, punishmentLabel, resultHeadl
 import { fightInvolvesPlayer, scheduleOptions, type DateOption } from './fights'
 import { assess, type Assessment } from './matchmaking'
 import { viewsOf, type FighterView } from './view'
+import { bodyIdentity } from '../data/mediaIdentity'
+import { fightStakes } from './business/stakes'
 import type { FightMethod, FightOffer, FightPrep, GameState, Id, Mood } from './types'
 
 export interface FightListItem {
@@ -28,6 +30,10 @@ export interface FightListItem {
   winner?: 0 | 1 | null
   importance?: number
   weeksAway?: number
+  /** What the bout is for, read from the title system (never inferred from the offer): null for an ordinary bout. */
+  stake?: { kind: 'title' | 'unification' | 'eliminator' | 'mandatory'; label: string } | null
+  /** The player's own fight is a proposal still being negotiated, an agreed booking, or already staged. */
+  phase?: 'negotiating' | 'booked' | 'done'
 }
 
 export interface RoundView {
@@ -143,6 +149,20 @@ export interface FightView {
 
 const label = (n: number) => `${n}`
 
+function stakeOf(state: GameState, f: GameState['fights'][string]): FightListItem['stake'] {
+  const short = (b: string[]) => b.map((x) => bodyIdentity(x).shortName).join(' · ')
+  let kind: 'title' | 'unification' | 'eliminator' | null = null, bodies: string[] = []
+  if (f.status === 'postFight' || f.result) { if (f.title?.kind) { kind = f.title.kind; bodies = f.title.bodies ?? [] } }
+  else { const st = fightStakes(state, f); if (st.kind !== 'standard') { kind = st.kind as 'title' | 'unification' | 'eliminator'; bodies = st.bodies } }
+  if (!kind) return null
+  if (kind === 'title') {
+    const ids = [f.sideA.fighterId, f.sideB.fighterId]
+    const mand = bodies.some((b) => { const m = state.media?.titles[`${b}|${f.weightClass}`]?.mand; return !!m && ids.includes(m.challenger) })
+    if (mand) return { kind: 'mandatory', label: `Mandatory${bodies.length ? ` · ${short(bodies)}` : ''}` }
+  }
+  return { kind, label: kind === 'eliminator' ? `Eliminator${bodies.length ? ` · ${short(bodies)}` : ''}` : kind === 'unification' ? `Unification${bodies.length ? ` · ${short(bodies)}` : ''}` : `Title${bodies.length ? ` · ${short(bodies)}` : ''}` }
+}
+
 export function fightListItem(state: GameState, id: Id): FightListItem | null {
   const f = state.fights[id]
   if (!f) return null
@@ -155,6 +175,7 @@ export function fightListItem(state: GameState, id: Id): FightListItem | null {
     aRecord: f.sideA.preRecord, bRecord: f.sideB.preRecord, division: viewsOf(state).fighter(A.id)!.division, rounds: f.scheduledRounds, city: f.city,
     mine: fightInvolvesPlayer(state, f), resultText: r ? resultHeadline(f, nA, nB) : undefined, method: r ? METHOD_LABEL[r.method] : undefined,
     winner: r ? r.winner : undefined, importance: r?.importance, weeksAway: f.day ? Math.max(0, weeksBetween(state.today, f.day)) : undefined,
+    stake: stakeOf(state, f), phase: f.status === 'negotiating' ? 'negotiating' : f.status === 'postFight' ? 'done' : 'booked',
   }
 }
 

@@ -120,7 +120,7 @@
 .bz-declined { display: inline-flex; gap: 8px; align-items: center; flex-wrap: wrap; } .bz-tgt-act .bz-declined, .bz-best-act .bz-declined { width: 100%; }
 
 /* Gold means the champion; blue means your own fighter, so the two never read as the same thing. */
-.chip.mine { background: var(--blue); border-color: var(--blue); color: #fff; }
+.chip.mine { background: #2563eb; border-color: #2563eb; color: #fff; }
 .rk-legend { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin: 6px 0 10px; font-size: 13px; }
 .rk-row.mine { box-shadow: inset 4px 0 0 var(--blue); background: linear-gradient(90deg, rgba(59,130,246,.2), rgba(59,130,246,.03) 70%); }
 .rk-row.champ.mine { box-shadow: inset 4px 0 0 var(--blue); }
@@ -128,3 +128,4 @@
 .bz-crow.mine { box-shadow: inset 4px 0 0 var(--blue); background: linear-gradient(90deg, rgba(59,130,246,.18), transparent 70%); }
 .bz-eyebrow { color: var(--gold); letter-spacing: .14em; font-size: 12px; } .bz-champ.mine .bz-eyebrow { color: #7fb0ff; }
 .bz-champ .chip.mine, .bz-who .chip.mine { margin-left: 8px; vertical-align: middle; }
+@media (max-width: 860px) { .bz-pname { min-height: 40px; display: inline-flex; align-items: center; } }

@@ -8,6 +8,8 @@ import { fightList, fightView } from '../../engine/fightViews'
 import { dashboardEvent, eventView } from '../../engine/eventViews'
 import { eventPosterView } from '../../engine/eventPoster'
 import { opViews } from '../../engine/quotes'
+import { offersWaiting } from '../../engine/office/views'
+import { myTitlePaths } from '../../engine/business/views'
 import { attentionItems, cashRunwayWeeks, financialHealth, player, weeklyBurn } from '../../engine/selectors'
 import { useGame } from '../../store/gameStore'
 import { useViews } from '../../store/hooks'
@@ -66,6 +68,17 @@ export function Dashboard() {
   const teaser = useMemo(() => mediaTeaser(game), [game])
   const openStory = useOpenStory()
 
+  const urgent = attention.filter((a) => a.severity === 'critical' || a.severity === 'warning')
+  const topUrgent = urgent.slice(0, 3)
+  const restAttention = attention.filter((a) => !topUrgent.includes(a))
+  const openTalks = Object.values(game.business?.talks ?? {}).filter((t) => t.status === 'open').length
+  const offersIn = offersWaiting(game)
+  const paths = useMemo(() => myTitlePaths(game), [game])
+  const titleReady = paths.filter((x) => x.readyCount > 0).length
+  const titleOrders = paths.filter((x) => x.targets.some((t) => t.standing === 'mandatory' || t.ordered)).length
+  const titleHolders = paths.filter((x) => x.champion).length
+  const expiring = attention.filter((a) => a.id.startsWith('contract-')).length
+
   const nContenders = roster.filter((v) => v.stage === 'Contender').length
   const nProspects = roster.filter((v) => v.stage === 'Prospect' || v.stage === 'Debutant' || v.stage === 'Rising').length
   const nInjured = roster.filter((v) => v.availability.status === 'injured').length
@@ -89,6 +102,48 @@ export function Dashboard() {
           <div><div className="caps">Fight night</div><div className="display" style={{ fontSize: 30 }}>{night.aName} vs {night.bName}</div></div>
           <button className="btn primary big" style={{ marginLeft: 'auto' }} onClick={() => navigate('fight', night.id)}>Go to the fight ▸</button>
         </div>
+      )}
+
+
+      {/* ---------------------------------------------------------------- COMMAND STRIP */}
+      <section className="cmd" aria-label="Promotion status" data-testid="desk-strip">
+        <button type="button" className={`cmd-tile ${runway !== null && runway < 8 || p.cash < 0 ? 'bad' : runway !== null && runway < 26 ? 'warn' : ''}`} onClick={() => navigate('finances')}>
+          <span className="caps">Cash</span>
+          <b className="num">{money(p.cash)}</b>
+          <small>{p.cash < 0 ? 'Overdrawn' : runway === null ? 'No running costs' : `${runway} weeks of runway`} · {health.label}</small>
+        </button>
+        <button type="button" className={`cmd-tile ${nInjured || expiring ? 'warn' : ''}`} onClick={() => navigate('fighters')}>
+          <span className="caps">Roster</span>
+          <b className="num">{roster.length - nInjured} <em>of {roster.length} fit</em></b>
+          <small>{nInjured ? `${nInjured} injured` : 'None injured'} · {expiring ? `${expiring} contract${expiring === 1 ? '' : 's'} ending` : 'contracts secure'}</small>
+        </button>
+        <button type="button" className="cmd-tile" onClick={() => (de.next ? navigate('event', de.next.id) : navigate('events'))}>
+          <span className="caps">Next show</span>
+          <b className="num">{de.next ? (de.next.weeksAway > 0 ? `${de.next.weeksAway} wk` : 'This week') : 'None booked'}</b>
+          <small>{de.next ? `${de.next.name} · ${de.next.status}` : 'Plan a show to earn'}</small>
+        </button>
+        <button type="button" className={`cmd-tile ${offersIn || openTalks ? 'live' : ''}`} onClick={() => navigate(offersIn ? 'office' : 'matchmaking')} data-testid="cmd-talks">
+          <span className="caps">Offers & talks</span>
+          <b className="num">{offersIn + openTalks}</b>
+          <small>{offersIn} fight offer{offersIn === 1 ? '' : 's'} in · {openTalks} open conversation{openTalks === 1 ? '' : 's'}</small>
+        </button>
+        <button type="button" className={`cmd-tile ${titleReady || titleOrders ? 'gold' : ''}`} onClick={() => navigate('titles')} data-testid="cmd-titles">
+          <span className="caps">Titles</span>
+          <b className="num">{titleHolders ? `${titleHolders} champion${titleHolders === 1 ? '' : 's'}` : titleReady ? `${titleReady} ready` : '—'}</b>
+          <small>{titleReady ? `${titleReady} can ask for a title fight` : titleOrders ? `${titleOrders} ordered by a board` : 'No title opportunity yet'}</small>
+        </button>
+      </section>
+
+      {topUrgent.length > 0 && (
+        <section className="needs" aria-label="Needs your attention" data-testid="desk-needs">
+          <div className="sec-head"><h2 className="display">Needs you</h2><span className="dim" style={{ fontSize: 13 }}>{urgent.length} item{urgent.length === 1 ? '' : 's'}</span></div>
+          {topUrgent.map((a) => (
+            <div key={a.id} className={`attn ${a.severity}`}>
+              <div><div className="t">{a.title}</div><div className="d">{a.detail}</div></div>
+              {a.link && <button className="btn small go" onClick={() => openLink(a.link!)}>{a.actionLabel ?? 'Open'}</button>}
+            </div>
+          ))}
+        </section>
       )}
 
       {/* ---------------------------------------------------------------- NEXT EVENT */}
@@ -210,15 +265,15 @@ export function Dashboard() {
           ))}
         </section>
         <section aria-label="What to do next" data-testid="desk-advice">
-          <div className="sec-head"><h2 className="display">What next?</h2><span className="dim" style={{ fontSize: 13 }}>{attention.length ? `${attention.length} item${attention.length === 1 ? '' : 's'} need you` : 'Nothing urgent'}</span></div>
+          <div className="sec-head"><h2 className="display">What next?</h2><span className="dim" style={{ fontSize: 13 }}>{restAttention.length ? `${restAttention.length} more item${restAttention.length === 1 ? '' : 's'}` : 'Nothing else'}</span></div>
           <AdvicePanel list={allDesk} cap={3} compact />
-          {attention.slice(0, 5).map((a) => (
+          {restAttention.slice(0, 5).map((a) => (
             <div key={a.id} className={`attn ${a.severity}`}>
               <div><div className="t">{a.title}</div><div className="d">{a.detail}</div></div>
               {a.link && <button className="btn small go" onClick={() => openLink(a.link!)}>{a.actionLabel ?? 'Open'}</button>}
             </div>
           ))}
-          {attention.length === 0 && allDesk.length === 0 && <p className="empty">The gym is quiet — advance the week.</p>}
+          {restAttention.length === 0 && allDesk.length === 0 && <p className="empty">The gym is quiet — advance the week.</p>}
         </section>
       </div>
 

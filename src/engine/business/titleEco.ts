@@ -205,6 +205,11 @@ export function nextMilestone(state: GameState, f: Fighter): { text: string; con
   if (bestRanked) return { text: `Climb to the top ${bestRanked.limit} of the ${bodyIdentity(bestRanked.body).shortName} ratings (now #${bestRanked.rank}) to earn a shot at the ${bestRanked.title}.`, concrete: false }
   const firstRung = eligibleBodies.filter((e) => e.status === 'unranked').sort((a, b) => levelRank(a.level) - levelRank(b.level))[0]
   if (status === 'PROSPECT' || status === 'DEVELOPING' || status === 'JOURNEYMAN') {
+    if (firstRung) {
+      // Under the experience floor the honest next step is the floor itself, not "enter the ratings".
+      const gap = firstRung.reasons.find((r) => /to be rated\.$/.test(r))
+      if (gap) return { text: gap.replace(/to be rated\.$/, `to be rated by the ${bodyIdentity(firstRung.body).shortName} (${LEVEL_LABEL[firstRung.level].toLowerCase()}).`), concrete: false }
+    }
     if (firstRung) return { text: `Win against rated opposition to enter the ${bodyIdentity(firstRung.body).shortName} ${LEVEL_LABEL[firstRung.level].toLowerCase()} ratings.`, concrete: false }
     return { text: 'Build a record against ranked opposition to enter the ratings.', concrete: false }
   }

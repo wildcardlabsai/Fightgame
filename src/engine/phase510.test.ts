@@ -245,3 +245,17 @@ describe('contract advice is consistent with its own ranges', () => {
     }
   })
 })
+
+describe('the profile\'s next step names the floor when a fighter is under it', () => {
+  it('a fighter below the world floor is told what they lack, not to "enter the ratings"', () => {
+    const base = world()
+    const s = structuredClone(base)
+    const f = Object.values(s.fighters).find((x) => x.status === 'active' && x.weightClass === 'lightweight')!
+    f.record = { wins: 5, losses: 8, draws: 0, koWins: 1, koLosses: 4 }
+    f.nationality = 'USA'
+    const text = nextMilestone(s, f).text
+    expect(text).toMatch(/professional fights|wins/)
+    expect(text).not.toMatch(/Win against rated opposition/)
+  })
+})
+import { nextMilestone } from './business/titleEco'

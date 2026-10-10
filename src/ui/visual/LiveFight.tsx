@@ -219,7 +219,7 @@ export function LiveFight({ fv, r, live, onDone }: { fv: FightView; r: ResultVie
   const watchBody = (
     <>
       <div className="lf-bar">
-        <span className="lf-live"><i aria-hidden />FIGHT EMPIRE • {finished ? 'FIGHT NIGHT' : 'LIVE'}</span>
+        <span className="lf-live"><i aria-hidden />THE PROMOTER • {finished ? 'FIGHT NIGHT' : 'LIVE'}</span>
         <span className="lf-round" aria-live="polite" data-testid="lf-round">{finished && r.stoppage ? `ENDED R${r.round}` : `ROUND ${roundNo} / ${scheduled}`}</span>
         <span className="fn-clock num" data-testid="lf-clock" aria-label="Round clock">{mmss(clockSec)}</span>
         <span className="fn-crowd" data-testid="lf-crowd">CROWD · {crowd}</span>
@@ -275,7 +275,7 @@ export function LiveFight({ fv, r, live, onDone }: { fv: FightView; r: ResultVie
   // Key events: a highlight package. No statistics dashboard.
   const keyBody = (
     <div className="fn-key" data-testid="key-view">
-      <div className="lf-bar"><span className="lf-live"><i aria-hidden />FIGHT EMPIRE • HIGHLIGHTS</span><span className="lf-round">{finished ? 'FULL TIME' : `EVENT ${Math.min(pb.pos + 1, keyTl.length)} / ${keyTl.length}`}</span>
+      <div className="lf-bar"><span className="lf-live"><i aria-hidden />THE PROMOTER • HIGHLIGHTS</span><span className="lf-round">{finished ? 'FULL TIME' : `EVENT ${Math.min(pb.pos + 1, keyTl.length)} / ${keyTl.length}`}</span>
         {fv.title && <span className="lf-title">{fv.title.label} · {fv.title.titleName}</span>}<span className="lf-div dim">{names.a} vs {names.b}</span></div>
       {finished ? resultPanel : cur && (
         <div className={`fn-card t-${cur.type}`} key={`${cur.id}-${run}`} data-testid="key-card" data-event-type={cur.type}>
@@ -336,7 +336,7 @@ export function LiveFight({ fv, r, live, onDone }: { fv: FightView; r: ResultVie
       <header className="fn-top">
         <button type="button" className="btn ghost small" data-testid="fn-exit" onClick={exit}>◂ {exitLabel}</button>
         <AudioToggle compact />
-        <span className="fn-brand display">FIGHT EMPIRE</span>
+        <img className="fn-logo" src={`${import.meta.env.BASE_URL}brand/the-promoter.png`} alt="The Promoter" />
         <span className="fn-ev">{fv.eventName ?? 'Fight Night'}</span>
       </header>
       <div className="fn-body">{stage === 'key' ? keyBody : <section className={`lf${finished ? ' is-done' : ' is-live'}`} data-testid="lf-watch">{watchBody}</section>}</div>
