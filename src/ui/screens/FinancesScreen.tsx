@@ -44,6 +44,9 @@ export function FinancesScreen() {
   const yearNet = game.ledger.filter((t) => t.day > yearAgo && t.category !== 'startingFunds' && t.category !== 'loan' && t.category !== 'loanRepayment').reduce((n, t) => n + t.amount, 0)
   const spent = game.ledger.filter((t) => t.amount < 0).reduce((s, t) => s - t.amount, 0)
 
+  const [tab, setTab] = useState<FinTab>('summary')
+  const on = (k: FinTab) => (tab === k ? 1 : 0)
+
   return (
     <>
       <div className="page-head">
@@ -61,6 +64,11 @@ export function FinancesScreen() {
         <div className="kpi"><div className="caps">Spent since launch</div><div className="v num">{money(spent)}</div></div>
       </div>
 
+      <div className="ptabs" role="tablist" aria-label="Finance views" data-testid="fin-tabs">
+        {FIN_TABS.map((t) => <button key={t.k} type="button" role="tab" aria-selected={tab === t.k} className={`tab${tab === t.k ? ' active' : ''}`} onClick={() => setTab(t.k)}>{t.n}</button>)}
+      </div>
+
+      <div className="ptab" data-on={on('summary')}>
       <Section title="Promotion financial health" right={<span className={`standing ${finKey}`} style={{ fontFamily: 'var(--display)', fontWeight: 700, letterSpacing: '.08em', textTransform: 'uppercase' }}>{fin.standing}</span>}>
         <div className="finhealth">
           <ul style={{ margin: '0 0 0 18px', color: 'var(--text)' }}>{fin.reasons.map((r, i) => <li key={i}>{r}</li>)}</ul>
@@ -68,10 +76,14 @@ export function FinancesScreen() {
         <AdvicePanel list={allAdvice(game).filter((a) => a.topic === 'event' || a.topic === 'contract')} cap={3} compact />
       </Section>
 
+      </div>
+      <div className="ptab" data-on={on('costs')}>
       <BreakEvenPanel />
 
       <BridgePanel />
+      </div>
 
+      <div className="ptab" data-on={on('sponsors')}>
       <Section title="Sponsorship income" right={<button className="linkbtn" onClick={() => navigate('sponsors')}>Sponsors</button>}>
         <dl>
           <div className="kv"><dt>Event sponsorship (last 12 months)</dt><dd className="num good">+{money(eventSpons, false)}</dd></div>
@@ -82,6 +94,9 @@ export function FinancesScreen() {
         <p className="dim" style={{ fontSize: 13 }}>Standing sponsor money arrives as quarterly instalments and per-show payments, each a line in the ledger below.</p>
       </Section>
 
+      </div>
+
+      <div className="ptab" data-on={on('summary')}>
       <Section title="Financial health" right={<span className={`chip hp ${health.state}`}>{health.label}</span>}>
         <p>{health.reason}</p>
         <dl style={{ marginTop: 8 }}>
@@ -92,6 +107,8 @@ export function FinancesScreen() {
         <p className="dim" style={{ fontSize: 13 }}>Healthy → Concern → Critical → Insolvent. Insolvency never ends the game, but you cannot book venues, sign fighters or commission scouting until cash recovers.</p>
       </Section>
 
+      </div>
+      <div className="ptab" data-on={on('costs')}>
       <Section title="Where the money went (last 12 months)">
         <div className="kpis" style={{ marginTop: 0 }}>
           <div className="kpi"><div className="caps">Signing bonuses</div><div className="v num">{money(recentSpend(game, 'signingBonus'))}</div></div>
@@ -101,6 +118,8 @@ export function FinancesScreen() {
         </div>
       </Section>
 
+      </div>
+      <div className="ptab" data-on={on('summary')}>
       <div className="grid-2">
         <Section title="Cash over time">
           <AreaChart points={game.financeHistory.map((h) => ({ x: h.day, y: h.cash }))} height={200} />
@@ -118,6 +137,9 @@ export function FinancesScreen() {
         </Section>
       </div>
 
+      </div>
+
+      <div className="ptab" data-on={on('ledger')}>
       <Section title="Ledger" right={
         <select className="select" value={cat} onChange={(e) => setCat(e.target.value as never)} aria-label="Category" style={{ minWidth: 160 }}>
           <option value="all">All categories</option>
@@ -141,9 +163,13 @@ export function FinancesScreen() {
         </div>
         {ledger.length > 40 && <p className="dim" style={{ marginTop: 8, fontSize: 13 }}>Showing the latest 40 of {ledger.length} entries.</p>}
       </Section>
+      </div>
     </>
   )
 }
+
+type FinTab = 'summary' | 'costs' | 'sponsors' | 'ledger'
+const FIN_TABS: { k: FinTab; n: string }[] = [{ k: 'summary', n: 'Summary' }, { k: 'costs', n: 'Costs & break-even' }, { k: 'sponsors', n: 'Sponsorship' }, { k: 'ledger', n: 'Ledger' }]
 
 const INCOME: TransactionCategory[] = ['tickets', 'sponsorship', 'ppv', 'broadcast']
 const SHOW_COSTS: TransactionCategory[] = ['venue', 'marketing', 'production', 'purses', 'officials', 'security']

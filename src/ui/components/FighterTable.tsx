@@ -94,7 +94,7 @@ export function FighterTable({ rows, cols, sort, dir, onSort, actions, onOpen, e
   if (rows.length === 0) return <p className="empty">{emptyText ?? 'No fighters match.'}</p>
   const open = onOpen ?? ((v: FighterView) => navigate('fighter', v.id))
   return (
-    <div className="table-wrap">
+    <div className="table-wrap sticky-head">
       <table className="table stack">
         <thead>
           <tr>

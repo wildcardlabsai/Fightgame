@@ -1,66 +1,56 @@
 import { useEffect, useRef, useState } from 'react'
+import '../styles/desktop.css'
 import { createPortal } from 'react-dom'
 import { useGame } from '../store/gameStore'
 import { AudioToggle } from './components/AudioStatus'
 import { Icon } from './components/Icons'
 import { activeGroup, activeItem, BOTTOM, bottomActive, itemActive, NAV, type NavGroup, type NavItem } from './nav'
 
-/** Desktop: primary destinations as cut-corner tabs, each opening a dropdown of the screens beneath it. */
-export function TopNav({ unread }: { unread: number }) {
+/**
+ * Desktop: a compact, persistent left sidebar. One entry per primary destination (the same groups the phone's More sheet uses); the screens inside a
+ * group are the tab strip directly under the top bar (SectionBar), so every screen is one click from its section and the sidebar stays short.
+ * Choosing a group opens its first screen; choosing the group you are already in does nothing.
+ */
+export function SideNav({ unread }: { unread: number }) {
   const route = useGame((s) => s.route)
   const navigate = useGame((s) => s.navigate)
-  const advance = useGame((s) => s.advance)
-  const [open, setOpen] = useState<string | null>(null)
-  const ref = useRef<HTMLElement>(null)
   const current = activeGroup(route)
-  useEffect(() => {
-    if (!open) return
-    const onDoc = (e: MouseEvent) => { if (!ref.current?.contains(e.target as Node)) setOpen(null) }
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(null) }
-    document.addEventListener('mousedown', onDoc); document.addEventListener('keydown', onKey)
-    return () => { document.removeEventListener('mousedown', onDoc); document.removeEventListener('keydown', onKey) }
-  }, [open])
-  useEffect(() => setOpen(null), [route.screen, route.param])
-  const go = (it: NavItem) => { if (it.locked) return; setOpen(null); navigate(it.screen, it.param) }
-
   return (
-    <nav className="topnav" aria-label="Main" ref={ref} data-testid="topnav">
-      <a className="tn-brand" href="#/dashboard" aria-label="The Promoter home"><img src={`${import.meta.env.BASE_URL}brand/the-promoter.png`} alt="The Promoter" /></a>
-      <ul className="tn-primary">
+    <nav className="sidenav" aria-label="Main" data-testid="topnav">
+      <a className="sb-brand" href="#/dashboard" aria-label="The Promoter home"><img src={`${import.meta.env.BASE_URL}brand/the-promoter.png`} alt="The Promoter" /></a>
+      <ul className="sb-list">
         {NAV.map((g) => {
-          const single = g.items.length === 1
           const active = current.id === g.id
+          const first = g.items[0]
           return (
-            <li key={g.id} className="tn-li">
-              <button type="button" data-sfx="navigate" data-testid={`nav-${g.id}`} className={`tn-tab${active ? ' active' : ''}${open === g.id ? ' open' : ''}`}
-                aria-current={active ? 'page' : undefined} aria-haspopup={single ? undefined : 'menu'} aria-expanded={single ? undefined : open === g.id}
-                onClick={() => (single ? go(g.items[0]) : setOpen(open === g.id ? null : g.id))}>
-                <Icon name={g.icon} /><span>{g.label}</span>
-                {g.id === 'inbox' && unread > 0 && <b className="badge">{unread}</b>}
-                {!single && <i className="caret" aria-hidden>▾</i>}
+            <li key={g.id}>
+              <button type="button" data-sfx="navigate" data-testid={`nav-${g.id}`} className={`sb-item${active ? ' active' : ''}`} aria-current={active ? 'page' : undefined}
+                title={g.items.length > 1 ? `${g.label}: ${g.items.map((i) => i.label).join(', ')}` : g.label}
+                onClick={() => { if (!active) navigate(first.screen, first.param) }}>
+                <Icon name={g.icon} /><span className="sb-label">{g.label}</span>
+                {g.id === 'inbox' && unread > 0 && <b className="badge">{unread > 99 ? '99+' : unread}</b>}
               </button>
-              {open === g.id && !single && (
-                <ul className="tn-menu" role="menu" aria-label={g.label}>
-                  {g.items.map((it) => (
-                    <li key={it.id} role="none">
-                      <button type="button" role="menuitem" data-sfx="navigate" data-testid={`nav-item-${it.id}`} disabled={!!it.locked} title={it.locked}
-                        className={`tn-item${itemActive(g, it, route) ? ' active' : ''}${it.locked ? ' locked' : ''}`} onClick={() => go(it)}>
-                        <Icon name={it.icon} />{it.label}{it.locked && <span className="tag">soon</span>}
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              )}
             </li>
           )
         })}
       </ul>
-      <div className="tn-right">
-        <AudioToggle compact />
-        <button className="btn ghost small" onClick={() => advance(4)} title="Advance four weeks (stops early if something urgent happens)">+4 Weeks</button>
-        <button className="btn primary" data-guide="advance" onClick={() => advance(1)}>Advance Week ▸</button>
-      </div>
     </nav>
+  )
+}
+
+/** Desktop top-bar actions: inbox shortcut, sound, and time controls. (Phones use the bottom bar and the More sheet.) */
+export function TopActions({ unread }: { unread: number }) {
+  const advance = useGame((s) => s.advance)
+  const navigate = useGame((s) => s.navigate)
+  return (
+    <div className="hud-desk">
+      <button type="button" className="hud-bell" data-sfx="navigate" data-testid="hud-inbox" aria-label={unread ? `Inbox, ${unread} unread` : 'Inbox'} onClick={() => navigate('inbox')}>
+        <Icon name="inbox" />{unread > 0 && <b className="badge">{unread > 99 ? '99+' : unread}</b>}
+      </button>
+      <AudioToggle compact />
+      <button className="btn ghost small" onClick={() => advance(4)} title="Advance four weeks (stops early if something urgent happens)">+4 Weeks</button>
+      <button className="btn primary" data-guide="advance" onClick={() => advance(1)}>Advance Week ▸</button>
+    </div>
   )
 }
 

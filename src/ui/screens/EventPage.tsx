@@ -50,6 +50,13 @@ export function EventPage({ id }: { id: string }) {
   const [confirmCancel, setConfirmCancel] = useState(false)
   const [fits, setFits] = useState(false)
   const [confirmSale, setConfirmSale] = useState(false)
+  // Desktop: the building controls are split into three tabs (phones show them all in one column). A jump to a control in another tab opens that tab first.
+  const [etab, setEtab] = useState<EventTab>('card')
+  useEffect(() => {
+    const reveal = (e: Event) => { const t = TAB_OF[(e as CustomEvent<string>).detail]; if (t) setEtab(t) }
+    window.addEventListener('fe:reveal', reveal)
+    return () => window.removeEventListener('fe:reveal', reveal)
+  }, [])
   const advisorMode = usePrefs((x) => x.advisor)
   const advice = useMemo(() => eventAdvice(game, id), [game, id])
   const poster = useMemo(() => eventPosterView(game, id), [game, id])
@@ -107,8 +114,14 @@ export function EventPage({ id }: { id: string }) {
       {v.result && !presenting && <CompletePanel v={v} />}
       {!v.can.run && nightFight && onCard && (presenting || latched === nightFight || (!v.result && v.open)) && <><FightPage id={nightFight} /><NightBar eventId={v.id} runNext={runNext} /></>}
 
-      <div className="grid-2" style={{ alignItems: 'start' }}>
-        <div>
+      <div className="grid-2 eb-grid" style={{ alignItems: 'start' }}>
+        <div className="eb-left">
+          {v.mine && v.open && (
+            <div className="ptabs" role="tablist" aria-label="Build the show" data-testid="event-tabs">
+              {EVENT_TABS.map((t) => <button key={t.k} type="button" role="tab" aria-selected={etab === t.k} className={`tab${etab === t.k ? ' active' : ''}`} onClick={() => setEtab(t.k)}>{t.n}</button>)}
+            </div>
+          )}
+          <div className="ptab" data-on={etab === 'card' ? 1 : 0}>
           <div id="eb-card" /><Section title="Fight card" right={editable ? <button className="btn small" data-guide="add-fight" onClick={() => setAdding(true)}>Add a fight</button> : <span className="dim" style={{ fontSize: 13 }}>{v.card.length} fights · min {v.venue.minFights}, max {v.venue.maxFights}</span>}>
             {v.card.length === 0 ? <p className="empty">The card is empty. Agree fights in Matchmaking, then add them here (opener first, headliner last).</p> : (
               <div>
@@ -119,8 +132,10 @@ export function EventPage({ id }: { id: string }) {
             <p className="dim" style={{ fontSize: 13, marginTop: 8 }}>Card quality {v.quality.score}/100 — main event {v.quality.main}, co-main {v.quality.coMain}, depth {v.quality.depth}. Quality is judged from public information: records, reputation, popularity and how competitive each fight looks.</p>
           </Section>
 
+          </div>
           {v.mine && v.open && (
             <>
+              <div className="ptab" data-on={etab === 'sell' ? 1 : 0}>
               <div id="eb-pricing" /><Section title="Tickets" right={<span className="dim" style={{ fontSize: 13 }}>Suggested GA £{v.refPrices.ga}</span>}>
                 <div className="grid-3">
                   {(['ga', 'premium', 'vip'] as const).map((k) => (
@@ -155,6 +170,8 @@ export function EventPage({ id }: { id: string }) {
                 <p className="dim" style={{ fontSize: 13, marginTop: 8 }}>Budget {money(v.marketing.budget, false)} · spent so far {money(v.marketing.spent, false)}. Marketing is paid in weekly instalments and its effect shrinks as spend grows: a big building needs a big campaign.</p>
               </Section>
 
+              </div>
+              <div className="ptab" data-on={etab === 'money' ? 1 : 0}>
               <div id="eb-broadcast" /><Section title="Broadcast">
                 <div className="focus-grid">
                   {v.broadcast.options.map((o) => (
@@ -188,6 +205,7 @@ export function EventPage({ id }: { id: string }) {
                   )
                 })}
               </Section>
+              </div>
             </>
           )}
         </div>
@@ -263,6 +281,11 @@ const STEPS: { k: string; n: string; id: string; what: string }[] = [
   { k: 'live', n: 'Go live', id: 'eb-review', what: 'Put the show on sale. Costs become real.' },
 ]
 
+type EventTab = 'card' | 'sell' | 'money'
+const EVENT_TABS: { k: EventTab; n: string }[] = [{ k: 'card', n: 'Fight card' }, { k: 'sell', n: 'Tickets & promotion' }, { k: 'money', n: 'Broadcast & sponsors' }]
+/** Which tab holds each jump target. */
+const TAB_OF: Record<string, EventTab> = { 'eb-card': 'card', 'add-fight': 'card', 'eb-pricing': 'sell', 'eb-marketing': 'sell', 'eb-broadcast': 'money', 'eb-sponsors': 'money' }
+
 function BuildSteps({ v }: { v: EventView }) {
   const preSale = v.statusKey === 'venueBooked' || v.statusKey === 'cardBuilding'
   const cardOk = v.card.length >= v.venue.minFights && v.problems.length === 0
@@ -271,7 +294,7 @@ function BuildSteps({ v }: { v: EventView }) {
     sponsors: !!v.sponsor.accepted || !preSale, review: !preSale, live: !preSale,
   }
   const cur = STEPS.findIndex((st) => !done[st.k])
-  const go = (id: string) => { const el = document.getElementById(id); if (el) el.scrollIntoView({ block: 'start', behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' }) }
+  const go = (id: string) => { window.dispatchEvent(new CustomEvent('fe:reveal', { detail: id })); requestAnimationFrame(() => { const el = document.getElementById(id); if (el) el.scrollIntoView({ block: 'start', behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' }) }) }
   const f = v.forecast
   return (
     <nav className="build-steps" aria-label="Event building steps" data-testid="build-steps">

@@ -28,7 +28,7 @@ function Go({ s, big }: { s: GuideStepView; big?: boolean }) {
   if (here && s.id === 'position') return null
   // Already on the right screen: the action may be far down a long page (the event page on a phone), so scroll to the real control instead of navigating.
   const act = () => {
-    if (here) { const el = document.querySelector<HTMLElement>(`[data-guide="${go.target}"]`); if (el) { el.scrollIntoView({ block: 'center', behavior: 'smooth' }); el.focus({ preventScroll: true }); return } }
+    if (here) { window.dispatchEvent(new CustomEvent('fe:reveal', { detail: go.target })); requestAnimationFrame(() => { const el = document.querySelector<HTMLElement>(`[data-guide="${go.target}"]`); if (el) { el.scrollIntoView({ block: 'center', behavior: 'smooth' }); el.focus({ preventScroll: true }) } }); return }
     navigate(go.screen as never, go.param)
   }
   return <button type="button" className={`btn ${big ? 'primary' : 'small go'} guide-go`} data-testid={s.optional ? 'guide-go-optional' : 'guide-go'} disabled={!!s.blocker && s.id !== 'matchup'} onClick={act}>{here && document.querySelector(`[data-guide="${go.target}"]`) ? 'Show me the button' : go.label} ▸</button>

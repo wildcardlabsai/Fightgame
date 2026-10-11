@@ -1,0 +1,332 @@
+{
+ "1280/dashboard": {
+  "height": 3922,
+  "overflowX": false,
+  "screens": 4.9
+ },
+ "1280/fighters": {
+  "height": 1674,
+  "overflowX": false,
+  "screens": 2.09
+ },
+ "1280/fighter": {
+  "height": 5683,
+  "overflowX": false,
+  "screens": 7.1
+ },
+ "1280/events": {
+  "height": 1120,
+  "overflowX": false,
+  "screens": 1.4
+ },
+ "1280/event": {
+  "height": 2516,
+  "overflowX": false,
+  "screens": 3.15
+ },
+ "1280/finances": {
+  "height": 4698,
+  "overflowX": false,
+  "screens": 5.87
+ },
+ "1280/inbox": {
+  "height": 1033,
+  "overflowX": false,
+  "screens": 1.29
+ },
+ "1280/calendar": {
+  "height": 1509,
+  "overflowX": false,
+  "screens": 1.89
+ },
+ "1280/matchmaking": {
+  "height": 3142,
+  "overflowX": false,
+  "screens": 3.93
+ },
+ "1280/rankings": {
+  "height": 1389,
+  "overflowX": false,
+  "screens": 1.74
+ },
+ "1280/titles": {
+  "height": 1773,
+  "overflowX": false,
+  "screens": 2.22
+ },
+ "1280/contracts": {
+  "height": 1966,
+  "overflowX": false,
+  "screens": 2.46
+ },
+ "1280/scouting": {
+  "height": 4491,
+  "overflowX": false,
+  "screens": 5.61
+ },
+ "1280/promotions": {
+  "height": 1703,
+  "overflowX": false,
+  "screens": 2.13
+ },
+ "1280/venues": {
+  "height": 8169,
+  "overflowX": false,
+  "screens": 10.21
+ },
+ "1280/sponsors": {
+  "height": 1786,
+  "overflowX": false,
+  "screens": 2.23
+ },
+ "1280/news": {
+  "height": 13266,
+  "overflowX": false,
+  "screens": 16.58
+ },
+ "1280/media": {
+  "height": 2726,
+  "overflowX": false,
+  "screens": 3.41
+ },
+ "1280/office": {
+  "height": 2657,
+  "overflowX": false,
+  "screens": 3.32
+ },
+ "1280/settings": {
+  "height": 2662,
+  "overflowX": false,
+  "screens": 3.33
+ },
+ "1280/advisor": {
+  "height": 800,
+  "overflowX": false,
+  "screens": 1
+ },
+ "1280/fights": {
+  "height": 869,
+  "overflowX": false,
+  "screens": 1.09
+ },
+ "1024/dashboard": {
+  "height": 5661,
+  "overflowX": false,
+  "screens": 7.08
+ },
+ "1024/fighters": {
+  "height": 2006,
+  "overflowX": false,
+  "screens": 2.51
+ },
+ "1024/fighter": {
+  "height": 8723,
+  "overflowX": false,
+  "screens": 10.9
+ },
+ "1024/events": {
+  "height": 1071,
+  "overflowX": false,
+  "screens": 1.34
+ },
+ "1024/event": {
+  "height": 3265,
+  "overflowX": false,
+  "screens": 4.08
+ },
+ "1024/finances": {
+  "height": 5106,
+  "overflowX": false,
+  "screens": 6.38
+ },
+ "1024/inbox": {
+  "height": 977,
+  "overflowX": false,
+  "screens": 1.22
+ },
+ "1024/calendar": {
+  "height": 1495,
+  "overflowX": false,
+  "screens": 1.87
+ },
+ "1024/matchmaking": {
+  "height": 3379,
+  "overflowX": false,
+  "screens": 4.22
+ },
+ "1024/rankings": {
+  "height": 1605,
+  "overflowX": false,
+  "screens": 2.01
+ },
+ "1024/titles": {
+  "height": 2259,
+  "overflowX": false,
+  "screens": 2.82
+ },
+ "1024/contracts": {
+  "height": 1956,
+  "overflowX": false,
+  "screens": 2.44
+ },
+ "1024/scouting": {
+  "height": 4573,
+  "overflowX": false,
+  "screens": 5.72
+ },
+ "1024/promotions": {
+  "height": 1996,
+  "overflowX": false,
+  "screens": 2.5
+ },
+ "1024/venues": {
+  "height": 11942,
+  "overflowX": false,
+  "screens": 14.93
+ },
+ "1024/sponsors": {
+  "height": 1772,
+  "overflowX": false,
+  "screens": 2.21
+ },
+ "1024/news": {
+  "height": 13646,
+  "overflowX": false,
+  "screens": 17.06
+ },
+ "1024/media": {
+  "height": 4288,
+  "overflowX": false,
+  "screens": 5.36
+ },
+ "1024/office": {
+  "height": 2716,
+  "overflowX": false,
+  "screens": 3.4
+ },
+ "1024/settings": {
+  "height": 2750,
+  "overflowX": false,
+  "screens": 3.44
+ },
+ "1024/advisor": {
+  "height": 800,
+  "overflowX": false,
+  "screens": 1
+ },
+ "1024/fights": {
+  "height": 855,
+  "overflowX": false,
+  "screens": 1.07
+ },
+ "390/dashboard": {
+  "height": 6233,
+  "overflowX": false,
+  "screens": 7.39
+ },
+ "390/fighters": {
+  "height": 3137,
+  "overflowX": false,
+  "screens": 3.72
+ },
+ "390/fighter": {
+  "height": 10474,
+  "overflowX": false,
+  "screens": 12.41
+ },
+ "390/events": {
+  "height": 1530,
+  "overflowX": false,
+  "screens": 1.81
+ },
+ "390/event": {
+  "height": 4394,
+  "overflowX": false,
+  "screens": 5.21
+ },
+ "390/finances": {
+  "height": 7186,
+  "overflowX": false,
+  "screens": 8.51
+ },
+ "390/inbox": {
+  "height": 1042,
+  "overflowX": false,
+  "screens": 1.23
+ },
+ "390/calendar": {
+  "height": 1523,
+  "overflowX": false,
+  "screens": 1.8
+ },
+ "390/matchmaking": {
+  "height": 8879,
+  "overflowX": false,
+  "screens": 10.52
+ },
+ "390/rankings": {
+  "height": 1670,
+  "overflowX": false,
+  "screens": 1.98
+ },
+ "390/titles": {
+  "height": 3780,
+  "overflowX": false,
+  "screens": 4.48
+ },
+ "390/contracts": {
+  "height": 4119,
+  "overflowX": false,
+  "screens": 4.88
+ },
+ "390/scouting": {
+  "height": 13681,
+  "overflowX": false,
+  "screens": 16.21
+ },
+ "390/promotions": {
+  "height": 3531,
+  "overflowX": false,
+  "screens": 4.18
+ },
+ "390/venues": {
+  "height": 21305,
+  "overflowX": false,
+  "screens": 25.24
+ },
+ "390/sponsors": {
+  "height": 3315,
+  "overflowX": false,
+  "screens": 3.93
+ },
+ "390/news": {
+  "height": 17452,
+  "overflowX": false,
+  "screens": 20.68
+ },
+ "390/media": {
+  "height": 4604,
+  "overflowX": false,
+  "screens": 5.45
+ },
+ "390/office": {
+  "height": 4749,
+  "overflowX": false,
+  "screens": 5.63
+ },
+ "390/settings": {
+  "height": 3323,
+  "overflowX": false,
+  "screens": 3.94
+ },
+ "390/advisor": {
+  "height": 844,
+  "overflowX": false,
+  "screens": 1
+ },
+ "390/fights": {
+  "height": 1139,
+  "overflowX": false,
+  "screens": 1.35
+ }
+}

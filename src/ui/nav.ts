@@ -7,7 +7,7 @@ export interface NavGroup { id: string; label: string; icon: string; items: NavI
 const DEV = import.meta.env.DEV
 
 export const NAV: NavGroup[] = [
-  { id: 'home', label: 'Home', icon: 'dashboard', items: [{ id: 'dashboard', label: 'Dashboard', screen: 'dashboard', icon: 'dashboard' }] },
+  { id: 'home', label: 'Overview', icon: 'dashboard', items: [{ id: 'dashboard', label: 'Overview', screen: 'dashboard', icon: 'dashboard' }] },
   { id: 'inbox', label: 'Inbox', icon: 'inbox', items: [{ id: 'inbox', label: 'Inbox', screen: 'inbox', icon: 'inbox' }] },
   { id: 'roster', label: 'Roster', icon: 'fighters', items: [
     { id: 'fighters', label: 'Fighters', screen: 'fighters', icon: 'fighters' },

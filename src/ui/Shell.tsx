@@ -3,7 +3,7 @@ import { OfficeScreen } from './screens/OfficeScreen'
 import { cashRunwayWeeks, financialHealth, player, unreadCount } from '../engine/selectors'
 import { lazy, Suspense, useLayoutEffect } from 'react'
 import { useGame } from '../store/gameStore'
-import { BottomNav, SectionBar, TopNav } from './Navigation'
+import { BottomNav, SectionBar, SideNav, TopActions } from './Navigation'
 import { PromoMark } from './visual/PromoMark'
 import { AudioToggle } from './components/AudioStatus'
 import { TierUpNotice } from './components/TierUpNotice'
@@ -58,8 +58,7 @@ export function Shell() {
 
   return (
     <div className="app">
-      <TopNav unread={unread} />
-      <SectionBar />
+      <SideNav unread={unread} />
       <header className="hud">
         <div className="hud-id">
           <PromoMark p={p} size={34} />
@@ -74,11 +73,13 @@ export function Shell() {
         <div className="hud-stat hide-sm"><span className="caps">Runway</span><span className={`v num ${runway !== null && runway < 8 ? 'red' : runway !== null && runway < 26 ? 'warn' : ''}`}>{runway === null ? '—' : `${runway}w`}</span></div>
         <div className="hud-stat hide-sm"><span className="caps">Finances</span><span className={`v num hp ${health.state}`} title={health.reason}>{health.label}</span></div>
         <div className="hud-spacer" />
+        <TopActions unread={unread} />
         <div className="hud-actions mobile-only">
           <AudioToggle compact />
           <button className="btn primary small hud-advance" data-guide="advance" onClick={() => advance(1)} aria-label="Advance one week">Week ▸</button>
         </div>
       </header>
+      <SectionBar />
       <main className="page fade-in" key={route.screen + (route.param ?? '')}>
         <GuideBar />
         <Suspense fallback={<div className="dim" style={{ padding: 24 }}>Loading…</div>}><Screen /></Suspense>

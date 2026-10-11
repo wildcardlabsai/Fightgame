@@ -45,7 +45,7 @@ export function AdvicePanel({ list, cap = 4, compact, title }: { list: Advice[];
   useEffect(() => { for (const a of shown) emitGameEvent({ type: 'advice', id: a.id, level: a.level }) }, [key]) // eslint-disable-line react-hooks/exhaustive-deps
   if (shown.length === 0) return null
   return (
-    <div className="advice-stack" aria-label={title ?? 'Promoter advice'}>
+    <div className={`advice-stack${compact ? ' compact' : ''}`} aria-label={title ?? 'Promoter advice'}>
       {title && <div className="caps advice-title-row">{title}</div>}
       {shown.map((a) => <AdviceCard key={a.id} a={a} compact={compact} />)}
     </div>

@@ -141,6 +141,8 @@ export function Dashboard() {
         </button>
       </section>
 
+      <div className="desk-grid">
+      <div className="desk-main">
       {topUrgent.length > 0 && (
         <section className="needs" aria-label="Needs your attention" data-testid="desk-needs">
           <div className="sec-head"><h2 className="display">Needs you</h2><span className="dim" style={{ fontSize: 13 }}>{urgent.length} item{urgent.length === 1 ? '' : 's'}</span></div>
@@ -210,6 +212,33 @@ export function Dashboard() {
         )}
       </section>
 
+      {/* ---------------------------------------------------------------- INBOX / DESK */}
+      <div className="desk-pair">
+        <section aria-label="Inbox" data-testid="desk-inbox">
+          <div className="sec-head"><h2 className="display">Inbox</h2><button className="linkbtn" onClick={() => navigate('inbox')}>{unread > 0 ? `${unread} unread` : 'Open'}</button></div>
+          {mail.length === 0 ? <p className="empty">You are all caught up.</p> : mail.map((m) => (
+            <button key={m.id} className={`mailrow ${m.priority}`} onClick={() => (m.link ? openLink(m.link) : navigate('inbox'))}>
+              <span className={`catpill ${KIND_CLASS[msgKind(m)]}`}>{msgKind(m)}</span>
+              <span className="mr-s">{m.subject}</span>
+              <span className="mr-d dim">{formatDay(m.day, false)}</span>
+            </button>
+          ))}
+        </section>
+        <section aria-label="What to do next" data-testid="desk-advice">
+          <div className="sec-head"><h2 className="display">What next?</h2><span className="dim" style={{ fontSize: 13 }}>{restAttention.length ? `${restAttention.length} more item${restAttention.length === 1 ? '' : 's'}` : 'Nothing else'}</span></div>
+          <AdvicePanel list={allDesk} cap={3} compact />
+          {restAttention.slice(0, 5).map((a) => (
+            <div key={a.id} className={`attn ${a.severity}`}>
+              <div><div className="t">{a.title}</div><div className="d">{a.detail}</div></div>
+              {a.link && <button className="btn small go" onClick={() => openLink(a.link!)}>{a.actionLabel ?? 'Open'}</button>}
+            </div>
+          ))}
+          {restAttention.length === 0 && allDesk.length === 0 && <p className="empty">The gym is quiet — advance the week.</p>}
+        </section>
+      </div>
+
+      </div>
+      <aside className="desk-rail" aria-label="At a glance">
       {/* ---------------------------------------------------------------- PROMOTION / ROSTER / NEXT FIGHT */}
       <div className="desk-trio">
         <section className="dt-col" aria-label="Your promotion" data-testid="desk-promotion">
@@ -259,31 +288,10 @@ export function Dashboard() {
         {teaser.headline ? <StoryCard s={teaser.headline} variant="compact" onOpen={() => openStory(teaser.headline!)} /> : <p className="empty">The press are waiting for something to write about.</p>}
       </section>
 
-      {/* ---------------------------------------------------------------- INBOX / DESK */}
-      <div className="desk-pair">
-        <section aria-label="Inbox" data-testid="desk-inbox">
-          <div className="sec-head"><h2 className="display">Inbox</h2><button className="linkbtn" onClick={() => navigate('inbox')}>{unread > 0 ? `${unread} unread` : 'Open'}</button></div>
-          {mail.length === 0 ? <p className="empty">You are all caught up.</p> : mail.map((m) => (
-            <button key={m.id} className={`mailrow ${m.priority}`} onClick={() => (m.link ? openLink(m.link) : navigate('inbox'))}>
-              <span className={`catpill ${KIND_CLASS[msgKind(m)]}`}>{msgKind(m)}</span>
-              <span className="mr-s">{m.subject}</span>
-              <span className="mr-d dim">{formatDay(m.day, false)}</span>
-            </button>
-          ))}
-        </section>
-        <section aria-label="What to do next" data-testid="desk-advice">
-          <div className="sec-head"><h2 className="display">What next?</h2><span className="dim" style={{ fontSize: 13 }}>{restAttention.length ? `${restAttention.length} more item${restAttention.length === 1 ? '' : 's'}` : 'Nothing else'}</span></div>
-          <AdvicePanel list={allDesk} cap={3} compact />
-          {restAttention.slice(0, 5).map((a) => (
-            <div key={a.id} className={`attn ${a.severity}`}>
-              <div><div className="t">{a.title}</div><div className="d">{a.detail}</div></div>
-              {a.link && <button className="btn small go" onClick={() => openLink(a.link!)}>{a.actionLabel ?? 'Open'}</button>}
-            </div>
-          ))}
-          {restAttention.length === 0 && allDesk.length === 0 && <p className="empty">The gym is quiet — advance the week.</p>}
-        </section>
+      </aside>
       </div>
 
+      <div className="desk-more">
       {(sc || showSteps) && (
         <div className="grid-2" style={{ marginTop: 28 }}>
           {sc && (
@@ -349,6 +357,7 @@ export function Dashboard() {
           )}
           <p className="dim" style={{ fontSize: 13, marginTop: 8 }}>{spons.slots.used} of {spons.slots.max} sponsor slots in use.</p>
         </Section>
+      </div>
       </div>
     </>
   )

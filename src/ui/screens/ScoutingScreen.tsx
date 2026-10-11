@@ -26,7 +26,7 @@ export function FilterBar({ f, set, showContract }: { f: FighterFilter; set: (f:
     <div className={`filters${open ? ' open' : ''}`}>
       <input className="input" placeholder="Search name, nickname, town…" value={f.q} onChange={(e) => up({ q: e.target.value })} aria-label="Search" />
       <button type="button" className="btn small ghost filters-toggle" aria-expanded={open} onClick={() => setOpen(!open)}>Filters{active ? ` (${active})` : ''} {open ? '▴' : '▾'}</button>
-      <div className="filters-extra">
+      <div className="filters-primary">
         <select className="select" value={f.division} onChange={(e) => up({ division: e.target.value })} aria-label="Division">
           <option value="">All divisions</option>
           {WEIGHT_CLASSES.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
@@ -35,6 +35,8 @@ export function FilterBar({ f, set, showContract }: { f: FighterFilter; set: (f:
           <option value="">All nations</option>
           {NATIONS.map((n) => <option key={n.key} value={n.key}>{n.name}</option>)}
         </select>
+      </div>
+      <div className="filters-extra">
         <select className="select" value={f.stage} onChange={(e) => up({ stage: e.target.value as PublicStage | '' })} aria-label="Career stage">
           <option value="">Any career stage</option>
           {STAGES.map((s) => <option key={s} value={s}>{s}</option>)}

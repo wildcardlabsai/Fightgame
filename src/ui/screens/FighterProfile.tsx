@@ -21,6 +21,9 @@ import { FighterMediaPanel } from '../media/FighterMediaPanel'
 import { CareerPanel, CommitmentsPanel, DivisionMove, ExpectedTermsPanel, PlanChooser, ToldPanel, ValuePanel } from '../business/ProfileBusiness'
 import { Explain } from '../components/Explain'
 
+type Pane = 'overview' | 'media' | 'career' | 'fights' | 'contract' | 'scouting'
+const PANE_OF: Record<string, Pane> = { 'pf-overview': 'overview', 'pf-media': 'media', 'pf-career': 'career', 'pf-fights': 'fights', 'pf-contract': 'contract', 'pf-scout': 'scouting' }
+
 export function FighterProfile({ id }: { id: string }) {
   const navigate = useGame((s) => s.navigate)
   const toggleShortlist = useGame((s) => s.toggleShortlist)
@@ -43,7 +46,11 @@ export function FighterProfile({ id }: { id: string }) {
   const mine = v.own !== null
   const scouted = v.knowledge.reports > 0 || mine
   const c = v.contract
-  const jump = (t: string) => { const el = document.getElementById(t); if (!el) return; let reduce = false; try { reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches } catch { /* default */ } el.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' }) }
+  // Desktop shows one pane at a time (phones show them all and the buttons just scroll); a jump opens the pane that holds its target first.
+  const [pane, setPane] = useState<Pane>('overview')
+  const on = (k: Pane) => (pane === k ? 1 : 0)
+  const jump = (t: string) => { setPane(PANE_OF[t] ?? 'overview'); requestAnimationFrame(() => jumpTo(t)) }
+  const jumpTo = (t: string) => { const el = document.getElementById(t); if (!el) return; let reduce = false; try { reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches } catch { /* default */ } el.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' }) }
 
   return (
     <>
@@ -110,13 +117,13 @@ export function FighterProfile({ id }: { id: string }) {
         </div>
       </section>
       <nav className="pf-nav" aria-label="Sections of this profile" data-testid="pf-nav">
-        {[['pf-media', 'Media'], ...(bv && v.status === 'active' ? [['pf-career', 'Career & titles']] : []), ['pf-fights', 'Fights'], ['pf-contract', 'Contract'], ['pf-scout', 'Scouting']].map(([target, label]) => (
-          <button key={target} type="button" className="pf-jump" onClick={() => jump(target)}>{label}</button>
+        {[['pf-overview', 'Overview'], ['pf-media', 'Media'], ...(bv && v.status === 'active' ? [['pf-career', 'Career & titles']] : []), ['pf-fights', 'Fights'], ['pf-contract', 'Contract'], ['pf-scout', 'Scouting']].map(([target, label]) => (
+          <button key={target} type="button" className={`pf-jump${pane === PANE_OF[target] ? ' on' : ''}`} aria-current={pane === PANE_OF[target] ? 'true' : undefined} onClick={() => jump(target)}>{label}</button>
         ))}
       </nav>
-      <div id="pf-media" className="pf-anchor"><FighterMediaPanel id={v.id} revealPersona={v.personality.trait !== null} /></div>
+      <div className="ptab" data-on={on('media')}><div id="pf-media" className="pf-anchor"><FighterMediaPanel id={v.id} revealPersona={v.personality.trait !== null} /></div></div>
       {bv && v.status === 'active' && (
-        <div className="biz-area pf-anchor" id="pf-career">
+        <div className="ptab" data-on={on('career')}><div className="biz-area pf-anchor" id="pf-career">
           <CareerPanel bv={bv} mine={mine} />
           <div className="biz-grid">
             <div>
@@ -132,20 +139,22 @@ export function FighterProfile({ id }: { id: string }) {
               <ToldPanel bv={bv} />
             </div>
           </div>
-        </div>
+        </div></div>
       )}
 
-      <div className="grid-2" style={{ marginTop: 6 }}>
+      <div id="pf-overview" className="pf-anchor" />
+      <div className="grid-2 pf-cols" style={{ marginTop: 6 }}>
         <div>
           {upcoming && (
-            <Section title="Upcoming fight">
+            <div className="ptab" data-on={on('overview')}><Section title="Upcoming fight">
               <button type="button" className="up-fight" data-testid="upcoming-fight" onClick={() => navigate('fight', upcoming.id)}>
                 <span className="up-vs display">{upcoming.a.fighter.id === v.id ? 'vs' : 'vs'} <b>{(upcoming.a.fighter.id === v.id ? upcoming.b : upcoming.a).fighter.name}</b></span>
                 <span className="up-rec num">{(upcoming.a.fighter.id === v.id ? upcoming.b : upcoming.a).preRecord}</span>
                 <span className="dim">{upcoming.division} · {upcoming.rounds} rounds · {upcoming.day ? formatDay(upcoming.day) : 'date to be set'}{upcoming.eventName ? ` · ${upcoming.eventName}` : ''}</span>
               </button>
-            </Section>
+            </Section></div>
           )}
+          <div className="ptab" data-on={on('fights')}>
           <div id="pf-fights" className="pf-anchor" />
           <Section title="Fight history">
             {v.fightHistory.length === 0 ? <p className="empty">No recorded bouts yet in this game. Fights you arrange, and those you hear about, appear here.</p> : (
@@ -159,7 +168,9 @@ export function FighterProfile({ id }: { id: string }) {
               </table></div>
             )}
           </Section>
+          </div>
 
+          <div className="ptab" data-on={on('scouting')}>
           <div id="pf-scout" className="pf-anchor" />
           <Section title="Scouting report" right={<span className="dim" style={{ fontSize: 13 }}>Intel: <b style={{ color: 'var(--text)' }}>{v.knowledge.level}</b> · {v.knowledge.confidence} confidence</span>}>
             {!scouted && <p className="dim" style={{ marginBottom: 10 }}>You have no scouting information on {v.firstName}. The “~” ranges below are guesses from the public record alone and could be well off.</p>}
@@ -182,7 +193,9 @@ export function FighterProfile({ id }: { id: string }) {
             )}
             {mine && <p className="dim" style={{ marginTop: 12, fontSize: 13 }}>Your coaches see {v.firstName} every day, so this picture sharpens by itself the longer they stay.</p>}
           </Section>
+          </div>
 
+          <div className="ptab" data-on={on('overview')}>
           <Section title="Personality">
             {v.personality.reveal === 'unknown' && <p className="dim">You don’t know {v.firstName} well enough to say. Deep scouting — or doing business with them — will reveal more.</p>}
             {v.personality.reveal === 'hint' && <p>First impression: <b>{v.personality.hint}</b>. <span className="dim">Not enough to know what really drives them.</span></p>}
@@ -193,14 +206,18 @@ export function FighterProfile({ id }: { id: string }) {
             <p style={{ lineHeight: 1.6, maxWidth: '62ch' }}>{v.bio}</p>
             {v.notes.length > 0 && <p style={{ marginTop: 10 }}><span className="caps">Scout notes </span>{v.notes.map((n, i) => <span key={i} className="chip" style={{ marginRight: 6 }}>{n}</span>)}</p>}
           </Section>
+          </div>
+          <div className="ptab" data-on={on('fights')}>
           <Section title="Career history">
             {v.history.length === 0 ? <p className="empty">Nothing on record.</p> : (
               <ul className="history">{v.history.map((h, i) => <li key={i}><span className="caps" style={{ marginRight: 10 }}>{formatDay(h.day, true)}</span>{h.text}</li>)}</ul>
             )}
           </Section>
+          </div>
         </div>
 
         <div>
+          <div className="ptab" data-on={on('contract')}>
           <div id="pf-contract" className="pf-anchor" />
           <Section title="Contract">
             {c.kind === 'own' && (
@@ -218,7 +235,9 @@ export function FighterProfile({ id }: { id: string }) {
             {c.kind === 'rival' && <p>Under contract with <b>{c.promotionName}</b> — expected to run for roughly {c.approxMonthsLeft} more months.</p>}
             {c.kind === 'none' && <p className="dim">{v.status === 'retired' ? 'Retired.' : `Free agent${v.market.availableWeeks !== null ? ` for ${v.market.availableWeeks} weeks` : ''}.`}</p>}
           </Section>
+          </div>
 
+          <div className="ptab" data-on={on('overview')}>
           <Section title="Identity">
             <dl>
               <div className="kv"><dt>Age</dt><dd>{v.age}</dd></div>
@@ -253,8 +272,10 @@ export function FighterProfile({ id }: { id: string }) {
             )}
           </Section>
 
+          </div>
+
           {v.own && (
-            <Section title="Condition & coaching">
+            <div className="ptab" data-on={on('overview')}><Section title="Condition & coaching">
               {([['Fitness', v.own.fitness, 'good'], ['Conditioning', v.own.conditioning, 'good'], ['Confidence', v.own.confidence, 'blue'], ['Morale', v.own.morale, undefined]] as const).map(([label, b, tone]) => (
                 <div className="attr-row" key={label}><span>{label}</span><Meter value={b.value} tone={tone} label={label} /><span className="dim" style={{ textAlign: 'right', fontSize: 13 }}>{b.label}</span></div>
               ))}
@@ -264,7 +285,7 @@ export function FighterProfile({ id }: { id: string }) {
                 <div className="v">{v.own.workingOn}</div>
                 <div className="dim" style={{ fontSize: 13 }}>{v.own.workingWhy}. Technical work, sparring and the fight plan are the trainer’s and the fighter’s call; you set the coaching budget in the <button className="linkbtn" onClick={() => navigate('office')}>Promoter’s Office</button>.</div>
               </div>
-            </Section>
+            </Section></div>
           )}
 
         </div>
