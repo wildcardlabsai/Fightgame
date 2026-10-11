@@ -44,3 +44,6 @@ Unit: **773 passed, 5 skipped, 0 failed (778)**, `tsc` clean, production build O
 4. Fight/event history is never pruned: saves and ticks grow linearly (see Performance).
 5. The perf gate has little headroom on this host.
 6. Not covered end to end in the browser (covered by the engine audits/tests): eliminators and championship fights played through the UI in one session.
+
+## Phase 9 update
+Limitations 1 (first-show economics: now explained before commitment, rules unchanged), 3 (inbox/toasts), 4 (save growth: audited, stored compressed in the fallback, finished history shared in memory) and 5 (perf gate: repetition-based decision, ~13–29 % faster ticks) are addressed — see `docs/PHASE9.md`. Remaining: insolvency recovery is unchanged; championship flows are still verified by the engine audits and the championship browser suite rather than one UI session.

@@ -204,7 +204,7 @@ export function EventPage({ id }: { id: string }) {
           <FinancePanel v={v} />
           {v.mine && (
             <div style={{ display: 'flex', gap: 10, marginTop: 14, flexWrap: 'wrap' }}>
-              {v.statusKey === 'cardBuilding' && <button className="btn primary big" data-guide="put-on-sale" disabled={!v.can.putOnSale} onClick={() => { const top = visibleAdvice(advice, advisorMode, 1)[0]; if (needsConfirmation(top)) setConfirmSale(true); else act('putOnSale', v.id) }}>Put on sale ▸</button>}
+              {v.statusKey === 'cardBuilding' && <button className="btn primary big" data-guide="put-on-sale" disabled={!v.can.putOnSale} onClick={() => { const top = visibleAdvice(advice, advisorMode, 1)[0]; if (needsConfirmation(top) || (v.economics && v.economics.profit.lo + v.economics.profit.hi < 0)) setConfirmSale(true); else act('putOnSale', v.id) }}>Put on sale ▸</button>}
               {v.can.cancel && <button className="btn ghost" onClick={() => setConfirmCancel(true)}>Cancel the show</button>}
             </div>
           )}
@@ -225,6 +225,7 @@ export function EventPage({ id }: { id: string }) {
       {confirmSale && (
         <Modal title="Before you put this on sale" onClose={() => setConfirmSale(false)} wide>
           {visibleAdvice(advice, advisorMode, 3).filter((a) => a.level === 'highRisk' || a.level === 'critical' || a.level === 'caution').map((a) => <AdviceCard key={a.id} a={a} />)}
+          {v.economics && <EconomicsSummary v={v} />}
           <p className="dim" style={{ fontSize: 13, margin: '8px 0 14px' }}>This is your call. Ticket sales and sponsors are estimates, and the costs are real. You can still cancel later, but a late cancellation costs reputation and fees.</p>
           <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
             <button className="btn ghost" onClick={() => setConfirmSale(false)}>Review Event</button>
@@ -320,6 +321,72 @@ function SlotRow({ s, n, editable, eventId }: { s: CardSlot; n: number; editable
   )
 }
 
+
+const BASIS_LABEL: Record<string, string> = { committed: 'owed whatever the crowd', crowd: 'grows with the crowd', results: 'depends on results' }
+
+/** Phase 9: where the forecast money goes, what a sell-out would bring, the break-even, and (when a loss is forecast) what is driving it and what can be changed. */
+function EconomicsPanel({ v }: { v: EventView }) {
+  const ec = v.economics
+  if (!ec) return null
+  const be = ec.breakEven
+  const loss = ec.explanation.length > 0
+  const beText = be.verdict === 'coveredBeforeSales' ? 'Costs are covered before a ticket is sold (by the sponsor and broadcast income counted at their low end).'
+    : be.verdict === 'beyondSellOut' ? `Not reachable at these prices: even a full house of ${num(be.capacity)} would not cover the costs.`
+    : be.attendance !== null ? `About ${num(be.attendance)} tickets (${Math.round((100 * be.attendance) / Math.max(1, be.capacity))}% of the hall) at an average ticket of ${money(be.avgTicket, false)}.` : 'Not enough information yet (build the card first).'
+  return (
+    <div className="econ" data-testid="economics">
+      {loss && (
+        <div className="econ-loss" role="status" data-testid="econ-loss">
+          <div className="caps">Why this show is forecast to lose money</div>
+          {ec.explanation.map((t) => <p key={t}>{t}</p>)}
+          {ec.levers.length > 0 && (
+            <>
+              <div className="caps" style={{ marginTop: 8 }}>What you can change (none of these guarantees a profit)</div>
+              <ul>{ec.levers.map((l) => <li key={l.id} data-lever={l.id}>{l.text}</li>)}</ul>
+            </>
+          )}
+        </div>
+      )}
+      <details className="econ-table" open={loss} data-testid="econ-table">
+        <summary>Where the money goes</summary>
+        <table className="table econ-lines">
+          <thead><tr><th>Cost</th><th>Estimate</th><th>Type</th></tr></thead>
+          <tbody>
+            {ec.costs.map((l) => <tr key={l.key} title={l.note}><td data-label="Cost">{l.label} <span className={`econ-basis ${l.basis}`}>{BASIS_LABEL[l.basis]}</span><small className="dim"> {l.note}</small></td><td data-label="Estimate" className="num">{rng(l)}</td><td data-label="Type" className="dim econ-type">{BASIS_LABEL[l.basis]}</td></tr>)}
+            <tr className="econ-total"><td data-label="Cost"><b>Total costs</b></td><td data-label="Estimate" className="num"><b>{rng(ec.costTotal)}</b></td><td data-label="Type" className="dim">{money(ec.committed, false)} owed regardless</td></tr>
+          </tbody>
+          <thead><tr><th>Income</th><th>Estimate</th><th></th></tr></thead>
+          <tbody>
+            {ec.revenue.map((l) => <tr key={l.key} title={l.note}><td data-label="Income">{l.label}<small className="dim"> {l.note}</small></td><td data-label="Estimate" className="num">{rng(l)}</td><td></td></tr>)}
+            <tr className="econ-total"><td data-label="Income"><b>Total income</b></td><td data-label="Estimate" className="num"><b>{rng(ec.revenueTotal)}</b></td><td></td></tr>
+          </tbody>
+        </table>
+        <dl className="econ-be">
+          <div className="kv"><dt>Break-even</dt><dd data-testid="econ-breakeven">{beText}</dd></div>
+          <div className="kv"><dt>If every seat sold</dt><dd>{money(be.fullHouse.gate, false)} in tickets, {be.fullHouse.profit >= 0 ? `about ${money(be.fullHouse.profit, false)} profit` : `still about ${money(-be.fullHouse.profit, false)} short`}</dd></div>
+          {be.avgTicketNeededAtSellOut !== null && be.fullHouse.profit < 0 && <div className="kv"><dt>Average ticket needed at a sell-out</dt><dd>{money(be.avgTicketNeededAtSellOut, false)} <span className="dim">(today’s average is {money(be.avgTicket, false)}; fewer fans would buy at a higher price)</span></dd></div>}
+          <div className="kv"><dt>Your cash</dt><dd>{money(ec.cash, false)} now; about {money(ec.cashAfterWorst, false)} if the poor end of the forecast happens</dd></div>
+        </dl>
+        <ul className="dim econ-assume">{be.assumptions.map((a) => <li key={a}>{a}</li>)}</ul>
+      </details>
+    </div>
+  )
+}
+
+/** The numbers behind the confirmation: what is owed regardless, the likely and worst result, and the break-even, in four lines. */
+function EconomicsSummary({ v }: { v: EventView }) {
+  const ec = v.economics!
+  const be = ec.breakEven
+  return (
+    <dl className="econ-summary" data-testid="econ-summary">
+      <div className="kv"><dt>Owed whatever the crowd</dt><dd>{money(ec.committed, false)}</dd></div>
+      <div className="kv"><dt>Forecast result</dt><dd className={ec.profit.hi < 0 ? 'red' : ec.profit.lo > 0 ? 'good' : ''}>{rng(ec.profit)}</dd></div>
+      <div className="kv"><dt>Break-even</dt><dd>{be.verdict === 'beyondSellOut' ? 'beyond a sell-out at these prices' : be.attendance !== null ? `about ${num(be.attendance)} of ${num(be.capacity)} seats` : '—'}</dd></div>
+      <div className="kv"><dt>Cash if the poor end happens</dt><dd>{money(ec.cashAfterWorst, false)}</dd></div>
+    </dl>
+  )
+}
+
 function ForecastPanel({ v }: { v: EventView }) {
   const f = v.forecast!
   const att = f.attendance
@@ -339,6 +406,7 @@ function ForecastPanel({ v }: { v: EventView }) {
         <div className="kv"><dt>Atmosphere</dt><dd>{rng(f.atmosphere, (n) => `${Math.round(n)}`)} / 100</dd></div>
       </dl>
       {f.warnings.map((w) => <p key={w} className="warn" style={{ marginTop: 8, fontSize: 13.5 }}>{w}</p>)}
+      <EconomicsPanel v={v} />
     </Section>
   )
 }

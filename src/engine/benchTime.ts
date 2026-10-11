@@ -43,3 +43,21 @@ export function relativeStepCost(step: () => void, reference: () => void, opts: 
   }
   return { ratio: median(ratios), ratios, msPerStep: ms, refMs: refAfter }
 }
+
+
+/**
+ * THE GATE'S DECISION RULE (Phase 9).
+ * One benchmark run is noisy: the host's other work, JIT and GC state move both the tick and the reference clone, and not always together (measured
+ * distribution of single-run ratios on one unchanged build: 6.2–9.6×). So the gate is decided on REPETITIONS, not on one run:
+ *   - run R independent repetitions of the benchmark (each: a fresh world, warm-up, several timed segments, each segment normalised by the reference
+ *     measured around it) and take each repetition's median ratio;
+ *   - the statistic is the MEDIAN of those repetition medians; the gate fails when it is not below the limit.
+ * Noise only ever adds time and rarely hits most repetitions, so a noisy minute cannot move the median; a real slowdown of the engine multiplies every
+ * repetition and moves it one-for-one. The limit itself is unchanged. The distribution (min / median / max of the repetitions) is always reported.
+ */
+export interface GateDecision { statistic: number; pass: boolean; min: number; max: number; reps: number[] }
+export function gateDecision(repMedians: number[], limit: number): GateDecision {
+  const sorted = [...repMedians].sort((a, b) => a - b)
+  const statistic = median(repMedians)
+  return { statistic, pass: statistic < limit, min: sorted[0], max: sorted[sorted.length - 1], reps: repMedians }
+}

@@ -1,4 +1,4 @@
-import { cloneState } from './clone'
+import { cloneForTick } from './clone'
 import { processTier } from './tierProgress'
 import { processSponsors } from './sponsors'
 import { checkObjectives } from './scenarios'
@@ -39,7 +39,7 @@ export interface TickResult {
 
 /** Advance the world by exactly one week. Pure: returns a new state, never mutates the input. */
 export function advanceOneWeek(input: GameState, opts: { media?: boolean } = {}): GameState {
-  const state = cloneState(input)
+  const state = cloneForTick(input)
   const rng = new Rng(state.rngState)
   const ids = stateIds(state)
 

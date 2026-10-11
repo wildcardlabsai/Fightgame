@@ -911,7 +911,10 @@ img, svg, video, canvas { max-width: 100%; }
   .hud-id { padding: 4px 8px; } .hud-id > div { display: none; }
   .hud-stat .v { font-size: 16px; white-space: nowrap; }
   .hud-actions { gap: 6px; padding: 0 8px 0 0; align-items: center; } .hud-advance { min-height: 44px; padding: 0 14px; }
-  .toasts { left: 10px; right: 10px; bottom: calc(72px + env(safe-area-inset-bottom)); } .toast { max-width: none; }
+  /* Phase 9: a toast on a phone is a one-line note above the bottom bar that never intercepts a tap and never stacks: only the newest note shows (a warning is kept until it times out). */
+  .toasts { left: max(10px, env(safe-area-inset-left)); right: max(10px, env(safe-area-inset-right)); bottom: calc(68px + env(safe-area-inset-bottom)); pointer-events: none; gap: 6px; }
+  .toast { max-width: none; padding: 8px 12px; font-size: 14px; line-height: 1.3; pointer-events: none; text-align: left; }
+  .toast:not(:last-child):not(.bad) { display: none; }
   .scroll-margin, .complete, .lf.inline { scroll-margin-top: 110px; }
 }
 .fn-top .audio-toggle { margin-left: auto; } .fn-top .fn-brand { margin-left: 0; }

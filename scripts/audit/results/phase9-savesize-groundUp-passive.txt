@@ -1,0 +1,18 @@
+week 26 (y0.5): json 1059kB gzip 175kB | fights 184 events 28 fighters 339 (retired 15) | top: fighters 480, media 176, fights 166, contracts 58, events 53, knowledge 34, venues 31
+   fight statuses {"postFight":94,"cancelled":13,"training":25,"scheduled":52}  avg fight 926B  avg event 1932B  avg fighter 1448B
+week 52 (y1.0): json 1423kB gzip 228kB | fights 321 events 52 fighters 359 (retired 26) | top: fighters 519, fights 319, media 254, events 97, contracts 60, knowledge 36, venues 31
+   fight statuses {"postFight":250,"cancelled":19,"training":6,"scheduled":46}  avg fight 1018B  avg event 1916B  avg fighter 1480B
+week 104 (y2.0): json 2049kB gzip 307kB | fights 648 events 109 fighters 376 (retired 47) | top: fights 665, fighters 558, media 320, events 193, contracts 60, ledger 56, contractHistory 47
+   fight statuses {"postFight":568,"cancelled":20,"training":7,"scheduled":53}  avg fight 1051B  avg event 1815B  avg fighter 1519B
+week 156 (y3.0): json 2538kB gzip 367kB | fights 918 events 163 fighters 393 (retired 68) | top: fights 957, fighters 593, media 356, events 281, contractHistory 60, contracts 60, ledger 57
+   fight statuses {"postFight":858,"cancelled":9,"training":12,"scheduled":39}  avg fight 1067B  avg event 1767B  avg fighter 1546B
+week 208 (y4.0): json 2914kB gzip 416kB | fights 1122 events 219 fighters 411 (retired 88) | top: fights 1160, fighters 627, media 390, events 372, inbox 63, contractHistory 61, contracts 59
+   fight statuses {"postFight":1027,"cancelled":13,"training":18,"scheduled":64}  avg fight 1059B  avg event 1741B  avg fighter 1562B
+week 260 (y5.0): json 3091kB gzip 440kB | fights 1167 events 270 fighters 406 (retired 82) | top: fights 1214, fighters 627, events 455, media 420, inbox 72, contracts 61, contractHistory 61
+   fight statuses {"postFight":1102,"cancelled":8,"scheduled":46,"training":11}  avg fight 1065B  avg event 1727B  avg fighter 1582B
+week 312 (y6.0): json 3255kB gzip 458kB | fights 1267 events 291 fighters 397 (retired 75) | top: fights 1312, fighters 620, events 489, media 451, inbox 78, contracts 64, contractHistory 61
+   fight statuses {"postFight":1173,"cancelled":13,"training":17,"scheduled":64}  avg fight 1060B  avg event 1720B  avg fighter 1598B
+week 364 (y7.0): json 3338kB gzip 467kB | fights 1295 events 291 fighters 396 (retired 71) | top: fights 1348, fighters 625, events 492, media 483, inbox 85, contractHistory 61, contracts 60
+   fight statuses {"postFight":1223,"cancelled":18,"training":19,"scheduled":35}  avg fight 1066B  avg event 1733B  avg fighter 1617B
+week 416 (y8.0): json 3392kB gzip 474kB | fights 1307 events 302 fighters 392 (retired 76) | top: fights 1357, fighters 625, events 509, media 506, inbox 92, contractHistory 61, contracts 59
+   fight statuses {"postFight":1213,"cancelled":10,"training":16,"scheduled":68}  avg fight 1063B  avg event 1727B  avg fighter 1633B

@@ -18,7 +18,7 @@ import { baseMoney, valueOf } from '../market'
 import { bookable, bookingNeed, opponentBasePool, pickOpponent, tr, weeksSince } from '../systems/aiFights'
 import { behaviour } from '../systems/aiFinance'
 import { broadcastTerms, cardFights, demandFor, eventInterest, fightAppeal, ppvBuysFor, ppvRefPrice, refPrices, soldFromDemand } from './demand'
-import { attachFight, createEventInternal, startSales, venueBookedOn } from './events'
+import { attachFight, createEventInternal, startSales, venuesBookedOn } from './events'
 import { isEventOpen } from './lifecycle'
 
 const E = B.events
@@ -267,8 +267,9 @@ function pickVenue(state: GameState, promo: Promotion, fights: Fight[], day: num
   const n = fights.length
   const capIdx = Math.max(0, Math.min(MAX_TIER[promo.tier], STRATEGY_TIER_CAP[ai.strategy] ?? 3) - b.tierDrop)
   const budget = Math.max(0, promo.cash - committed * 1.3) * (0.1 + 0.08 * ai.risk)
+  const taken = venuesBookedOn(state, day)
   let options = Object.values(state.venues)
-    .filter((v) => !v.legacy && TIER_ORDER.indexOf(v.tier) <= capIdx && v.minFights <= n && v.hireCost <= budget && !venueBookedOn(state, v.id, day))
+    .filter((v) => !v.legacy && TIER_ORDER.indexOf(v.tier) <= capIdx && v.minFights <= n && v.hireCost <= budget && !taken.has(v.id))
   if (ai.strategy === 'regional') { const home = options.filter((v) => v.country === promo.homeCountry); if (home.length) options = home }
   if (options.length === 0) return null
   const want = 0.95 - 0.45 * ai.risk

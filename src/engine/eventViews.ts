@@ -18,6 +18,7 @@ import {
 } from './events/demand'
 import { cardProblems, eventAcceptsFight, isSaturday, playerOpenEvents, venueBookedOn } from './events/events'
 import { EVENT_STATUS_LABEL, isEventOpen } from './events/lifecycle'
+import { eventEconomics, type EventEconomics, type VenueAlt } from './eventEconomics'
 import { viewsOf } from './view'
 import { cardFighterIds, fighterDistanceKm, realDefinition, travelCost } from './business/venues'
 import { nation } from '../data/nations'
@@ -64,6 +65,19 @@ export function suggestedVenue(state: GameState, views: VenueView[] = venueViews
   const home = state.promotions[state.playerPromotionId].homeCountry
   const open = views.filter((v) => !v.locked && v.freeDates.length > 0)
   return open.find((v) => v.country === home) ?? open[0] ?? views.find((v) => !v.locked) ?? views[0]
+}
+
+/**
+ * A few other halls the player could book for this show's date, forecast for the same card (public information). Only the cheapest handful are
+ * priced, so a forecast loss does not cost a forecast of every venue in the world.
+ */
+export function venueAlternatives(state: GameState, ev: BoxingEvent, limit = 8): VenueAlt[] {
+  const tier = state.promotions[state.playerPromotionId].tier
+  return Object.values(state.venues)
+    .filter((v) => !v.legacy && v.id !== ev.venueId && tierAllowsVenue(tier, v) && !venueBookedOn(state, v.id, ev.day, ev.id))
+    .sort((a, b) => hireFor(state, a, ev.promotionId) - hireFor(state, b, ev.promotionId) || (a.id < b.id ? -1 : 1))
+    .slice(0, limit)
+    .map((v) => ({ name: v.name, city: v.city, capacity: v.capacity, hire: hireFor(state, v, ev.promotionId), profit: forecastEvent(state, { ...ev, venueId: v.id, city: v.city, country: v.country }).profit }))
 }
 
 export function venueViews(state: GameState): VenueView[] {
@@ -143,6 +157,8 @@ export interface EventView {
   broadcast: { kind: BroadcastKind; ppvPrice: number; options: { kind: BroadcastKind; label: string; available: boolean; reason: string | null; production: number; guaranteed: number; note: string }[] }
   sponsor: { offers: SponsorOffer[]; accepted: SponsorOffer | null }
   forecast: Forecast | null
+  /** Phase 9: the forecast broken into the lines settlement posts, with break-even and a truthful account of a forecast loss (mine, open shows only). */
+  economics: EventEconomics | null
   sales: SalesView
   finance: { revenue: EventFinance['revenue']; costs: EventFinance['costs']; totalRevenue: number; totalCosts: number; profit: number }
   result: BoxingEvent['result'] | null
@@ -237,6 +253,7 @@ export function eventView(state: GameState, id: Id): EventView | null {
   const interest = eventInterest(state, ev)
   const editable = mine && ['venueBooked', 'cardBuilding', 'onSale', 'promoting'].includes(ev.status)
   const forecast = isEventOpen(ev) ? forecastEvent(state, ev) : null
+  const economics = forecast && mine ? eventEconomics(state, ev, forecast.profit.lo + forecast.profit.hi < 0 && ['venueBooked', 'cardBuilding'].includes(ev.status) ? venueAlternatives(state, ev) : [], forecast) : null
   const problems = isEventOpen(ev) ? cardProblems(state, ev) : []
   const kinds: BroadcastKind[] = ['none', 'localTv', 'nationalTv', 'streaming', 'ppv']
   const options = kinds.map((k) => {
@@ -260,7 +277,7 @@ export function eventView(state: GameState, id: Id): EventView | null {
     id: ev.id, name: ev.name, day: ev.day, weeksAway: Math.max(0, weeksBetween(state.today, ev.day)), status: EVENT_STATUS_LABEL[ev.status], statusKey: ev.status, open: isEventOpen(ev), mine,
     promotion: state.promotions[ev.promotionId]?.name ?? '—', venue: venueView(state, v), card: cardSlots(state, ev), problems,
     quality: { score: Math.round(q.score), label: qualityLabel(q.score), main: Math.round(q.main), coMain: Math.round(q.coMain), depth: Math.round(q.depth), interest: Math.round(interest) },
-    prices: ev.prices, refPrices: forecast?.refPrices ?? ev.prices, marketing: ev.marketing,
+    prices: ev.prices, refPrices: forecast?.refPrices ?? ev.prices, marketing: ev.marketing, economics,
     broadcast: { kind: ev.broadcast.kind, ppvPrice: ev.broadcast.ppvPrice, options }, sponsor: ev.sponsor, forecast, sales: salesView(state, ev),
     finance: { revenue: fin.revenue, costs: fin.costs, totalRevenue: rev, totalCosts: cost, profit: rev - cost },
     result: ev.result ?? null,

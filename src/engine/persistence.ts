@@ -44,6 +44,20 @@ export async function gunzip(data: Uint8Array): Promise<string> {
   return new TextDecoder().decode(await new Response(ds.readable).arrayBuffer())
 }
 
+/** Text-only backends (localStorage, ~5 MB for the whole origin) store compressed saves as "gz64:" + base64; plain JSON from older builds still loads. */
+const GZ64 = 'gz64:'
+export function toBase64(bytes: Uint8Array): string {
+  let bin = ''
+  for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000))
+  return btoa(bin)
+}
+export function fromBase64(text: string): Uint8Array {
+  const bin = atob(text)
+  const out = new Uint8Array(bin.length)
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i)
+  return out
+}
+
 const isGzip = (p: Uint8Array | string): p is Uint8Array => typeof p !== 'string' && p.length > 2 && p[0] === 0x1f && p[1] === 0x8b
 
 // ------------------------------------------------------------------- backends
@@ -152,9 +166,10 @@ export class SaveVault {
     const id = opts.slotId ?? (opts.auto ? `${state.saveId}~auto` : state.saveId)
     const existing = (await this.list()).find((m) => m.id === id)
     const json = serialiseGame(state)
-    // IndexedDB keeps bytes; the text-only fallbacks keep readable JSON.
-    const packed = this.backend.kind === 'indexeddb' ? await gzip(json) : null
-    const payload: Uint8Array | string = packed ?? json
+    // IndexedDB keeps bytes. The text-only fallbacks keep base64 of the same gzip when the browser can compress (an eight-year career is ~4.6 MB of JSON but
+    // ~0.6 MB compressed, and localStorage holds ~5 MB for everything), and plain JSON when it cannot.
+    const packed = this.backend.kind === 'indexeddb' || this.backend.kind === 'localstorage' ? await gzip(json) : null
+    const payload: Uint8Array | string = packed ? (this.backend.kind === 'localstorage' ? GZ64 + toBase64(packed) : packed) : json
     const meta: SlotMeta = {
       id, gameId: state.saveId, name: opts.name ?? existing?.name ?? (opts.auto ? `${p.name} (autosave)` : p.name), promotionName: p.name, today: state.today,
       savedAt: Date.now(), version: state.version, slot: opts.auto ? 'auto' : 'manual', bytes: typeof payload === 'string' ? payload.length : payload.length, compressed: !!packed,
@@ -167,7 +182,7 @@ export class SaveVault {
     try {
       const rec = await this.backend.get(id)
       if (!rec) return null
-      const text = isGzip(rec.payload) ? await gunzip(rec.payload) : typeof rec.payload === 'string' ? rec.payload : new TextDecoder().decode(rec.payload)
+      const text = isGzip(rec.payload) ? await gunzip(rec.payload) : typeof rec.payload === 'string' ? (rec.payload.startsWith(GZ64) ? await gunzip(fromBase64(rec.payload.slice(GZ64.length))) : rec.payload) : new TextDecoder().decode(rec.payload)
       return deserialiseGame(text)
     } catch { return null }
   }

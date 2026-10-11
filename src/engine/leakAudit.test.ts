@@ -69,7 +69,7 @@ describe('static scan of the presentation layer', () => {
         const [, isType, names, mod] = m
         const engine = mod.match(/engine\/(.+)$/)?.[1]
         if (!engine) continue
-        const ok = ['view', 'quotes', 'selectors', 'calendar', 'types', 'save', 'worldgen', 'config', 'tick', 'commands', 'scouting', 'fightViews', 'matchmaking', 'eventViews', 'persistence', 'advisor', 'scenarios', 'onboarding', 'guide', 'glossary', 'preferences', 'sponsors', 'tiers', 'tierProgress', 'eventPoster', 'media/views', 'business/views', 'business/talkViews', 'world/views', 'office/views']
+        const ok = ['view', 'quotes', 'selectors', 'calendar', 'types', 'save', 'worldgen', 'config', 'tick', 'commands', 'scouting', 'fightViews', 'matchmaking', 'eventViews', 'persistence', 'advisor', 'scenarios', 'onboarding', 'guide', 'glossary', 'inboxViews', 'preferences', 'sponsors', 'tiers', 'tierProgress', 'eventPoster', 'media/views', 'business/views', 'business/talkViews', 'world/views', 'office/views']
         if (['knowledge', 'market', 'negotiation', 'roster', 'rng', 'balance', 'ledger', 'systems/aiMarket', 'systems/aiFights', 'systems/world', 'ids', 'messages', 'fights', 'fightNegotiation', 'fight/sim', 'fight/profile', 'fight/injuries', 'fight/styles', 'fight/lifecycle'].includes(engine)) bad.push(`${f.path} imports ${engine}`)
         if (!isType && !ok.includes(engine) && engine !== 'media/commands' && engine !== 'office/commands') {
           const allowed = allowedValues[engine] ?? []

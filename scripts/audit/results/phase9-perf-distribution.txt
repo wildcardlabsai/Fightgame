@@ -1,0 +1,56 @@
+=== BASELINE f9e36e3 run 1
+gate benchmark x6
+  ratio (limit 10):       min 7.15  p25 7.18  median 7.99  p75 8.44  max 8.93
+  reference clone ms:     min 2.76  p25 2.82  median 3.34  p75 3.42  max 5.58
+  tick ms (fresh world):  min 24.60  p25 24.90  median 26.04  p75 26.62  max 29.71
+aged-state benchmark (6y world, 26 ticks from the same state) x5, 3.44 MB JSON, 1276 fights
+  tick ms (aged world):   min 45.38  p25 46.39  median 47.28  p75 47.67  max 49.07
+=== CURRENT run 1
+gate benchmark x6
+  ratio (limit 10):       min 6.61  p25 6.66  median 7.01  p75 7.42  max 9.08
+  reference clone ms:     min 2.64  p25 2.86  median 3.33  p75 3.49  max 4.13
+  tick ms (fresh world):  min 21.67  p25 22.18  median 23.59  p75 23.63  max 24.88
+aged-state benchmark (6y world, 26 ticks from the same state) x5, 3.44 MB JSON, 1276 fights
+  tick ms (aged world):   min 32.31  p25 33.76  median 34.43  p75 35.79  max 36.29
+=== BASELINE f9e36e3 run 2
+gate benchmark x6
+  ratio (limit 10):       min 7.41  p25 7.58  median 7.81  p75 8.18  max 11.00
+  reference clone ms:     min 3.40  p25 3.57  median 3.60  p75 4.37  max 4.69
+  tick ms (fresh world):  min 23.60  p25 24.58  median 27.47  p75 30.01  max 34.08
+aged-state benchmark (6y world, 26 ticks from the same state) x5, 3.44 MB JSON, 1276 fights
+  tick ms (aged world):   min 41.60  p25 45.00  median 48.42  p75 49.91  max 53.67
+=== CURRENT run 2
+gate benchmark x6
+  ratio (limit 10):       min 6.32  p25 6.34  median 6.55  p75 7.24  max 8.67
+  reference clone ms:     min 2.58  p25 2.67  median 3.58  p75 3.61  max 3.65
+  tick ms (fresh world):  min 21.65  p25 21.78  median 22.76  p75 22.96  max 27.61
+aged-state benchmark (6y world, 26 ticks from the same state) x5, 3.44 MB JSON, 1276 fights
+  tick ms (aged world):   min 33.88  p25 34.87  median 35.97  p75 36.05  max 37.19
+=== BASELINE f9e36e3 run 3
+gate benchmark x6
+  ratio (limit 10):       min 6.93  p25 7.28  median 8.35  p75 8.49  max 9.47
+  reference clone ms:     min 3.02  p25 3.42  median 3.55  p75 3.58  max 5.36
+  tick ms (fresh world):  min 22.89  p25 24.28  median 25.75  p75 27.58  max 32.24
+aged-state benchmark (6y world, 26 ticks from the same state) x5, 3.44 MB JSON, 1276 fights
+  tick ms (aged world):   min 48.86  p25 49.12  median 49.22  p75 52.29  max 54.27
+=== CURRENT run 3
+gate benchmark x6
+  ratio (limit 10):       min 6.23  p25 6.60  median 7.43  p75 7.66  max 9.55
+  reference clone ms:     min 3.29  p25 3.48  median 3.56  p75 4.01  max 5.45
+  tick ms (fresh world):  min 21.61  p25 22.09  median 23.02  p75 23.30  max 28.68
+aged-state benchmark (6y world, 26 ticks from the same state) x5, 3.44 MB JSON, 1276 fights
+  tick ms (aged world):   min 27.04  p25 29.94  median 30.17  p75 31.63  max 36.57
+=== BASELINE f9e36e3 run 4
+gate benchmark x6
+  ratio (limit 10):       min 7.40  p25 7.43  median 8.28  p75 8.34  max 8.49
+  reference clone ms:     min 3.37  p25 3.55  median 3.63  p75 5.25  max 6.15
+  tick ms (fresh world):  min 24.57  p25 26.72  median 27.35  p75 28.23  max 30.82
+aged-state benchmark (6y world, 26 ticks from the same state) x5, 3.44 MB JSON, 1276 fights
+  tick ms (aged world):   min 41.85  p25 47.14  median 48.22  p75 50.08  max 50.28
+=== CURRENT run 4
+gate benchmark x6
+  ratio (limit 10):       min 6.58  p25 6.60  median 6.68  p75 7.30  max 8.22
+  reference clone ms:     min 2.85  p25 3.73  median 4.45  p75 4.51  max 4.53
+  tick ms (fresh world):  min 21.26  p25 22.39  median 23.46  p75 23.86  max 27.86
+aged-state benchmark (6y world, 26 ticks from the same state) x5, 3.44 MB JSON, 1276 fights
+  tick ms (aged world):   min 30.74  p25 34.51  median 35.99  p75 36.46  max 36.91

@@ -22,9 +22,9 @@ function Toasts() {
   const notices = useGame((s) => s.notices)
   const dismiss = useGame((s) => s.dismissNotice)
   return (
-    <div className="toasts" aria-live="polite">
+    <div className="toasts" role="status" aria-live="polite" aria-atomic="false">
       {notices.map((n) => (
-        <button key={n.id} data-sfx="none" className={`toast ${n.tone}`} onClick={() => dismiss(n.id)}>{n.text}</button>
+        <button key={n.id} type="button" data-sfx="none" data-testid="toast" className={`toast ${n.tone}`} onClick={() => dismiss(n.id)} aria-label={`${n.text} Dismiss`}>{n.text}</button>
       ))}
     </div>
   )

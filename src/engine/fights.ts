@@ -583,7 +583,7 @@ export function pruneFights(state: GameState): void {
   for (const [id, fight] of Object.entries(state.fights)) {
     if (fight.status === 'cancelled' && state.today - fight.createdDay > 120) delete state.fights[id]
     else if (!isOpen(fight) && fight.day > 0 && fight.day < cutoff && !recent.has(id) && !fightInvolvesPlayer(state, fight)) delete state.fights[id]
-    else if (fight.day > 0 && fight.day < state.today - 365 && !fightInvolvesPlayer(state, fight) && fight.result?.rounds) fight.result.rounds = undefined
+    else if (fight.day > 0 && fight.day < state.today - 365 && !fightInvolvesPlayer(state, fight) && fight.result?.rounds) state.fights[id] = { ...fight, result: { ...fight.result, rounds: undefined } } // replaced, not edited: settled fights are shared between states (see clone.ts)
   }
 }
 

@@ -44,6 +44,13 @@ export function venueBookedOn(state: GameState, venueId: Id, day: number, except
   return Object.values(state.events).some((e) => e.id !== exceptEvent && e.venueId === venueId && e.day === day && e.status !== 'cancelled')
 }
 
+/** Every venue that has a (non-cancelled) show on `day`, found in one pass over the events: the planner asks about ~100 venues, so asking each one separately re-reads the whole event history every time. */
+export function venuesBookedOn(state: GameState, day: number, exceptEvent?: Id): Set<Id> {
+  const out = new Set<Id>()
+  for (const e of Object.values(state.events)) if (e.day === day && e.status !== 'cancelled' && e.id !== exceptEvent) out.add(e.venueId)
+  return out
+}
+
 export function defaultPrices(): TicketPrices { return { ga: 25, premium: 60, vip: 150 } }
 
 function blankSales() { return { sold: [0, 0, 0] as [number, number, number], weeksOnSale: 0, awareness: 0, momentum: 1, history: [] as number[] } }
@@ -672,7 +679,7 @@ export function pruneEvents(state: GameState): void {
     const age = state.today - ev.day
     if (ev.status === 'cancelled' && age > 365 && !mine) delete state.events[id]
     else if (!mine && ev.status === 'archived' && age > 5 * 365) delete state.events[id]
-    else if (!mine && ev.status === 'archived' && age > 2 * 365 && ev.card.length > 1) ev.card = ev.card.slice(-1)
+    else if (!mine && ev.status === 'archived' && age > 2 * 365 && ev.card.length > 1) state.events[id] = { ...ev, card: ev.card.slice(-1) } // replaced, not edited: archived events are shared between states (see clone.ts)
   }
   const cancelled = Object.values(state.events).filter((e) => e.status === 'cancelled' && e.promotionId === state.playerPromotionId)
   if (cancelled.length > E.maxCancelledKept) for (const e of cancelled.sort((a, b) => a.day - b.day).slice(0, cancelled.length - E.maxCancelledKept)) delete state.events[e.id]

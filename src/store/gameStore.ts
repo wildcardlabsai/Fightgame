@@ -38,6 +38,9 @@ export function routeToHash(r: Route): string {
 export interface Notice {
   id: number
   text: string
+  /** Notices that count something (new messages) share a key and add up instead of stacking. */
+  key?: string
+  count?: number
   tone: 'good' | 'bad' | 'neutral'
 }
 
@@ -271,7 +274,13 @@ export const useGame = create<GameStore>((set, get) => {
       } else if (result.interrupted) {
         get().notify(`Stopped after ${result.weeksAdvanced} week${result.weeksAdvanced === 1 ? '' : 's'} — something urgent needs you.`, 'bad')
       } else if (newMail > 0) {
-        get().notify(`${newMail} new message${newMail === 1 ? '' : 's'}.`, 'neutral')
+        // Several quick weeks add up to one running count rather than a stack of toasts.
+        const prev = get().notices.find((n) => n.key === 'mail')
+        const total = (prev?.count ?? 0) + newMail
+        const id = ++noticeSeq
+        const text = `${total} new message${total === 1 ? '' : 's'}.`
+        set((s) => ({ notices: [...s.notices.filter((n) => n.key !== 'mail'), { id, text, tone: 'neutral' as const, key: 'mail', count: total }].slice(-2) }))
+        setTimeout(() => get().dismissNotice(id), 4000)
       }
     },
 
@@ -547,8 +556,14 @@ export const useGame = create<GameStore>((set, get) => {
     notify: (text, tone = 'neutral', sound = true) => {
       if (sound) emitGameEvent({ type: 'notice', tone })
       const id = ++noticeSeq
-      set((s) => ({ notices: [...s.notices.filter((n) => n.text !== text).slice(-2), { id, text, tone }] }))
-      setTimeout(() => get().dismissNotice(id), 4500)
+      // At most two on screen; a warning stays longer than a note, and a note never pushes a warning off the screen.
+      set((s) => {
+        const kept = s.notices.filter((n) => n.text !== text)
+        const warnings = kept.filter((n) => n.tone === 'bad'), rest = kept.filter((n) => n.tone !== 'bad')
+        const next = tone === 'bad' ? [...rest.slice(-1), ...warnings.slice(-1), { id, text, tone }] : warnings.length ? [warnings[warnings.length - 1], { id, text, tone }] : [...rest.slice(-1), { id, text, tone }]
+        return { notices: next.slice(-2) }
+      })
+      setTimeout(() => get().dismissNotice(id), tone === 'bad' ? 7000 : 4000)
     },
     dismissNotice: (id) => set((s) => ({ notices: s.notices.filter((n) => n.id !== id) })),
   }

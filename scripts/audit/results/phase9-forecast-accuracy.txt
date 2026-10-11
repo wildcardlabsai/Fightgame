@@ -1,0 +1,15 @@
+events 215 profit in range 186 (86.5%) attendance in range 161 (74.9%)
+forecasts that called the SIGN of the result (whole range loss or whole range profit): 154 of which the actual result had that sign: 153
+mean absolute error of the midpoint profit: £54627
+regional 1 att 2068 4500 act 3293 | profit 3848 232542 act 124739 | cap 4500 BE 1665
+regional 1 att 2055 4500 act 2469 | profit -105866 133391 act -49352 | cap 4500 BE 3164
+regional 1 att 2070 4500 act 2586 | profit 30345 323163 act 111692 | cap 4500 BE 1407
+regional 1 att 2399 4500 act 2969 | profit -73812 230720 act 39943 | cap 4500 BE 2834
+regional 1 att 1193 2200 act 1455 | profit 13952 123871 act 54024 | cap 2200 BE 884
+regional 1 att 2279 4500 act 1967 | profit 16387 297810 act 28491 | cap 4500 BE 1795
+regional 1 att 619 1368 act 1008 | profit -8450 85810 act 43416 | cap 1400 BE 611
+regional 1 att 1067 1400 act 1400 | profit 25652 81421 act 76773 | cap 1400 BE 770
+regional 1 att 2052 4283 act 732 | profit 46087 311750 act -9144 | cap 4500 BE 1252
+regional 1 att 2204 4472 act 2980 | profit -8346 264708 act 105888 | cap 4500 BE 1993
+regional 1 att 686 1200 act 1099 | profit -32898 61167 act 37459 | cap 1200 BE 865
+regional 1 att 839 1400 act 1243 | profit 30427 138785 act 104374 | cap 1400 BE 534
