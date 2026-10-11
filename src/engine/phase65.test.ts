@@ -160,3 +160,16 @@ describe('vacant belts', () => {
     expect(onCard, `the pair is on the card (${onCard} of ${tried})`).toBeGreaterThanOrEqual(Math.ceil(tried * 0.6))
   })
 })
+
+describe('media pass memory', () => {
+  it('every fight inside the media pass\'s 28-day reading window has been read exactly once: none can be read a second time', () => {
+    let s = mk('p65-media')
+    for (let w = 1; w <= 120; w++) {
+      s = advanceOneWeek(s)
+      if (w < 30 || w % 2) continue
+      const window = Object.values(s.fights).filter((f) => f.result && f.processedDay !== undefined && s.today - f.processedDay <= 28)
+      const unseen = window.filter((f) => !s.media!.seenFights.includes(f.id))
+      expect(unseen.map((f) => `${f.id}@${s.today - f.processedDay!}d`), `week ${w}: fights in the window the pass would read again`).toEqual([])
+    }
+  }, 120_000)
+})

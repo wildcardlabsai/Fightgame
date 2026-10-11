@@ -418,7 +418,7 @@ describe('cost', () => {
     expect(s.media!.stories.length).toBeLessThanOrEqual(80)
     expect(s.media!.videos.length).toBeLessThanOrEqual(60)
     expect(s.media!.requests.length).toBeLessThanOrEqual(30)
-    expect(s.media!.seenFights.length).toBeLessThanOrEqual(90)
+    expect(s.media!.seenFights.length).toBeLessThanOrEqual(LIMITS.seenFights)
   }, 120_000)
   it('processing is idempotent within a week', () => {
     const s = clone(world2y())

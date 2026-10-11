@@ -1,0 +1,96 @@
+== before seed 1
+  y8: shows done median 0 [0..0], planned 0, cancelled 0; profit/show median 0k; fights per fighter 0.0; roster 0; overh
+  solvent at end 0/1
+== before seed 2
+  y8: shows done median 13 [13..13], planned 13, cancelled 0; profit/show median 412k; fights per fighter 5.4; roster 9;
+  solvent at end 1/1
+== before seed 3
+  y8: shows done median 13 [13..13], planned 12, cancelled 0; profit/show median 312k; fights per fighter 5.0; roster 9;
+  solvent at end 1/1
+== before seed 4
+  y8: shows done median 10 [10..10], planned 10, cancelled 0; profit/show median 252k; fights per fighter 4.2; roster 9;
+  solvent at end 1/1
+== before seed 5
+  y8: shows done median 13 [13..13], planned 12, cancelled 0; profit/show median 201k; fights per fighter 5.1; roster 9;
+  solvent at end 1/1
+== before seed 6
+  y8: shows done median 12 [12..12], planned 11, cancelled 0; profit/show median 43k; fights per fighter 5.1; roster 8; 
+  solvent at end 1/1
+== before seed 7
+  y8: shows done median 12 [12..12], planned 11, cancelled 0; profit/show median 280k; fights per fighter 5.2; roster 9;
+  solvent at end 1/1
+== before seed 8
+  y8: shows done median 12 [12..12], planned 13, cancelled 0; profit/show median 267k; fights per fighter 5.0; roster 9;
+  solvent at end 1/1
+== before seed 9
+  y8: shows done median 12 [12..12], planned 15, cancelled 0; profit/show median 100k; fights per fighter 5.2; roster 9;
+  solvent at end 1/1
+== before seed 10
+  y8: shows done median 13 [13..13], planned 12, cancelled 0; profit/show median 185k; fights per fighter 5.6; roster 9;
+  solvent at end 1/1
+== before seed 11
+  y8: shows done median 11 [11..11], planned 10, cancelled 0; profit/show median 277k; fights per fighter 4.6; roster 9;
+  solvent at end 1/1
+== before seed 12
+  y8: shows done median 0 [0..0], planned 0, cancelled 0; profit/show median 0k; fights per fighter 0.0; roster 0; overh
+  solvent at end 0/1
+== before seed 13
+  y8: shows done median 10 [10..10], planned 13, cancelled 0; profit/show median 175k; fights per fighter 4.0; roster 9;
+  solvent at end 1/1
+== before seed 14
+  y8: shows done median 0 [0..0], planned 0, cancelled 0; profit/show median 0k; fights per fighter 0.0; roster 0; overh
+  solvent at end 0/1
+== before seed 15
+  y8: shows done median 12 [12..12], planned 14, cancelled 0; profit/show median 150k; fights per fighter 4.8; roster 9;
+  solvent at end 1/1
+== before seed 16
+  y8: shows done median 13 [13..13], planned 13, cancelled 0; profit/show median 137k; fights per fighter 5.2; roster 9;
+  solvent at end 1/1
+== after seed 1
+  y8: shows done median 13 [13..13], planned 13, cancelled 0; profit/show median -7k; fights per fighter 5.3; roster 9; 
+  solvent at end 1/1
+== after seed 2
+  y8: shows done median 0 [0..0], planned 0, cancelled 0; profit/show median 0k; fights per fighter 0.0; roster 0; overh
+  solvent at end 0/1
+== after seed 3
+  y8: shows done median 14 [14..14], planned 15, cancelled 0; profit/show median 317k; fights per fighter 6.0; roster 9;
+  solvent at end 1/1
+== after seed 4
+  y8: shows done median 13 [13..13], planned 11, cancelled 0; profit/show median 41k; fights per fighter 5.7; roster 9; 
+  solvent at end 1/1
+== after seed 5
+  y8: shows done median 14 [14..14], planned 14, cancelled 0; profit/show median 218k; fights per fighter 5.7; roster 9;
+  solvent at end 1/1
+== after seed 6
+  y8: shows done median 13 [13..13], planned 16, cancelled 0; profit/show median 107k; fights per fighter 4.9; roster 9;
+  solvent at end 1/1
+== after seed 7
+  y8: shows done median 11 [11..11], planned 10, cancelled 0; profit/show median 162k; fights per fighter 4.6; roster 9;
+  solvent at end 1/1
+== after seed 8
+  y8: shows done median 14 [14..14], planned 14, cancelled 0; profit/show median 280k; fights per fighter 6.2; roster 9;
+  solvent at end 1/1
+== after seed 9
+  y8: shows done median 13 [13..13], planned 14, cancelled 0; profit/show median 84k; fights per fighter 5.3; roster 9; 
+  solvent at end 1/1
+== after seed 10
+  y8: shows done median 14 [14..14], planned 16, cancelled 0; profit/show median 351k; fights per fighter 6.0; roster 9;
+  solvent at end 1/1
+== after seed 11
+  y8: shows done median 11 [11..11], planned 10, cancelled 0; profit/show median 266k; fights per fighter 4.9; roster 9;
+  solvent at end 1/1
+== after seed 12
+  y8: shows done median 12 [12..12], planned 12, cancelled 0; profit/show median 156k; fights per fighter 5.0; roster 9;
+  solvent at end 1/1
+== after seed 13
+  y8: shows done median 13 [13..13], planned 12, cancelled 0; profit/show median 161k; fights per fighter 5.1; roster 9;
+  solvent at end 1/1
+== after seed 14
+  y8: shows done median 12 [12..12], planned 12, cancelled 0; profit/show median 288k; fights per fighter 4.7; roster 9;
+  solvent at end 1/1
+== after seed 15
+  y8: shows done median 15 [15..15], planned 14, cancelled 0; profit/show median 330k; fights per fighter 6.1; roster 9;
+  solvent at end 1/1
+== after seed 16
+  y8: shows done median 0 [0..0], planned 0, cancelled 0; profit/show median 0k; fights per fighter 0.0; roster 0; overh
+  solvent at end 0/1

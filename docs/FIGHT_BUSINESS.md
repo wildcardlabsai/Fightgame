@@ -747,3 +747,9 @@ wins/opposition by career stage, mandatory orders, eliminators and title fights.
 4. `opponentBasePool` (a pure optimisation): the set of possible opponents is built once per card, not once per bout; results are bit-identical (checked by hash) and it pays for the extra bouts' cost, keeping the weekly tick at 8.2-8.8x.
 
 Nothing about eligibility floors, ratings, fight results, finances or the player's own bookings changed.
+
+### Phase 6.5 — final validation (on the committed code)
+
+- Media memory fix: `LIMITS.seenFights` 90 → 240 (fights settled exactly at the 28-day media window edge were being re-ingested because award marks share the list). Regression test in `phase65.test.ts`; `phase5.test.ts` bound now reads the constant.
+- Final audits (8 years, 6 seeds): tune `act1..6` — world vacancy 19%, credible world contenders 3.4/division, title fights 20.9/seed-year, eliminator fights 1.6/yr; held-out `act111..` — world vacancy 21%, contenders 3.2, eliminator fights 0.9/yr. Integrity audit (3 seeds × 5y × bot/passive): ALL CLEAN. Results: `scripts/audit/results/phase65-final-*.txt`.
+- Unit suite 736 passed / 5 skipped / 0 failed (741); tsc clean; build OK; perf test passed 3/3; all browser suites pass.

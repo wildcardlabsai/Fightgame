@@ -30,7 +30,9 @@ function withRecord(base: GameState, id: string, wins: number, fights: number): 
 describe('the floors are the same wherever they are applied', () => {
   const base = world()
   // a welterweight with no title, so the champion exemption does not get in the way
-  const pick = Object.values(base.fighters).find((f) => f.status === 'active' && f.weightClass === 'lightweight' && !Object.values(base.media!.titles).some((r) => r.c === f.id))!
+  // (the best-known untitled fighter of a division whose world lists are running: the cases below are about the floor, and a rating also needs the standing and a live list to match)
+  const liveDivision = (['lightweight', 'welterweight', 'middleweight', 'superMiddleweight', 'featherweight', 'superLightweight', 'cruiserweight'] as const).find((w) => (getList(base.media!, 'atlas', w)?.e.length ?? 0) >= 6) ?? 'lightweight'
+  const pick = Object.values(base.fighters).filter((f) => f.status === 'active' && f.weightClass === liveDivision && !Object.values(base.media!.titles).some((r) => r.c === f.id)).sort((a, b) => b.reputation - a.reputation || (a.id < b.id ? -1 : 1))[0]
 
   for (const body of BODIES) {
     const d = TITLE_DEF_BY_ID[body]
