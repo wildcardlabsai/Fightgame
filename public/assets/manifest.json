@@ -439,5 +439,13 @@
    "status": "fallback",
    "ids": []
   }
+ },
+ "portraitPool": {
+  "dir": "portraits",
+  "file": "p{n}.svg",
+  "pad": 4,
+  "count": 360,
+  "generator": "procedural-svg-v1",
+  "kind": "procedural-illustration"
  }
 }

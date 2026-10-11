@@ -62,6 +62,11 @@ const AI_PROMOTIONS: AiPromotionSeed[] = [
   { name: 'Northern Lights Boxing', promoter: 'Moira Gilchrist', country: 'SCO', tier: 'Regional', rosterSize: 14, quality: 0.34, cash: 1_600_000, reputation: 28, fanbase: 60_000, color: '#f2f2f2', emblem: 'bolt' , strategy: 'prospectFactory' },
 ]
 
+/** Open-market free agents at the start of a career . */
+const FREE_AGENTS = 170
+/** Extra open-market depth (benchmarked in docs/FIGHTER_IDENTITY.md). Drawn from its own stream, after everything else, so the original world and every attribute in it are unchanged. */
+const EXTRA_FREE_AGENTS = 130
+
 export function createNewGame(opts: NewGameOptions, now = Date.now()): GameState {
   const sc = scenarioById(opts.scenario)
   if (sc) opts = { ...opts, difficulty: sc.difficulty }
@@ -97,6 +102,7 @@ export function createNewGame(opts: NewGameOptions, now = Date.now()): GameState
     stats: emptyStats(today), accounting: null,
   }
 
+  const takenNames = new Set<string>()
   // AI promotions with their rosters
   const aiIds: Id[] = []
   for (const seed of AI_PROMOTIONS) {
@@ -115,7 +121,7 @@ export function createNewGame(opts: NewGameOptions, now = Date.now()): GameState
     }
     for (let i = 0; i < seed.rosterSize; i++) {
       const quality = rng.clampedNormal(seed.quality, 0.14, 0.08, 0.98)
-      const f = generateFighter(rng, ids, { quality, today, nationality: biasedNation(rng, seed.country) })
+      const f = generateFighter(rng, ids, { widePools: true, takenNames, quality, today, nationality: biasedNation(rng, seed.country) })
       fighters[f.id] = f
       const c = signContract(rng, ids, f, id, today)
       contracts[c.id] = c
@@ -130,7 +136,7 @@ export function createNewGame(opts: NewGameOptions, now = Date.now()): GameState
   if (sc) {
     for (const g of sc.roster) {
       for (let i = 0; i < g.count; i++) {
-        const f = generateFighter(rng, ids, { quality: rng.float(g.quality[0], g.quality[1]), today, nationality: biasedNation(rng, opts.homeCountry, 0.85), ageMin: g.ageMin, ageMax: g.ageMax })
+        const f = generateFighter(rng, ids, { widePools: true, takenNames, quality: rng.float(g.quality[0], g.quality[1]), today, nationality: biasedNation(rng, opts.homeCountry, 0.85), ageMin: g.ageMin, ageMax: g.ageMax })
         fighters[f.id] = f
         const c = signContract(rng, ids, f, playerId, today, g.contractDiscount ?? 1)
         c.startDay = today
@@ -149,6 +155,7 @@ export function createNewGame(opts: NewGameOptions, now = Date.now()): GameState
     playerQualities.forEach((q, i) => {
       const nationality = biasedNation(rng, opts.homeCountry, 0.85)
       const f = generateFighter(rng, ids, {
+        widePools: true, takenNames,
         quality: q, today, nationality,
         ageMin: i === 3 ? 19 : 21, ageMax: i === 3 ? 21 : 30,
       })
@@ -168,9 +175,9 @@ export function createNewGame(opts: NewGameOptions, now = Date.now()): GameState
   }
 
   // Free-agent pool: the open market the player will scout from (Phase 2).
-  for (let i = 0; i < 170; i++) {
+  for (let i = 0; i < FREE_AGENTS; i++) {
     const quality = rng.clampedNormal(0.3, 0.15, 0.05, 0.95)
-    const f = generateFighter(rng, ids, { quality, today })
+    const f = generateFighter(rng, ids, { widePools: true, takenNames, quality, today })
     fighters[f.id] = f
     const fights = f.record.wins + f.record.losses + f.record.draws
     if (fights === 0) pushHistory(f, { day: today - rng.int(7, 120), kind: 'turnedPro', promotionId: null })
@@ -183,11 +190,25 @@ export function createNewGame(opts: NewGameOptions, now = Date.now()): GameState
   // A handful of established names on the market: ageing former contenders and a few hot properties.
   for (let i = 0; i < 8; i++) {
     const old = i < 5
-    const f = generateFighter(rng, ids, { quality: rng.float(0.62, 0.85), today, ageMin: old ? 33 : 24, ageMax: old ? 37 : 29 })
+    const f = generateFighter(rng, ids, { widePools: true, takenNames, quality: rng.float(0.62, 0.85), today, ageMin: old ? 33 : 24, ageMax: old ? 37 : 29 })
     fighters[f.id] = f
     const day = today - rng.int(2, 60)
     pushHistory(f, { day, kind: 'expired', promotionId: rng.pick(aiIds) })
     f.availableSince = day
+  }
+  // Market depth: more unsigned fighters to scout, from a separate stream so nothing above is perturbed.
+  const depth = Rng.fromSeed(`${opts.seed}:market-depth`)
+  for (let i = 0; i < EXTRA_FREE_AGENTS; i++) {
+    const quality = depth.clampedNormal(0.3, 0.15, 0.05, 0.95)
+    const f = generateFighter(depth, ids, { widePools: true, takenNames, quality, today })
+    fighters[f.id] = f
+    const fights = f.record.wins + f.record.losses + f.record.draws
+    if (fights === 0) pushHistory(f, { day: today - depth.int(7, 120), kind: 'turnedPro', promotionId: null })
+    else if (depth.chance(0.45)) {
+      const day = today - depth.int(3, 180)
+      pushHistory(f, { day, kind: depth.chance(0.6) ? 'expired' : 'released', promotionId: depth.pick(aiIds) })
+      f.availableSince = day
+    }
   }
 
   const cash = promotions[playerId].cash
@@ -198,6 +219,7 @@ export function createNewGame(opts: NewGameOptions, now = Date.now()): GameState
     seed: opts.seed,
     rngState: rng.state,
     idCounter: ids.counter,
+    widePools: true,
     startDay: today,
     today,
     playerPromotionId: playerId,

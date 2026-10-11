@@ -62,6 +62,7 @@ export function talentIntake(state: GameState, rng: Rng, ids: IdSource): void {
   let n = Math.floor(lambda) + (rng.chance(lambda - Math.floor(lambda)) ? 1 : 0)
   n = Math.min(n, PIPELINE.yearlyCap - w.intake.admitted)
   if (n <= 0) return
+  const takenNames = state.widePools ? new Set(Object.values(state.fighters).map((x) => `${x.firstName} ${x.lastName}`)) : undefined
   const promoHomes = Object.values(state.promotions).map((p) => p.homeCountry)
   for (let i = 0; i < n; i++) {
     // Division: weighted by shortfall (a floor keeps every class reachable, a crowded one barely).
@@ -73,7 +74,7 @@ export function talentIntake(state: GameState, rng: Rng, ids: IdSource): void {
     const base = rng.chance(PIPELINE.gifted) ? rng.clampedNormal(0.62, 0.13, 0.35, 0.97) : rng.clampedNormal(0.3, 0.16, 0.05, 0.9)
     const f = generateFighter(rng, ids, {
       quality: origin === 'overseas' ? clamp(base + 0.06, 0.05, 0.97) : base,
-      today: state.today, weightClass: wc,
+      today: state.today, weightClass: wc, widePools: state.widePools, takenNames,
       ageMin: origin === 'amateur' ? 18 : origin === 'late' ? 22 : 23, ageMax: origin === 'amateur' ? 21 : origin === 'late' ? 24 : 27,
       ...(rng.chance(PIPELINE.local) ? { nationality: rng.pick(promoHomes) } : {}),
     })

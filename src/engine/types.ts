@@ -771,6 +771,8 @@ export interface GameState {
   rngState: number
   /** Monotonic counter for deterministic id generation. */
   idCounter: number
+  /** Set on careers created with the wide name pools; absent on older saves (their newcomers keep drawing from the legacy pools). */
+  widePools?: boolean
 
   startDay: Day
   today: Day

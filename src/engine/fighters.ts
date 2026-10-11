@@ -1,4 +1,5 @@
 import { NATIONS, NICKNAMES, nation } from '../data/nations'
+import { drawName, nameKey } from '../data/namePools'
 import { WEIGHT_CLASSES, weightClass } from '../data/weightClasses'
 import { ageOn } from './calendar'
 import type { IdSource } from './ids'
@@ -110,6 +111,10 @@ export interface FighterGenOptions {
   ageMax?: number
   nationality?: string
   today: Day
+  /** New careers draw names from the wide heritage pools (`data/namePools.ts`); absent = the legacy pools, so older saves keep generating as before. */
+  widePools?: boolean
+  /** Full names already in the world ("First Last"); a wide-pool draw avoids them. Updated with the new name. */
+  takenNames?: Set<string>
 }
 
 export function generateFighter(rng: Rng, ids: IdSource, o: FighterGenOptions): Fighter {
@@ -159,8 +164,16 @@ export function generateFighter(rng: Rng, ids: IdSource, o: FighterGenOptions): 
   const heightCm = Math.round(rng.normal(wc.heightMean, wc.heightSd))
   const reachCm = Math.round(heightCm + rng.normal(3, 4))
   const hometown = rng.pick(nat.towns)
-  const firstName = rng.pick(nat.firstNames)
-  const lastName = rng.pick(nat.lastNames)
+  // Two draws either way, so the rest of the stream (and every attribute) is identical whichever pool is used.
+  const u1 = rng.next(), u2 = rng.next()
+  let firstName: string, lastName: string
+  if (o.widePools) {
+    ;({ firstName, lastName } = drawName(nat.key, u1, u2, o.takenNames))
+    o.takenNames?.add(nameKey(firstName, lastName))
+  } else {
+    firstName = nat.firstNames[Math.floor(u1 * nat.firstNames.length)]
+    lastName = nat.lastNames[Math.floor(u2 * nat.lastNames.length)]
+  }
   const nickname = rng.chance(0.35) ? rng.pick(NICKNAMES) : null
 
   const popularity = clamp(Math.round(5 + o.quality * 55 + (attrs.marketability - 50) * 0.3 + Math.min(fights, 30) * 0.3 + rng.normal(0, 5)), 1, 99)

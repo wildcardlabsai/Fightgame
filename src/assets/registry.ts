@@ -10,7 +10,8 @@ export type AssetState = 'real' | 'fallback'
 
 export interface ManifestEntry { id: string; type: string; entityId: string; path: string; width: number; height: number; format: string; status: string }
 interface ClassDef { dir: string; file: string; width: number; height: number; format: string; status: string; ids: string[] }
-interface Manifest { version: number; shipped: ManifestEntry[]; artWorld: { seed: string | null }; classes: Record<string, ClassDef> }
+export interface PortraitPool { dir: string; file: string; pad: number; count: number; generator: string; kind: string }
+interface Manifest { version: number; shipped: ManifestEntry[]; artWorld: { seed: string | null }; classes: Record<string, ClassDef>; portraitPool?: PortraitPool }
 export const MANIFEST = manifestJson as unknown as Manifest
 
 /** Where static assets are served from. Not bundled into JS: they are plain files under /assets. */
@@ -34,6 +35,8 @@ export interface ResolvedAsset {
   height: number
   /** Key the fallback renderer uses (venue kind, template id, news kind…). */
   fallbackKey: string
+  /** Fighter portraits only: where a real image came from (world-bound generated art, or the shared illustrated pool). */
+  source?: 'world' | 'pool'
 }
 
 const byEntity = new Map<string, ManifestEntry>()
@@ -79,14 +82,44 @@ export function registerFighterArt(variant: FighterVariant, ids: string[]): void
 export function clearFighterArt(): void { for (const v of ['profile', 'action', 'celebration']) idsOf(`fighter.${v}`).clear(); thumbIds.clear() }
 export function registerFighterThumbs(ids: string[]): void { for (const i of ids) thumbIds.add(i) }
 
+/** The shared illustrated portrait pool (public/assets/portraits, built offline by scripts/assets/portraits.ts). */
+export const portraitPool = (): PortraitPool | null => (MANIFEST.portraitPool && MANIFEST.portraitPool.count > 0 ? MANIFEST.portraitPool : null)
+/** Pure 32-bit string hash (FNV-1a with a final avalanche). */
+export function hashString(t: string): number {
+  let h = 0x811c9dc5
+  for (let i = 0; i < t.length; i++) { h ^= t.charCodeAt(i); h = Math.imul(h, 0x01000193) }
+  h ^= h >>> 16; h = Math.imul(h, 0x85ebca6b); h ^= h >>> 13; h = Math.imul(h, 0xc2b2ae35); h ^= h >>> 16
+  return h >>> 0
+}
+/**
+ * The pool slot for a fighter. A pure function of the world seed and the persistent fighter id — nothing that changes over a career
+ * (age, division, form, contract, rank) — so the same fighter shows the same face on every screen, after every reload and week.
+ * Ids are only unique inside one world, so the seed is part of the key.
+ */
+export function portraitSlot(fighterId: string, worldSeed: string | null = activeWorld, count: number = portraitPool()?.count ?? 0): number | null {
+  if (count <= 0) return null
+  return hashString(`${worldSeed ?? ''}|${fighterId}`) % count
+}
+export function portraitUrl(slot: number): string {
+  const p = MANIFEST.portraitPool as PortraitPool
+  return assetUrl(`${p.dir}/${p.file.replace('{n}', String(slot).padStart(p.pad, '0'))}`)
+}
+
 export function resolveFighterImage(f: FighterRef, variant: FighterVariant = 'profile'): ResolvedAsset {
   const cls = MANIFEST.classes[`fighter.${variant}`]
   const kind = `fighter.${variant}` as AssetKind
   const fallbackKey = fighterFallback(f).key
-  if (!worldMatches() || !idsOf(`fighter.${variant}`).has(f.id)) return { assetId: `fighter.${variant}.${f.id}`, kind, entityId: f.id, state: 'fallback', url: null, thumbUrl: null, width: cls.width, height: cls.height, fallbackKey }
-  const url = classUrl(`fighter.${variant}`, f.id)
-  const thumbUrl = variant === 'profile' && thumbIds.has(f.id) ? classUrl('fighter.profile', f.id, '_thumb') : url
-  return { assetId: `fighter.${variant}.${f.id}`, kind, entityId: f.id, state: 'real', url, thumbUrl, width: cls.width, height: cls.height, fallbackKey }
+  if (worldMatches() && idsOf(`fighter.${variant}`).has(f.id)) {
+    const url = classUrl(`fighter.${variant}`, f.id)
+    const thumbUrl = variant === 'profile' && thumbIds.has(f.id) ? classUrl('fighter.profile', f.id, '_thumb') : url
+    return { assetId: `fighter.${variant}.${f.id}`, kind, entityId: f.id, state: 'real', url, thumbUrl, width: cls.width, height: cls.height, fallbackKey, source: 'world' }
+  }
+  const slot = variant === 'profile' ? portraitSlot(f.id) : null
+  if (slot !== null) {
+    const url = portraitUrl(slot)
+    return { assetId: `portrait.${String(slot).padStart(4, '0')}`, kind, entityId: f.id, state: 'real', url, thumbUrl: url, width: 400, height: 500, fallbackKey, source: 'pool' }
+  }
+  return { assetId: `fighter.${variant}.${f.id}`, kind, entityId: f.id, state: 'fallback', url: null, thumbUrl: null, width: cls.width, height: cls.height, fallbackKey }
 }
 
 const DIVISION_HUE: [RegExp, number][] = [
