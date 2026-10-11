@@ -4,7 +4,7 @@ import { readFileSync, writeFileSync } from 'node:fs'
 const require = createRequire(import.meta.url)
 let chromium
 try { ({ chromium } = require('playwright')) } catch { ({ chromium } = require('/opt/node-tools/node_modules/playwright')) }
-const dir = 'docs/ux-review'
+const dir = process.argv[2] ?? 'docs/ux-review'
 const { shots, notes } = JSON.parse(readFileSync(`${dir}/manifest.json`, 'utf8'))
 const browser = await chromium.launch()
 async function sheet(list, file, title, cols) {

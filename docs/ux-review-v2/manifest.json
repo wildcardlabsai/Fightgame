@@ -1,0 +1,287 @@
+{
+ "shots": [
+  {
+   "w": 1280,
+   "h": 800,
+   "name": "01-overview",
+   "title": "Overview",
+   "file": "docs/ux-review-v2/1280x800/01-overview.png",
+   "docH": 3021,
+   "vh": 800,
+   "overflowX": false,
+   "sidebar": true
+  },
+  {
+   "w": 1280,
+   "h": 800,
+   "name": "02-roster",
+   "title": "Roster",
+   "file": "docs/ux-review-v2/1280x800/02-roster.png",
+   "docH": 1267,
+   "vh": 800,
+   "overflowX": false,
+   "sidebar": true
+  },
+  {
+   "w": 1280,
+   "h": 800,
+   "name": "03-fighter-profile",
+   "title": "Fighter profile (Liam Stokes) — Overview tab",
+   "file": "docs/ux-review-v2/1280x800/03-fighter-profile.png",
+   "docH": 2003,
+   "vh": 800,
+   "overflowX": false,
+   "sidebar": true
+  },
+  {
+   "w": 1280,
+   "h": 800,
+   "name": "03b-fighter-profile-career-tab",
+   "title": "Fighter profile — Career & titles tab",
+   "file": "docs/ux-review-v2/1280x800/03b-fighter-profile-career-tab.png",
+   "docH": 3299,
+   "vh": 800,
+   "overflowX": false,
+   "sidebar": true
+  },
+  {
+   "w": 1280,
+   "h": 800,
+   "name": "04-events",
+   "title": "Events overview",
+   "file": "docs/ux-review-v2/1280x800/04-events.png",
+   "docH": 960,
+   "vh": 800,
+   "overflowX": false,
+   "sidebar": true
+  },
+  {
+   "w": 1280,
+   "h": 800,
+   "name": "08-finances",
+   "title": "Finances",
+   "file": "docs/ux-review-v2/1280x800/08-finances.png",
+   "docH": 1263,
+   "vh": 800,
+   "overflowX": false,
+   "sidebar": true
+  },
+  {
+   "w": 1280,
+   "h": 800,
+   "name": "09-matchmaking",
+   "title": "Matchmaking",
+   "file": "docs/ux-review-v2/1280x800/09-matchmaking.png",
+   "docH": 2330,
+   "vh": 800,
+   "overflowX": false,
+   "sidebar": true
+  },
+  {
+   "w": 1280,
+   "h": 800,
+   "name": "09b-matchmaking-scrolled",
+   "title": "Matchmaking — scrolled 650px (what currently needs scrolling)",
+   "file": "docs/ux-review-v2/1280x800/09b-matchmaking-scrolled.png",
+   "docH": 2330,
+   "vh": 800,
+   "overflowX": false,
+   "sidebar": true
+  },
+  {
+   "w": 1280,
+   "h": 800,
+   "name": "10-scouting",
+   "title": "Scouting",
+   "file": "docs/ux-review-v2/1280x800/10-scouting.png",
+   "docH": 3116,
+   "vh": 800,
+   "overflowX": false,
+   "sidebar": true
+  },
+  {
+   "w": 1280,
+   "h": 800,
+   "name": "11-office",
+   "title": "Promoter’s Office",
+   "file": "docs/ux-review-v2/1280x800/11-office.png",
+   "docH": 2409,
+   "vh": 800,
+   "overflowX": false,
+   "sidebar": true
+  },
+  {
+   "w": 1280,
+   "h": 800,
+   "name": "12-inbox",
+   "title": "Inbox",
+   "file": "docs/ux-review-v2/1280x800/12-inbox.png",
+   "docH": 872,
+   "vh": 800,
+   "overflowX": false,
+   "sidebar": true
+  },
+  {
+   "w": 1280,
+   "h": 800,
+   "name": "13-world-rankings",
+   "title": "World — Rankings",
+   "file": "docs/ux-review-v2/1280x800/13-world-rankings.png",
+   "docH": 1227,
+   "vh": 800,
+   "overflowX": false,
+   "sidebar": true
+  },
+  {
+   "w": 1280,
+   "h": 800,
+   "name": "13b-world-media",
+   "title": "World — Media (the World section’s first tab)",
+   "file": "docs/ux-review-v2/1280x800/13b-world-media.png",
+   "docH": 1999,
+   "vh": 800,
+   "overflowX": false,
+   "sidebar": true
+  },
+  {
+   "w": 1280,
+   "h": 800,
+   "name": "14-settings",
+   "title": "Settings",
+   "file": "docs/ux-review-v2/1280x800/14-settings.png",
+   "docH": 2463,
+   "vh": 800,
+   "overflowX": false,
+   "sidebar": true
+  },
+  {
+   "w": 1280,
+   "h": 800,
+   "name": "15a-fight-page-before-bell",
+   "title": "Fight page before the bell (tale of the tape) — still inside the management shell",
+   "file": "docs/ux-review-v2/1280x800/15a-fight-page-before-bell.png",
+   "docH": 2604,
+   "vh": 800,
+   "overflowX": false,
+   "sidebar": true,
+   "sidebarHidden": false
+  },
+  {
+   "w": 1280,
+   "h": 800,
+   "name": "15-fight-night",
+   "title": "Fight Night — live full-screen presentation",
+   "file": "docs/ux-review-v2/1280x800/15-fight-night.png",
+   "docH": 800,
+   "vh": 800,
+   "overflowX": false,
+   "sidebar": false,
+   "sidebarHidden": true
+  },
+  {
+   "w": 1280,
+   "h": 800,
+   "name": "15b-fight-night-later",
+   "title": "Fight Night — a few seconds later",
+   "file": "docs/ux-review-v2/1280x800/15b-fight-night-later.png",
+   "docH": 800,
+   "vh": 800,
+   "overflowX": false,
+   "sidebar": false,
+   "sidebarHidden": true
+  },
+  {
+   "w": 1280,
+   "h": 800,
+   "name": "05-event-fight-card-top",
+   "title": "Editable event — Fight card tab (top of page)",
+   "file": "docs/ux-review-v2/1280x800/05-event-fight-card-top.png",
+   "docH": 1985,
+   "vh": 800,
+   "overflowX": false,
+   "sidebar": true
+  },
+  {
+   "w": 1280,
+   "h": 800,
+   "name": "05b-event-fight-card-tab",
+   "title": "Editable event — Fight card tab (scrolled to the tabs; forecast column at right)",
+   "file": "docs/ux-review-v2/1280x800/05b-event-fight-card-tab.png",
+   "docH": 1985,
+   "vh": 800,
+   "overflowX": false,
+   "sidebar": true
+  },
+  {
+   "w": 1280,
+   "h": 800,
+   "name": "06-event-tickets-promotion-tab",
+   "title": "Editable event — Tickets & promotion tab",
+   "file": "docs/ux-review-v2/1280x800/06-event-tickets-promotion-tab.png",
+   "docH": 2376,
+   "vh": 800,
+   "overflowX": false,
+   "sidebar": true
+  },
+  {
+   "w": 1280,
+   "h": 800,
+   "name": "07-event-broadcast-sponsors-tab",
+   "title": "Editable event — Broadcast & sponsors tab",
+   "file": "docs/ux-review-v2/1280x800/07-event-broadcast-sponsors-tab.png",
+   "docH": 1728,
+   "vh": 800,
+   "overflowX": false,
+   "sidebar": true
+  },
+  {
+   "w": 1024,
+   "h": 800,
+   "name": "01-overview",
+   "title": "Overview",
+   "file": "docs/ux-review-v2/1024x800/01-overview.png",
+   "docH": 3083,
+   "vh": 800,
+   "overflowX": false,
+   "sidebar": true
+  },
+  {
+   "w": 1024,
+   "h": 800,
+   "name": "02-roster",
+   "title": "Roster",
+   "file": "docs/ux-review-v2/1024x800/02-roster.png",
+   "docH": 1256,
+   "vh": 800,
+   "overflowX": false,
+   "sidebar": true
+  },
+  {
+   "w": 1024,
+   "h": 800,
+   "name": "04-events",
+   "title": "Events overview",
+   "file": "docs/ux-review-v2/1024x800/04-events.png",
+   "docH": 948,
+   "vh": 800,
+   "overflowX": false,
+   "sidebar": true
+  },
+  {
+   "w": 1024,
+   "h": 800,
+   "name": "08-finances",
+   "title": "Finances",
+   "file": "docs/ux-review-v2/1024x800/08-finances.png",
+   "docH": 1635,
+   "vh": 800,
+   "overflowX": false,
+   "sidebar": true
+  }
+ ],
+ "notes": [
+  "Fight page before the bell (tale of the tape): route #/fight/ft_3a3, body class \"\", sidebar display=flex",
+  "After \"Ring the bell\" on the fight page the app opens the event's night panel at #/event/ev_3aj; the bell there starts the live presentation.",
+  "Fight Night presenter: route #/event/ev_3aj, body class \"fight-night\", sidebar display=none, bottom bar display=none"
+ ]
+}
