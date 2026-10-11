@@ -8,6 +8,8 @@ import { useViews } from '../../store/hooks'
 import { usePrefs } from '../../store/prefs'
 import { useAudioStatus } from '../components/AudioStatus'
 import { Section } from '../components/Bits'
+import { AboutBeta } from '../components/Feedback'
+import { downloadText } from '../download'
 
 const ADVISOR_BLURB: Record<AdvisorMode, string> = {
   full: 'Show the most useful tips, as well as warnings.',
@@ -87,13 +89,9 @@ export function SettingsScreen() {
   const download = () => {
     const json = exportGame()
     if (!json) return
-    const url = URL.createObjectURL(new Blob([json], { type: 'application/json' }))
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `fight-empire-${game.promotions[game.playerPromotionId].name.replace(/\W+/g, '-').toLowerCase()}-${formatDay(game.today).replace(/\s/g, '')}.json`
-    a.click()
-    URL.revokeObjectURL(url)
+    downloadText(`fight-empire-${game.promotions[game.playerPromotionId].name.replace(/\W+/g, '-').toLowerCase()}-${formatDay(game.today).replace(/\s/g, '')}.json`, json)
   }
+  const exportSlot = useGame((s) => s.exportSave)
 
   return (
     <>
@@ -105,6 +103,8 @@ export function SettingsScreen() {
           <AdvisorSettings />
           <AudioSettings />
           <GuideSettings />
+          <AboutBeta />
+          <Section title="Feedback"><p className="dim" style={{ marginBottom: 10 }}>Found a bug, or something confusing? Write a report you can send to the people running the beta.</p><a className="btn" href="#/feedback" data-testid="settings-feedback">Report a problem</a></Section>
           <Section title="This game">
             <dl>
               <div className="kv"><dt>World seed</dt><dd className="num" style={{ fontSize: 18 }}>{game.seed}</dd></div>
@@ -122,13 +122,13 @@ export function SettingsScreen() {
             <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
               <button className="btn primary" onClick={() => void saveNow()}>Save now</button>
               <button className="btn ghost" onClick={() => { const n = prompt('Name this save slot'); if (n) void saveNow({ slotName: n }) }}>Save to new slot…</button>
-              <button className="btn ghost" onClick={download}>Export save file</button>
-              <button className="btn ghost" onClick={() => fileRef.current?.click()}>Import save file</button>
+              <button className="btn ghost" onClick={download}>Export save file (backup)</button>
+              <button className="btn ghost" onClick={() => fileRef.current?.click()}>Import / restore a save file</button>
               <button className="btn ghost" onClick={() => void quit()}>Save &amp; quit to menu</button>
             </div>
             <input ref={fileRef} type="file" accept="application/json,.json" hidden onChange={async (e) => {
               const f = e.target.files?.[0]
-              if (f && confirm('Importing replaces the game you are currently playing (it is autosaved first). Continue?')) {
+              if (f && confirm('Import this file? Your current game is saved first and stays in your save slots; the imported career is added as its own slot and opens now.')) {
                 await saveNow()
                 importGame(await f.text())
               }
@@ -147,7 +147,8 @@ export function SettingsScreen() {
                       <div className="dim" style={{ fontSize: 13 }}>{formatDay(m.today)} · saved {new Date(m.savedAt).toLocaleString('en-GB')} · {(m.bytes / 1024 / (m.compressed ? 1 : 1)).toFixed(0)} kB{m.compressed ? ' (compressed)' : ''}</div>
                     </div>
                     <button className="btn small" onClick={() => void load(m.id)}>Load</button>
-                    <button className="linkbtn" onClick={() => { if (confirm(`Delete "${m.name}"?`)) void remove(m.id) }}>Delete</button>
+                    <button className="linkbtn" data-testid="export-slot" onClick={async () => { const j = await exportSlot(m.id); if (j) downloadText(`promoter-${m.name.replace(/\W+/g, '-').toLowerCase()}-backup.json`, j) }}>Export</button>
+                    <button className="linkbtn" onClick={() => { if (confirm(`Delete "${m.name}" for good? This cannot be undone. Press Cancel and use Export first if you might want it back.`)) void remove(m.id) }}>Delete</button>
                   </div>
                 ))}
               </div>

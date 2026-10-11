@@ -1,0 +1,11 @@
+/* Phase 10: beta identity, feedback and save-safety surfaces. */
+.input.mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 13px; line-height: 1.45; resize: vertical; }
+textarea.input { width: 100%; resize: vertical; }
+.beta-chip { display: inline-flex; gap: 6px; align-items: center; font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--dim); }
+.beta-chip b { color: var(--gold, #d4a017); }
+.title-foot { display: flex; gap: 14px; flex-wrap: wrap; align-items: center; margin-top: 6px; padding-top: 14px; border-top: 1px solid var(--line); }
+.title-foot .linkbtn { min-height: 36px; }
+.title-block { display: grid; gap: 8px; padding: 12px; border: 1px solid var(--line); background: var(--bg-2); }
+.title-block h3 { font-size: 13px; letter-spacing: .1em; text-transform: uppercase; color: var(--dim); font-weight: 600; }
+.save-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+@media (max-width: 640px) { .save-row { flex-wrap: wrap; } .save-actions { width: 100%; } }

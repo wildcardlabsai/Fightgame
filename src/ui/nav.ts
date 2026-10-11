@@ -40,6 +40,7 @@ export const NAV: NavGroup[] = [
     { id: 'settings', label: 'Settings', screen: 'settings', icon: 'settings' },
     { id: 'saves', label: 'Save / Load', screen: 'settings', param: 'saves', icon: 'settings' },
     { id: 'office', label: 'Promoter’s Office', screen: 'office', icon: 'contracts' },
+    { id: 'feedback', label: 'Report a problem', screen: 'feedback', icon: 'advisor' },
     ...(DEV ? [{ id: 'assets', label: 'Assets (dev)', screen: 'assets' as ScreenId, icon: 'media' }] : []),
   ] },
 ]

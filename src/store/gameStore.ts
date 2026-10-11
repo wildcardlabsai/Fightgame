@@ -3,7 +3,7 @@ import { ackGuideStep, dismissGuide, skipGuideStep, startGuide, syncGuide, type 
 import { OFFICE_COMMANDS, type OfficeCmd, type OfficeOutcome } from '../engine/office/commands'
 import * as commands from '../engine/commands'
 import * as mediaCommands from '../engine/media/commands'
-import { browserStorage, deserialiseGame, serialiseGame } from '../engine/save'
+import { browserStorage, IMPORT_FAILURE_TEXT, inspectSave, serialiseGame } from '../engine/save'
 import { openBestBackend, SaveVault, type SlotMeta } from '../engine/persistence'
 import { advanceWeeks } from '../engine/tick'
 import type { GameState, Id, NegotiationKind, Offer, ScoutDepth, WeightClassId } from '../engine/types'
@@ -12,19 +12,20 @@ import type { FightMove } from '../engine/business/fightTalks'
 import type { DevPlan } from '../engine/business/types'
 import type { SearchSpec } from '../engine/scouting'
 import type { FightOffer } from '../engine/types'
+import { GAME_STATE_VERSION } from '../engine/types'
 import { createNewGame, type NewGameOptions } from '../engine/worldgen'
 import { emitGameEvent } from './gameEvents'
 
 export type ScreenId =
   | 'dashboard' | 'fighters' | 'fighter' | 'calendar' | 'inbox' | 'finances' | 'promotions'
-  | 'venues' | 'settings' | 'scouting' | 'contracts' | 'negotiation' | 'matchmaking' | 'fights' | 'fight' | 'deal' | 'events' | 'event' | 'sponsors' | 'news' | 'advisor' | 'media' | 'rankings' | 'titles' | 'office' | 'assets'
+  | 'venues' | 'settings' | 'scouting' | 'contracts' | 'negotiation' | 'matchmaking' | 'fights' | 'fight' | 'deal' | 'events' | 'event' | 'sponsors' | 'news' | 'advisor' | 'media' | 'rankings' | 'titles' | 'office' | 'feedback' | 'assets'
 
 export interface Route {
   screen: ScreenId
   param?: string
 }
 
-const SCREENS: ScreenId[] = ['dashboard', 'fighters', 'fighter', 'calendar', 'inbox', 'finances', 'promotions', 'venues', 'settings', 'scouting', 'contracts', 'negotiation', 'matchmaking', 'fights', 'fight', 'deal', 'events', 'event', 'sponsors', 'news', 'advisor', 'media', 'rankings', 'titles', 'office', ...(import.meta.env.DEV ? (['assets'] as ScreenId[]) : [])]
+const SCREENS: ScreenId[] = ['dashboard', 'fighters', 'fighter', 'calendar', 'inbox', 'finances', 'promotions', 'venues', 'settings', 'scouting', 'contracts', 'negotiation', 'matchmaking', 'fights', 'fight', 'deal', 'events', 'event', 'sponsors', 'news', 'advisor', 'media', 'rankings', 'titles', 'office', 'feedback', ...(import.meta.env.DEV ? (['assets'] as ScreenId[]) : [])]
 
 export function parseHash(hash: string): Route {
   const [, screen, param, extra] = hash.replace(/^#/, '').split('/')
@@ -59,6 +60,10 @@ interface GameStore {
   refreshSaves: () => Promise<void>
   startNewGame: (o: NewGameOptions) => void
   loadSaved: (id: string) => Promise<boolean>
+  /** Open the most recent save that can be read; if the newest is damaged, say so and fall back to the next. Never deletes anything. */
+  continueLatest: () => Promise<boolean>
+  /** The text of one saved slot as a backup file, without opening it. */
+  exportSave: (id: string) => Promise<string | null>
   saveNow: (opts?: { slotName?: string }) => Promise<void>
   removeSave: (id: string) => Promise<void>
   quitToMenu: () => Promise<void>
@@ -211,7 +216,7 @@ export const useGame = create<GameStore>((set, get) => {
 
     startNewGame: (o) => {
       const game = createNewGame(o)
-      void persist(game)
+      void persist(game).catch(() => get().notify('This browser would not store your new career. Play on, but use Save & Settings → Export save to keep it.', 'bad'))
       set({ game, route: { screen: 'dashboard' } })
       if (typeof window !== 'undefined') window.location.hash = '#/dashboard'
     },
@@ -219,12 +224,39 @@ export const useGame = create<GameStore>((set, get) => {
     loadSaved: async (id) => {
       const game = await (await vault()).load(id)
       if (!game) {
-        get().notify('That save could not be loaded — it may be corrupt or from a newer version.', 'bad')
+        const meta = get().saves.find((m) => m.id === id)
+        get().notify(meta && meta.version > GAME_STATE_VERSION
+          ? 'That save was made by a newer version of the game, so this version cannot open it. It has not been changed or deleted.'
+          : 'That save could not be opened — it may be damaged. It has not been changed or deleted, and your other saves are untouched.', 'bad')
         return false
       }
       set({ game, route: { screen: 'dashboard' } })
       if (typeof window !== 'undefined') window.location.hash = '#/dashboard'
       return true
+    },
+
+    continueLatest: async () => {
+      await get().refreshSaves()
+      const list = get().saves
+      for (let i = 0; i < list.length; i++) {
+        const game = await (await vault()).load(list[i].id)
+        if (!game) continue
+        if (i > 0) get().notify(`Your newest save could not be opened, so this is the most recent one that could (${list[i].name}). Nothing was deleted.`, 'bad')
+        set({ game, route: { screen: 'dashboard' } })
+        if (typeof window !== 'undefined') window.location.hash = '#/dashboard'
+        return true
+      }
+      get().notify(list.length ? 'None of your saves could be opened. Nothing was deleted — see Report a problem.' : 'There is no saved game to continue.', 'bad')
+      return false
+    },
+
+    exportSave: async (id) => {
+      const game = await (await vault()).load(id)
+      if (!game) {
+        get().notify('That save could not be read, so it cannot be exported. It has not been changed.', 'bad')
+        return null
+      }
+      return serialiseGame(game)
     },
 
     saveNow: async (opts) => {
@@ -542,14 +574,22 @@ export const useGame = create<GameStore>((set, get) => {
     },
 
     importGame: (json) => {
-      const game = deserialiseGame(json)
-      if (!game) {
-        get().notify('That file is not a valid Fight Empire save.', 'bad')
+      const check = inspectSave(json)
+      if (!check.ok) {
+        get().notify(IMPORT_FAILURE_TEXT[check.reason], 'bad')
         return false
       }
-      void persist(game).catch(() => undefined)
+      let game = check.state
+      // An import never replaces a career that is already stored: if its id is taken, it gets a fresh one and its own slot.
+      const taken = get().saves.some((m) => m.gameId === game.saveId || m.id === game.saveId || m.id.startsWith(`${game.saveId}~`)) || get().game?.saveId === game.saveId
+      let name: string | undefined
+      if (taken) {
+        game = { ...game, saveId: `save_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}` }
+        name = `${game.promotions[game.playerPromotionId].name} (imported)`
+      }
+      void persist(game, name ? { name } : {}).catch(() => get().notify('Imported, but this browser would not store it. Export it again to keep it safe.', 'bad'))
       set({ game, route: { screen: 'dashboard' } })
-      get().notify('Save imported.', 'good')
+      get().notify(taken ? 'Save imported as a new slot. Your other careers were not touched.' : 'Save imported.', 'good')
       return true
     },
 

@@ -7,6 +7,10 @@ import { useGame } from '../../store/gameStore'
 import { EmblemGlyph } from '../components/Icons'
 import { PromoLogo } from '../components/Bits'
 import { artWorldSeed, hasFighterArt } from '../../assets/registry'
+import { buildLabel, RELEASE_CHANNEL } from '../../engine/release'
+import { downloadText } from '../download'
+import { AboutBeta, FeedbackPanel } from '../components/Feedback'
+import '../../styles/beta.css'
 
 const money = (n: number) => (n >= 1_000_000 ? `£${(n / 1_000_000).toFixed(n % 1_000_000 === 0 ? 0 : 1)}m` : `£${Math.round(n / 1000)}k`)
 const DIFF_TONE: Record<CareerScenario['difficultyLabel'], string> = { Easy: 'good', Normal: '', Hard: 'gold', Expert: 'red' }
@@ -45,11 +49,14 @@ export function TitleScreen() {
   const saves = useGame((s) => s.saves)
   const start = useGame((s) => s.startNewGame)
   const load = useGame((s) => s.loadSaved)
+  const continueLatest = useGame((s) => s.continueLatest)
+  const exportSave = useGame((s) => s.exportSave)
   const remove = useGame((s) => s.removeSave)
   const importGame = useGame((s) => s.importGame)
   const refresh = useGame((s) => s.refreshSaves)
   const storageKind = useGame((s) => s.storageKind)
   const [creating, setCreating] = useState(false)
+  const [panel, setPanel] = useState<'none' | 'about' | 'feedback'>('none')
   const [touched, setTouched] = useState(false)
   useEffect(() => { void refresh() }, [refresh])
   // Saves arrive asynchronously (IndexedDB): once we know there are none, open the new-game form.
@@ -74,31 +81,43 @@ export function TitleScreen() {
         {!creating ? (
           <>
             <div>
+              <div className="beta-chip" data-testid="beta-chip"><b>{RELEASE_CHANNEL}</b> {buildLabel()}</div>
               <h1 className="display" style={{ fontSize: 56 }}>Welcome back</h1>
               <p className="dim">Pick up where you left off, or start a new empire.</p>
             </div>
-            <button className="btn primary big" onClick={() => load(saves[0].id)}>Continue ▸</button>
+            <div style={{ display: 'grid', gap: 6 }}>
+              <button className="btn primary big" data-testid="continue" onClick={() => void continueLatest()}>Continue ▸</button>
+              {saves[0] && <span className="dim" style={{ fontSize: 13 }}>{saves[0].promotionName} · {formatDay(saves[0].today)} — your most recent save</span>}
+            </div>
             <div style={{ display: 'grid', gap: 8 }}>
               <div className="caps">Saved games</div>
               {saves.map((m) => (
                 <div key={m.id} className="save-row">
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontWeight: 600 }}>{m.promotionName}{m.slot === 'auto' && <span className="chip" style={{ marginLeft: 8 }}>Autosave</span>}</div>
+                    <div style={{ fontWeight: 600 }}>{m.slot === 'auto' ? m.promotionName : m.name}{m.slot === 'auto' && <span className="chip" style={{ marginLeft: 8 }}>Autosave</span>}</div>
                     <div className="dim" style={{ fontSize: 13 }}>{formatDay(m.today)} · saved {new Date(m.savedAt).toLocaleString('en-GB')}</div>
                   </div>
-                  <button className="btn small" onClick={() => load(m.id)}>Load</button>
-                  <button className="linkbtn" onClick={() => { if (confirm(`Delete "${m.promotionName}"? This cannot be undone.`)) remove(m.id) }}>Delete</button>
+                  <div className="save-actions">
+                    <button className="btn small" onClick={() => load(m.id)}>Load</button>
+                    <button className="linkbtn" data-testid="export-save" onClick={async () => { const j = await exportSave(m.id); if (j) downloadText(`promoter-${m.promotionName.replace(/\W+/g, '-').toLowerCase()}-backup.json`, j) }}>Export</button>
+                    <button className="linkbtn" onClick={() => { if (confirm(`Delete "${m.name}" for good? This cannot be undone. If you might want it back, press Cancel and use Export first.`)) remove(m.id) }}>Delete</button>
+                  </div>
                 </div>
               ))}
             </div>
-            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-              <button className="btn ghost" onClick={() => { setTouched(true); setCreating(true) }}>New Game</button>
-              <button className="btn ghost" onClick={() => fileRef.current?.click()}>Import Save File</button>
+            <div className="title-block">
+              <h3>Something else?</h3>
+              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                <button className="btn ghost" data-testid="new-career" onClick={() => { setTouched(true); setCreating(true) }}>Start a new career</button>
+                <button className="btn ghost" data-testid="restore-backup" onClick={() => fileRef.current?.click()}>Restore from a backup file</button>
+              </div>
+              <span className="dim" style={{ fontSize: 13 }}>A new career is saved separately and never replaces an existing one. A restored backup is added as its own slot too.</span>
             </div>
           </>
         ) : (
           <>
             <div>
+              <div className="beta-chip" data-testid="beta-chip"><b>{RELEASE_CHANNEL}</b> {buildLabel()}</div>
               <h1 className="display" style={{ fontSize: 56 }}>Found your <span className="red">promotion</span></h1>
               <p className="dim">Choose how your career begins, then name your promotion.</p>
             </div>
@@ -144,6 +163,12 @@ export function TitleScreen() {
             </form>
           </>
         )}
+        <div className="title-foot">
+          <button className="linkbtn" data-testid="open-about" onClick={() => setPanel(panel === 'about' ? 'none' : 'about')}>About this beta</button>
+          <button className="linkbtn" data-testid="open-feedback" onClick={() => setPanel(panel === 'feedback' ? 'none' : 'feedback')}>Report a problem</button>
+        </div>
+        {panel === 'about' && <AboutBeta />}
+        {panel === 'feedback' && <FeedbackPanel screen="title" onClose={() => setPanel('none')} />}
         <input ref={fileRef} type="file" accept="application/json,.json" hidden onChange={async (e) => {
           const file = e.target.files?.[0]
           if (file) importGame(await file.text())

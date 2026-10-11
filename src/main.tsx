@@ -7,7 +7,9 @@ import { WebAudioBackend } from './audio/synth'
 import { initAudio } from './audio/bindings'
 import './store/prefs'
 import './store/artWorld'
+import { installDiagnostics } from './store/diagnostics'
 
+installDiagnostics()
 audio.setBackend(new WebAudioBackend())
 initAudio()
 // Exposed so browser checks can observe which cues the game asked for (the sounds themselves are not asserted).

@@ -305,7 +305,7 @@ describe('career scenarios', () => {
 describe('presentation-facing engine modules stay on the public side of the leak boundary', () => {
   // These modules are allow-listed for the UI to import (see leakAudit). They may only read public facts and FighterViews.
   const FORBIDDEN = [/\bfighterRating\b/, /\.attributes\b/, /\.potential\b/, /\.(discipline|composure|injuryRisk|personalityNote|promoRelations)\b/, /\.personality\b/, /\bBALANCE\b.*\b(thresh|accept)/, /\bbeliefOf\b/, /\bdemandFor\([^)]*'actual'/]
-  for (const file of ['advisor.ts', 'scenarios.ts', 'onboarding.ts', 'guide.ts', 'glossary.ts', 'eventEconomics.ts', 'inboxViews.ts', 'preferences.ts']) {
+  for (const file of ['advisor.ts', 'scenarios.ts', 'onboarding.ts', 'guide.ts', 'glossary.ts', 'eventEconomics.ts', 'inboxViews.ts', 'release.ts', 'feedback.ts', 'preferences.ts']) {
     it(`${file} never reaches for hidden information`, () => {
       const src = readFileSync(join(__dirname, file), 'utf8')
       for (const re of FORBIDDEN) expect(src, `${file} matches ${re}`).not.toMatch(re)

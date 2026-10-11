@@ -108,6 +108,29 @@ export function deserialiseGame(raw: string): GameState | null {
   }
 }
 
+export type ImportFailure = 'empty' | 'notJson' | 'notSave' | 'newer'
+export type ImportCheck = { ok: true; state: GameState } | { ok: false; reason: ImportFailure }
+
+/** Like deserialiseGame, but says why a file was refused so the player is told something useful. Never throws, never touches storage. */
+export function inspectSave(raw: string): ImportCheck {
+  if (!raw || !raw.trim()) return { ok: false, reason: 'empty' }
+  let data: unknown
+  try { data = JSON.parse(raw) } catch { return { ok: false, reason: 'notJson' } }
+  const v = (data as { version?: unknown } | null)?.version
+  if (typeof v === 'number' && v > GAME_STATE_VERSION && (data as { promotions?: unknown }).promotions) return { ok: false, reason: 'newer' }
+  try {
+    const state = migrate(data)
+    return state ? { ok: true, state } : { ok: false, reason: 'notSave' }
+  } catch { return { ok: false, reason: 'notSave' } }
+}
+
+export const IMPORT_FAILURE_TEXT: Record<ImportFailure, string> = {
+  empty: 'That file is empty, so nothing was imported. Your saves are unchanged.',
+  notJson: 'That file is not a save file (it is not readable game data), so nothing was imported. Your saves are unchanged.',
+  notSave: 'That file is not a valid save from this game, or it is damaged, so nothing was imported. Your saves are unchanged.',
+  newer: 'That save was made by a newer version of the game than this one, so it cannot be opened here. Nothing was imported and your saves are unchanged.',
+}
+
 /** Upgrade older saves to the current shape. Add a step here whenever GAME_STATE_VERSION is bumped. */
 export function migrate(data: unknown): GameState | null {
   if (!data || typeof data !== 'object') return null

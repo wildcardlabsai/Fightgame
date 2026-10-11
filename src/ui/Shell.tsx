@@ -33,6 +33,7 @@ const SponsorsScreen = lazy(() => import('./screens/SponsorsScreen').then((m) =>
 const AssetGallery = import.meta.env.DEV ? lazy(() => import('./screens/AssetGallery').then((m) => ({ default: m.AssetGallery }))) : null
 const NewsScreen = lazy(() => import('./screens/NewsScreen').then((m) => ({ default: m.NewsScreen })))
 const AdvisorScreen = lazy(() => import('./screens/AdvisorScreen').then((m) => ({ default: m.AdvisorScreen })))
+const FeedbackScreen = lazy(() => import('./screens/FeedbackScreen').then((m) => ({ default: m.FeedbackScreen })))
 const VenuesScreen = lazy(() => import('./screens/VenuesScreen').then((m) => ({ default: m.VenuesScreen })))
 
 export function Shell() {
@@ -100,6 +101,7 @@ function Screen() {
     case 'finances': return <FinancesScreen />
     case 'promotions': return <PromotionsScreen />
     case 'office': return <OfficeScreen />
+    case 'feedback': return <FeedbackScreen />
     case 'venues': return <VenuesScreen />
     case 'sponsors': return <SponsorsScreen />
     case 'news': return <NewsScreen />
