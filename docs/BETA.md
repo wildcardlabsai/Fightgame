@@ -33,3 +33,9 @@ The asset gallery (`#/assets`, "Assets (dev)" nav item) is compiled out of produ
 
 ## Verifying a build
 `npx vitest run` · `npx tsc --noEmit` · `npm run build` · static-serve `dist/` and run `node scripts/browser/phase10-ui.mjs <baseUrl> <shotsDir>` (plus the phase7/9/60 suites). Screenshots from this phase: `docs/phase10-shots/`.
+
+## Verification record (build 0.10.0-beta.1, commit 4d19542)
+- `npx vitest run`: 54 files passed, 2 skipped; 822 tests passed, 5 skipped, 0 failed (includes `phase10.test.ts`, 20 tests; leak audits extended to `release` and `feedback`).
+- `npx tsc --noEmit`: clean. `npm run build`: succeeds; a clean `git clone` builds a byte-identical `dist/` (same sha256 over all files).
+- Browser (static production build, 1280/1024/390): `phase10-ui.mjs` 100/0, `phase7-ui.mjs` 150/0, `phase9-ui.mjs` 83/0, `phase60-a11y.mjs` 174/0; `phase8-walkthrough.mjs` regional at 1280 and 390 completes the full loop incl. an external booking, no console errors (one known medium finding: after a large loss the player may lack cash for another show — unchanged by design).
+- Not changed in this phase: simulation, finances and persistence formats (save version still 13), so the multi-seed audits were not re-run.
