@@ -106,6 +106,7 @@ for (const w of [1280, 1024, 390]) {
   await load(page, 'p54-played')
   const pid = await game(page, (g) => ({ free: Object.values(g.fighters).filter((f) => f.status === 'active' && !f.contractId).sort((a, b) => b.reputation - a.reputation)[0]?.id, mine: Object.values(g.contracts).find((c) => c.promotionId === g.playerPromotionId)?.fighterId }))
   await go(page, `#/fighter/${pid.free}`)
+  await openPane(page, 'Career & titles')
   check('free agent: expected terms + confidence + Open negotiation', (await page.getByTestId('expected-terms').count()) === 1 && (await page.getByTestId('confidence').count()) === 1 && (await page.getByTestId('open-negotiation').count()) === 1)
   check('free agent: no plan chooser / division move (not on the roster)', (await page.getByTestId('plan-chooser').count()) === 0 && (await page.getByTestId('division-move').count()) === 0)
   check('free agent: no horizontal overflow', (await overflow(page)) <= 1)

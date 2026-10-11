@@ -56,7 +56,7 @@ const cuesPlayed = (page) => page.evaluate(() => window.__audio.log.map((l) => l
   check('desktop: current section is indicated', (await page.getByTestId('nav-home').getAttribute('aria-current')) === 'page')
   await page.getByTestId('nav-roster').click()
   const menu = await page.locator('[data-testid="subnav"] .sn-item').allInnerTexts()
-  check('desktop: the Roster section's tab strip lists Fighters, Free Agents, Scouting, Contracts', JSON.stringify(menu.map((x) => x.trim())) === JSON.stringify(['Fighters', 'Free Agents', 'Scouting', 'Contracts'].map((x) => x.toUpperCase().replace(/^/, '')).map((x) => x)) || menu.map((x) => x.trim().toLowerCase()).join(',') === 'fighters,free agents,scouting,contracts', JSON.stringify(menu))
+  check('desktop: the Roster tab strip lists Fighters, Free Agents, Scouting, Contracts', JSON.stringify(menu.map((x) => x.trim())) === JSON.stringify(['Fighters', 'Free Agents', 'Scouting', 'Contracts'].map((x) => x.toUpperCase().replace(/^/, '')).map((x) => x)) || menu.map((x) => x.trim().toLowerCase()).join(',') === 'fighters,free agents,scouting,contracts', JSON.stringify(menu))
   await page.screenshot({ path: `${shots}/p49b-nav-desktop-menu.png` })
   await page.getByTestId('sub-free').click(); await page.waitForTimeout(400)
   check('desktop: Free Agents opens the free-agent tab', (await page.evaluate(() => location.hash)) === '#/fighters/free' && (await page.locator('.tab.active', { hasText: 'Free Agents' }).count()) === 1)

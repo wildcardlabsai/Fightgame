@@ -12,7 +12,7 @@
   /* ---- sidebar */
   .sidenav { display: flex; flex-direction: column; grid-column: 1; grid-row: 1 / span 12; position: sticky; top: 0; height: 100vh; z-index: 42; background: linear-gradient(180deg, #0d0b0e, #08080b); border-right: 1px solid var(--line); }
   .sb-brand { display: flex; align-items: center; justify-content: center; height: var(--topbar); padding: 0 14px; border-bottom: 2px solid var(--red); flex: none; }
-  .sb-brand img { height: 36px; width: auto; max-width: 100%; display: block; }
+  .sb-brand img { height: 40px; width: auto; max-width: 100%; display: block; }
   .sb-list { list-style: none; display: flex; flex-direction: column; gap: 2px; padding: 12px 0; overflow-y: auto; }
   .sb-item { position: relative; display: flex; align-items: center; gap: 12px; width: 100%; min-height: 46px; padding: 0 16px 0 18px; text-align: left; background: transparent; border: 0; border-left: 4px solid transparent; font-family: var(--display); font-weight: 700; font-size: 17px; letter-spacing: .09em; text-transform: uppercase; color: var(--dim); transition: color .12s, background .12s; }
   .sb-item svg { width: 19px; height: 19px; flex: none; }
@@ -60,6 +60,8 @@
   .advice-stack.compact .advice-main { display: flex; gap: 12px; align-items: baseline; flex-wrap: wrap; }
   .advice-stack.compact .advice-body { font-size: 13.5px; }
   .explain { margin: 0 0 8px; max-width: none; } .explain > summary { min-height: 34px; padding: 6px 12px; font-size: 13.5px; }
+  /* full-bleed heroes cancel the page padding, which is smaller than it used to be */
+  .fight-hero, .profile-hero, .hero { margin: -18px -28px 0; }
   :target, .complete, .lf.inline, .v-poster.lead { scroll-margin-top: calc(var(--topbar) + var(--subbar) + 12px); }
 }
 
@@ -73,6 +75,7 @@
   .sb-brand { padding: 0 6px; } .sb-brand img { height: 28px; max-width: 52px; object-fit: contain; }
   .hud-id .caps { display: none; } .hud-stat { padding: 2px 12px; } .hud-desk .btn.ghost { display: none; }
   .page { padding: 16px 20px 44px; }
+  .fight-hero, .profile-hero, .hero { margin: -16px -20px 0; }
 }
 
 /* ================================================================ Overview (desk) ================================================================ */
@@ -178,7 +181,7 @@
   [data-testid="venue-cards"].vn-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
   [data-testid="venue-cards"] .vn-card { flex-direction: row; }
   [data-testid="venue-cards"] .vn-img { flex: 0 0 120px; aspect-ratio: auto; min-height: 100%; }
-  [data-testid="venue-cards"] .vn-cap { display: none; }
+  [data-testid="venue-cards"] .vn-cap { white-space: normal; font-size: 10.5px; line-height: 1.15; padding: 2px 6px; }
   [data-testid="venue-cards"] .vn-body { padding: 10px 12px; gap: 5px; flex: 1; }
   [data-testid="venue-cards"] .vn-name { font-size: 18px; }
   [data-testid="venue-cards"] .vn-stats { grid-template-columns: repeat(3, 1fr); gap: 4px 10px; } [data-testid="venue-cards"] .vn-stats dd { font-size: 15px; }
