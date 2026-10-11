@@ -153,7 +153,7 @@ export function guideView(state: GameState): GuideView | null {
     matchup: {
       id: 'matchup', title: 'Agree a credible fight',
       why: 'A good fight is two fighters of similar quality, both fit and free on the date. A mismatch is a bad night for the crowd and a risk to your fighter. Records and scouting ranges help you judge it.',
-      how: 'Open Matchmaking, choose one of your fighters, pick an opponent whose range and record look like a fair test, and agree terms. Opponents’ purses are paid by you.',
+      how: 'Open Matchmaking, choose one of your fighters, pick an opponent whose range and record look like a fair test, and agree terms. Opponents’ purses are paid by you, and the best-known names cost the most: a cheaper, fairly matched opponent is often the better first show.',
       go: { screen: 'matchmaking', label: 'Make a fight', target: 'make-fight' },
       blocker: fit.length === 0 ? 'None of your fighters is fit and free right now. Advance a week, or sign a free agent.' : undefined,
     },
@@ -166,10 +166,10 @@ export function guideView(state: GameState): GuideView | null {
     },
     card: {
       id: 'card', title: 'Build the card',
-      why: 'A show needs at least the number of fights the venue expects. Purses are costs you will pay whether tickets sell or not; the headline fight drives demand.',
+      why: 'A show needs at least the number of fights the venue expects. Purses are costs you pay whether tickets sell or not, and in a small hall the whole gate can be smaller than the purses of a few well-known fighters: add them up against the forecast revenue before you commit. The headline fight drives demand.',
       how: 'On the event page choose “Add a fight” and add the fights you have agreed. Put the best fight last: it is the main event.',
       go: evId ? { screen: 'event', param: evId, label: 'Open the show', target: 'add-fight' } : { screen: 'events', label: 'Plan a show first', target: 'plan-show' },
-      blocker: !open ? 'You need a booked show first.' : !booked(state) ? 'You have no agreed fight to add yet: agree one in Matchmaking.' : undefined,
+      blocker: !open ? 'You need a booked show first.' : open.card.length < (state.venues[open.venueId]?.minFights ?? 0) && !booked(state) ? 'You have no agreed fight to add yet: agree one in Matchmaking.' : undefined,
     },
     sale: {
       id: 'sale', title: 'Check the forecast, then sell tickets',

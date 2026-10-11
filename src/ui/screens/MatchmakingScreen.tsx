@@ -26,6 +26,8 @@ export function MatchmakingScreen({ fighterId }: { fighterId?: string }) {
   const [picked, setPicked] = useState<string[]>([])
   const [scouting, setScouting] = useState<string | null>(null)
   const [sort, setSort] = useState<'fit' | 'reward' | 'risk' | 'rep'>('fit')
+  // The list is ordered best-first, so a screenful or two is enough; the rest is one tap away (a phone page of 60 opponents is ~17,000px tall).
+  const [shown, setShown] = useState(20)
 
   const me = myId ? views.fighter(myId) : null
   const cands = useMemo(() => (myId ? opponentCandidates(game, myId, filters) : []), [game, myId, filters])
@@ -89,7 +91,7 @@ export function MatchmakingScreen({ fighterId }: { fighterId?: string }) {
             <table className="table stack">
               <thead><tr><th></th><th>Opponent</th><th>Age</th><th>Record</th><th>Form</th><th>Scout grade</th><th>Difficulty</th><th>Reward</th><th>Win chance (est.)</th><th>KO risk</th><th>Status</th><th /></tr></thead>
               <tbody>
-                {rows.slice(0, 60).map((c) => {
+                {rows.slice(0, shown).map((c) => {
                   const v = c.view
                   const scouted = v.knowledge.reports > 0
                   return (
@@ -126,6 +128,7 @@ export function MatchmakingScreen({ fighterId }: { fighterId?: string }) {
                 })}
               </tbody>
             </table>
+            {rows.length > shown && <div className="vn-more"><button type="button" className="btn" data-testid="opponents-more" onClick={() => setShown((n) => n + 20)}>Show more opponents ({rows.length - shown} more)</button></div>}
           </div>
           {me && (chosen.length > 0 ? chosen : rows.slice(0, 1)).length > 0 && <AdvicePanel cap={3} list={(chosen.length > 0 ? chosen : rows.slice(0, 1)).flatMap((c) => matchmakingAdvice(me, c.view, c.assessment))} title="Promoter’s notes" />}
           {rows.length === 0 && <p className="empty">No opponents match. Loosen the filters, or run a talent search in Scouting to discover more fighters.</p>}

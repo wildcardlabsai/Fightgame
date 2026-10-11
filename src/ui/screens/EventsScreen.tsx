@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { formatDay } from '../../engine/calendar'
-import { eventList, venueViews, type EventListItem } from '../../engine/eventViews'
+import { eventList, suggestedVenue, venueViews, type EventListItem } from '../../engine/eventViews'
 import { venueBookingAdvice } from '../../engine/advisor'
 import { financialHealth } from '../../engine/selectors'
 import { useGame } from '../../store/gameStore'
@@ -53,7 +53,7 @@ function NewEventModal({ onClose }: { onClose: () => void }) {
   const navigate = useGame((s) => s.navigate)
   const venues = useMemo(() => venueViews(game), [game])
   const [name, setName] = useState('')
-  const [venueId, setVenueId] = useState((venues.find((x) => !x.locked && x.tier === 'regional') ?? venues.find((x) => !x.locked) ?? venues[0]).id)
+  const [venueId, setVenueId] = useState(() => suggestedVenue(game, venues).id)
   const v = venues.find((x) => x.id === venueId)!
   const [day, setDay] = useState<number | null>(null)
   const date = day !== null && v.freeDates.includes(day) ? day : v.freeDates[0]

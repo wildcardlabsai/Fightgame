@@ -46,7 +46,8 @@ for (const [id, sc] of Object.entries(SCEN)) {
   await page.waitForSelector('[data-scenario]')
   if (id === 'groundUp') {
     check('title shows four career cards', (await page.locator('[data-scenario]').count()) === 4)
-    check('From the Ground Up is the default career', (await page.locator('[data-scenario="groundUp"]').getAttribute('aria-checked')) === 'true')
+    // Phase 8: first-time players are preselected on the Normal career (Regional Promoter); From the Ground Up stays one click away
+    check('Regional Promoter (Normal) is the preselected career', (await page.locator('[data-scenario="regional"]').getAttribute('aria-checked')) === 'true' && (await page.locator('[data-scenario="groundUp"]').getAttribute('aria-checked')) === 'false')
     await page.screenshot({ path: `${shots}/title-desktop.png` })
   }
   await page.locator(`[data-scenario="${id}"]`).click()

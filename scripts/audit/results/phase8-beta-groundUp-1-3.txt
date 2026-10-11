@@ -1,0 +1,4 @@
+seed 1 groundUp 8y: problems=0 ledgerLines=5434 cash=£6726k negCashWeeks=0 shows=94 pop=303-327 retirements/yr=[32,27,23,28,-12,2,-5,6] aiShows/yr=[57,55,50,50,55,8,4,6] tickMs/wk=[37,40,45,45,56,63,64,63] growth×1.69 peakIdleWks=98
+seed 2 groundUp 8y: problems=0 ledgerLines=2530 cash=£-1425k negCashWeeks=345 shows=8 pop=316-335 retirements/yr=[31,28,21,13,-16,-4,-4,-7] aiShows/yr=[58,56,48,50,59,20,8,12] tickMs/wk=[21,32,30,34,35,52,48,52] growth×2.47 peakIdleWks=139
+seed 3 groundUp 8y: problems=0 ledgerLines=5266 cash=£2586k negCashWeeks=0 shows=75 pop=309-324 retirements/yr=[37,23,18,18,-17,2,1,2] aiShows/yr=[51,48,53,53,57,17,12,7] tickMs/wk=[17,28,36,48,53,56,62,64] growth×3.75 peakIdleWks=109
+ALL CLEAN

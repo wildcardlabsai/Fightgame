@@ -109,7 +109,12 @@ export const SCENARIOS: Record<ScenarioId, CareerScenario> = {
 }
 
 export const SCENARIO_ORDER: ScenarioId[] = ['groundUp', 'regional', 'national', 'champion']
-export const DEFAULT_SCENARIO: ScenarioId = 'groundUp'
+/**
+ * What the title screen preselects. A first-time player lands on the Normal career, not the Hard one: with the reference bot, From the Ground Up left
+ * 2 of 8 seeds insolvent after four years (Regional and National: none), and a first-time human following the default fight terms bankrupts a startup
+ * in about two shows. Every career stays one click away; only the preselected card changed.
+ */
+export const DEFAULT_SCENARIO: ScenarioId = 'regional'
 
 export function scenarioById(id: string | undefined | null): CareerScenario | null {
   return id && id in SCENARIOS ? SCENARIOS[id as ScenarioId] : null

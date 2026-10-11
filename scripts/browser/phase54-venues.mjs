@@ -114,6 +114,9 @@ for (const w of [1280, 1024, 390]) {
   check(`${tag} builder: venue cards with choose buttons`, (await choose.count()) > 0)
   check(`${tag} builder: radiogroup semantics`, (await page.getByRole('radiogroup', { name: 'Venue' }).count()) === 1 && (await page.getByRole('radio').count()) > 0)
   check(`${tag} builder: no horizontal overflow (modal)`, (await overflow(page)) <= 0, String(await overflow(page)))
+  // Phase 8: on a phone the planner's filters are folded away until asked for; open them (a no-op where they are already open)
+  const fold = page.getByTestId('venue-filter-fold'); if (await fold.count() && !(await fold.evaluate((d) => d.open))) await fold.locator('summary').click()
+  check(`${tag} builder: filters are reachable (open by default on wide screens, one tap on a phone)`, await page.getByTestId('venue-filter-tier').isVisible())
   // locked venue cannot be chosen
   await page.getByTestId('venue-filter-tier').selectOption('stadium')
   const lockedBtn = page.getByTestId('venue-choose').first()

@@ -69,7 +69,7 @@ export function fightAvailability(state: GameState, f: Fighter, forDay?: Day, ig
   if (f.status === 'retired') return { ok: false, reason: 'Retired', earliestDay: earliest }
   if (f.activeFightId && f.activeFightId !== ignoreFightId) return { ok: false, reason: 'Already booked for a fight', earliestDay: earliest }
   if (f.injury && (forDay === undefined || forDay < f.injury.returnDay + 14)) {
-    return { ok: false, reason: `Injured (${f.injury.kind}) — back in ${Math.max(1, weeksBetween(state.today, f.injury.returnDay))} weeks`, earliestDay: earliest }
+    return { ok: false, reason: `Injured (${f.injury.kind}) — back in ${Math.max(1, weeksBetween(state.today, f.injury.returnDay))} week${Math.max(1, weeksBetween(state.today, f.injury.returnDay)) === 1 ? '' : 's'}`, earliestDay: earliest }
   }
   if (f.suspendedUntil !== null && (forDay === undefined || forDay < f.suspendedUntil)) {
     return { ok: false, reason: `Medically suspended for ${Math.max(1, weeksBetween(state.today, f.suspendedUntil))} more weeks`, earliestDay: earliest }

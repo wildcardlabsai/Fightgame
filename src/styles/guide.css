@@ -48,3 +48,10 @@ body[data-guide-target="scout-commission"] [data-guide="scout-commission"], body
 .explain dd { font-size: 14.5px; color: #cfcbc4; }
 .explain > summary:focus-visible, .guide .btn:focus-visible, .guide-strip .btn:focus-visible, .guide .linkbtn:focus-visible, .guide-strip .linkbtn:focus-visible, .guide-optional summary:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
 @media (max-width: 700px) { .guide { padding: 14px 12px 12px; } .guide-head h2 { font-size: 28px; } .guide-strip-btns { width: 100%; } }
+
+/* venue picker filters fold on phones (open by default on wider screens) */
+.vn-fold > summary { cursor: pointer; min-height: 44px; display: flex; align-items: center; color: var(--steel, #9aa3b2); font-size: 14px; }
+@media (min-width: 701px) { .vn-fold > summary { display: none; } }
+.vn-fold > summary:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.vn-fold > summary::before { content: '▸'; color: var(--gold); margin-right: 8px; } .vn-fold[open] > summary::before { content: '▾'; }
+.vn-fold > summary { list-style: none; } .vn-fold > summary::-webkit-details-marker { display: none; }

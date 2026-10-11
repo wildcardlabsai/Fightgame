@@ -56,6 +56,16 @@ export function venueView(state: GameState, v: Venue, from = state.today): Venue
   }
 }
 
+/**
+ * The venue a new show form starts on: the smallest open hall in the promotion's own country (a small hall you can fill is the safe first
+ * choice; a regional arena abroad can lose most of a young promotion's cash), else the smallest open hall anywhere that has a free date.
+ */
+export function suggestedVenue(state: GameState, views: VenueView[] = venueViews(state)): VenueView {
+  const home = state.promotions[state.playerPromotionId].homeCountry
+  const open = views.filter((v) => !v.locked && v.freeDates.length > 0)
+  return open.find((v) => v.country === home) ?? open[0] ?? views.find((v) => !v.locked) ?? views[0]
+}
+
 export function venueViews(state: GameState): VenueView[] {
   return Object.values(state.venues).filter((v) => !v.legacy).sort((a, b) => a.capacity - b.capacity).map((v) => venueView(state, v))
 }

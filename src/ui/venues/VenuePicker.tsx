@@ -10,7 +10,11 @@ export function VenuePicker({ value, onChange }: { value: string; onChange: (id:
   const { f, set, list, visible, more, showMore } = useVenueList(rows, 'capacity', 8)
   return (
     <div className="vn-picker">
-      <VenueFilters rows={rows} f={f} set={set} sorts={BROWSE_SORTS} />
+      {/* On a phone the six filters would fill the first screen before any venue; they fold away until asked for. */}
+      <details className="vn-fold" open={typeof window === 'undefined' || window.innerWidth > 700} data-testid="venue-filter-fold">
+        <summary>Search and filter venues</summary>
+        <VenueFilters rows={rows} f={f} set={set} sorts={BROWSE_SORTS} />
+      </details>
       <p className="dim vn-count" aria-live="polite">{list.length} of {rows.length} venues</p>
       <div className="vn-grid" role="radiogroup" aria-label="Venue">
         {visible.map((r) => (

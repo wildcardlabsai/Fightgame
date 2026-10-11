@@ -1,0 +1,4 @@
+seed 1 national 8y: problems=0 ledgerLines=6748 cash=£52638k negCashWeeks=0 shows=131 pop=310-340 retirements/yr=[39,21,27,17,-19,13,2,14] aiShows/yr=[53,56,51,52,59,14,6,3] tickMs/wk=[60,63,64,63,67,61,65,75] growth×1.25 peakIdleWks=210
+seed 2 national 8y: problems=0 ledgerLines=6470 cash=£53275k negCashWeeks=0 shows=98 pop=310-347 retirements/yr=[23,27,23,18,9,10,2,8] aiShows/yr=[59,55,58,54,54,6,0,3] tickMs/wk=[21,29,40,49,55,60,64,70] growth×3.41 peakIdleWks=243
+seed 3 national 8y: problems=0 ledgerLines=6674 cash=£46239k negCashWeeks=0 shows=116 pop=311-336 retirements/yr=[34,19,16,24,-10,20,10,14] aiShows/yr=[55,52,56,56,49,20,2,3] tickMs/wk=[23,35,42,56,62,66,71,68] growth×3.00 peakIdleWks=217
+ALL CLEAN

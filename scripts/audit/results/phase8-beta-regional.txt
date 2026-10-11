@@ -1,0 +1,4 @@
+seed 1 regional 8y: problems=0 ledgerLines=5822 cash=£18255k negCashWeeks=0 shows=94 pop=311-326 retirements/yr=[46,22,25,19,-20,-5,8,3] aiShows/yr=[52,59,53,54,53,26,-1,11] tickMs/wk=[35,39,46,52,60,69,66,67] growth×1.92 peakIdleWks=99
+seed 2 regional 8y: problems=0 ledgerLines=5796 cash=£14655k negCashWeeks=0 shows=98 pop=314-340 retirements/yr=[24,22,17,17,-3,0,5,14] aiShows/yr=[50,54,57,52,60,18,2,4] tickMs/wk=[22,32,43,50,58,65,62,66] growth×2.99 peakIdleWks=130
+seed 3 regional 8y: problems=0 ledgerLines=5512 cash=£13071k negCashWeeks=0 shows=89 pop=308-331 retirements/yr=[37,21,19,21,-17,11,7,6] aiShows/yr=[52,52,56,54,56,23,3,7] tickMs/wk=[21,32,35,44,52,51,79,89] growth×4.30 peakIdleWks=112
+ALL CLEAN

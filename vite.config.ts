@@ -6,7 +6,7 @@ import react from '@vitejs/plugin-react'
  * so they run AFTER everything else and one file at a time: running them beside thirty other worker processes measures contention,
  * not the engine. Nothing about their thresholds changes.
  */
-const TIMING = ['src/engine/perf.test.ts', 'src/engine/longrun.test.ts', 'src/engine/sim/bench.test.ts']
+const TIMING = ['src/engine/perf.test.ts', 'src/engine/longrun.test.ts', 'src/engine/sim/bench.test.ts', 'src/engine/fight/fiveyear.test.ts']
 
 export default defineConfig({
   plugins: [react()],

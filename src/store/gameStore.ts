@@ -168,10 +168,14 @@ function currentHashRoute(): Route {
   return typeof window === 'undefined' ? { screen: 'dashboard' } : parseHash(window.location.hash)
 }
 
+/** The last state written to storage, so the change-driven autosave below does not rewrite what advancing time already saved. */
+let lastPersisted: GameState | null = null
+
 export const useGame = create<GameStore>((set, get) => {
   const persist = async (g: GameState, opts: { slotId?: string; name?: string; auto?: boolean } = {}) => {
     const v = await vault()
     await v.save(g, opts)
+    lastPersisted = g
     set({ saves: await v.list(), storageKind: v.backend.kind })
   }
   const update = (fn: (g: GameState) => GameState) => {
@@ -558,3 +562,25 @@ useGame.subscribe((s, prev) => {
     if (next !== s.game) useGame.setState({ game: next })
   }
 })
+
+// Phase 8: autosave after ANY change to the career, not only when time advances. Signing a fighter, agreeing a fight, booking or putting a show on
+// sale are all decisions a refresh must not lose. Debounced so a burst of clicks is one write; flushed when the tab is hidden or closed.
+let autosaveTimer: ReturnType<typeof setTimeout> | undefined
+const flushAutosave = () => {
+  autosaveTimer = undefined
+  const g = useGame.getState().game
+  if (!g || !g.settings.autosave || g === lastPersisted) return
+  void vault().then((v) => v.save(g, { auto: true })).then(() => { lastPersisted = g; return v_list() }).catch(() => undefined)
+}
+const v_list = async () => { useGame.setState({ saves: await (await vault()).list() }) }
+useGame.subscribe((s, prev) => {
+  // loading or starting a career replaces the game wholesale: nothing new to save
+  if (!s.game || s.game === prev.game || !prev.game || s.game.saveId !== prev.game.saveId) return
+  if (!s.game.settings.autosave) return
+  if (autosaveTimer) clearTimeout(autosaveTimer)
+  autosaveTimer = setTimeout(flushAutosave, 1000)
+})
+if (typeof window !== 'undefined') {
+  window.addEventListener('pagehide', () => { if (autosaveTimer) { clearTimeout(autosaveTimer); flushAutosave() } })
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden' && autosaveTimer) { clearTimeout(autosaveTimer); flushAutosave() } })
+}

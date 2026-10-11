@@ -24,8 +24,14 @@ function Go({ s, big }: { s: GuideStepView; big?: boolean }) {
   const route = useGame((st) => st.route)
   const go = s.go
   // Nothing to point at when you are already standing on the screen it names.
-  if (route.screen === go.screen && (route.param ?? undefined) === go.param && s.id === 'position') return null
-  return <button type="button" className={`btn ${big ? 'primary' : 'small go'} guide-go`} data-testid={s.optional ? 'guide-go-optional' : 'guide-go'} disabled={!!s.blocker && s.id !== 'matchup'} onClick={() => navigate(go.screen as never, go.param)}>{go.label} ▸</button>
+  const here = route.screen === go.screen && (route.param ?? undefined) === go.param
+  if (here && s.id === 'position') return null
+  // Already on the right screen: the action may be far down a long page (the event page on a phone), so scroll to the real control instead of navigating.
+  const act = () => {
+    if (here) { const el = document.querySelector<HTMLElement>(`[data-guide="${go.target}"]`); if (el) { el.scrollIntoView({ block: 'center', behavior: 'smooth' }); el.focus({ preventScroll: true }); return } }
+    navigate(go.screen as never, go.param)
+  }
+  return <button type="button" className={`btn ${big ? 'primary' : 'small go'} guide-go`} data-testid={s.optional ? 'guide-go-optional' : 'guide-go'} disabled={!!s.blocker && s.id !== 'matchup'} onClick={act}>{here && document.querySelector(`[data-guide="${go.target}"]`) ? 'Show me the button' : go.label} ▸</button>
 }
 
 function StepBody({ s }: { s: GuideStepView }) {

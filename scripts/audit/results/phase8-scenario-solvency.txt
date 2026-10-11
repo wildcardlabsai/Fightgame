@@ -1,0 +1,4 @@
+groundUp 6/8 solvent after 4y; cash £k: -594,-720,3390,356,1025,964,871,2400
+regional 8/8 solvent after 4y; cash £k: 1113,6652,10503,5008,8082,1397,11522,6994
+national 8/8 solvent after 4y; cash £k: 16630,29621,24917,24925,25033,22001,29794,25171
+champion 4/8 solvent after 4y; cash £k: -977,-1245,4012,3713,2232,-423,2488,-1092
