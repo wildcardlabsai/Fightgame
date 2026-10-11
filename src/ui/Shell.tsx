@@ -8,6 +8,7 @@ import { PromoMark } from './visual/PromoMark'
 import { AudioToggle } from './components/AudioStatus'
 import { TierUpNotice } from './components/TierUpNotice'
 import { money } from './format'
+import { GuideBar } from './components/Guide'
 const MediaScreen = lazy(() => import('./screens/MediaScreen').then((m) => ({ default: m.MediaScreen })))
 const RankingsScreen = lazy(() => import('./screens/RankingsScreen').then((m) => ({ default: m.RankingsScreen })))
 const FightDealScreen = lazy(() => import('./screens/FightDealScreen').then((m) => ({ default: m.FightDealScreen })))
@@ -74,10 +75,11 @@ export function Shell() {
         <div className="hud-spacer" />
         <div className="hud-actions mobile-only">
           <AudioToggle compact />
-          <button className="btn primary small hud-advance" onClick={() => advance(1)} aria-label="Advance one week">Week ▸</button>
+          <button className="btn primary small hud-advance" data-guide="advance" onClick={() => advance(1)} aria-label="Advance one week">Week ▸</button>
         </div>
       </header>
       <main className="page fade-in" key={route.screen + (route.param ?? '')}>
+        <GuideBar />
         <Suspense fallback={<div className="dim" style={{ padding: 24 }}>Loading…</div>}><Screen /></Suspense>
       </main>
       <BottomNav unread={unread} />

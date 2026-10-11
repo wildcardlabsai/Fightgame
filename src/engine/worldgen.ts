@@ -20,6 +20,7 @@ import type {
   AiCompetence, AiStrategy, Contract, Day, Difficulty, Fighter, GameState, Id, Promotion, PromoFinance, PromotionTier, Venue,
 } from './types'
 import { GAME_STATE_VERSION } from './types'
+import { newGuide } from './guide'
 
 export const START_DATE = '2026-10-05' // a Monday
 
@@ -222,6 +223,8 @@ export function createNewGame(opts: NewGameOptions, now = Date.now()): GameState
   initKnowledge(state)
   postWelcomeMessages(state)
   initMediaWorld(state)
+  // Phase 7: a brand-new career gets the guided first career. It reads state and grants nothing.
+  state.guide = newGuide(state)
   return state
 }
 

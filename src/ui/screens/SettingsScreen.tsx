@@ -104,6 +104,7 @@ export function SettingsScreen() {
         <div>
           <AdvisorSettings />
           <AudioSettings />
+          <GuideSettings />
           <Section title="This game">
             <dl>
               <div className="kv"><dt>World seed</dt><dd className="num" style={{ fontSize: 18 }}>{game.seed}</dd></div>
@@ -155,5 +156,20 @@ export function SettingsScreen() {
         </div>
       </div>
     </>
+  )
+}
+
+function GuideSettings() {
+  const game = useGame((s) => s.game)!
+  const start = useGame((s) => s.guideStart)
+  const hide = useGame((s) => s.guideDismiss)
+  const g = game.guide
+  const on = !!g?.active
+  return (
+    <Section title="Guided first career">
+      <p className="dim" style={{ fontSize: 14, marginBottom: 10 }}>A short checklist that walks through your first show and explains each step. It only reads your career and grants nothing, so you can use it, hide it, or bring it back at any time.</p>
+      <p style={{ marginBottom: 10 }} data-testid="guide-status">{on ? 'The guide is showing on your desk.' : g?.finished ? 'You finished the guide.' : g?.dismissed ? 'The guide is hidden.' : 'The guide is off for this career.'}</p>
+      {on ? <button type="button" className="btn" data-testid="guide-settings-hide" onClick={hide}>Hide the guide</button> : <button type="button" className="btn" data-testid="guide-settings-start" onClick={start}>{g?.finished ? 'Restart the guide' : 'Show the guide'}</button>}
+    </Section>
   )
 }

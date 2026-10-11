@@ -819,8 +819,10 @@ export interface GameState {
   world?: import('./world/types').WorldState
   /** Phase 5.4C: the promoter's office - incoming offers, career objectives, relationships, campaigns, strategy (see engine/office). Created by migration. */
   office?: import('./office/types').OfficeState
+  /** Phase 7: the guided first career (see engine/guide). On for a brand-new career, off (but present) for migrated ones. */
+  guide?: import('./guide').GuideState
   /** Phase 5.6: the backers' bridge loan, if the promotion has ever needed one. Absent in older saves. */
   bridge?: import('./systems/bridge').BridgeState
 }
 
-export const GAME_STATE_VERSION = 12
+export const GAME_STATE_VERSION = 13

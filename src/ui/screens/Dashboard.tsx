@@ -3,6 +3,7 @@ import { deskAdvice } from '../../engine/advisor'
 import { firstSteps } from '../../engine/onboarding'
 import { objectiveStatuses, scenarioById } from '../../engine/scenarios'
 import { usePrefs } from '../../store/prefs'
+import { GuidePanel, useGuide } from '../components/Guide'
 import { formatDay, weekOfYear } from '../../engine/calendar'
 import { fightList, fightView } from '../../engine/fightViews'
 import { dashboardEvent, eventView } from '../../engine/eventViews'
@@ -62,7 +63,10 @@ export function Dashboard() {
   const spons = sponsorView(game)
   const stepsHidden = usePrefs((s) => s.firstStepsHidden)
   const hideSteps = usePrefs((s) => s.hideFirstSteps)
-  const showSteps = !stepsHidden && steps.some((s) => !s.done)
+  const guide = useGuide()
+  const guideAvailable = !guide && !!game.guide && game.guide.dismissed && !game.guide.finished
+  const guideStart = useGame((s) => s.guideStart)
+  const showSteps = !guide && !game.guide?.finished && !stepsHidden && steps.some((s) => !s.done) && game.guide?.dismissed !== true
   const mail = useMemo(() => [...game.inbox].filter((m) => !m.read).sort((a, b) => (PRIO[a.priority] ?? 2) - (PRIO[b.priority] ?? 2) || b.day - a.day).slice(0, 4), [game.inbox])
   const unread = game.inbox.filter((m) => !m.read).length
   const teaser = useMemo(() => mediaTeaser(game), [game])
@@ -92,10 +96,13 @@ export function Dashboard() {
           <div className="dim" style={{ marginTop: 4 }}>{p.name} · promoter {p.promoterName}</div>
         </div>
         <div className="desk-actions">
-          <button className="btn primary big" data-testid="desk-advance" onClick={() => advance(1)}>Advance Week ▸</button>
+          <button className="btn primary big" data-testid="desk-advance" data-guide="advance" onClick={() => advance(1)}>Advance Week ▸</button>
           <button className="btn ghost" onClick={() => advance(4)}>+4 Weeks</button>
         </div>
       </header>
+
+      {guide && <GuidePanel />}
+      {guideAvailable && <p className="dim" style={{ marginTop: 14 }}><button type="button" className="linkbtn" data-testid="guide-show" onClick={guideStart}>Show the first-career guide</button></p>}
 
       {night && (
         <div className="night-banner" data-testid="desk-night">
@@ -106,7 +113,7 @@ export function Dashboard() {
 
 
       {/* ---------------------------------------------------------------- COMMAND STRIP */}
-      <section className="cmd" aria-label="Promotion status" data-testid="desk-strip">
+      <section className="cmd" aria-label="Promotion status" data-testid="desk-strip" data-guide="desk-strip">
         <button type="button" className={`cmd-tile ${runway !== null && runway < 8 || p.cash < 0 ? 'bad' : runway !== null && runway < 26 ? 'warn' : ''}`} onClick={() => navigate('finances')}>
           <span className="caps">Cash</span>
           <b className="num">{money(p.cash)}</b>
@@ -198,7 +205,7 @@ export function Dashboard() {
             <div className="caps gold">No event booked</div>
             <h2 className="display dh-title">Put on a show</h2>
             <p className="dim">{de.actions[0]}</p>
-            <button className="btn primary big" onClick={() => navigate('events')}>Plan a show ▸</button>
+            <button className="btn primary big" data-guide="plan-show" onClick={() => navigate('events')}>Plan a show ▸</button>
           </div>
         )}
       </section>
@@ -242,7 +249,7 @@ export function Dashboard() {
           ) : lastResult ? (
             <button type="button" className="dt-fight" onClick={() => navigate('fight', lastResult.id)}><div className="caps">Latest result</div><div className="dt-res">{lastResult.resultText}</div><div className="dt-sub dim">{lastResult.method} · {formatDay(lastResult.day, true)}</div></button>
           ) : <p className="empty">Nothing booked. Open matchmaking and put a fighter in the ring.</p>}
-          {!nextFight && <button className="btn small" onClick={() => navigate('matchmaking')}>Make a fight ▸</button>}
+          {!nextFight && <button className="btn small" data-guide="matchmaking" onClick={() => navigate('matchmaking')}>Make a fight ▸</button>}
         </section>
       </div>
 

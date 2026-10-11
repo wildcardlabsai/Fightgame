@@ -19,6 +19,7 @@ import { EventPoster } from '../visual/EventPoster'
 import { EventMediaPanel } from '../media/EventMediaPanel'
 import { VenueFitList } from '../venues/VenueFitList'
 import { FighterCard, type CardFighter } from '../visual/FighterCard'
+import { Explain } from '../components/Explain'
 
 const rng = (r: { lo: number; hi: number }, f: (n: number) => string = (n) => money(n)) => (Math.round(r.lo) === Math.round(r.hi) ? f(r.lo) : `${f(r.lo)} to ${f(r.hi)}`)
 const num = (n: number) => Math.round(n).toLocaleString('en-GB')
@@ -108,7 +109,7 @@ export function EventPage({ id }: { id: string }) {
 
       <div className="grid-2" style={{ alignItems: 'start' }}>
         <div>
-          <div id="eb-card" /><Section title="Fight card" right={editable ? <button className="btn small" onClick={() => setAdding(true)}>Add a fight</button> : <span className="dim" style={{ fontSize: 13 }}>{v.card.length} fights · min {v.venue.minFights}, max {v.venue.maxFights}</span>}>
+          <div id="eb-card" /><Section title="Fight card" right={editable ? <button className="btn small" data-guide="add-fight" onClick={() => setAdding(true)}>Add a fight</button> : <span className="dim" style={{ fontSize: 13 }}>{v.card.length} fights · min {v.venue.minFights}, max {v.venue.maxFights}</span>}>
             {v.card.length === 0 ? <p className="empty">The card is empty. Agree fights in Matchmaking, then add them here (opener first, headliner last).</p> : (
               <div>
                 {[...v.card].reverse().map((s) => <SlotRow key={s.fightId} s={s} n={v.card.length} editable={editable} eventId={v.id} />)}
@@ -203,7 +204,7 @@ export function EventPage({ id }: { id: string }) {
           <FinancePanel v={v} />
           {v.mine && (
             <div style={{ display: 'flex', gap: 10, marginTop: 14, flexWrap: 'wrap' }}>
-              {v.statusKey === 'cardBuilding' && <button className="btn primary big" disabled={!v.can.putOnSale} onClick={() => { const top = visibleAdvice(advice, advisorMode, 1)[0]; if (needsConfirmation(top)) setConfirmSale(true); else act('putOnSale', v.id) }}>Put on sale ▸</button>}
+              {v.statusKey === 'cardBuilding' && <button className="btn primary big" data-guide="put-on-sale" disabled={!v.can.putOnSale} onClick={() => { const top = visibleAdvice(advice, advisorMode, 1)[0]; if (needsConfirmation(top)) setConfirmSale(true); else act('putOnSale', v.id) }}>Put on sale ▸</button>}
               {v.can.cancel && <button className="btn ghost" onClick={() => setConfirmCancel(true)}>Cancel the show</button>}
             </div>
           )}
@@ -324,6 +325,8 @@ function ForecastPanel({ v }: { v: EventView }) {
   const att = f.attendance
   return (
     <Section title="Forecast" right={<RiskChip risk={f.risk} />}>
+      <Explain topic="forecast" />
+      <Explain topic="eventMoney" />
       <p className="dim" style={{ fontSize: 13, marginBottom: 8 }}>Ranges from public information. They narrow as you run more shows. The real result can land outside them.</p>
       <dl>
         <div className="kv"><dt>Attendance</dt><dd>{rng(att, num)} <span className="dim">({Math.round(f.fill.lo * 100)}–{Math.round(f.fill.hi * 100)}% full)</span></dd></div>
@@ -429,11 +432,12 @@ function NightPanel({ v, runNext, nightFight }: { v: EventView; runNext: (id: st
           {next && <div className="dim">{next.aName} vs {next.bName} · {next.division}</div>}
         </div>
         <div style={{ marginLeft: 'auto', display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-          {next && <button className="btn primary big" onClick={() => runNext(v.id)}>{mainNext ? 'Ring the bell ▸' : `Run: ${next.aName} v ${next.bName}`}</button>}
+          {next && <button className="btn primary big" data-guide="ring-bell" onClick={() => runNext(v.id)}>{mainNext ? 'Ring the bell ▸' : `Run: ${next.aName} v ${next.bName}`}</button>}
           {pending.length > 1 && <button className="btn ghost" onClick={() => act('quickSim', v.id, true)}>Quick-sim the undercard</button>}
           {pending.length > 0 && <button className="btn ghost" onClick={() => act('runToEnd', v.id)}>Skip to the end</button>}
         </div>
       </div>
+      <Explain topic="night" />
       {mainNext && next && (
         <div className="main-card">
           <div className="caps">Main event · {next.rounds} rounds · {next.division}</div>
@@ -457,7 +461,7 @@ function CompletePanel({ v }: { v: EventView }) {
   const navigate = useGame((s) => s.navigate)
   const main = v.card[v.card.length - 1]
   return (
-    <div className="complete" ref={ref} data-testid="event-complete">
+    <div className="complete" ref={ref} data-testid="event-complete" data-guide="event-complete">
       <div className="caps" style={{ color: 'var(--gold)' }}>Event complete</div>
       <h2 className="display" style={{ fontSize: 44, margin: '4px 0 12px' }}>{v.name}</h2>
       <div className="kpis">

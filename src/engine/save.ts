@@ -125,6 +125,7 @@ export function migrate(data: unknown): GameState | null {
   if (s.version < 10) migrateV9toV10(s as never)
   if (s.version < 11) migrateV10toV11(s as never)
   if (s.version < 12) migrateV11toV12(s as never)
+  if (s.version < 13) migrateV12toV13(s as never)
   return s as GameState
 }
 
@@ -314,4 +315,13 @@ function migrateV10toV11(s: any): void {
 function migrateV11toV12(s: any): void {
   if (!s.office) s.office = { v: 1, n: 0, offers: {}, goals: {}, decisions: {}, rel: {}, applied: [], campaigns: {}, strategy: { focus: null, stance: null, since: s.today ?? 0, changes: 0 }, coach: 'standard', rivalNotes: {}, recent: {} }
   s.version = 12
+}
+
+/**
+ * v12 -> v13 (the guided first career): adds the guide record, switched OFF. An established career is never shown onboarding it did not ask
+ * for; the player can start the tutorial from Settings. Nothing else is touched.
+ */
+function migrateV12toV13(s: any): void {
+  if (!s.guide) s.guide = { v: 1, active: false, dismissed: false, since: s.today ?? 0, rosterAtStart: [], done: {}, skipped: [] }
+  s.version = 13
 }

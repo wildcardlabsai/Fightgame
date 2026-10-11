@@ -19,6 +19,7 @@ import { money } from '../format'
 import { FighterPortrait } from '../visual/FighterPortrait'
 import { FighterMediaPanel } from '../media/FighterMediaPanel'
 import { CareerPanel, CommitmentsPanel, DivisionMove, ExpectedTermsPanel, PlanChooser, ToldPanel, ValuePanel } from '../business/ProfileBusiness'
+import { Explain } from '../components/Explain'
 
 export function FighterProfile({ id }: { id: string }) {
   const navigate = useGame((s) => s.navigate)
@@ -67,6 +68,7 @@ export function FighterProfile({ id }: { id: string }) {
           {v.nickname && <div className="ds-nick display">“{v.nickname}”</div>}
           <h1 className="ds-name display">{v.firstName} <span>{v.lastName}</span></h1>
           <div className="ds-line"><Flag code={v.nationKey} /> <b>{v.nationName}</b> <span className="dim">· {v.hometown}</span> <span className="ds-dot" /> <b>{v.division}</b> <span className="ds-dot" /> {v.age} years · {v.style}</div>
+          <Explain topic="record" />
           <div className="ds-actions">
             {v.status === 'active' && <button className="btn" onClick={() => setScouting(true)}>{v.knowledge.reports ? 'Scout again' : 'Scout this fighter'}</button>}
             {!mine && <button className="btn ghost" onClick={() => toggleShortlist(v.id)} aria-pressed={v.shortlisted}>{v.shortlisted ? '★ Shortlisted' : '☆ Shortlist'}</button>}

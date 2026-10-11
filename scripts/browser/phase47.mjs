@@ -79,7 +79,8 @@ for (const [id, sc] of Object.entries(SCEN)) {
   await page.fill('#pr', 'Adv Tester')
   await page.getByRole('button', { name: /Open the doors/ }).click()
   await page.waitForSelector('[data-testid="desk-promotion"]')
-  check('first steps card shows on a new game', (await page.getByText('First steps').count()) > 0)
+  // Phase 7: a new career's first-steps help is the guided first career (the legacy checklist still shows on older saves, and never alongside the guide)
+  check('first steps guide shows on a new game', (await page.getByTestId('guide-panel').count()) > 0 && (await page.getByText('First steps', { exact: true }).count()) === 0)
 
   // booking a large venue when cash is low (venues above the promotion's tier are locked, so use the biggest open one)
   await page.evaluate(() => { const g = structuredClone(window.__fe.useGame.getState().game); g.promotions[g.playerPromotionId].cash = 22000; window.__fe.useGame.setState({ game: g }) })

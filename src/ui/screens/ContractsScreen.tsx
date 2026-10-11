@@ -9,6 +9,7 @@ import { Section } from '../components/Bits'
 import { FighterCell } from '../components/FighterTable'
 import { Modal } from '../components/Overlay'
 import { money } from '../format'
+import { Explain } from '../components/Explain'
 
 export function ContractsScreen() {
   const game = useGame((s) => s.game)!
@@ -37,6 +38,7 @@ export function ContractsScreen() {
         <div className="kpi"><div className="caps">Scouts</div><div className="v num" style={{ fontSize: 28 }}>{money(burn.scouting, false)}</div></div>
         <div className="kpi"><div className="caps">Total weekly burn</div><div className={`v num ${routeParam === 'payroll' ? 'gold' : ''}`} style={{ fontSize: 28 }}>{money(burn.total, false)}</div><div className="s"><button className="linkbtn" onClick={() => navigate('finances')}>Finances</button></div></div>
       </div>
+      <Explain topic="contract" />
       </div>
       <div className="kpis" style={{ marginTop: 0 }}>
         <div className="kpi"><div className="caps">Contracts</div><div className="v num">{c.count}</div></div>

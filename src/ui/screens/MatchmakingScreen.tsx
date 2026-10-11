@@ -10,6 +10,7 @@ import { RangeText } from '../components/Estimates'
 import { FormDots, StarRating, VerdictChip } from '../components/FightBits'
 import { ScoutDialog } from '../components/ScoutDialog'
 import { money } from '../format'
+import { Explain } from '../components/Explain'
 
 const STYLES = ['Pressure Fighter', 'Boxer', 'Counter Puncher', 'Swarmer', 'Power Puncher', 'Technical Boxer', 'Defensive Specialist', 'Balanced']
 
@@ -45,6 +46,8 @@ export function MatchmakingScreen({ fighterId }: { fighterId?: string }) {
         </div>
         <button className="btn ghost" onClick={() => navigate('fights')}>My fights ▸</button>
       </div>
+      <Explain topic="matchup" />
+      <Explain topic="availability" />
 
       {mine.length === 0 ? <p className="empty">You have no fighters. Sign some in Scouting first.</p> : (
         <div className="opp-grid">
@@ -114,7 +117,7 @@ export function MatchmakingScreen({ fighterId }: { fighterId?: string }) {
                           {overrideFor === v.id ? (
                             <span role="alert" className="o54-warn" style={{ fontSize: 12.5 }}>{me.firstName}'s camp objects to this one. <button className="btn small primary" onClick={() => { const id = approach(me.id, v.id, true); setOverrideFor(null); if (id) navigate('deal', id) }} data-testid="approach-override">Overrule them</button> <button className="linkbtn" onClick={() => setOverrideFor(null)}>Cancel</button></span>
                           ) : (
-                            <button className="btn small primary" disabled={!c.canApproach || !!open} onClick={() => { if (c.fit.objection) { setOverrideFor(v.id); return } const id = approach(me.id, v.id); if (id) navigate('deal', id) }}>Approach</button>
+                            <button className="btn small primary" data-guide="make-fight" disabled={!c.canApproach || !!open} onClick={() => { if (c.fit.objection) { setOverrideFor(v.id); return } const id = approach(me.id, v.id); if (id) navigate('deal', id) }}>Approach</button>
                           )}
                         </span>
                       </td>

@@ -4,6 +4,7 @@ import { fightList, type FightListItem } from '../../engine/fightViews'
 import { useGame } from '../../store/gameStore'
 import { OffersPanel } from '../office/OffersPanel'
 import { offersWaiting } from '../../engine/office/views'
+import { Explain } from '../components/Explain'
 
 type Tab = 'open' | 'mine' | 'world' | 'offers'
 
@@ -44,6 +45,7 @@ export function FightsScreen() {
         </div>
         <button className="btn primary" onClick={() => navigate('matchmaking')}>Make a fight ▸</button>
       </div>
+      <Explain topic="offers" />
       <div className="tabs" role="tablist">
         {([['open', 'My Fights'], ['offers', 'Offers'], ['mine', 'My Results'], ['world', 'World Results']] as const).map(([k, l]) => (
           <button key={k} role="tab" aria-selected={tab === k} className={`tab${tab === k ? ' active' : ''}`} onClick={() => setTab(k)}>{l}<span className="count">{k === 'offers' ? waiting : lists[k].length}</span></button>

@@ -14,6 +14,7 @@ import { VenueImage } from '../visual/VenueImage'
 import { VenuePicker } from '../venues/VenuePicker'
 import { clashesOn } from '../../engine/world/views'
 import '../../styles/world54b.css'
+import { Explain } from '../components/Explain'
 
 type Tab = 'open' | 'history' | 'upcoming' | 'world'
 
@@ -113,8 +114,9 @@ export function EventsScreen() {
           <h1 className="display">Events</h1>
           <p className="sub">Shows are where the money is made — and lost. Book a venue, build a card, set prices, promote, sell tickets, and run the night.</p>
         </div>
-        <button className="btn primary" disabled={blocked} title={blocked ? 'Insolvent: cannot book venues' : undefined} onClick={() => setCreating(true)}>Plan a show ▸</button>
+        <button className="btn primary" data-guide="plan-show" disabled={blocked} title={blocked ? 'Insolvent: cannot book venues' : undefined} onClick={() => setCreating(true)}>Plan a show ▸</button>
       </div>
+      <Explain topic="eventMoney" />
       <div className="tabs" role="tablist">
         {(Object.keys(labels) as Tab[]).map((k) => (
           <button key={k} role="tab" aria-selected={tab === k} className={`tab${tab === k ? ' active' : ''}`} onClick={() => setTab(k)}>{labels[k]}<span className="count">{lists[k].length}</span></button>

@@ -12,6 +12,7 @@ import { AdvicePanel } from '../components/Advice'
 import { money } from '../format'
 import { ExpectedFight, FightCounterCard, FightEditor, StakeBadge, VENUE } from '../negotiation/FightParts'
 import { ChatLog, ClosedPanel, Collapsible, lastCounterIndex, TalkHeaderBar, ToldBox, Walk } from '../negotiation/parts'
+import { Explain } from '../components/Explain'
 
 const wide = (): boolean => { try { return window.matchMedia('(min-width: 1024px)').matches } catch { return true } }
 const mid = (r: { lo: number; hi: number }, q: number): number => Math.round((r.lo + r.hi) / 2 / q) * q
@@ -86,6 +87,8 @@ export function FightDealScreen({ id }: { id: string }) {
     <div className="n54">
       <TalkHeaderBar h={v.header} f={oppRef} eyebrow={`Fight negotiation · ${fx.a.fighter.name} vs …`} onBack={back} backLabel="Matchmaking"
         sub={<div className="n54-stakes"><StakeBadge v={v} />{v.warning && <p className="n54-warn" role="alert" data-testid="fight-warning">{v.warning}</p>}</div>} />
+      <Explain topic="negotiation" />
+      <Explain topic="matchup" />
       <div className="n54-grid">
         <div className="n54-left">
           <ChatLog lines={v.log} f={oppRef} label="The conversation" counterCard={open ? counterCard : null} counterAfter={lastCounterIndex(v.log)} />

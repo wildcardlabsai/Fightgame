@@ -1,0 +1,50 @@
+/* Phase 7: guided first career + contextual help. Dark industrial, crimson accents; the player's own things stay blue elsewhere. */
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.guide { margin: 22px 0 6px; border: 1px solid var(--line-strong); border-left: 3px solid var(--red); background: linear-gradient(90deg, rgba(225,29,42,.08), transparent 60%), var(--bg-2); padding: 16px 18px 14px; }
+.guide-head { display: flex; gap: 12px; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; }
+.guide-head h2 { font-size: 34px; line-height: 1.05; margin-top: 2px; }
+.guide-meta { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.guide-bar { height: 4px; background: var(--bg-3); margin: 12px 0 8px; } .guide-bar i { display: block; height: 100%; background: var(--red); }
+.guide-steps { list-style: none; display: grid; gap: 2px; }
+.guide-steps li { display: flex; gap: 12px; padding: 8px 0; border-top: 1px solid var(--line); }
+.guide-steps li:first-child { border-top: 0; }
+.guide-mark { flex: none; width: 22px; height: 22px; border: 1px solid var(--line-strong); display: grid; place-items: center; font-size: 13px; color: var(--good); margin-top: 1px; }
+.guide-steps li.done .guide-mark { border-color: var(--good); }
+.guide-steps li.done .guide-title, .guide-steps li.skipped .guide-title { color: var(--dim); }
+.guide-steps li.current .guide-mark { border-color: var(--red-hot); box-shadow: 0 0 0 2px rgba(225,29,42,.25); }
+.guide-title { font-family: var(--display); font-weight: 700; font-size: 20px; letter-spacing: .02em; text-transform: uppercase; }
+.guide-line { min-width: 0; flex: 1; }
+.guide-body { font-size: 14.5px; color: #cfcbc4; max-width: 74ch; } .guide-body p { margin: 6px 0; } .guide-body b { color: var(--text); }
+.guide-facts { list-style: none; margin: 6px 0; display: flex; gap: 6px 18px; flex-wrap: wrap; color: var(--gold); } .guide-facts li { border: 0; padding: 0; }
+.guide-blocker { margin: 8px 0; padding: 8px 10px; border-left: 3px solid var(--warn); background: rgba(240,162,58,.08); color: var(--text); font-size: 14px; }
+.guide-actions { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-top: 10px; }
+.guide-actions .btn, .guide-strip .btn, .guide .linkbtn, .guide-strip .linkbtn { min-height: 44px; }
+.guide-actions .linkbtn, .guide-strip .linkbtn, .guide-meta .linkbtn { padding: 0 6px; }
+.guide-optional { margin-top: 12px; border-top: 1px solid var(--line); padding-top: 10px; } .guide-optional summary { cursor: pointer; min-height: 44px; display: flex; align-items: center; font-weight: 600; }
+.guide-optional details.done summary { color: var(--dim); }
+.guide-note { font-size: 13px; margin-top: 10px; }
+/* a slim line on other screens */
+.guide-strip { margin: 0 0 30px; border: 1px solid var(--line-strong); border-left: 3px solid var(--red); background: var(--bg-2); padding: 6px 12px; }
+.guide-strip-row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.guide-strip-title { font-family: var(--display); font-size: 18px; letter-spacing: .03em; text-transform: uppercase; flex: 1 1 180px; min-width: 0; }
+.guide-strip-btns { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.guide-strip .guide-body { padding: 4px 0 8px; }
+/* point at the real control: a crimson ring, calm when motion is reduced */
+body[data-guide-target="plan-show"] [data-guide="plan-show"], body[data-guide-target="add-fight"] [data-guide="add-fight"], body[data-guide-target="put-on-sale"] [data-guide="put-on-sale"],
+body[data-guide-target="ring-bell"] [data-guide="ring-bell"], body[data-guide-target="advance"] [data-guide="advance"], body[data-guide-target="make-fight"] [data-guide="make-fight"],
+body[data-guide-target="scout-commission"] [data-guide="scout-commission"], body[data-guide-target="desk-strip"] [data-guide="desk-strip"], body[data-guide-target="event-complete"] [data-guide="event-complete"] {
+  outline: 2px solid var(--red-hot); outline-offset: 3px; animation: guide-pulse 1.8s ease-in-out infinite;
+}
+@keyframes guide-pulse { 0%, 100% { outline-color: rgba(255,58,70,.95); } 50% { outline-color: rgba(255,58,70,.25); } }
+@media (prefers-reduced-motion: reduce) { body[data-guide-target] [data-guide] { animation: none !important; } }
+/* "What does this mean?" notes */
+.explain { margin: 10px 0 0; border: 1px solid var(--line); background: var(--bg-2); max-width: 880px; }
+.explain > summary { cursor: pointer; padding: 10px 14px; min-height: 44px; display: flex; align-items: center; gap: 8px; font-size: 14px; color: var(--steel, #9aa3b2); list-style: none; }
+.explain > summary::-webkit-details-marker { display: none; }
+.explain > summary::before { content: 'i'; display: inline-grid; place-items: center; width: 18px; height: 18px; border: 1px solid var(--line-strong); border-radius: 50%; font: italic 700 12px var(--display); color: var(--gold); flex: none; }
+.explain[open] > summary { color: var(--text); border-bottom: 1px solid var(--line); }
+.explain dl { padding: 8px 14px 12px; display: grid; gap: 8px; }
+.explain dt { font-family: var(--display); font-size: 13px; letter-spacing: .14em; text-transform: uppercase; color: var(--gold); }
+.explain dd { font-size: 14.5px; color: #cfcbc4; }
+.explain > summary:focus-visible, .guide .btn:focus-visible, .guide-strip .btn:focus-visible, .guide .linkbtn:focus-visible, .guide-strip .linkbtn:focus-visible, .guide-optional summary:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+@media (max-width: 700px) { .guide { padding: 14px 12px 12px; } .guide-head h2 { font-size: 28px; } .guide-strip-btns { width: 100%; } }

@@ -30,7 +30,7 @@ for (const w of [1280, 1024, 390]) {
   await page.evaluate((j) => window.__fe.useGame.getState().importGame(j), fixture)
   await page.waitForTimeout(300)
   const ver = await game(page, () => window.__fe.useGame.getState().game.version)
-  check('fixture: save is version 12', ver === 12, String(ver))
+  check('fixture: save is at the current save version (13, migrated on import)', ver === 13, String(ver))
 
   // ---- Offers tab
   await go(page, '#/fights/offers')

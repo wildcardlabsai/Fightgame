@@ -60,7 +60,7 @@ export function TaleOfTape({ a, b, rounds, division, onBell, bellLabel }: { a: F
           </div>
         ))}
       </div>
-      {onBell && <div className="tt-bell"><button className="btn primary big bell" data-testid="ring-bell" onClick={onBell}>{bellLabel ?? 'Ring the bell'} ▸</button></div>}
+      {onBell && <div className="tt-bell"><button className="btn primary big bell" data-guide="ring-bell" data-testid="ring-bell" onClick={onBell}>{bellLabel ?? 'Ring the bell'} ▸</button></div>}
     </section>
   )
 }

@@ -58,7 +58,7 @@ export function TopNav({ unread }: { unread: number }) {
       <div className="tn-right">
         <AudioToggle compact />
         <button className="btn ghost small" onClick={() => advance(4)} title="Advance four weeks (stops early if something urgent happens)">+4 Weeks</button>
-        <button className="btn primary" onClick={() => advance(1)}>Advance Week ▸</button>
+        <button className="btn primary" data-guide="advance" onClick={() => advance(1)}>Advance Week ▸</button>
       </div>
     </nav>
   )

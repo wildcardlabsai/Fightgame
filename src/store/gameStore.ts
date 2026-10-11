@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { ackGuideStep, dismissGuide, skipGuideStep, startGuide, syncGuide, type GuideStepId } from '../engine/guide'
 import { OFFICE_COMMANDS, type OfficeCmd, type OfficeOutcome } from '../engine/office/commands'
 import * as commands from '../engine/commands'
 import * as mediaCommands from '../engine/media/commands'
@@ -78,6 +79,10 @@ interface GameStore {
   openLink: (link: { kind: 'fighter'; id: string } | { kind: 'screen'; screen: string } | { kind: 'fight'; id: string } | { kind: 'event'; id: string }) => void
   // ---- Phase 4.6c: promotion tier and standing sponsors ----
   ackTier: () => void
+  /** Phase 7: the guided first career. Progress itself is derived and recorded by syncGuide after every state change (see the subscription below). */
+  guideDo: (cmd: 'ack' | 'skip', id: GuideStepId) => void
+  guideStart: () => void
+  guideDismiss: () => void
   sponsorAccept: (offerId: Id, years: 1 | 2 | 3) => boolean
   sponsorNegotiate: (offerId: Id) => void
   sponsorDecline: (offerId: Id) => void
@@ -267,6 +272,9 @@ export const useGame = create<GameStore>((set, get) => {
     },
 
     ackTier: () => update((g) => commands.ackTierNotice(g)),
+    guideDo: (cmd, id) => update((g) => (cmd === 'ack' ? ackGuideStep(g, id) : skipGuideStep(g, id))),
+    guideStart: () => update((g) => startGuide(g)),
+    guideDismiss: () => update((g) => dismissGuide(g)),
     sponsorAccept: (offerId, years) => {
       const g = get().game
       if (!g) return false
@@ -539,5 +547,14 @@ export const useGame = create<GameStore>((set, get) => {
       setTimeout(() => get().dismissNotice(id), 4500)
     },
     dismissNotice: (id) => set((s) => ({ notices: s.notices.filter((n) => n.id !== id) })),
+  }
+})
+
+// Record guided-career milestones as soon as the world confirms them. syncGuide returns the same object when there is nothing to record (and is a no-op
+// when the guide is off), so this costs nothing for established careers.
+useGame.subscribe((s, prev) => {
+  if (s.game && s.game !== prev.game && s.game.guide?.active) {
+    const next = syncGuide(s.game)
+    if (next !== s.game) useGame.setState({ game: next })
   }
 })

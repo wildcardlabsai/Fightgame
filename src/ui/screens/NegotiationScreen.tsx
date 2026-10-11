@@ -12,6 +12,7 @@ import { money } from '../format'
 import { ContractEditor, CounterCard, ExpectedContract } from '../negotiation/ContractParts'
 import { SigningForecastBox } from '../negotiation/SigningForecastBox'
 import { ChatLog, ClosedPanel, Collapsible, lastCounterIndex, TalkHeaderBar, ToldBox, Walk } from '../negotiation/parts'
+import { Explain } from '../components/Explain'
 
 /** A first draft that sits inside the expected ranges the player can see, so the default is a serious number. */
 function startingOffer(v: ContractTalkView): Offer {
@@ -88,6 +89,8 @@ export function NegotiationScreen({ id }: { id: string }) {
           <b>{v.header.rival.promotion}</b> have an offer on the table for {v.header.name}. Their camp expects an answer from them within about {v.header.rival.weeks} week{v.header.rival.weeks === 1 ? '' : 's'}, and knows it has options.
         </p>
       )}
+      <Explain topic="negotiation" />
+      <Explain topic="contract" />
       <div className="n54-grid">
         <div className="n54-left">
           <ChatLog lines={v.log} f={fv} label="The conversation" counterCard={open ? counterCard : null} counterAfter={lastCounterIndex(v.log)} />

@@ -13,6 +13,7 @@ import { FighterTable, statusText, type SortKey } from '../components/FighterTab
 import { ScoutDialog } from '../components/ScoutDialog'
 import { applyFilter, EMPTY_FILTER, sortRows, type FighterFilter } from '../fighterFilters'
 import { money } from '../format'
+import { Explain } from '../components/Explain'
 
 type Tab = 'market' | 'shortlist' | 'ops'
 const STAGES: PublicStage[] = ['Debutant', 'Prospect', 'Rising', 'Contender', 'Prime', 'Veteran', 'Declining', 'Journeyman']
@@ -99,6 +100,7 @@ export function ScoutingScreen() {
           <p className="sub">Everything you see here is what you <i>know</i> — public records plus your scouts’ opinions. Ranges are estimates and can be wrong. Only fighters you have heard of appear; run a talent search to find the rest.</p>
         </div>
       </div>
+      <Explain topic="scouting" />
 
       <div className="tabs" role="tablist">
         {([['market', 'The Market', market.length], ['shortlist', 'Shortlist & Compare', shortlist.length], ['ops', 'Scouting Desk', activeOps.length]] as const).map(([k, label, n]) => (
@@ -157,7 +159,7 @@ function ShortlistTab({ shortlist, onScout }: { shortlist: FighterView[]; onScou
                 <td data-label="Status">{statusText(v)}</td>
                 <td className="actions" onClick={(e) => e.stopPropagation()}>
                   <span className="action-row">
-                    <button className="btn small" onClick={() => onScout(v.id)}>Scout</button>
+                    <button className="btn small" data-guide="scout-commission" onClick={() => onScout(v.id)}>Scout</button>
                     <button className="linkbtn" onClick={() => toggle(v.id)}>Remove</button>
                   </span>
                 </td>

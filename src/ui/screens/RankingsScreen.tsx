@@ -10,6 +10,7 @@ import { RankMark } from '../media/RankMark'
 import { BeltCardView, LimitMarker, StatusChip, TagChip } from '../business/Boards'
 import { MyFighterPaths, RequestButton } from '../business/TitlePaths'
 import '../../styles/business54.css'
+import { Explain } from '../components/Explain'
 
 /** Rankings (sanctioning bodies, media and index lists, grouped by level) and Titles (the belts of each level). */
 export function RankingsScreen({ mode, param }: { mode: 'rankings' | 'titles'; param?: string }) {
@@ -42,6 +43,7 @@ function Rankings({ param }: { param?: string }) {
   return (
     <>
       <div className="page-head"><div><h1 className="display">Rankings</h1><p className="sub">Sanctioning bodies decide who can challenge for their belts. Media lists and the index are opinion.</p></div></div>
+      <Explain topic="titles" />
       <div className="bz-seg" role="tablist" aria-label="Ranking level" data-testid="rank-groups">
         {GROUPS.map((g) => {
           const first = orgs.find((o) => groupOf(o) === g.id)
@@ -124,6 +126,7 @@ function Titles({ param }: { param?: string }) {
   return (
     <>
       <div className="page-head"><div><h1 className="display">Titles</h1><p className="sub">Request a title fight for a fighter who has earned one, or browse every belt by level.</p></div></div>
+      <Explain topic="titles" />
       <div className="bz-seg" role="tablist" aria-label="Titles view">
         <button role="tab" aria-selected={tab === 'mine'} className={`bz-segbtn${tab === 'mine' ? ' on' : ''}`} data-testid="titles-tab-mine" onClick={() => navigate('titles', 'mine')}>My fighters{readyN > 0 ? ` · ${readyN} ready` : ''}</button>
         <button role="tab" aria-selected={tab === 'belts'} className={`bz-segbtn${tab === 'belts' ? ' on' : ''}`} data-testid="titles-tab-belts" onClick={() => go(level, division)}>All belts</button>

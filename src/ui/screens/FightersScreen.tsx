@@ -7,6 +7,7 @@ import { AdvicePanel } from '../components/Advice'
 import { FighterTable, type SortKey } from '../components/FighterTable'
 import { applyFilter, EMPTY_FILTER, sortRows, type FighterFilter } from '../fighterFilters'
 import { FilterBar } from './ScoutingScreen'
+import { Explain } from '../components/Explain'
 
 type Tab = 'roster' | 'free' | 'expiring' | 'signed' | 'released' | 'known' | 'offers'
 const RECENT_DAYS = 12 * 7
@@ -63,6 +64,7 @@ export function FightersScreen() {
         </div>
         <button className="btn" onClick={() => navigate('scouting')}>Open Scouting ▸</button>
       </div>
+      <Explain topic="rating" />
 
       {tab === 'roster' && <AdvicePanel list={rosterAdvice(game)} cap={4} title="Roster notes" compact />}
       <div className="tabs" role="tablist">
