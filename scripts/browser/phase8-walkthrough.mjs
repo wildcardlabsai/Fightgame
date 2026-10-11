@@ -128,7 +128,7 @@ for (let k = 0; k < 3; k++) {
 }
 await snap('14-card-built'); await overflow('card built')
 say('card: ' + await st((id) => window.__fe.useGame.getState().game.events[id].card.length + ' status ' + window.__fe.useGame.getState().game.events[id].status, evId))
-await page.locator('[data-guide="put-on-sale"]').click(); await page.waitForTimeout(700)
+await page.locator('[data-guide="put-on-sale"]:visible').click(); await page.waitForTimeout(700)
 if (await page.locator('.modal').count()) { say('sale confirmation modal: ' + (await page.locator('.modal').innerText()).slice(0, 200).replace(/\n+/g, ' | ')); await snap('15-sale-confirm', false); await page.getByRole('button', { name: /Proceed Anyway/i }).click(); await page.waitForTimeout(700) }
 say('event status ' + await st((id) => window.__fe.useGame.getState().game.events[id].status, evId)); await snap('16-on-sale')
 
@@ -240,7 +240,7 @@ const cycle = async (n) => {
   await page.getByLabel('Event name').fill('Show ' + n); await page.getByRole('button', { name: /Book venue/i }).click(); await page.waitForTimeout(800)
   const id = page.url().split('/event/')[1]
   for (let k = 0; k < 3; k++) { await page.locator('[data-guide="add-fight"]').click(); await page.waitForTimeout(300); const ab = page.locator('.modal button:has-text("Add"):not([disabled])').first(); if (!(await ab.count())) { find('high', 'cycle ' + n + ': nothing to add'); await page.keyboard.press('Escape'); return false } await ab.click(); await page.waitForTimeout(500) }
-  await page.locator('[data-guide="put-on-sale"]').click(); await page.waitForTimeout(600)
+  await page.locator('[data-guide="put-on-sale"]:visible').click(); await page.waitForTimeout(600)
   if (await page.locator('.modal').count()) await page.getByRole('button', { name: /Proceed Anyway/i }).click().catch(() => {})
   await page.waitForTimeout(500)
   for (let i = 0; i < 14; i++) { const stt = await st((x) => window.__fe.useGame.getState().game.events[x].status, id); if (['fightWeek', 'live'].includes(stt)) break; await go('#/dashboard'); await page.locator('[data-guide="advance"]:visible').first().click(); await page.waitForTimeout(600) }

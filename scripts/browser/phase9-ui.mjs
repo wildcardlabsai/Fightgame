@@ -33,7 +33,7 @@ for (const w of [1280, 1024, 390]) {
   // Phase 2 UX: the short reason is always visible; the rest, the levers and the cost table are behind deliberate controls.
   ok(/Even the best case|forecast loses|loss/i.test(await T('econ-loss').innerText()), `${w} the headline reason is visible without opening anything`)
   ok(!(await T('econ-table').evaluate((d) => d.open)), `${w} the cost breakdown is folded until the player opens it`)
-  await T('econ-why-toggle').click(); await T('econ-table').locator('summary').click(); await page.waitForTimeout(250)
+  await T('econ-why-toggle').click(); await T('econ-table').locator('summary').first().click(); await page.waitForTimeout(250)
   const lossText = await T('econ-loss').innerText()
   ok(/sell-out would still lose|a sell-out would/.test(lossText) && /owed whatever the crowd|owed regardless/.test(await T('economics').innerText()), `${w} the explanation covers a sell-out and the money owed regardless`)
   ok(/none of these guarantees a profit/i.test(lossText) && !/guarantee a profit\./.test(lossText.replace(/none of these guarantees a profit/i, '')), `${w} it never promises a profit`)
@@ -44,7 +44,7 @@ for (const w of [1280, 1024, 390]) {
   await noOverflow('event economics'); await snap('01-econ', false)
   await T('econ-table').scrollIntoViewIfNeeded(); await snap('02-econ-table', false)
   // the sale confirmation carries the same numbers
-  await page.locator('[data-guide="put-on-sale"]').scrollIntoViewIfNeeded(); await page.locator('[data-guide="put-on-sale"]').click(); await page.waitForTimeout(500)
+  await page.locator('[data-guide="put-on-sale"]:visible').first().scrollIntoViewIfNeeded(); await page.locator('[data-guide="put-on-sale"]:visible').first().click(); await page.waitForTimeout(500)
   ok(await T('econ-summary').isVisible(), `${w} putting a loss-making show on sale asks first, with the numbers`)
   const sumText = await T('econ-summary').innerText(); ok(/Owed whatever the crowd/.test(sumText) && /Break-even/.test(sumText) && /Cash if the poor end happens/.test(sumText), `${w} the confirmation shows owed money, break-even and cash at risk`)
   await noOverflow('sale confirmation'); await snap('03-sale-confirm', false)

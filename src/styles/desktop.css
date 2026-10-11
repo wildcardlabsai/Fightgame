@@ -248,7 +248,8 @@
   .eb-right .kpis { margin-bottom: 6px; } .eb-right .kpi .v { font-size: 22px !important; }
 }
 @media (min-width: 861px) and (max-width: 1100px) {
-  .eb-bar { margin: -16px -20px 10px; padding: 8px 20px; gap: 12px; flex-wrap: wrap; }
+  .eb-bar { margin: -16px -20px 10px; padding: 8px 20px; gap: 6px 12px; flex-wrap: wrap; overflow: hidden; }
+  .eb-meta { display: none; } .eb-name { font-size: 20px; max-width: 200px; } .eb-fc .num { font-size: 15px; } .eb-actions .btn.primary { padding-left: 14px; padding-right: 14px; }
   .eb-shell { grid-template-columns: minmax(0, 1fr) 320px; column-gap: 16px; }
   .eb-name { max-width: 220px; }
 }

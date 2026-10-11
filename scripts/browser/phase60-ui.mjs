@@ -25,15 +25,17 @@ for (const w of [1280, 390]) {
   await go(page, '#/dashboard')
   const strip = page.getByTestId('desk-strip')
   check(`${w} dashboard: the command strip is above the next event`, await strip.isVisible() && (await strip.boundingBox()).y < (await page.getByTestId('desk-event').boundingBox()).y)
-  const tiles = await strip.locator('.cmd-tile').count()
-  check(`${w} dashboard: five status tiles`, tiles === 5, String(tiles))
+  // Phase 2 UX: on desktop the Cash and Roster tiles are not shown (cash is in the top bar, the roster in the right rail); phones keep all five.
+  const desktop = w >= 861
+  const tiles = await strip.locator('.cmd-tile:visible').count()
+  check(`${w} dashboard: ${desktop ? 'three' : 'five'} status tiles`, tiles === (desktop ? 3 : 5), String(tiles))
   const cash = await page.evaluate(() => { const g = window.__fe.useGame.getState().game; return g.promotions[g.playerPromotionId].cash })
-  const tileText = await strip.locator('.cmd-tile').first().innerText()
-  check(`${w} dashboard: the cash tile shows the ledger balance`, tileText.replace(/[^0-9]/g, '').startsWith(String(Math.round(cash / 10000)).slice(0, 3)) || tileText.includes('£'), tileText)
-  const routes = [['finances', 0], ['fighters', 1], ['event', 2], ['titles', 4]]
+  const tileText = desktop ? await page.getByTestId('desk-cash').innerText() : await strip.locator('.cmd-tile').first().innerText()
+  check(`${w} dashboard: the cash figure shows the ledger balance`, tileText.replace(/[^0-9]/g, '').startsWith(String(Math.round(cash / 10000)).slice(0, 3)) || tileText.includes('£'), tileText)
+  const routes = desktop ? [['event', 0], ['titles', 2]] : [['finances', 0], ['fighters', 1], ['event', 2], ['titles', 4]]
   for (const [expect, idx] of routes) {
     await go(page, '#/dashboard')
-    await page.getByTestId('desk-strip').locator('.cmd-tile').nth(idx).click(); await page.waitForTimeout(500)
+    await page.getByTestId('desk-strip').locator('.cmd-tile:visible').nth(idx).click(); await page.waitForTimeout(500)
     check(`${w} dashboard: tile ${idx + 1} opens ${expect}`, (await hash(page)).includes(expect), await hash(page))
   }
   await go(page, '#/dashboard')
