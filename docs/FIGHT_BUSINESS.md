@@ -720,3 +720,30 @@ Presentation only: scoring, stoppage logic, finances, attributes, rankings, titl
   apply, the Next fight button names the fighters on two lines, and toasts move to the top so they never cover the controls. Scorecards state the score order and who each judge favoured.
 - **Cards**: the title chip on the main-event block, the card rows and the night banner; "Your fighter" marks on cards; a rival's show carries an explicit "they stage this show" banner and no run controls.
 - **Fixtures**: `scripts/browser/make-phase64-fixtures.ts` (a real title night in fight week), screenshots by `phase64-shots.mjs`, behaviour checks in `phase64-ui.mjs`.
+
+## Phase 6.5 - fighter development and the championship pipeline
+
+**Method.** `scripts/audit/phase65-pipeline.ts` (reproducible: `npx tsx scripts/audit/phase65-pipeline.ts 8 6 [--first=11]`) measures, over 6 seeds x 8 years (tuning seeds `act-1..6`,
+the same worlds as the Phase 6.1 activity baseline; held-out seeds `act-11..16`): population by division and career stage, fighters meeting each eligibility floor, credible contenders,
+belt vacancy and its duration, a prospect cohort (<= 6 fights when first seen, n ~ 1,300 per seed set) followed to the world floor and to credible by hidden-potential band,
+wins/opposition by career stage, mandatory orders, eliminators and title fights. Stored outputs: `scripts/audit/results/phase65-baseline-*.txt` (before) and `phase65-after-*.txt`.
+
+**Diagnosis (data, not assumption).**
+- Talent supply is not the limit: 12% of the cohort has potential 75+, and those prospects are 93-95% under contract and win 67-68% of their bouts.
+- Development rate is not the limit: of cohort fighters still below the world floor at the end, 78-88% are short of the 14 *fights*, only 10-22% are short of the 9 wins.
+- The limit is bouts per year during the development window: a signed prospect fought 2.2-2.4 times a year whatever the promotion's style (14 fights from a standing start of ~3 therefore takes
+  ~5 years: median age at the world floor 26.6 for the best prospects). Mechanism: a fighter was only offered to a card being planned 8 weeks after their last bout (`restWeeks + 2`), and cards are
+  planned 8-14 weeks ahead, so the rest period and the planning lead stacked end to end instead of overlapping.
+- Division-specific effects are real but separate: regional belts are vacant mostly because the eligible national pools are tiny (British 5.6 eligible per division, 2.2 credible; Welsh area belts 0.6 and 0.2).
+- Ordered eliminators almost never happened: of 248 orders in 4 seeds x 8 years, 85% lapsed unfought, 143 of them because one of the two was booked elsewhere. And for 68% of vacant world-belt weeks two credible contenders
+  existed in the division with no fight for the belt booked.
+
+**Changes (all engine-side, no schema change, deterministic).**
+1. `fights.ai.minIdleWeeks` 8 -> 6 (`events/ai.ts`): availability for the card's own date (`fightAvailability`) still enforces real rest; only the redundant stacked gate is shortened.
+2. `bookingNeed` (`systems/aiFights.ts`, `developmentPriority` 0.6, `developmentMaxAge` 29): when more fighters are available than a card has places, a young, winning fighter still short of the world floor's fight count is offered a place first.
+   Never changes an opponent's quality or a result; a losing prospect gets no lift.
+3. Title-body orders are staged first (`events/ai.ts`): an ordered eliminator, and the two credible contenders the AI's own obligation list names for a belt vacant at least `vacantSettleWeeks` (6), are put on the card of the promotion that has one
+   of them, if both are free, not the player's, and the promotion can pay both. Only title systems with coupling on do this. `reservedForMandatory` now also protects eliminator contenders from unrelated bookings.
+4. `opponentBasePool` (a pure optimisation): the set of possible opponents is built once per card, not once per bout; results are bit-identical (checked by hash) and it pays for the extra bouts' cost, keeping the weekly tick at 8.2-8.8x.
+
+Nothing about eligibility floors, ratings, fight results, finances or the player's own bookings changed.

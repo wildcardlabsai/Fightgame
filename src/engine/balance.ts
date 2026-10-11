@@ -214,7 +214,9 @@ export const BALANCE = {
       /** Master switch for independents taking places on AI cards (the audit turns it off to reproduce the old world). */
       /** Phase 6.5: lift in a promoter's booking order for a young, winning fighter still short of the world floor's fight count (0 = idle weeks only, as before). */
       /** Weeks since a fighter's last bout before a promoter will put them on a card being planned. The planning lead time (8-14 weeks) already spaces bouts, so stacking a full rest period on top of it (restWeeks + 2 = 8) capped a fighter near 2.4 bouts a year. */
-      minIdleWeeks: 4,
+      minIdleWeeks: 6,
+      /** Weeks a belt stays vacant before the AI stages the best two credible contenders against each other for it (rankings settle, promoters plan). */
+      vacantSettleWeeks: 6,
       developmentPriority: 0.6,
       developmentMaxAge: 29,
       freeAgentFill: true,

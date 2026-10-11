@@ -219,8 +219,9 @@ describe('fight-talk verdicts match the terms actually proposed', () => {
     let second
     try { second = open(ra.state, 1) } catch { second = null }
     if (second) {
-      const x2 = expectedFightTerms(second.s, second.fightId)!
       const r2 = fightTalkMove(second.s, second.talkId, { kind: 'ask', topic: 'priorities' })
+      // Asking tells the camp's priorities and can sharpen your read of the money: the range printed in the reply must equal the estimate the screen shows at that moment.
+      const x2 = expectedFightTerms(r2.state, second.fightId)!
       expect(r2.state.business!.talks[second.talkId].log.map((l) => l.text).join('\n')).toContain(`£${x2.purse.lo.toLocaleString('en-GB')}`)
     }
   })

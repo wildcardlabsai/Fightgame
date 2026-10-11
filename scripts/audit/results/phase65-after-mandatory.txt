@@ -1,25 +1,27 @@
 Mandatory audit: 4 seeds x 6 years (passive)
-  cause.other.orders: 10
-  cause.other.weeks: 50
-  cause.rankBeyondLimit.orders: 3
+  cause.other.orders: 17
+  cause.other.weeks: 53
+  cause.rankBeyondLimit.orders: 1
   cause.rankBeyondLimit.weeks: 8
-  ending.championLeft: 1
-  ending.orderLapsed: 10
-  mand.unreachable.ended: 11
-  mand.unreachable.endedAfterWeeks: 44
-  mand.unreachable.orders: 13
-  mand.unreachable.stillOpenAtEnd: 2
-  mand.unreachable.weeks: 58
-  mand.weeks: 13487
-  e.g. OTHER seed 1 wk 208 european|lightweight rank 1/4 bodiesFor=["apex"] champ=["european|lightweight"] chall=["area_eng|lightweight"]
-  e.g. seed 1 wk 208 european|lightweight: challenger rank 1 (limit 4) champion f_6e
-  e.g. OTHER seed 2 wk 114 british|superLightweight rank 1/4 bodiesFor=["european"] champ=["british|superLightweight"] chall=["area_eng|superLightweight"]
-  e.g. seed 2 wk 114 british|superLightweight: challenger rank 1 (limit 4) champion f_8a
-  e.g. OTHER seed 2 wk 185 british|superLightweight rank 1/4 bodiesFor=["european"] champ=["british|superLightweight"] chall=["commonwealth|superLightweight"]
-  e.g. OTHER seed 2 wk 216 european|featherweight rank 1/4 bodiesFor=["atlas","crown","apex"] champ=["european|featherweight"] chall=[]
-  e.g. OTHER seed 3 wk 130 european|welterweight rank 4/4 bodiesFor=["atlas"] champ=["european|welterweight"] chall=[]
-  e.g. OTHER seed 4 wk 27 british|superLightweight rank 1/4 bodiesFor=["european"] champ=["british|superLightweight","commonwealth|superLightweight"] chall=[]
-  e.g. OTHER seed 4 wk 128 area_eng|welterweight rank 1/3 bodiesFor=["commonwealth"] champ=["area_eng|welterweight"] chall=[]
-  e.g. OTHER seed 4 wk 305 european|lightHeavyweight rank 1/4 bodiesFor=["atlas","pioneer"] champ=["european|lightHeavyweight"] chall=[]
-  e.g. OTHER seed 4 wk 306 british|superLightweight rank 4/4 bodiesFor=["european"] champ=["british|superLightweight","commonwealth|superLightweight"] chall=[]
-  e.g. OTHER seed 4 wk 306 commonwealth|superLightweight rank 3/4 bodiesFor=["european"] champ=["british|superLightweight","commonwealth|superLightweight"] chall=[]
+  ending.championBeaten: 6
+  ending.orderLapsed: 12
+  mand.unreachable.ended: 18
+  mand.unreachable.endedAfterWeeks: 61
+  mand.unreachable.orders: 18
+  mand.unreachable.stillOpenAtEnd: 0
+  mand.unreachable.weeks: 61
+  mand.weeks: 14177
+  e.g. OTHER seed 1 wk 146 area_eng|lightHeavyweight rank 2/3 bodiesFor=["british","commonwealth"] champ=["area_eng|lightHeavyweight"] chall=[]
+  e.g. seed 1 wk 146 area_eng|lightHeavyweight: challenger rank 2 (limit 3) champion f_2k
+  e.g. OTHER seed 2 wk 197 british|superLightweight rank 1/4 bodiesFor=["atlas"] champ=["british|superLightweight","commonwealth|superLightweight"] chall=[]
+  e.g. seed 2 wk 197 british|superLightweight: challenger rank 1 (limit 4) champion f_5u
+  e.g. OTHER seed 2 wk 197 commonwealth|superLightweight rank 1/4 bodiesFor=["atlas"] champ=["british|superLightweight","commonwealth|superLightweight"] chall=[]
+  e.g. OTHER seed 2 wk 236 commonwealth|superWelterweight rank 1/4 bodiesFor=["atlas","pioneer"] champ=["commonwealth|superWelterweight"] chall=[]
+  e.g. OTHER seed 3 wk 33 european|welterweight rank 1/4 bodiesFor=["atlas"] champ=["european|welterweight"] chall=["british|welterweight","commonwealth|welterweight"]
+  e.g. OTHER seed 3 wk 60 european|welterweight rank 1/4 bodiesFor=["pioneer"] champ=["european|welterweight"] chall=["british|welterweight","commonwealth|welterweight"]
+  e.g. OTHER seed 3 wk 62 area_eng|superWelterweight rank 1/3 bodiesFor=["commonwealth"] champ=["area_eng|superWelterweight"] chall=[]
+  e.g. OTHER seed 3 wk 185 british|welterweight rank 3/4 bodiesFor=["european"] champ=["british|welterweight","commonwealth|welterweight"] chall=[]
+  e.g. OTHER seed 3 wk 185 commonwealth|welterweight rank 4/4 bodiesFor=["european"] champ=["british|welterweight","commonwealth|welterweight"] chall=[]
+  e.g. OTHER seed 3 wk 300 european|superLightweight rank 2/4 bodiesFor=["crown"] champ=["european|superLightweight"] chall=[]
+  e.g. OTHER seed 4 wk 57 european|superMiddleweight rank 2/4 bodiesFor=["atlas","crown"] champ=["european|superMiddleweight"] chall=[]
+  e.g. OTHER seed 4 wk 77 british|lightHeavyweight rank 3/4 bodiesFor=["european"] champ=["british|lightHeavyweight","commonwealth|lightHeavyweight"] chall=[]

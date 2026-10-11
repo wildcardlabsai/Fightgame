@@ -1,0 +1,32 @@
+Office audit: 4 seeds x 6 years, offer policy "smart"
+  agreedFight.fought: 30
+  agreedFight.scheduled: 1
+  answer.acceptFailed: Connor is coming off a bad run: 2
+  answer.acceptFailed: The offer is off: Diego Zamora: 1
+  answer.acceptFailed: The offer is off: Emiliano Qui: 1
+  answer.acceptFailed: The offer is off: Joaquín Estr: 1
+  answer.acceptFailed: The offer is off: Nii Addo has: 1
+  answer.acceptFailed: The offer is off: Rodrigo Vill: 2
+  answer.acceptFailed: The offer is off: Yaw Mensah h: 1
+  answer.acceptFailed: The offer is off: a title obli: 1
+  answer.accepted: 35
+  end.agreed: 35
+  end.expired: 1
+  end.withdrawn: 8
+  host.them: 44
+  offers.made: 44 (1.8 per seed-year)
+  player.cashEnd: 6714899
+  player.cashStart: 2000000
+  reason.commercial: 8
+  reason.competitive: 8
+  reason.development: 16
+  reason.opportunity: 4
+  reason.regional: 1
+  reason.rematch: 1
+  reason.replacement: 6
+  relations.rows: 23
+  seed-years: 24
+  stakes.standard: 44
+  stateKB: 15819
+  diag {"rivalWeeks":5424,"rolled":955,"noMyFighters":538,"noCandidates":223,"showStaged":17,"made":44,"noTheirFighters":141,"noShow":9,"unaffordable":9}
+weekly tick avg 42.8 ms; wall 512s

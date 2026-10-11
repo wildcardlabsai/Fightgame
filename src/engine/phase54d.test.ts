@@ -21,6 +21,7 @@ import { planOf } from './business/plans'
 import { goalOf } from './office/goals'
 import { wornDownChance, processRetirements } from './systems/world'
 import { Rng } from './rng'
+import { fighterRating } from './fighters'
 import { getCareer } from './media/records'
 import { titlesHeldBy } from './media/titles'
 import { playerRoster } from './selectors'
@@ -49,8 +50,8 @@ function bout(base: GameState, aId: string, bId: string, seed: string): { s: Gam
 
 const myFighters = (s: GameState) => playerRoster(s).filter((f) => f.status === 'active' && !f.activeFightId && !f.injury)
 /** Search seeds for a bout that ends the way a test needs. */
-function findBout(want: (f: Fight, s: GameState, myIdx: 0 | 1) => boolean, pick: (s: GameState, skip: number) => { me: Fighter; opp: Fighter } | null, tries = 90): { s: GameState; fight: Fight; me: Fighter; opp: Fighter } | null {
-  const base = world()
+function findBout(want: (f: Fight, s: GameState, myIdx: 0 | 1) => boolean, pick: (s: GameState, skip: number) => { me: Fighter; opp: Fighter } | null, tries = 90, baseState?: GameState): { s: GameState; fight: Fight; me: Fighter; opp: Fighter } | null {
+  const base = baseState ?? world()
   for (let skip = 0; skip < 6; skip++) {
     const pr = pick(base, skip)
     if (!pr) break
@@ -79,7 +80,10 @@ const pickFavourite = (s: GameState, skip = 0) => {
   const out: { me: Fighter; opp: Fighter }[] = []
   for (const me of [...myFighters(s)].sort((a, b) => b.reputation - a.reputation)) {
     if (me.record.wins + me.record.losses + me.record.draws < 5) continue
-    const opp = sameDivision(s, me, false)
+    // the weakest opponent by TRUE rating (a fixture: reputation alone can leave a near-even pairing, and the test needs a clear favourite)
+    const pool = Object.values(s.fighters).filter((x) => x.status === 'active' && x.id !== me.id && x.weightClass === me.weightClass && !x.activeFightId && x.contractId && s.contracts[x.contractId].promotionId !== s.playerPromotionId)
+    pool.sort((a, b) => fighterRating(a) - fighterRating(b) || (a.id < b.id ? -1 : 1))
+    const opp = pool[0] ?? null
     if (opp) out.push({ me, opp })
   }
   return out[skip] ?? null
@@ -166,7 +170,12 @@ describe('post-fight decisions', () => {
   })
 
   it('routine results open nothing: an expected win by the favourite creates no decision', () => {
-    const hit = findBout((f) => f.result!.winner === 0 && f.result!.pExpA > 0.6 && f.result!.method === 'UD', pickFavourite)
+    // A fixture: the player's own fighters in this world are all underdogs in their divisions (the pre-fight expectation reads public standing), so make the best of them a clear favourite; the result logic under test is unchanged.
+    const strong = clone(world())
+    const best = myFighters(strong).filter((f) => f.record.wins + f.record.losses + f.record.draws >= 5).sort((a, b) => b.reputation - a.reputation)[0]
+    best.reputation = Math.min(95, best.reputation + 30) // the pre-fight expectation reads public standing
+    for (const k of Object.keys(best.attributes) as (keyof typeof best.attributes)[]) best.attributes[k] = Math.min(99, best.attributes[k] + 10)
+    const hit = findBout((f) => f.result!.winner === 0 && f.result!.pExpA > 0.6 && f.result!.method === 'UD', pickFavourite, 240, strong)
     expect(hit, 'an expected win exists in the seed window').toBeTruthy()
     expect(openReviews(hit!.s)).toHaveLength(0)
   })

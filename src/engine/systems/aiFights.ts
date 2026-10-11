@@ -111,7 +111,15 @@ function reservedForMandatory(state: GameState, id: Id, withId: Id): boolean {
   return !!ob && (ob.kind === 'mandatory' || ob.kind === 'eliminator') && ob.partner !== withId
 }
 
-export function pickOpponent(state: GameState, promo: Promotion, x: Fighter, day: number, playerRoster: Set<Id>, rng: Rng, sampleSize = B.fights.ai.opponentSample): Fighter | null {
+/**
+ * Everyone a promoter planning for `day` could consider as an opponent at all: active and free on that day. Built once per card, not once per bout
+ * (a bout booked meanwhile only ever removes someone, which the per-pick `activeFightId` test below catches).
+ */
+export function opponentBasePool(state: GameState, day: number): Fighter[] {
+  return Object.values(state.fighters).filter((o) => o.status === 'active' && bookable(state, o, day))
+}
+
+export function pickOpponent(state: GameState, promo: Promotion, x: Fighter, day: number, playerRoster: Set<Id>, rng: Rng, sampleSize = B.fights.ai.opponentSample, basePool?: Fighter[]): Fighter | null {
   const strat = promo.ai!.strategy
   const aX = appraiseRating(state, promo, x)
   const recent = new Set<Id>()
@@ -119,8 +127,8 @@ export function pickOpponent(state: GameState, promo: Promotion, x: Fighter, day
     const ft = state.fights[fid]
     if (ft) recent.add(ft.sideA.fighterId === x.id ? ft.sideB.fighterId : ft.sideA.fighterId)
   }
-  const pool = Object.values(state.fighters).filter((o) =>
-    o.id !== x.id && o.status === 'active' && !playerRoster.has(o.id) && weightCompatible(x.weightClass, o.weightClass) !== 'no' && bookable(state, o, day) &&
+  const pool = (basePool ?? Object.values(state.fighters)).filter((o) =>
+    o.id !== x.id && o.status === 'active' && !playerRoster.has(o.id) && weightCompatible(x.weightClass, o.weightClass) !== 'no' && (basePool ? !o.activeFightId : bookable(state, o, day)) &&
     !(state.fightLocks[lockKey(x.id, o.id)] > state.today) && !reservedForMandatory(state, o.id, x.id))
   if (pool.length === 0) { tr('opp.emptyPool'); return null }
   const sample = rng.shuffle(pool).slice(0, sampleSize)

@@ -10,11 +10,12 @@
 import { BALANCE as B } from '../balance'
 import { transition } from '../fight/lifecycle'
 import { cancelFight, createFight, lockKey } from '../fights'
+import { titleObligation } from '../business/titleEco'
 import { weightCompatible } from '../fight/profile'
 import { keyedFloat, keyedNormal, type Rng } from '../rng'
 import type { BoxingEvent, BroadcastKind, Fight, GameState, Id, MarketingLevel, Promotion, PromoStrategy, Venue, VenueTier } from '../types'
 import { baseMoney, valueOf } from '../market'
-import { bookable, bookingNeed, pickOpponent, tr, weeksSince } from '../systems/aiFights'
+import { bookable, bookingNeed, opponentBasePool, pickOpponent, tr, weeksSince } from '../systems/aiFights'
 import { behaviour } from '../systems/aiFinance'
 import { broadcastTerms, cardFights, demandFor, eventInterest, fightAppeal, ppvBuysFor, ppvRefPrice, refPrices, soldFromDemand } from './demand'
 import { attachFight, createEventInternal, startSales, venueBookedOn } from './events'
@@ -89,20 +90,31 @@ function planEvent(state: GameState, promo: Promotion, rng: Rng, playerRoster: S
 
   // Build the fights first (agreed, unscheduled); the venue follows from how good the card is.
   const fights: Fight[] = []
+  const basePool = opponentBasePool(state, day)
   let committed = 0
   const cashCover = ai.fin.state === 'healthy' || ai.fin.state === 'established' || ai.fin.state === 'growing' ? 1.4 : 2.4
-  // An eliminator ordered by a title body is staged first (Phase 6.5). Before this, only the usual opponent-picking bonus favoured it and 85% lapsed
-  // unfought, mostly because one of the two was booked elsewhere in the meantime. Both must be free on the day and under no one else's claim; the
-  // promotion that has one of them on its roster puts it on, paying both as it would any bout.
+  // Title-body orders are staged first (Phase 6.5). An eliminator the body has ordered, and the best two credible contenders for a vacant belt (the same
+  // pair the AI's own obligation list names), used to depend on the usual opponent-picking bonus alone: 85% of eliminators lapsed unfought, mostly because
+  // one of the two was booked elsewhere in the meantime, and in two of three weeks a vacant belt had two credible contenders and no fight for it booked.
+  // Both fighters must be free on the day and not the player's; the promotion that has one of them on its roster puts the bout on and pays both as it
+  // would any bout. A vacant belt waits a few weeks first (rankings settle, promoters plan), and nobody is paired who is not credible.
+  const pairs: [Id, Id][] = []
+  if (state.media?.effects) {
+    for (const rec of Object.values(state.media.titles)) if (rec.elim && !rec.elim.fightId) pairs.push([rec.elim.a, rec.elim.b])
+    for (const c of contracts) {
+      const ob = titleObligation(state, c.fighterId)
+      if (ob?.kind !== 'vacant') continue
+      const rec = state.media.titles[`${ob.body}|${state.fighters[c.fighterId]?.weightClass}`]
+      if (rec && !rec.c && rec.vacantSince !== undefined && state.today - rec.vacantSince >= B.fights.ai.vacantSettleWeeks * 7) pairs.push([c.fighterId, ob.partner])
+    }
+  }
   const seenOrder = new Set<string>()
-  for (const rec of Object.values(state.media?.titles ?? {})) {
+  for (const [idA, idB] of pairs) {
     if (fights.length >= target) break
-    const el = rec.elim
-    if (!el || el.fightId) continue
-    const okey = el.a < el.b ? `${el.a}|${el.b}` : `${el.b}|${el.a}`
+    const okey = idA < idB ? `${idA}|${idB}` : `${idB}|${idA}`
     if (seenOrder.has(okey)) continue
     seenOrder.add(okey)
-    const f1 = state.fighters[el.a], f2 = state.fighters[el.b]
+    const f1 = state.fighters[idA], f2 = state.fighters[idB]
     if (!f1 || !f2 || playerRoster.has(f1.id) || playerRoster.has(f2.id) || reserve?.has(f1.id) || reserve?.has(f2.id)) continue
     const mineHere = (f: typeof f1) => !!f.contractId && state.contracts[f.contractId]?.promotionId === promo.id
     if (!mineHere(f1) && !mineHere(f2)) continue
@@ -112,7 +124,7 @@ function planEvent(state: GameState, promo: Promotion, rng: Rng, playerRoster: S
     const px = purseOf(x), py = purseOf(y)
     const wx = x.contractId ? px.w : Math.round((px.p * 0.1) / 100) * 100, wy = y.contractId ? py.w : Math.round((py.p * 0.1) / 100) * 100
     const cost = px.p + wx + py.p + wy
-    if (promo.cash < (committed + cost) * cashCover) { tr('ev.elim.cash'); continue }
+    if (promo.cash < (committed + cost) * cashCover) { tr('ev.order.cash'); continue }
     committed += cost
     const fight = createFight(state, x.id, y.id, promo.id, 'ai', { purseA: px.p, winBonusA: wx, purseB: py.p, winBonusB: wy })
     transition(fight, 'agreed')
@@ -121,12 +133,12 @@ function planEvent(state: GameState, promo: Promotion, rng: Rng, playerRoster: S
       side.prep.plan = ['Pressure Fighter', 'Swarmer', 'Power Puncher'].includes(f.style) ? 'aggressive' : ['Defensive Specialist', 'Counter Puncher'].includes(f.style) ? 'cautious' : 'balanced'
     }
     fights.push(fight)
-    tr('ev.elim.staged')
+    tr('ev.order.staged')
   }
   for (const { c, f: x } of needy) {
     if (fights.length >= target) break
     if (x.activeFightId || !bookable(state, x, day)) { tr('ev.skip.fighterBusy'); continue }
-    const opp = pickOpponent(state, promo, x, day, playerRoster, rng)
+    const opp = pickOpponent(state, promo, x, day, playerRoster, rng, undefined, basePool)
     if (!opp) { tr('ev.skip.noOpponent'); continue }
     const ct = opp.contractId ? state.contracts[opp.contractId] : null
     const fa = baseMoney(valueOf(state, opp)).purse * B.fights.ai.journeymanPurseFactor
@@ -162,7 +174,7 @@ function planEvent(state: GameState, promo: Promotion, rng: Rng, playerRoster: S
       if (fights.length >= target || freeBooked >= freeCap || tried >= freeCap * 2 + 2) break
       if (x.activeFightId || !bookable(state, x, day)) continue
       tried++
-      const opp = pickOpponent(state, promo, x, day, playerRoster, rng, B.fights.ai.freeAgentSample)
+      const opp = pickOpponent(state, promo, x, day, playerRoster, rng, B.fights.ai.freeAgentSample, basePool)
       if (!opp) { tr('ev.free.noOpponent'); continue }
       const purseOf = (f: typeof x) => { const ct = f.contractId ? state.contracts[f.contractId] : null; return ct ? { p: ct.basePurse, w: ct.winBonus } : { p: Math.round((baseMoney(valueOf(state, f)).purse * B.fights.ai.journeymanPurseFactor) / 100) * 100, w: 0 } }
       const px = purseOf(x), po = purseOf(opp)

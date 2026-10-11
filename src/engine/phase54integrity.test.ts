@@ -310,7 +310,7 @@ describe('saves from before the fix are repaired, not rewritten', () => {
   it('a v9 save with a world + European double holder and a short title fight is normalised: history kept, belts and length corrected', () => {
     const s = clone(world())
     const wc = 'superFeatherweight' as const
-    const x = Object.values(s.fighters).find((f) => f.status === 'active' && f.weightClass === wc && !titlesHeldBy(s.media!, f.id).length)!
+    const x = Object.values(s.fighters).find((f) => f.status === 'active' && f.weightClass === wc && !f.activeFightId && !titlesHeldBy(s.media!, f.id).length)!
     s.media!.titles[titleKey('atlas', wc)] = { c: x.id, cn: 'X', since: s.today - 60, defences: 0, lastFight: s.today - 20 }
     s.media!.titles[titleKey('pioneer', wc)] = { c: x.id, cn: 'X', since: s.today - 50, defences: 0, lastFight: s.today - 20 }
     s.media!.titles[titleKey('european', wc)] = { c: x.id, cn: 'X', since: s.today - 300, defences: 3, lastFight: s.today - 60 }
@@ -367,8 +367,9 @@ describe('migration touches only what is inconsistent', () => {
     expect(newReigns.length).toBe(oldReigns.length + 1)
     expect(newReigns.slice(1).map((r) => JSON.stringify(r))).toEqual(oldReigns.map((r) => JSON.stringify(r)))
     expect(newReigns[0]).toMatchObject({ f: x.id, b: 'european', wc })
-    // The booked fight is the only unfought fight that changed, and only in its length.
-    for (const f of Object.values(snapshot.fights) as Fight[]) if (!f.result && f.id !== booked.id) expect(back.fights[f.id], f.id).toEqual(f)
+    // The booked fight changes only in its length.
+    // Every other unfought fight is untouched, except that a fight in the repaired division may have its length re-derived (the repair vacates a lower belt, which changes what that division's pending fights are worth) - and nothing else about it.
+    for (const f of Object.values(snapshot.fights) as Fight[]) if (!f.result && f.id !== booked.id) expect(f.weightClass === wc ? { ...back.fights[f.id], scheduledRounds: f.scheduledRounds } : back.fights[f.id], f.id).toEqual(f)
     expect(back.fights[booked.id].scheduledRounds).toBe(12)
     expect({ ...back.fights[booked.id], scheduledRounds: 10 }).toEqual(snapshot.fights[booked.id])
   })

@@ -8,7 +8,10 @@ import { advanceOneWeek } from './tick'
 import { clone } from './media/testing'
 import { BALANCE as B } from './balance'
 import { bookable, bookingNeed, pickOpponent, weeksSince } from './systems/aiFights'
+import { titleObligation } from './business/titleEco'
+import { qualifiesFor } from './media/titles'
 import { Rng } from './rng'
+import { stageRivalShow } from './events/ai'
 import { fighterAge, totalFights } from './fighters'
 import type { Fighter, GameState } from './types'
 
@@ -25,15 +28,15 @@ describe('booking order', () => {
     f.lastFightDay = s.today - 20 * 7
     withCfg({ developmentPriority: 0 }, () => expect(bookingNeed(s, f)).toBe(weeksSince(s, f)))
     withCfg({ developmentPriority: 0.6, developmentMaxAge: 29 }, () => {
-      const young = clone(f); young.record = { ...young.record, wins: 6, losses: 2, draws: 0 }
+      const young = structuredClone(f); young.record = { ...young.record, wins: 6, losses: 2, draws: 0 }
       young.birthDay = s.today - 22 * 365; expect(fighterAge(young, s.today)).toBeLessThanOrEqual(29)
       expect(totalFights(young)).toBeLessThan(14)
       expect(bookingNeed(s, young)).toBeCloseTo(weeksSince(s, young) * 1.6, 5)
-      const losing = clone(young); losing.record = { ...losing.record, wins: 2, losses: 6 }
+      const losing = structuredClone(young); losing.record = { ...losing.record, wins: 2, losses: 6 }
       expect(bookingNeed(s, losing)).toBe(weeksSince(s, losing)) // a losing prospect is not pushed
-      const old = clone(young); old.birthDay = s.today - 33 * 365
+      const old = structuredClone(young); old.birthDay = s.today - 33 * 365
       expect(bookingNeed(s, old)).toBe(weeksSince(s, old))
-      const veteran = clone(young); veteran.record = { ...veteran.record, wins: 20, losses: 4 }
+      const veteran = structuredClone(young); veteran.record = { ...veteran.record, wins: 20, losses: 4 }
       expect(bookingNeed(s, veteran)).toBe(weeksSince(s, veteran)) // already past the world floor's fight count
     })
   })
@@ -80,21 +83,21 @@ describe('ordered eliminators', () => {
     return null
   }
 
-  it('is made: the two meet on a show within the window, even when they belong to different promotions', () => {
-    let hit = 0, tried = 0
+  it('is made: when a promotion plans a show, an ordered eliminator between fighters of two promotions goes on it', () => {
+    let tried = 0, onCard = 0
     for (const seed of ['p65-world', 'p65-world-b', 'p65-world-c', 'p65-world-d', 'p65-world-e', 'p65-world-f', 'p65-world-g', 'p65-world-h']) {
       let s = mk(seed); for (let i = 0; i < 104; i++) s = advanceOneWeek(s)
       const o = ordered(s); if (!o) continue
+      const holder = (id: string) => { const f = s.fighters[id]; return f.contractId ? s.promotions[s.contracts[f.contractId].promotionId] : null }
+      const promo = holder(o.a.id)!
+      const ev = stageRivalShow(s, promo, new Rng(11), new Set())
+      if (!ev) continue
       tried++
-      let fought = false
-      for (let w = 0; w < 26 && !fought; w++) {
-        s = advanceOneWeek(s)
-        fought = Object.values(s.fights).some((f) => f.status !== 'cancelled' && [f.sideA.fighterId, f.sideB.fighterId].includes(o.a.id) && [f.sideA.fighterId, f.sideB.fighterId].includes(o.b.id) && f.day > 0)
-      }
-      if (fought) hit++
+      const f = ev.card.map((id) => s.fights[id]).find((x) => x && [x.sideA.fighterId, x.sideB.fighterId].includes(o.a.id) && [x.sideA.fighterId, x.sideB.fighterId].includes(o.b.id))
+      if (f && f.title?.kind === 'eliminator') onCard++
     }
-    expect(tried, 'enough worlds had such a pair').toBeGreaterThanOrEqual(3)
-    expect(hit, `every eliminator ordered here is staged (${hit} of ${tried})`).toBe(tried)
+    expect(tried, 'enough worlds could stage a show').toBeGreaterThanOrEqual(3)
+    expect(onCard, `the eliminator is on the card every time (${onCard} of ${tried})`).toBe(tried)
   })
 
   it('is never staged for the player\'s fighters, and the fighters are never double-booked', () => {
@@ -110,12 +113,50 @@ describe('ordered eliminators', () => {
   })
 
   it('other promoters do not pick a fighter under an eliminator order as an unrelated opponent', () => {
-    const s = clone(world())
-    const o = ordered(s)
+    let s = clone(world()), o = ordered(s)
+    for (const seed of ['p65-world-b', 'p65-world-c', 'p65-world-d', 'p65-world-e']) { if (o) break; s = mk(seed); for (let i = 0; i < 104; i++) s = advanceOneWeek(s); o = ordered(s) }
     expect(o).toBeTruthy()
     const promo = Object.values(s.promotions).find((p) => !p.isPlayer && p.ai && p.id !== s.fighters[o!.a.id].contractId)!
     const x = Object.values(s.fighters).find((f) => f.status === 'active' && f.weightClass === o!.a.weightClass && f.id !== o!.a.id && f.id !== o!.b.id && !f.activeFightId)!
     const roster = new Set<string>()
     for (let i = 0; i < 40; i++) { const opp = pickOpponent(s, promo, x, s.today + 10 * 7, roster, new Rng(i), 400); if (opp) expect([o!.a.id, o!.b.id]).not.toContain(opp.id) }
+  })
+})
+
+describe('vacant belts', () => {
+  it('when a promotion plans a show, the two credible contenders the title system pairs for a long-vacant belt go on it; nobody not credible is paired', () => {
+    let tried = 0, onCard = 0
+    for (const seed of ['p65-vac-a', 'p65-vac-b', 'p65-vac-c', 'p65-vac-d', 'p65-vac-e', 'p65-vac-f']) {
+      let s = mk(seed)
+      for (let i = 0; i < 90; i++) s = advanceOneWeek(s)
+      let pair: { a: Fighter; b: Fighter } | null = null
+      for (let w = 0; w < 100 && !pair; w++) {
+        s = advanceOneWeek(s)
+        for (const [k, rec] of Object.entries(s.media!.titles)) {
+          if (rec.c) continue
+          const body = k.split('|')[0], wc = k.split('|')[1]
+          for (const a of Object.values(s.fighters)) {
+            const ob = a.status === 'active' && a.weightClass === wc ? titleObligation(s, a.id) : null
+            if (ob?.kind !== 'vacant' || ob.body !== body) continue
+            const b = s.fighters[ob.partner]
+            if (!b || !a.contractId || !bookable(s, a, s.today + 12 * 7) || !bookable(s, b, s.today + 12 * 7)) continue
+            expect(qualifiesFor(s, body, a.id) && qualifiesFor(s, body, b.id), 'only credible contenders are ever paired').toBe(true)
+            rec.vacantSince = s.today - 10 * 7 // long enough vacant
+            pair = { a, b }; break
+          }
+          if (pair) break
+        }
+      }
+      if (!pair) continue
+      const promo = s.promotions[s.contracts[pair.a.contractId!].promotionId]
+      promo.cash = Math.max(promo.cash, 5_000_000)
+      const ev = stageRivalShow(s, promo, new Rng(7), new Set())
+      if (!ev) continue
+      tried++
+      if (ev.card.map((id) => s.fights[id]).some((x) => x && [x.sideA.fighterId, x.sideB.fighterId].includes(pair!.a.id) && [x.sideA.fighterId, x.sideB.fighterId].includes(pair!.b.id))) onCard++
+    }
+    expect(tried, 'enough worlds had such a pair and a promotion able to stage').toBeGreaterThanOrEqual(3)
+    // (a contender can also be under an ordered eliminator, which is staged first, so not every pair can make this very card)
+    expect(onCard, `the pair is on the card (${onCard} of ${tried})`).toBeGreaterThanOrEqual(Math.ceil(tried * 0.6))
   })
 })
