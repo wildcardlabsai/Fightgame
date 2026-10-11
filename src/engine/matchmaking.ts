@@ -13,6 +13,7 @@ import { fightAvailability, lockKey, validateMatch } from './fights'
 import { weightClassLabel } from '../data/weightClasses'
 import type { FightingStyle, GameState, Id, WeightClassId } from './types'
 import { viewsOf, type FighterView } from './view'
+import { boutTitleView, standingIndex, type BoutTitleView, type TitleStanding } from './business/titleStanding'
 
 export interface Assessment {
   /** Estimated chance our fighter wins (a range — our knowledge is imperfect). */
@@ -93,6 +94,10 @@ export interface OpponentCandidate {
   home: 'Their home turf' | 'Neutral' | 'Your region'
   /** How the opponent sits against the fighter's risk appetite (the promoter's plan for him). */
   fit: OpponentFit
+  /** Where the opponent stands in the championship picture (from the live title records and ranking lists). */
+  standing: TitleStanding
+  /** Whether a bout between your fighter and this opponent could be for a belt, by the scheduler's own rule. */
+  bout: BoutTitleView
 }
 
 export function opponentCandidates(state: GameState, myId: Id, f: OpponentFilters = {}): OpponentCandidate[] {
@@ -102,6 +107,7 @@ export function opponentCandidates(state: GameState, myId: Id, f: OpponentFilter
   if (!me || !mine) return []
   const q = (f.q ?? '').trim().toLowerCase()
   const out: OpponentCandidate[] = []
+  const standingOf = standingIndex(state)
   const history = mine.recentFights.map((id) => state.fights[id]).filter(Boolean)
   for (const v of views.known()) {
     if (v.id === myId || v.status !== 'active' || v.contract.kind === 'own') continue
@@ -131,6 +137,7 @@ export function opponentCandidates(state: GameState, myId: Id, f: OpponentFilter
       canApproach: check.ok, blockedReason: check.reason, earliestWeeks: Math.max(1, weeksBetween(state.today, av.earliestDay)),
       previousMeetings: prev.length, rematch: prev.length > 0, rivalry: Math.min(5, heat), recentOpponent: !!lastPrev && state.today - lastPrev.day < 365,
       home: raw.nationality === mine.nationality ? 'Your region' : 'Neutral', fit: opponentFit(state, mine, raw),
+      standing: standingOf(v.id), bout: boutTitleView(state, myId, v.id),
     })
   }
   return out

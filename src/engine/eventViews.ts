@@ -3,6 +3,7 @@
  * prices, venue facts) and from results that have actually happened. Forecasts are ranges built by the same public
  * model the player could reason with; the hidden demand factor never appears here.
  */
+import { standingIndex, type TitleStanding } from './business/titleStanding'
 import { tierAllowsVenue, tierDef, tierNeededForVenue } from './tiers'
 import { weeksBetween } from './calendar'
 import { BALANCE as B } from './balance'
@@ -134,6 +135,8 @@ export interface CardSlot {
   aMine: boolean; bMine: boolean
   /** The belt (or eliminator) on the line, as the fight itself carries it. */
   stake: { label: string; name: string; kind: 'title' | 'unification' | 'eliminator' } | null
+  /** Each fighter's place in the championship picture NOW (champion, mandatory, eliminator, ranked). Null once the bout is fought (the lists have moved on) or when unranked. */
+  aStanding: { label: string; role: TitleStanding['role'] } | null; bStanding: { label: string; role: TitleStanding['role'] } | null
   result?: string
   winner?: 0 | 1 | null
   method?: string
@@ -190,6 +193,8 @@ function slotOf(i: number, n: number): CardSlot['slot'] {
 
 export function cardSlots(state: GameState, ev: BoxingEvent): CardSlot[] {
   const fights = cardFights(state, ev)
+  const standingOf = standingIndex(state)
+  const stand = (id: Id, fought: boolean): CardSlot['aStanding'] => { if (fought) return null; const x = standingOf(id); return x.role === 'unranked' ? null : { label: x.label, role: x.role } }
   return fights.map((f, i) => {
     const A = state.fighters[f.sideA.fighterId], Bf = state.fighters[f.sideB.fighterId]
     const ap = fightAppeal(state, f)
@@ -200,6 +205,7 @@ export function cardSlots(state: GameState, ev: BoxingEvent): CardSlot[] {
       appeal: Math.round(ap), appealLabel: appealLabel(ap), status: STATUS_LABEL[f.status], statusKey: f.status,
       purses: f.terms.purseA + f.terms.purseB, aMine: f.sideA.promotionId === state.playerPromotionId, bMine: f.sideB.promotionId === state.playerPromotionId,
       stake: f.title ? { label: ({ regional: 'REGIONAL TITLE', national: 'NATIONAL TITLE', international: 'INTERNATIONAL TITLE', world: 'WORLD TITLE' } as const)[f.title.tier], name: f.title.name, kind: f.title.kind ?? 'title' } : null,
+      aStanding: stand(A.id, !!r), bStanding: stand(Bf.id, !!r),
       result: r ? resultHeadline(f, fighterName(A), fighterName(Bf)) : undefined,
       winner: r ? r.winner : undefined, method: r ? r.method : undefined,
     }

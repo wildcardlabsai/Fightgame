@@ -1,5 +1,7 @@
 import { useMemo, useState } from 'react'
 import { matchmakingAdvice } from '../../engine/advisor'
+import { StandingChip, BoutTitleNote } from '../components/TitleStanding'
+import { titleStanding } from '../../engine/business/titleStanding'
 import { opponentCandidates, type OpponentCandidate, type OpponentFilters } from '../../engine/matchmaking'
 import { useGame } from '../../store/gameStore'
 import '../../styles/office54c.css'
@@ -28,13 +30,15 @@ export function MatchmakingScreen({ fighterId }: { fighterId?: string }) {
   const [sort, setSort] = useState<'fit' | 'reward' | 'risk' | 'rep'>('fit')
   // The list is ordered best-first, so a screenful or two is enough; the rest is one tap away (a phone page of 60 opponents is ~17,000px tall).
   const [shown, setShown] = useState(20)
+  const [titleOnly, setTitleOnly] = useState(false)
 
   const me = myId ? views.fighter(myId) : null
+  const meStanding = useMemo(() => (myId ? titleStanding(game, myId) : null), [game, myId])
   const cands = useMemo(() => (myId ? opponentCandidates(game, myId, filters) : []), [game, myId, filters])
   const rows = useMemo(() => {
     const score = (c: OpponentCandidate) => (sort === 'reward' ? -c.assessment.reward : sort === 'risk' ? c.assessment.difficulty : sort === 'rep' ? -c.view.reputation : Math.abs(c.assessment.difficulty - 3) - c.assessment.reward * 0.2)
-    return cands.slice().sort((a, b) => Number(b.canApproach) - Number(a.canApproach) || score(a) - score(b))
-  }, [cands, sort])
+    return cands.filter((c) => !titleOnly || c.bout.couldContest).sort((a, b) => Number(b.canApproach) - Number(a.canApproach) || score(a) - score(b))
+  }, [cands, sort, titleOnly])
   const chosen = rows.filter((c) => picked.includes(c.view.id))
 
   const open = me?.activeFightId ? game.fights[me.activeFightId] : null
@@ -83,8 +87,9 @@ export function MatchmakingScreen({ fighterId }: { fighterId?: string }) {
               <option value="fit">Best fit</option><option value="reward">Biggest reward</option><option value="risk">Lowest risk</option><option value="rep">Highest profile</option>
             </select>
             <label className="age-range"><input type="checkbox" checked={!!filters.showUnavailable} onChange={(e) => setFilters({ ...filters, showUnavailable: e.target.checked })} /> Show unavailable</label>
+            <label className="age-range"><input type="checkbox" checked={titleOnly} onChange={(e) => setTitleOnly(e.target.checked)} data-testid="title-only" /> Title bouts only</label>
           </div>
-          <p className="dim" style={{ marginBottom: 8, fontSize: 13 }}>{rows.length} possible opponents for {me.name}. “~” marks guesses without scouting. Win chances are <b>your</b> estimate, not the truth.</p>
+          <p className="dim" style={{ marginBottom: 8, fontSize: 13 }}>{rows.length} possible opponents for {me.name}{meStanding && meStanding.role !== 'unranked' && <> <StandingChip s={meStanding} /></>}. “~” marks guesses without scouting. Win chances are <b>your</b> estimate, not the truth.</p>
 
           <div className="table-wrap sticky-actions">
             <table className="table stack">
@@ -102,7 +107,7 @@ export function MatchmakingScreen({ fighterId }: { fighterId?: string }) {
                       </td>
                       <td className="primary" data-label="Opponent">
                         <div className="fighter-cell"><Avatar f={v} /><div><div className="fighter-name">{v.name} <Flag code={v.nationKey} /></div>
-                          <div className="fighter-sub">{v.style} · {v.stage}{c.compat === 'catchweight' ? ' · catchweight' : ''}{c.rematch ? ' · rematch' : ''}</div>{bestFit && <span className="chip good mm-best" data-testid="best-fit">Best fit</span>}</div></div>
+                          <div className="fighter-sub">{v.style} · {v.stage}{c.compat === 'catchweight' ? ' · catchweight' : ''}{c.rematch ? ' · rematch' : ''}</div><StandingChip s={c.standing} />{bestFit && <span className="chip good mm-best" data-testid="best-fit">Best fit</span>}</div></div>
                       </td>
                       <td data-label="Record" className="num"><div>{v.recordText}</div><small className="dim mm-age">age {v.age}</small></td>
                       <td data-label="Form"><FormDots form={v.form} /></td>
@@ -110,7 +115,7 @@ export function MatchmakingScreen({ fighterId }: { fighterId?: string }) {
                       <td data-label="Difficulty"><StarRating n={c.assessment.difficulty} label="Difficulty" /></td>
                       <td data-label="Reward"><StarRating n={c.assessment.reward} label="Reward" /></td>
                       <td data-label="Win chance"><span title={`${c.assessment.winLo}–${c.assessment.winHi}%`}>{c.assessment.winLabel}</span> <small className="dim">{c.assessment.winLo}–{c.assessment.winHi}%</small><div><VerdictChip v={c.assessment.verdict} /></div><div className={`mm-ko ${c.assessment.koRisk === 'High' ? 'red' : c.assessment.koRisk === 'Moderate' ? 'warn' : 'good'}`}>KO risk: {c.assessment.koRisk}</div></td>
-                      <td data-label="Status" className="dim" style={{ fontSize: 13 }}>{c.canApproach ? (v.contract.kind === 'none' ? 'Free agent' : v.contract.kind === 'rival' ? v.contract.promotionName : '') : c.blockedReason}{c.canApproach && c.fit.label !== 'No plan set' && <div><span className={`o54-chip ${c.fit.label === 'Suits the plan' ? 'good' : c.fit.objection ? 'red' : c.fit.label === 'A soft touch' || c.fit.label === 'A step up' ? 'gold' : 'warn'}`} data-testid="opponent-fit" title={c.fit.note ?? undefined}>{c.fit.label}</span></div>}</td>
+                      <td data-label="Status" className="dim" style={{ fontSize: 13 }}>{c.canApproach ? (v.contract.kind === 'none' ? 'Free agent' : v.contract.kind === 'rival' ? v.contract.promotionName : '') : c.blockedReason}<BoutTitleNote b={c.bout} compact />{c.canApproach && c.fit.label !== 'No plan set' && <div><span className={`o54-chip ${c.fit.label === 'Suits the plan' ? 'good' : c.fit.objection ? 'red' : c.fit.label === 'A soft touch' || c.fit.label === 'A step up' ? 'gold' : 'warn'}`} data-testid="opponent-fit" title={c.fit.note ?? undefined}>{c.fit.label}</span></div>}</td>
                       <td className="actions" onClick={(e) => e.stopPropagation()}>
                         <span className="action-row">
                           <button className="btn small ghost" onClick={() => setScouting(v.id)}>Scout</button>
@@ -137,6 +142,7 @@ export function MatchmakingScreen({ fighterId }: { fighterId?: string }) {
                 <div className="compare-row compare-head"><div />
                   <div><div className="fighter-name gold">{me.name}</div><div className="fighter-sub">your fighter</div></div>
                   {chosen.map((c) => <div key={c.view.id}><div className="fighter-name">{c.view.name}</div><div className="fighter-sub">{c.view.style}</div></div>)}</div>
+                <div className="compare-row" data-testid="compare-title"><div>Title picture</div><div>{meStanding && <StandingChip s={meStanding} always />}</div>{chosen.map((c) => <div key={c.view.id}><StandingChip s={c.standing} always /><BoutTitleNote b={c.bout} /></div>)}</div>
                 <div className="compare-row"><div>Record</div><div>{me.recordText}</div>{chosen.map((c) => <div key={c.view.id}>{c.view.recordText}</div>)}</div>
                 <div className="compare-row"><div>Age</div><div>{me.age}</div>{chosen.map((c) => <div key={c.view.id}>{c.view.age}</div>)}</div>
                 <div className="compare-row"><div>Scout grade</div><div><RangeText r={me.grade} /></div>{chosen.map((c) => <div key={c.view.id}><RangeText r={c.view.grade} scouted={c.view.knowledge.reports > 0} /></div>)}</div>

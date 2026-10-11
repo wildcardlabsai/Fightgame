@@ -375,6 +375,7 @@ function SlotRow({ s, n, editable, eventId }: { s: CardSlot; n: number; editable
           <FighterCard f={slotFighter(s.bId, s.bName, s.bRecord, s.division)} size="compact" badge={s.winner === 1 ? <span className="chip gold">WINNER</span> : undefined} />
         </div>
         <div className="fighter-sub">{s.aRecord} / {s.bRecord} · {s.division} · {s.rounds} rds · {s.appealLabel}</div>
+        {(s.aStanding || s.bStanding) && <div className="slot-standing dim" data-testid="slot-standing">{[s.aStanding && `${s.aName}: ${s.aStanding.label}`, s.bStanding && `${s.bName}: ${s.bStanding.label}`].filter(Boolean).join(' · ')}</div>}
         {(s.stake || s.aMine || s.bMine) && <div className="slot-marks">{s.stake && <StakeChip label={s.stake.label} name={s.stake.name} />}{(s.aMine || s.bMine) && <span className="chip blue" data-testid="slot-yours">Your fighter: {[s.aMine ? s.aName : null, s.bMine ? s.bName : null].filter(Boolean).join(' · ')}</span>}</div>}
         {s.result && <div className="fighter-sub">{s.result}</div>}
       </div>

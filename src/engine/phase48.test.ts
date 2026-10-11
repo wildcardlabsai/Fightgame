@@ -7,7 +7,7 @@ import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { beforeEach, describe, expect, it } from 'vitest'
 import {
-  clearFighterArt, clearPromotionArt, fighterFallback, galleryEntries, MANIFEST, newsKind, NEWS_KINDS, POSTER_TEMPLATES, registerFighterArt, registerPromotionArt, resolveEventTemplate, resolveFighterImage, resolveNewsImage,
+  clearFighterArt, setPortraitPoolEnabled, clearPromotionArt, fighterFallback, galleryEntries, MANIFEST, newsKind, NEWS_KINDS, POSTER_TEMPLATES, registerFighterArt, registerPromotionArt, resolveEventTemplate, resolveFighterImage, resolveNewsImage,
   resolveNewsKind, resolvePromotionImage, resolveVenueImage, resolveVenueKind, venueKind, VENUE_KINDS,
 } from '../assets/registry'
 import { choosePosterTemplate } from '../assets/poster'
@@ -67,6 +67,7 @@ describe('asset registry', () => {
   it('fighters without art fall back to a deterministic silhouette (never a broken image); registered art resolves to the right fighter', () => {
     const f = { id: 'f_abc', firstName: 'Tom', lastName: 'Rivers', division: 'Welterweight' }
     const g = { id: 'f_xyz', firstName: 'Ann', lastName: 'Cole', division: 'Heavyweight' }
+    setPortraitPoolEnabled(false) // no shared pool shipped: the original silhouette contract
     const a = resolveFighterImage(f)
     expect(a.state).toBe('fallback'); expect(a.url).toBeNull(); expect(a.thumbUrl).toBeNull()
     expect(fighterFallback(f)).toEqual(fighterFallback({ ...f }))
@@ -77,6 +78,9 @@ describe('asset registry', () => {
     expect(real.state).toBe('real'); expect(real.url).toContain('fighter_f_abc_profile.webp'); expect(real.thumbUrl).toBe(real.url)
     expect(other.state).toBe('fallback')
     expect(resolveFighterImage(f, 'action').state).toBe('fallback') // partial sets are fine
+    setPortraitPoolEnabled(true)
+    expect(resolveFighterImage(g).source).toBe('pool') // with the pool, an unregistered fighter gets a stable pooled portrait instead
+    expect(resolveFighterImage(f).source).toBe('world') // and bespoke generated art still takes precedence
   })
 
   it('promotions fall back to the monogram and use real logos when registered', () => {

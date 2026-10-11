@@ -11,4 +11,10 @@ export function previewFiles() {
   walk(join(ROOT, 'assets'), '/assets')
   return out.sort((a, b) => a.path.localeCompare(b.path))
 }
+/** The publisher accepts at most `max` files per call (255); the shared portrait pool makes the set larger, so it goes up in batches to the same url. */
+export function previewBatches(max = 255) {
+  const all = previewFiles(), out = []
+  for (let i = 0; i < all.length; i += max) out.push(all.slice(i, i + max))
+  return out
+}
 if (process.argv[1] && process.argv[1].endsWith('files.mjs')) console.log(JSON.stringify(previewFiles()))

@@ -33,6 +33,8 @@ export interface NewGameOptions {
   logo: Promotion['logo']
   /** Phase 4.7: start from a career scenario. Omitted = the classic start (kept so older tests and sims are unchanged). */
   scenario?: ScenarioId
+  /** Extra unsigned fighters on the open market (default {@link EXTRA_FREE_AGENTS}); 0 reproduces the previous, shallower market exactly. */
+  marketDepth?: number
 }
 
 const STARTING_CASH: Record<Difficulty, number> = { forgiving: 750_000, standard: 500_000, brutal: 300_000 }
@@ -64,8 +66,8 @@ const AI_PROMOTIONS: AiPromotionSeed[] = [
 
 /** Open-market free agents at the start of a career . */
 const FREE_AGENTS = 170
-/** Extra open-market depth (benchmarked in docs/FIGHTER_IDENTITY.md). Drawn from its own stream, after everything else, so the original world and every attribute in it are unchanged. */
-const EXTRA_FREE_AGENTS = 130
+/** Extra open-market depth — OFF by default: +130 was benchmarked and moved ten simulation-dependent tests (docs/FIGHTER_IDENTITY.md), so it needs separate approval; opt in with `marketDepth`. Drawn from its own stream, after everything else, so the original world and every attribute in it are unchanged. */
+const EXTRA_FREE_AGENTS = 0
 
 export function createNewGame(opts: NewGameOptions, now = Date.now()): GameState {
   const sc = scenarioById(opts.scenario)
@@ -198,7 +200,7 @@ export function createNewGame(opts: NewGameOptions, now = Date.now()): GameState
   }
   // Market depth: more unsigned fighters to scout, from a separate stream so nothing above is perturbed.
   const depth = Rng.fromSeed(`${opts.seed}:market-depth`)
-  for (let i = 0; i < EXTRA_FREE_AGENTS; i++) {
+  for (let i = 0; i < (opts.marketDepth ?? EXTRA_FREE_AGENTS); i++) {
     const quality = depth.clampedNormal(0.3, 0.15, 0.05, 0.95)
     const f = generateFighter(depth, ids, { widePools: true, takenNames, quality, today })
     fighters[f.id] = f

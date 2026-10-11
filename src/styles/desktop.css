@@ -418,3 +418,13 @@
   /* roster at 1024: style is secondary (it is on the profile), so the rank column is not pushed off-screen */
   .table-wrap.sticky-head th:nth-child(5), .table-wrap.sticky-head td:nth-child(5) { display: none; }
 }
+
+/* Championship picture (fighter identity task): standing chips and the "could this be for a belt" note. */
+.chip.standing { font-size: 11px; letter-spacing: .06em; white-space: nowrap; margin-top: 3px; }
+.chip.standing.blue { border-color: var(--blue, #3b82f6); color: var(--blue, #6ea8ff); }
+.bout-title { display: block; margin-top: 4px; } .bout-title .stake-chip { margin: 0; font-size: 12px; padding: 2px 7px; }
+.bout-name { display: block; margin-top: 2px; font-size: 12px; }
+.bout-reason { display: block; margin-top: 4px; font-size: 12px; max-width: 30ch; }
+.mm-mine-standing { margin-left: 8px; vertical-align: middle; }
+.n54-standing { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; margin-left: 10px; font-size: 12px; } .n54-standing .chip { margin-top: 0; }
+.slot-standing { font-size: 12px; margin-top: 3px; }

@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
+import { StandingChip } from '../components/TitleStanding'
+import { titleStanding } from '../../engine/business/titleStanding'
 import '../../styles/negotiation54.css'
 import { fightTalkAdvice } from '../../engine/advisor'
 import type { FightMove } from '../../engine/business/fightTalks'
@@ -86,7 +88,7 @@ export function FightDealScreen({ id }: { id: string }) {
   return (
     <div className="n54">
       <TalkHeaderBar h={v.header} f={oppRef} eyebrow={`Fight negotiation · ${fx.a.fighter.name} vs …`} onBack={back} backLabel="Matchmaking"
-        sub={<div className="n54-stakes"><StakeBadge v={v} />{v.warning && <p className="n54-warn" role="alert" data-testid="fight-warning">{v.warning}</p>}</div>} />
+        sub={<div className="n54-stakes"><StakeBadge v={v} /><span className="n54-standing" data-testid="deal-standing"><span className="dim">Yours</span> <StandingChip s={titleStanding(game, fx.a.fighter.id)} always /> <span className="dim">Opponent</span> <StandingChip s={titleStanding(game, opp.id)} always /></span>{v.warning && <p className="n54-warn" role="alert" data-testid="fight-warning">{v.warning}</p>}</div>} />
       <Explain topic="negotiation" />
       <Explain topic="matchup" />
       <div className="n54-grid">

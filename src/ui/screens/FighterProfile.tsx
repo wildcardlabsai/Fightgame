@@ -1,4 +1,6 @@
 import { useMemo, useState } from 'react'
+import { StandingChip } from '../components/TitleStanding'
+import { titleStanding } from '../../engine/business/titleStanding'
 import { ObjectivePanel } from '../office/ObjectivePanel'
 import { ReviewsPanel } from '../office/ReviewsPanel'
 import '../../styles/world54b.css'
@@ -31,6 +33,7 @@ export function FighterProfile({ id }: { id: string }) {
   const v = views.fighter(id)
   const [scouting, setScouting] = useState(false)
   const game = useGame((x) => x.game)!
+  const standing = useMemo(() => titleStanding(game, id), [game, id])
   const bv = useMemo(() => fighterBusinessView(game, id), [game, id])
   const upcoming = v?.activeFightId ? fightView(game, v.activeFightId) : null
 
@@ -63,6 +66,7 @@ export function FighterProfile({ id }: { id: string }) {
             {mine && <span className="chip mine" data-testid="tag-mine">Your fighter</span>}
             {bv?.currentLabel && <span className="chip gold" data-testid="tag-champion">{bv.currentLabel}</span>}
             {bv && !bv.currentLabel && v.status === 'active' && !['PROSPECT', 'DEVELOPING', 'JOURNEYMAN'].includes(bv.status) && <span className="chip good" data-testid="tag-contender">{bv.statusLabel}</span>}
+            {v.status === 'active' && !bv?.currentLabel && <StandingChip s={standing} />}
             <span className="chip">{v.stage}</span>
             {v.status !== 'active' && v.status !== 'retired' && <span className="chip">Inactive</span>}
             {v.market.tags.filter((t) => t !== 'Looking for a promotion').slice(0, 2).map((t) => <span key={t} className="chip good">{t}</span>)}

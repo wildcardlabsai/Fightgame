@@ -83,7 +83,10 @@ export function clearFighterArt(): void { for (const v of ['profile', 'action', 
 export function registerFighterThumbs(ids: string[]): void { for (const i of ids) thumbIds.add(i) }
 
 /** The shared illustrated portrait pool (public/assets/portraits, built offline by scripts/assets/portraits.ts). */
-export const portraitPool = (): PortraitPool | null => (MANIFEST.portraitPool && MANIFEST.portraitPool.count > 0 ? MANIFEST.portraitPool : null)
+let poolEnabled = true
+/** Test/dev hook: pretend the shared pool is not shipped (the silhouette fallback path). */
+export function setPortraitPoolEnabled(on: boolean): void { poolEnabled = on }
+export const portraitPool = (): PortraitPool | null => (poolEnabled && MANIFEST.portraitPool && MANIFEST.portraitPool.count > 0 ? MANIFEST.portraitPool : null)
 /** Pure 32-bit string hash (FNV-1a with a final avalanche). */
 export function hashString(t: string): number {
   let h = 0x811c9dc5

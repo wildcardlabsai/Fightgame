@@ -220,7 +220,10 @@ describe('asset naming, registry and hosted paths', () => {
     const onDisk = (function walk(d: string): string[] { return readdirSync(d).flatMap((n) => { const p = join(d, n); return statSync(p).isDirectory() ? walk(p) : n === '.gitkeep' ? [] : [p] }) })(join(__dirname, '../../public/assets')).length
     expect(files.length).toBe(onDisk)
     for (const f of files) { expect(f.path.startsWith('assets/')).toBe(true); expect(f.path.startsWith('/')).toBe(false) }
-    expect(files.length).toBeLessThanOrEqual(255)
+    // One publish takes at most 255 files: the set (which includes the shared portrait pool) goes up in batches, none lost, none repeated.
+    const batches = (mod as unknown as { previewBatches: (n?: number) => { path: string }[][] }).previewBatches()
+    expect(batches.every((b) => b.length <= 255)).toBe(true)
+    expect(batches.flat().map((f) => f.path)).toEqual(files.map((f) => f.path))
   })
 
   it('art registry: venue-id art wins, then the shared kind look, then the tier backdrop; promotions/news swap to generated art', () => {
@@ -246,7 +249,7 @@ describe('asset naming, registry and hosted paths', () => {
     MANIFEST.artWorld.seed = 'world-1'
     try {
       registerFighterArt('profile', ['f_r'])
-      setArtWorld('world-2'); expect(resolveFighterImage(f).state).toBe('fallback')
+      setArtWorld('world-2'); expect(resolveFighterImage(f).source).not.toBe('world') // never the other world's art (it gets a pooled portrait or the silhouette)
       setArtWorld('world-1'); expect(resolveFighterImage(f).state).toBe('real')
       expect(resolveFighterImage(f).url).toContain('fighter_f_r_profile.webp')
       expect(hasFighterArt()).toBe(true); expect(artWorldSeed()).toBe('world-1')
