@@ -10,6 +10,8 @@ mkdirSync(shots, { recursive: true })
 const errors = []
 let passes = 0, fails = 0
 const check = (name, ok, detail = '') => { if (ok) passes++; else fails++; console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${ok ? '' : `  -> ${detail}`}`) }
+const openPane = async (page, name) => { const b = page.getByTestId('pf-nav').getByRole('button', { name }); if (await b.count()) { await b.first().click(); await page.waitForTimeout(350) } }
+const openEventTab = async (page, name) => { const b = page.getByTestId('event-tabs').getByRole('tab', { name }); if (await b.count()) { await b.first().click(); await page.waitForTimeout(250) } }
 const browser = await chromium.launch()
 const FORBIDDEN = ['reservation', 'archetype', 'walkAway', 'lowballTolerance', 'MONEY_FOCUSED', 'TITLE_FOCUSED', 'BECOME_']
 
@@ -65,6 +67,7 @@ for (const w of [1280, 1024, 390]) {
   // 3. Steer the career: development plan on the profile.
   if (signed) {
     await go(`#/fighter/${target}`)
+    await openPane(page, 'Career & titles')
     const opts = page.locator('[data-testid=plan-option][aria-checked=false]')
     if (await opts.count()) { const plan = await opts.first().getAttribute('data-plan'); await opts.first().click(); await page.waitForTimeout(300); check(`${w} 3 choosing a plan changes the game`, (await game((g, id) => g.business.plans[id] ?? 'normal', target)) === plan) }
     check(`${w} 3 the profile now offers a division move`, (await page.getByTestId('division-move').count()) >= 1)

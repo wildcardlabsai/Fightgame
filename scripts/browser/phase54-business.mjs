@@ -12,6 +12,8 @@ const fixture = (n) => readFileSync(`${fx}/${n}.json`, 'utf8')
 const errors = []
 let passes = 0, fails = 0
 const check = (name, ok, detail = '') => { if (ok) passes++; else fails++; console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${ok ? '' : `  -> ${detail}`}`) }
+const openPane = async (page, name) => { const b = page.getByTestId('pf-nav').getByRole('button', { name }); if (await b.count()) { await b.first().click(); await page.waitForTimeout(350) } }
+const openEventTab = async (page, name) => { const b = page.getByTestId('event-tabs').getByRole('tab', { name }); if (await b.count()) { await b.first().click(); await page.waitForTimeout(250) } }
 const browser = await chromium.launch()
 async function newPage(w) {
   const mobile = w < 700
@@ -46,6 +48,7 @@ for (const w of [1280, 1024, 390]) {
 
   // ---------------- profile (own champion)
   await go(page, `#/fighter/${ids.champ}`)
+  await openPane(page, 'Career & titles')
   check('profile: biz-panel with ladder (10 steps, one current)', (await page.getByTestId('ladder-step').count()) === 10 && (await page.locator('[data-testid=ladder-step][data-state=current]').count()) === 1)
   check('profile: ladder shows done steps + marks (not colour only)', /Done|You are here/.test(await visibleText(page, '[data-testid=ladder]')))
   const nm = await visibleText(page, '[data-testid=next-milestone]')

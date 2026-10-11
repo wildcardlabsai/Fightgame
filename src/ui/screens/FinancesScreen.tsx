@@ -68,7 +68,9 @@ export function FinancesScreen() {
         {FIN_TABS.map((t) => <button key={t.k} type="button" role="tab" aria-selected={tab === t.k} className={`tab${tab === t.k ? ' active' : ''}`} onClick={() => setTab(t.k)}>{t.n}</button>)}
       </div>
 
+      {/* Bridge financing only appears for a promotion in distress or with a loan running: it stays on the first tab, where that player is looking. */}
       <div className="ptab" data-on={on('summary')}>
+      <BridgePanel />
       <Section title="Promotion financial health" right={<span className={`standing ${finKey}`} style={{ fontFamily: 'var(--display)', fontWeight: 700, letterSpacing: '.08em', textTransform: 'uppercase' }}>{fin.standing}</span>}>
         <div className="finhealth">
           <ul style={{ margin: '0 0 0 18px', color: 'var(--text)' }}>{fin.reasons.map((r, i) => <li key={i}>{r}</li>)}</ul>
@@ -79,8 +81,6 @@ export function FinancesScreen() {
       </div>
       <div className="ptab" data-on={on('costs')}>
       <BreakEvenPanel />
-
-      <BridgePanel />
       </div>
 
       <div className="ptab" data-on={on('sponsors')}>

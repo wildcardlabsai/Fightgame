@@ -11,6 +11,8 @@ mkdirSync(shots, { recursive: true })
 const errors = []
 let passes = 0, fails = 0
 const check = (name, ok, detail = '') => { if (ok) passes++; else fails++; console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${ok ? '' : `  -> ${detail}`}`) }
+const openPane = async (page, name) => { const b = page.getByTestId('pf-nav').getByRole('button', { name }); if (await b.count()) { await b.first().click(); await page.waitForTimeout(350) } }
+const openEventTab = async (page, name) => { const b = page.getByTestId('event-tabs').getByRole('tab', { name }); if (await b.count()) { await b.first().click(); await page.waitForTimeout(250) } }
 const browser = await chromium.launch()
 const fixture = readFileSync(`${fx}/p54c-office.json`, 'utf8')
 const go = async (p, h) => { await p.evaluate((x) => { location.hash = x }, h); await p.waitForTimeout(500) }
@@ -89,6 +91,7 @@ for (const w of [1280, 1024, 390]) {
     await go(page, `#/event/${evId}`)
     check('event: promotional angle panel shown', (await page.getByTestId('campaign-panel').count()) === 1)
     const cash0 = await game(page, () => window.__fe.useGame.getState().game.promotions[window.__fe.useGame.getState().game.playerPromotionId].cash)
+    await openEventTab(page, 'Tickets & promotion')
     await page.getByTestId('campaign-traditional').click(); await page.waitForTimeout(400)
     const c = await game(page, () => { const g = window.__fe.useGame.getState().game; return g.office.campaigns }).catch(() => null)
     check('event: choosing an angle is recorded', !!c, JSON.stringify(c)?.slice(0, 100))

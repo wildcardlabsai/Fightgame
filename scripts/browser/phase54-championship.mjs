@@ -12,6 +12,8 @@ mkdirSync(shots, { recursive: true })
 const errors = []
 let passes = 0, fails = 0
 const check = (name, ok, detail = '') => { if (ok) passes++; else fails++; console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${ok ? '' : `  -> ${detail}`}`) }
+const openPane = async (page, name) => { const b = page.getByTestId('pf-nav').getByRole('button', { name }); if (await b.count()) { await b.first().click(); await page.waitForTimeout(350) } }
+const openEventTab = async (page, name) => { const b = page.getByTestId('event-tabs').getByRole('tab', { name }); if (await b.count()) { await b.first().click(); await page.waitForTimeout(250) } }
 const browser = await chromium.launch()
 const fixture = readFileSync(`${fx}/${fixtureName}.json`, 'utf8')
 const WORLD = ':is([data-body=atlas],[data-body=pioneer],[data-body=crown],[data-body=apex])'
@@ -140,6 +142,7 @@ async function attempt(label, reqIdx, schedIdx, viaEvent) {
   if (f.eventId) { await go(page, `#/event/${f.eventId}`); check(`${label} the event record shows 12 rounds`, /12 rds|12 rounds/i.test(await page.locator('main').innerText()), (await page.locator('main').innerText()).slice(0, 200)) }
   const mine = await page.evaluate((i) => { const g = window.__fe.useGame.getState().game; const ft = g.fights[i]; return [ft.sideA, ft.sideB].map((s) => s.fighterId).find((x) => g.fighters[x].contractId && g.contracts[g.fighters[x].contractId]?.promotionId === g.playerPromotionId) }, id)
   await go(page, `#/fighter/${mine}`)
+  await openPane(page, 'Fights')
   check(`${label} career history lists the fight with 12 rds`, /12 rds/.test(await page.locator('main').innerText()))
   check(`${label} no horizontal overflow on the fight page`, (await overflow(page)) <= 1)
   await ctx.close()

@@ -804,7 +804,8 @@ button.v-poster { cursor: pointer; } button.v-poster:hover { border-color: var(-
 
 /* ================================================================ Phase 4.9B: Fight Night presentation layout ================================================================ */
 body.fight-night { overflow: hidden; }
-body.fight-night .bottomnav, body.fight-night .topnav { display: none !important; }
+body.fight-night .bottomnav, body.fight-night .topnav, body.fight-night .sidenav { display: none !important; }
+body.fight-night .app { grid-template-columns: minmax(0, 1fr) !important; } body.fight-night .app > * { grid-column: 1 !important; }
 .fn-stage { position: fixed; inset: 0; z-index: 70; display: flex; flex-direction: column; background: radial-gradient(ellipse at 50% -20%, rgba(225,29,42,.28), transparent 60%), linear-gradient(180deg, #0a0709, #050507); }
 .fn-stage.shake .fn-body { animation: v-shake .55s ease-in-out; }
 .fn-top { display: flex; gap: 12px; align-items: center; padding: calc(8px + env(safe-area-inset-top)) 14px 8px; border-bottom: 1px solid var(--line); background: rgba(5,5,8,.7); flex: none; }

@@ -57,7 +57,7 @@ await page.getByRole('button', { name: /SEND SCOUT/i }).click(); await page.wait
 say('scout ops ' + await st(() => window.__fe.useGame.getState().game.scoutOps.length))
 // advance two weeks via the desk
 await go('#/dashboard')
-for (let i = 0; i < 3; i++) { await page.getByTestId('desk-advance').click(); await page.waitForTimeout(700) }
+for (let i = 0; i < 3; i++) { await page.locator('[data-guide="advance"]:visible').first().click(); await page.waitForTimeout(700) }
 say('after 3 weeks: ' + JSON.stringify(await game()))
 await go('#/inbox'); await snap('05-inbox'); await overflow('inbox')
 // pick a cheap free agent: lowest reputation active, age<=31, >=4 fights
@@ -151,7 +151,7 @@ await go('#/dashboard')
 for (let i = 0; i < 12; i++) {
   const night = await st(() => Object.values(window.__fe.useGame.getState().game.fights).some(f => f.status === 'fightNight'))
   if (night) break
-  await page.getByTestId('desk-advance').click(); await page.waitForTimeout(600)
+  await page.locator('[data-guide="advance"]:visible').first().click(); await page.waitForTimeout(600)
   if (page.url().includes('#/event/') || page.url().includes('#/fight/')) break
 }
 say('now ' + JSON.stringify(await game()) + ' url ' + page.url().split('#')[1]); await snap('19-fight-week')
@@ -200,7 +200,7 @@ for (let t = 0; t < 6 && !agreed; t++) {
   const o = await offers(); if (o.some(x => x.st === 'agreed')) { agreed = true; break }
   const acc = page.getByTestId('offer-accept').first(); await go('#/fights'); await page.locator('main [role=tab]:has-text("Offers")').first().click().catch(() => {}); await page.waitForTimeout(300)
   if (await acc.count() && await acc.isEnabled().catch(() => false)) { await acc.click(); await page.waitForTimeout(900); continue }
-  await go('#/dashboard'); await page.getByTestId('desk-advance').click(); await page.waitForTimeout(700)
+  await go('#/dashboard'); await page.locator('[data-guide="advance"]:visible').first().click(); await page.waitForTimeout(700)
 }
 say('offer agreed ' + agreed + ' ' + JSON.stringify(await extFights()))
 await go('#/fights'); await snap('27-fights-after-agree'); await overflow('fights after agree')
@@ -213,7 +213,7 @@ for (const k of Object.keys(pre)) if (pre[k] !== post[k]) find('high', 'reload (
 say('external after reload ' + JSON.stringify(await extFights()))
 // advance until the external fight completes
 await go('#/dashboard')
-for (let t = 0; t < 14; t++) { const e = await extFights(); if (e[0] && ['completed', 'processed', 'postFight'].includes(e[0].status)) break; await page.getByTestId('desk-advance').click(); await page.waitForTimeout(600) }
+for (let t = 0; t < 14; t++) { const e = await extFights(); if (e[0] && ['completed', 'processed', 'postFight'].includes(e[0].status)) break; await page.locator('[data-guide="advance"]:visible').first().click(); await page.waitForTimeout(600) }
 const done = await extFights(); say('external completed? ' + JSON.stringify(done))
 await go('#/fight/' + done[0].id); await snap('30-external-result'); await overflow('external result')
 const led = await st(() => { const g = window.__fe.useGame.getState().game; const m = {}; for (const l of g.ledger) m[l.category] = (m[l.category] || 0) + 1; return m })
@@ -234,7 +234,7 @@ const cycle = async (n) => {
   if (cash0 < 90000) { find('medium', 'cycle ' + n + ': cash £' + Math.round(cash0) + ' too low to book another show; the player cannot continue without a loan or sponsor'); return false }
   say('--- cycle ' + n + ' cash ' + Math.round(cash0))
   let have = 0
-  for (let tries = 0; tries < 10 && have < 3; tries++) { if (await agreeOne()) have++; else { await go('#/dashboard'); await page.getByTestId('desk-advance').click(); await page.waitForTimeout(600) } }
+  for (let tries = 0; tries < 10 && have < 3; tries++) { if (await agreeOne()) have++; else { await go('#/dashboard'); await page.locator('[data-guide="advance"]:visible').first().click(); await page.waitForTimeout(600) } }
   if (have < 3) { find('high', 'cycle ' + n + ': could only agree ' + have + ' fights in 10 tries'); return false }
   await go('#/events'); await page.locator('[data-guide="plan-show"]').first().click(); await page.waitForTimeout(400)
   await page.getByLabel('Event name').fill('Show ' + n); await page.getByRole('button', { name: /Book venue/i }).click(); await page.waitForTimeout(800)
@@ -243,7 +243,7 @@ const cycle = async (n) => {
   await page.locator('[data-guide="put-on-sale"]').click(); await page.waitForTimeout(600)
   if (await page.locator('.modal').count()) await page.getByRole('button', { name: /Proceed Anyway/i }).click().catch(() => {})
   await page.waitForTimeout(500)
-  for (let i = 0; i < 14; i++) { const stt = await st((x) => window.__fe.useGame.getState().game.events[x].status, id); if (['fightWeek', 'live'].includes(stt)) break; await go('#/dashboard'); await page.getByTestId('desk-advance').click(); await page.waitForTimeout(600) }
+  for (let i = 0; i < 14; i++) { const stt = await st((x) => window.__fe.useGame.getState().game.events[x].status, id); if (['fightWeek', 'live'].includes(stt)) break; await go('#/dashboard'); await page.locator('[data-guide="advance"]:visible').first().click(); await page.waitForTimeout(600) }
   await go('#/event/' + id)
   await page.locator('[data-guide="ring-bell"]:visible').first().click(); await page.waitForTimeout(1200)
   for (let k = 0; k < 4; k++) { await page.getByTestId('lf-skip').click().catch(() => {}); await page.waitForSelector('[data-testid=fight-night][data-finished=true]', { timeout: 20000 }).catch(() => find('high', 'fight never finished')); await page.waitForTimeout(500); const nx = page.getByTestId('lf-next-fight'); if (await nx.count() && await nx.isVisible()) { await nx.click(); await page.waitForSelector('[data-testid=fight-night][data-live=true]', { timeout: 10000 }).catch(() => {}); continue } await page.getByTestId('lf-end-event').click().catch(() => {}); await page.waitForTimeout(600); break }

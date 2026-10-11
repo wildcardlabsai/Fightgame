@@ -11,6 +11,8 @@ mkdirSync(shots, { recursive: true })
 const errors = []
 let passes = 0, fails = 0
 const check = (name, ok, detail = '') => { if (ok) passes++; else fails++; console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${ok ? '' : `  -> ${detail}`}`) }
+const openPane = async (page, name) => { const b = page.getByTestId('pf-nav').getByRole('button', { name }); if (await b.count()) { await b.first().click(); await page.waitForTimeout(350) } }
+const openEventTab = async (page, name) => { const b = page.getByTestId('event-tabs').getByRole('tab', { name }); if (await b.count()) { await b.first().click(); await page.waitForTimeout(250) } }
 const browser = await chromium.launch()
 const fixture = readFileSync(`${fx}/p54d-reviews.json`, 'utf8')
 const go = async (p, h) => { await p.evaluate((x) => { location.hash = x }, h); await p.waitForTimeout(500) }
@@ -44,6 +46,7 @@ for (const w of [1280, 1024, 390]) {
   const bId = await game(page, () => window.__fe.useGame.getState().game.office.reviews.rv_f2.fighterId)
   await go(page, `#/fighter/${bId}`)
   check('profile: the fighter\'s own decision is shown there', (await page.getByTestId('review-card').count()) === 1 && (await page.getByTestId('review-card').getAttribute('data-kind')) === 'setback')
+  await openPane(page, 'Career & titles')
   await page.getByTestId('review-rebuild').click(); await page.waitForTimeout(500)
   const g2 = await game(page, () => { const g = window.__fe.useGame.getState().game; return { r: g.office.reviews.rv_f2.status, goal: g.office.goals[g.office.reviews.rv_f2.fighterId]?.kind } })
   check('profile: rebuilding resolves it and sets the Rebuilding objective', g2.r === 'resolved' && g2.goal === 'rebuild', JSON.stringify(g2))

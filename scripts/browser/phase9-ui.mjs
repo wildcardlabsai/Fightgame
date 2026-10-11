@@ -73,7 +73,7 @@ for (const w of [1280, 1024, 390]) {
 
   // ---- 3 toasts (phone rules)
   await load('p9-inbox'); await go('#/dashboard')
-  for (let i = 0; i < 4; i++) { await T('desk-advance').click(); await page.waitForTimeout(250) }
+  for (let i = 0; i < 4; i++) { await page.locator('[data-guide="advance"]:visible').first().click(); await page.waitForTimeout(250) }
   const toasts = await T('toast').count(); ok(toasts <= 2, `${w} at most two toasts at once (${toasts})`)
   const mailToasts = await page.locator('[data-testid=toast]:has-text("new message")').count(); ok(mailToasts <= 1, `${w} message counts add up into one toast (${mailToasts})`)
   if (mobile && toasts > 0) {
