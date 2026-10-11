@@ -25,7 +25,7 @@ export function SideNav({ unread }: { unread: number }) {
           return (
             <li key={g.id}>
               <button type="button" data-sfx="navigate" data-testid={`nav-${g.id}`} className={`sb-item${active ? ' active' : ''}`} aria-current={active ? 'page' : undefined}
-                title={g.items.length > 1 ? `${g.label}: ${g.items.map((i) => i.label).join(', ')}` : g.label}
+                title={g.items.length > 1 ? `${g.label}: ${g.items.map((i) => i.label).join(', ')}` : g.label} data-label={g.label} data-sub={g.items.length > 1 ? g.items.map((i) => i.label).join(' · ') : undefined}
                 onClick={() => { if (!active) navigate(first.screen, first.param) }}>
                 <Icon name={g.icon} /><span className="sb-label">{g.label}</span>
                 {g.id === 'inbox' && unread > 0 && <b className="badge">{unread > 99 ? '99+' : unread}</b>}

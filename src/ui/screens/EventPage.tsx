@@ -51,12 +51,15 @@ export function EventPage({ id }: { id: string }) {
   const [fits, setFits] = useState(false)
   const [confirmSale, setConfirmSale] = useState(false)
   // Desktop: the building controls are split into three tabs (phones show them all in one column). A jump to a control in another tab opens that tab first.
-  const [etab, setEtab] = useState<EventTab>('card')
+  // The tab is remembered per event, so leaving for Matchmaking or Venues and coming back lands on the same task.
+  const [etab, setEtabState] = useState<EventTab>(() => TAB_MEMORY.get(id) ?? 'card')
+  const setEtab = (t: EventTab) => { TAB_MEMORY.set(id, t); setEtabState(t) }
+  useEffect(() => { setEtabState(TAB_MEMORY.get(id) ?? 'card') }, [id])
   useEffect(() => {
-    const reveal = (e: Event) => { const t = TAB_OF[(e as CustomEvent<string>).detail]; if (t) setEtab(t) }
+    const reveal = (e: Event) => { const t = TAB_OF[(e as CustomEvent<string>).detail]; if (t) { TAB_MEMORY.set(id, t); setEtabState(t) } }
     window.addEventListener('fe:reveal', reveal)
     return () => window.removeEventListener('fe:reveal', reveal)
-  }, [])
+  }, [id])
   const advisorMode = usePrefs((x) => x.advisor)
   const advice = useMemo(() => eventAdvice(game, id), [game, id])
   const poster = useMemo(() => eventPosterView(game, id), [game, id])
@@ -68,15 +71,18 @@ export function EventPage({ id }: { id: string }) {
   if (!v) return <><h1 className="display" style={{ fontSize: 44 }}>Event not found</h1><button className="btn" onClick={() => navigate('events')}>Back to events</button></>
   const editable = v.can.editCard
   const main = v.card.find((c) => c.slot === 'MAIN EVENT') ?? null
+  const working = v.mine && v.open && v.statusKey !== 'cancelled'
+  const requestSale = () => { const top = visibleAdvice(advice, advisorMode, 1)[0]; if (needsConfirmation(top) || (v.economics && v.economics.profit.lo + v.economics.profit.hi < 0)) setConfirmSale(true); else act('putOnSale', v.id) }
 
   return (
     <>
-      <div className="v-ehero">
+      {working && <EventBar v={v} tab={etab} setTab={setEtab} onAdd={() => setAdding(true)} onSale={requestSale} onCancel={() => setConfirmCancel(true)} />}
+      <div className={`v-ehero${working ? ' eb-editing' : ''}`}>
       <div className="hero">
         <div className="caps">{v.promotion} · {formatDay(v.day)} · {v.weeksAway > 0 ? `in ${v.weeksAway} weeks` : 'this week'}</div>
         <h1 className="display">{v.name}</h1>
-        <div className="dim" style={{ marginTop: 6 }}>{v.venue.name}, {v.venue.city} · {v.venue.tierLabel} · {num(v.venue.capacity)} seats</div>
-        <div style={{ display: 'flex', gap: 10, marginTop: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+        <div className="dim ev-venue-line" style={{ marginTop: 6 }}>{v.venue.name}, {v.venue.city} · {v.venue.tierLabel} · {num(v.venue.capacity)} seats</div>
+        <div className="ev-status-row" style={{ display: 'flex', gap: 10, marginTop: 12, alignItems: 'center', flexWrap: 'wrap' }}>
           <span className={`pill${v.statusKey === 'fightWeek' || v.statusKey === 'live' ? ' hot' : ''}`}>{v.status}</span>
           {v.forecast && v.mine && <RiskChip risk={v.forecast.risk} />}
           <span className="dim">Card: {v.quality.label} ({v.quality.score})</span>
@@ -103,22 +109,27 @@ export function EventPage({ id }: { id: string }) {
       {poster && <EventPoster v={poster} size="lead" />}
       </div>
       {!v.mine && <div className="attn info ext-banner" data-testid="external-banner" role="note"><div className="t">{v.promotion} stage this show: the card, the venue and the night belong to them. {v.card.some((c) => c.aMine || c.bMine) ? 'Your fighter is on it; the result is reported when the bell goes.' : ''}</div></div>}
-      {v.mine && v.nextStep && v.statusKey !== 'cancelled' && <div className="attn info" style={{ marginTop: 14 }}><div className="t">{v.nextStep}</div></div>}
+      {v.mine && v.nextStep && v.statusKey !== 'cancelled' && <div className="attn info eb-nextstep" style={{ marginTop: 14 }}><div className="t">{v.nextStep}</div></div>}
       {v.statusKey === 'cancelled' && <p className="attn critical">This show was cancelled: {v.cancelReason}.</p>}
 
       {v.mine && v.open && v.statusKey !== 'cancelled' && <BuildSteps v={v} />}
+      <div className="eb-shell">
+      <div className="eb-extras">
       {v.statusKey !== 'cancelled' && <EventMediaPanel eventId={v.id} mine={v.mine} open={v.open} />}
       <AdvicePanel list={advice} cap={3} title="Promoter’s desk" />
+      </div>
 
+      <div className="eb-night">
       {v.can.run && <NightPanel v={v} runNext={runNext} nightFight={nightFight} />}
       {v.result && !presenting && <CompletePanel v={v} />}
       {!v.can.run && nightFight && onCard && (presenting || latched === nightFight || (!v.result && v.open)) && <><FightPage id={nightFight} /><NightBar eventId={v.id} runNext={runNext} /></>}
+      </div>
 
       <div className="grid-2 eb-grid" style={{ alignItems: 'start' }}>
         <div className="eb-left">
           {v.mine && v.open && (
             <div className="ptabs" role="tablist" aria-label="Build the show" data-testid="event-tabs">
-              {EVENT_TABS.map((t) => <button key={t.k} type="button" role="tab" aria-selected={etab === t.k} className={`tab${etab === t.k ? ' active' : ''}`} onClick={() => setEtab(t.k)}>{t.n}</button>)}
+              {EVENT_TABS.map((t) => <button key={t.k} type="button" role="tab" aria-selected={etab === t.k} className={`tab${etab === t.k ? ' active' : ''}`} onClick={() => setEtab(t.k)}>{t.n}{t.k === 'card' && <span className="count">{v.card.length}/{v.venue.minFights}+</span>}</button>)}
             </div>
           )}
           <div className="ptab" data-on={etab === 'card' ? 1 : 0}>
@@ -172,6 +183,12 @@ export function EventPage({ id }: { id: string }) {
 
               </div>
               <div className="ptab" data-on={etab === 'money' ? 1 : 0}>
+              {v.forecast && (
+                <div className="fc-kpis eb-money" data-testid="money-summary">
+                  <div className="fc-k"><span className="caps">Broadcast</span><b>{v.broadcast.options.find((o) => o.kind === v.broadcast.kind)?.label ?? 'None'}</b><small className="dim">{v.broadcast.kind === 'none' ? 'no income from this deal' : `forecast ${v.broadcast.kind === 'ppv' ? rng(v.forecast.ppvRevenue) : rng(v.forecast.broadcast)}`}</small></div>
+                  <div className="fc-k"><span className="caps">Sponsor</span><b>{v.sponsor.accepted ? v.sponsor.accepted.brand : 'None yet'}</b><small className="dim">{v.forecast.sponsorship.hi > 0 ? `forecast ${rng(v.forecast.sponsorship)}` : 'no sponsor income counted'}</small></div>
+                </div>
+              )}
               <div id="eb-broadcast" /><Section title="Broadcast">
                 <div className="focus-grid">
                   {v.broadcast.options.map((o) => (
@@ -210,7 +227,7 @@ export function EventPage({ id }: { id: string }) {
           )}
         </div>
 
-        <div>
+        <div className="eb-right">
           <div id="eb-review" />
           {v.forecast && v.mine && <ForecastPanel v={v} />}
           {v.sales.trend !== 'not on sale' && <SalesPanel v={v} />}
@@ -221,12 +238,13 @@ export function EventPage({ id }: { id: string }) {
           )}
           <FinancePanel v={v} />
           {v.mine && (
-            <div style={{ display: 'flex', gap: 10, marginTop: 14, flexWrap: 'wrap' }}>
-              {v.statusKey === 'cardBuilding' && <button className="btn primary big" data-guide="put-on-sale" disabled={!v.can.putOnSale} onClick={() => { const top = visibleAdvice(advice, advisorMode, 1)[0]; if (needsConfirmation(top) || (v.economics && v.economics.profit.lo + v.economics.profit.hi < 0)) setConfirmSale(true); else act('putOnSale', v.id) }}>Put on sale ▸</button>}
+            <div className={working ? 'eb-legacy-actions' : undefined} style={{ display: 'flex', gap: 10, marginTop: 14, flexWrap: 'wrap' }}>
+              {v.statusKey === 'cardBuilding' && <button className="btn primary big" data-guide="put-on-sale" disabled={!v.can.putOnSale} onClick={requestSale}>Put on sale ▸</button>}
               {v.can.cancel && <button className="btn ghost" onClick={() => setConfirmCancel(true)}>Cancel the show</button>}
             </div>
           )}
         </div>
+      </div>
       </div>
 
       {adding && (
@@ -282,9 +300,39 @@ const STEPS: { k: string; n: string; id: string; what: string }[] = [
 ]
 
 type EventTab = 'card' | 'sell' | 'money'
+const TAB_MEMORY = new Map<string, EventTab>()
 const EVENT_TABS: { k: EventTab; n: string }[] = [{ k: 'card', n: 'Fight card' }, { k: 'sell', n: 'Tickets & promotion' }, { k: 'money', n: 'Broadcast & sponsors' }]
 /** Which tab holds each jump target. */
 const TAB_OF: Record<string, EventTab> = { 'eb-card': 'card', 'add-fight': 'card', 'eb-pricing': 'sell', 'eb-marketing': 'sell', 'eb-broadcast': 'money', 'eb-sponsors': 'money' }
+
+/**
+ * The event's identity, status, headline forecast and the next useful action in one bar that stays under the section tabs while the player works.
+ * (Phones keep the original layout: the bar is a desktop surface and their actions stay where they were.)
+ */
+function EventBar({ v, tab, setTab, onAdd, onSale, onCancel }: { v: EventView; tab: EventTab; setTab: (t: EventTab) => void; onAdd: () => void; onSale: () => void; onCancel: () => void }) {
+  const navigate = useGame((s) => s.navigate)
+  const f = v.forecast
+  const cardOk = v.card.length >= v.venue.minFights && v.problems.length === 0
+  const building = v.statusKey === 'venueBooked' || v.statusKey === 'cardBuilding'
+  const canAdd = v.addable.some((a) => !a.reason)
+  let primary: React.ReactNode = null
+  if (building && !cardOk) primary = canAdd ? <button className="btn primary" data-testid="eb-next" onClick={() => { setTab('card'); onAdd() }}>Add a fight ▸</button> : <button className="btn primary" data-testid="eb-next" onClick={() => navigate('matchmaking')}>Make a fight ▸</button>
+  else if (v.statusKey === 'cardBuilding') primary = <button className="btn primary" data-guide="put-on-sale" data-testid="eb-next" disabled={!v.can.putOnSale} onClick={onSale}>Put on sale ▸</button>
+  else if (v.can.editMoney && v.open) primary = <button className="btn primary" data-testid="eb-next" onClick={() => setTab('sell')} disabled={tab === 'sell'}>Prices &amp; marketing ▸</button>
+  const profitTone = f ? (f.profit.hi < 0 ? 'red' : f.profit.lo > 0 ? 'good' : '') : ''
+  return (
+    <div className="eb-bar" data-testid="event-bar">
+      <div className="eb-id">
+        <b className="eb-name">{v.name}</b>
+        <span className={`pill${v.statusKey === 'fightWeek' || v.statusKey === 'live' ? ' hot' : ''}`}>{v.status}</span>
+        <span className="dim eb-meta">{formatDay(v.day, false)} · {v.venue.name}, {v.venue.city}</span>
+      </div>
+      {f && <div className="eb-fc" title="Forecast profit range for this show"><RiskChip risk={f.risk} /><b className={`num ${profitTone}`}>{rng(f.profit)}</b></div>}
+      <div className="eb-next"><span className="caps">Next</span><span>{v.nextStep ?? 'Review the show.'}</span></div>
+      <div className="eb-actions">{primary}{v.can.cancel && <button className="btn ghost small" onClick={onCancel}>Cancel show</button>}</div>
+    </div>
+  )
+}
 
 function BuildSteps({ v }: { v: EventView }) {
   const preSale = v.statusKey === 'venueBooked' || v.statusKey === 'cardBuilding'
@@ -347,31 +395,42 @@ function SlotRow({ s, n, editable, eventId }: { s: CardSlot; n: number; editable
 
 const BASIS_LABEL: Record<string, string> = { committed: 'owed whatever the crowd', crowd: 'grows with the crowd', results: 'depends on results' }
 
-/** Phase 9: where the forecast money goes, what a sell-out would bring, the break-even, and (when a loss is forecast) what is driving it and what can be changed. */
-function EconomicsPanel({ v }: { v: EventView }) {
+/**
+ * Phase 9 economics, arranged for scanning (Phase 2 UX): the short reason a loss is forecast is always visible; the rest of the explanation, the levers,
+ * the cost table and the break-even sit behind two deliberate controls. Nothing was removed and no number is computed here.
+ */
+function EconomicsPanel({ v, lead }: { v: EventView; lead?: React.ReactNode }) {
   const ec = v.economics
-  if (!ec) return null
+  const [why, setWhy] = useState(false)
+  if (!ec) return lead ? <details className="econ-table" data-testid="econ-table"><summary>Breakdown</summary>{lead}</details> : null
   const be = ec.breakEven
   const loss = ec.explanation.length > 0
   const beText = be.verdict === 'coveredBeforeSales' ? 'Costs are covered before a ticket is sold (by the sponsor and broadcast income counted at their low end).'
     : be.verdict === 'beyondSellOut' ? `Not reachable at these prices: even a full house of ${num(be.capacity)} would not cover the costs.`
-    : be.attendance !== null ? `About ${num(be.attendance)} tickets (${Math.round((100 * be.attendance) / Math.max(1, be.capacity))}% of the hall) at an average ticket of ${money(be.avgTicket, false)}.` : 'Not enough information yet (build the card first).'
+    : be.attendance !== null ? `About ${num(be.attendance)} tickets (${Math.round((100 * be.attendance) / Math.max(1, be.capacity))}% of the hall) at an average ticket of ${money(be.avgTicket, false)}.` : 'Not enough information yet.'
+  const rest = ec.explanation.slice(1)
+  const hasMore = rest.length > 0 || ec.levers.length > 0
   return (
     <div className="econ" data-testid="economics">
       {loss && (
         <div className="econ-loss" role="status" data-testid="econ-loss">
           <div className="caps">Why this show is forecast to lose money</div>
-          {ec.explanation.map((t) => <p key={t}>{t}</p>)}
-          {ec.levers.length > 0 && (
-            <>
-              <div className="caps" style={{ marginTop: 8 }}>What you can change (none of these guarantees a profit)</div>
-              <ul>{ec.levers.map((l) => <li key={l.id} data-lever={l.id}>{l.text}</li>)}</ul>
-            </>
-          )}
+          <p>{ec.explanation[0]}</p>
+          {hasMore && <button type="button" className="linkbtn" data-testid="econ-why-toggle" aria-expanded={why} onClick={() => setWhy((x) => !x)}>{why ? 'Hide the rest' : 'Show the rest, and what you can change'}</button>}
+          <div hidden={!why} data-testid="econ-why">
+            {rest.map((t) => <p key={t}>{t}</p>)}
+            {ec.levers.length > 0 && (
+              <>
+                <div className="caps" style={{ marginTop: 8 }}>What you can change (none of these guarantees a profit)</div>
+                <ul>{ec.levers.map((l) => <li key={l.id} data-lever={l.id}>{l.text}</li>)}</ul>
+              </>
+            )}
+          </div>
         </div>
       )}
-      <details className="econ-table" open={loss} data-testid="econ-table">
-        <summary>Where the money goes</summary>
+      <details className="econ-table" data-testid="econ-table">
+        <summary>Breakdown: where the money goes, break-even and cash</summary>
+        {lead}
         <table className="table econ-lines">
           <thead><tr><th>Cost</th><th>Estimate</th><th>Type</th></tr></thead>
           <tbody>
@@ -413,23 +472,31 @@ function EconomicsSummary({ v }: { v: EventView }) {
 function ForecastPanel({ v }: { v: EventView }) {
   const f = v.forecast!
   const att = f.attendance
-  return (
-    <Section title="Forecast" right={<RiskChip risk={f.risk} />}>
+  const tone = f.profit.hi < 0 ? 'red' : f.profit.lo > 0 ? 'good' : ''
+  // The five numbers that decide whether to go ahead come first; the rest of the forecast is one deliberate click away.
+  const lead = (
+    <>
       <Explain topic="forecast" />
       <Explain topic="eventMoney" />
-      <p className="dim" style={{ fontSize: 13, marginBottom: 8 }}>Ranges from public information. They narrow as you run more shows. The real result can land outside them.</p>
+      <p className="dim" style={{ fontSize: 13, margin: '6px 0' }}>Ranges from public information. They narrow as you run more shows. The real result can land outside them.</p>
       <dl>
-        <div className="kv"><dt>Attendance</dt><dd>{rng(att, num)} <span className="dim">({Math.round(f.fill.lo * 100)}–{Math.round(f.fill.hi * 100)}% full)</span></dd></div>
         <div className="kv"><dt>Gate</dt><dd>{rng(f.ticketRevenue)}</dd></div>
         <div className="kv"><dt>Sponsorship</dt><dd>{f.sponsorship.hi > 0 ? rng(f.sponsorship) : '—'}</dd></div>
         <div className="kv"><dt>Broadcast</dt><dd>{v.broadcast.kind === 'none' ? '—' : v.broadcast.kind === 'ppv' ? `PPV ${rng(f.ppvRevenue)}` : rng(f.broadcast)}</dd></div>
-        <div className="kv"><dt>Total revenue</dt><dd><b>{rng(f.revenue)}</b></dd></div>
-        <div className="kv"><dt>Total costs</dt><dd><b>{rng(f.costs)}</b></dd></div>
-        <div className="kv"><dt>Profit</dt><dd className={f.profit.hi < 0 ? 'red' : f.profit.lo > 0 ? 'good' : ''}><b>{rng(f.profit)}</b></dd></div>
         <div className="kv"><dt>Atmosphere</dt><dd>{rng(f.atmosphere, (n) => `${Math.round(n)}`)} / 100</dd></div>
       </dl>
+    </>
+  )
+  return (
+    <Section title="Forecast" right={<RiskChip risk={f.risk} />}>
+      <div className="fc-kpis" data-testid="forecast-kpis">
+        <div className="fc-k"><span className="caps">Attendance</span><b className="num">{rng(att, num)}</b><small className="dim">{Math.round(f.fill.lo * 100)}–{Math.round(f.fill.hi * 100)}% full</small></div>
+        <div className="fc-k"><span className="caps">Revenue</span><b className="num">{rng(f.revenue)}</b></div>
+        <div className="fc-k"><span className="caps">Costs</span><b className="num">{rng(f.costs)}</b></div>
+        <div className={`fc-k fc-profit ${tone}`}><span className="caps">Profit / loss</span><b className="num">{rng(f.profit)}</b></div>
+      </div>
       {f.warnings.map((w) => <p key={w} className="warn" style={{ marginTop: 8, fontSize: 13.5 }}>{w}</p>)}
-      <EconomicsPanel v={v} />
+      <EconomicsPanel v={v} lead={lead} />
     </Section>
   )
 }

@@ -112,10 +112,17 @@ export function ScoutingScreen() {
 
       {tab === 'market' && (
         <>
-          <FilterBar f={filter} set={(f) => { setFilter(f); setShown(40) }} showContract />
+          <div className="sc-scope" role="group" aria-label="Who to show">
+            {([['free', 'Free agents'], ['rival', 'Under contract'], ['', 'Everyone']] as const).map(([k, label]) => (
+              <button key={k || 'all'} type="button" className={`sc-seg${filter.contract === k ? ' on' : ''}`} aria-pressed={filter.contract === k} data-testid={`scope-${k || 'all'}`}
+                onClick={() => { setFilter({ ...filter, contract: k }); setShown(40) }}>{label}</button>
+            ))}
+            <span className="dim sc-legend">Intel shows how well you know a fighter; “~” is a rough guess from public information; grade and ceiling are your scouts’ estimates.</span>
+          </div>
+          <FilterBar f={filter} set={(f) => { setFilter(f); setShown(40) }} />
           <p className="dim" style={{ marginBottom: 8, fontSize: 13 }}>{rows.length} fighters · “~” marks a rough guess from public information only. Typical ask is what fighters of this standing tend to want; the real number depends on the individual.</p>
           <FighterTable rows={rows.slice(0, shown)} sort={sort} dir={dir} onSort={onSort} actions={actions}
-            cols={['fighter', 'division', 'age', 'record', 'rep', 'grade', 'ceiling', 'know', 'club', 'ask', 'actions']} />
+            cols={['fighter', 'division', 'age', 'record', 'grade', 'ceiling', 'know', 'club', 'ask', 'actions']} />
           {rows.length > shown && <div style={{ textAlign: 'center', padding: 16 }}><button className="btn ghost" onClick={() => setShown((n) => n + 40)}>Show more ({rows.length - shown} left)</button></div>}
         </>
       )}

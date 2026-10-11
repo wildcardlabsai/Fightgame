@@ -4,7 +4,7 @@
 .sidenav, .hud-desk { display: none; }
 
 @media (min-width: 861px) {
-  :root { --sbw: 184px; --topbar: 52px; --subbar: 40px; }
+  :root { --sbw: 184px; --topbar: 52px; --subbar: 40px; --ebbar: 82px; }
   .app { display: grid; grid-template-columns: var(--sbw) minmax(0, 1fr); grid-auto-rows: auto; align-content: start; min-height: 100%; }
   .app > :not(.sidenav) { grid-column: 2; }
   .topnav { display: none; }
@@ -202,4 +202,125 @@
   .v-ehero .ev-recs { font-size: 17px; } .v-ehero .ev-stats { margin: 2px 0 6px; gap: 22px; } .v-ehero .ev-stats .num { font-size: 20px; }
   .v-ehero .v-poster.lead { min-height: 0 !important; }
   .v-ehero .v-poster.lead .v-portrait { width: 80px !important; }
+}
+
+/* ================================================================ Phase 2: event workspace ================================================================ */
+.eb-bar { display: none; }
+.eb-legacy-actions { }
+@media (min-width: 861px) {
+  .eb-bar { display: flex; align-items: center; gap: 6px 18px; position: sticky; top: calc(var(--topbar) + var(--subbar)); z-index: 30; margin: -18px -28px 12px; padding: 8px 28px; background: var(--bg); border-bottom: 1px solid var(--line-strong); }
+  .eb-id { display: flex; align-items: center; gap: 10px; min-width: 0; flex: 0 1 auto; flex-wrap: wrap; row-gap: 0; }
+  .eb-name { font-family: var(--display); font-weight: 800; font-size: 22px; letter-spacing: .01em; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 300px; }
+  .eb-meta { font-size: 13px; white-space: nowrap; }
+  .eb-fc { display: flex; align-items: center; gap: 8px; flex: none; } .eb-fc .num { font-size: 17px; }
+  .eb-bar { flex-wrap: wrap; row-gap: 2px; align-content: center; height: var(--ebbar); }
+  .eb-next { order: 5; flex: 1 0 100%; display: flex; align-items: baseline; gap: 8px; min-width: 0; font-size: 13.5px; line-height: 1.25; color: var(--steel); } .eb-next .caps { color: var(--gold); flex: none; }
+  .eb-actions { display: flex; align-items: center; gap: 8px; flex: none; margin-left: auto; }
+  .eb-actions .btn.primary { padding-top: 9px; padding-bottom: 9px; }
+  .eb-legacy-actions, .eb-nextstep { display: none !important; }
+
+  .v-ehero.eb-editing { grid-template-columns: minmax(0, 1fr); }
+  .v-ehero.eb-editing .v-poster { display: none; }
+  .v-ehero.eb-editing .hero h1 { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; } /* the name is in the bar */
+  .v-ehero.eb-editing .hero { padding-top: 10px; padding-bottom: 10px; }
+  .v-ehero.eb-editing .ev-stats, .v-ehero.eb-editing .ev-venue-line, .v-ehero.eb-editing .ev-status-row { display: none !important; } /* all three are in the bar and the forecast */
+  .v-ehero.eb-editing .ev-main { margin-top: 6px; padding-top: 8px; }
+
+  .eb-shell { display: grid; grid-template-columns: minmax(0, 1fr) minmax(330px, 360px); column-gap: 24px; align-items: start; }
+  .eb-grid { display: contents; }
+  .eb-night { grid-column: 1 / -1; grid-row: 1; } .eb-night:empty { display: none; }
+  .eb-left { grid-column: 1; grid-row: 2; min-width: 0; }
+  .eb-left .ptabs { position: sticky; top: calc(var(--topbar) + var(--subbar) + var(--ebbar)); z-index: 25; background: var(--bg); }
+  .eb-extras { grid-column: 1; grid-row: 3; min-width: 0; margin-top: 18px; }
+  .eb-right { grid-column: 2; grid-row: 2 / span 2; min-width: 0; position: sticky; top: calc(var(--topbar) + var(--subbar) + var(--ebbar) + 12px); }
+  .eb-right:has(details[open]) { position: static; } /* an opened breakdown can be taller than the window: let the page scroll it */
+  .eb-right .section { margin-top: 12px; } .eb-right .section:first-child { margin-top: 0; }
+  .eb-right .section-head h2 { font-size: 18px; }
+
+  .fc-kpis { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: var(--line); border: 1px solid var(--line); margin: 6px 0 8px; }
+  .fc-k { display: grid; gap: 1px; align-content: start; padding: 8px 10px; background: var(--bg-2); min-width: 0; }
+  .fc-k .caps { font-size: 11px; } .fc-k b { font-family: var(--display); font-weight: 700; font-size: 19px; line-height: 1.15; overflow-wrap: anywhere; } .fc-k small { font-size: 12px; }
+  .fc-profit.red b { color: var(--red-hot); } .fc-profit.good b { color: var(--good); }
+  .fc-profit b { font-size: 21px; }
+  .eb-money { grid-template-columns: 1fr 1fr; margin: 0 0 10px; }
+  .econ-loss { padding: 9px 12px; } .econ-loss p { font-size: 13.5px; margin: 4px 0; } .econ-loss .linkbtn { min-height: 32px; }
+  .econ-table > summary { cursor: pointer; padding: 8px 0; font-size: 14px; color: var(--gold); }
+  .eb-right .kpis { margin-bottom: 6px; } .eb-right .kpi .v { font-size: 22px !important; }
+}
+@media (min-width: 861px) and (max-width: 1100px) {
+  .eb-bar { margin: -16px -20px 10px; padding: 8px 20px; gap: 12px; flex-wrap: wrap; }
+  .eb-shell { grid-template-columns: minmax(0, 1fr) 320px; column-gap: 16px; }
+  .eb-name { max-width: 220px; }
+}
+
+/* ================================================================ Phase 2: matchmaking, scouting, overview, icon rail ================================================================ */
+@media (min-width: 861px) {
+  /* matchmaking: choose your fighter from a compact two-line list, so the opponents table starts near the top */
+  .mm-help { display: flex; gap: 8px; } .mm-help .explain { flex: 1 1 0; margin: 0 0 8px; }
+  .mm-picker { grid-template-columns: repeat(auto-fill, minmax(215px, 1fr)); gap: 6px; margin-bottom: 10px; }
+  .mm-picker .pick { padding: 6px 10px 6px 10px; display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 8px; align-items: center; }
+  .mm-picker .pick > div:nth-child(1) { grid-column: 1; font-size: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .mm-picker .pick > div:nth-child(2) { grid-column: 1; font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .mm-picker .pick > div:nth-child(3) { grid-column: 2; grid-row: 1 / span 2; margin-top: 0 !important; justify-content: flex-end; }
+  .mm-picker .pick .form-dots { display: none; }
+  .mm-picker .pick.on { box-shadow: inset 0 0 0 1px var(--red); }
+  .table tr.row.blocked { opacity: .55; } .table tr.row.blocked:hover { opacity: .85; }
+  .table tr.row.sel { background: rgba(212,162,76,.08); }
+  .mm-best { margin-top: 3px; }
+
+  /* scouting */
+  .sc-scope { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin: 0 0 8px; }
+  .sc-seg { min-height: 36px; padding: 0 14px; font-family: var(--display); font-weight: 700; letter-spacing: .06em; text-transform: uppercase; font-size: 14px; color: var(--dim); background: var(--bg-2); border: 1px solid var(--line-strong); }
+  .sc-seg.on { color: #fff; border-color: var(--red); background: rgba(225,29,42,.2); } .sc-seg:hover { color: #fff; }
+  .sc-legend { font-size: 13px; margin-left: 8px; flex: 1 1 320px; }
+
+  /* overview: the first screen is the command centre */
+  .cmd .cmd-tile:nth-child(-n+2) { display: none; } /* cash and roster are in the top bar and the right rail */
+  .cmd { grid-template-columns: repeat(3, minmax(0, 1fr)); margin-bottom: 12px; }
+  .desk-grid .desk-trio [data-testid="desk-fight"] { order: -1; }
+  .desk-hero { grid-template-columns: minmax(0, 1fr) auto; gap: 8px 16px; }
+  .desk-hero > * { grid-column: 1 / -1; }
+  .desk-hero > .dh-top { grid-column: 1; grid-row: 1; }
+  .desk-hero > .dh-foot { grid-column: 2; grid-row: 1; align-self: start; flex-direction: column; align-items: flex-end; gap: 4px; }
+  .desk-pair { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+  .desk-pair .mailrow { padding-top: 7px; padding-bottom: 7px; }
+}
+
+/* the 64px icon rail: unmistakable active state and a tooltip on hover or keyboard focus (the label is also the accessible name) */
+@media (min-width: 861px) and (max-width: 1100px) {
+  .sb-item.active { background: rgba(225,29,42,.34); } .sb-item.active svg { color: #fff; filter: drop-shadow(0 0 4px rgba(225,29,42,.8)); }
+  .sb-item::after { content: attr(data-label); position: absolute; left: calc(100% + 8px); top: 50%; transform: translateY(-50%); padding: 6px 10px; white-space: nowrap; font-family: var(--display); font-weight: 700; font-size: 14px; letter-spacing: .08em; text-transform: uppercase; color: #fff; background: #0e0d12; border: 1px solid var(--line-strong); border-left: 3px solid var(--red); box-shadow: 0 8px 20px rgba(0,0,0,.6); opacity: 0; pointer-events: none; z-index: 60; transition: opacity .1s; }
+  .sb-item:hover::after, .sb-item:focus-visible::after { opacity: 1; }
+  .sidenav, .sb-list { overflow: visible; }
+}
+
+@media (min-width: 861px) {
+  .mm-picker { grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); }
+  /* opponent and market tables: one line of identity under the name keeps rows about 56px instead of 100px+ */
+  .table.stack .fighter-cell { min-width: 190px; }
+  .table.stack .fighter-cell .fighter-sub { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 210px; }
+  .table.stack .fighter-cell .fighter-name { white-space: nowrap; }
+  .table.stack .fx-know { display: flex; flex-direction: row; align-items: center; gap: 6px; } .table.stack .fx-know small { white-space: nowrap; }
+  .mm-best { margin-top: 0; margin-left: 6px; display: inline-block; vertical-align: middle; }
+}
+
+@media (min-width: 861px) {
+  /* wide tables keep their actions in view: the last column stays at the right edge while the other columns scroll */
+  .table-wrap.sticky-actions th:last-child, .table-wrap.sticky-actions td.actions:last-child { position: sticky; right: 0; z-index: 2; background: var(--bg); box-shadow: -12px 0 14px -10px rgba(0,0,0,.9); }
+  .table-wrap.sticky-actions tr.row:hover td.actions:last-child { background: #1a0d10; }
+  .table.stack td, .table.stack th { padding-left: 7px; padding-right: 7px; }
+  .table .stars, .table .star-rating { font-size: 15px; }
+  .table .form-dots b { width: 17px; height: 17px; font-size: 10px; }
+}
+.mm-block { display: inline-block; margin-top: 3px; font-size: 11.5px; }
+@media (min-width: 861px) and (max-width: 1250px) {
+  /* at these widths the roster columns need the scrollbar rather than being clipped */
+  .table-wrap.sticky-head { overflow-x: auto; }
+  .table-wrap.sticky-head thead th { position: static; }
+}
+@media (min-width: 861px) {
+  .mm-picker .pick > div:nth-child(1) { grid-column: 1 / -1; }
+  .mm-picker .pick > div:nth-child(2) { grid-column: 1; grid-row: 2; }
+  .mm-picker .pick > div:nth-child(3) { grid-column: 2; grid-row: 2; align-self: center; }
+  .mm-picker .pick .ph { font-size: 10.5px; padding: 2px 6px; white-space: nowrap; }
 }

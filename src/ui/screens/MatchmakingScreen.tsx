@@ -48,11 +48,10 @@ export function MatchmakingScreen({ fighterId }: { fighterId?: string }) {
         </div>
         <button className="btn ghost" onClick={() => navigate('fights')}>My fights ▸</button>
       </div>
-      <Explain topic="matchup" />
-      <Explain topic="availability" />
+      <div className="mm-help"><Explain topic="matchup" /><Explain topic="availability" /></div>
 
       {mine.length === 0 ? <p className="empty">You have no fighters. Sign some in Scouting first.</p> : (
-        <div className="opp-grid">
+        <div className="opp-grid mm-picker" role="group" aria-label="Your fighters">
           {mine.map((m) => (
             <button key={m.id} className={`pick${myId === m.id ? ' on' : ''}${m.availability.status !== 'available' ? ' off' : ''}`} onClick={() => { setMyId(m.id); setPicked([]) }} aria-pressed={myId === m.id}>
               <div className="fighter-name">{m.name}</div>
@@ -87,22 +86,23 @@ export function MatchmakingScreen({ fighterId }: { fighterId?: string }) {
           </div>
           <p className="dim" style={{ marginBottom: 8, fontSize: 13 }}>{rows.length} possible opponents for {me.name}. “~” marks guesses without scouting. Win chances are <b>your</b> estimate, not the truth.</p>
 
-          <div className="table-wrap">
+          <div className="table-wrap sticky-actions">
             <table className="table stack">
               <thead><tr><th></th><th>Opponent</th><th>Age</th><th>Record</th><th>Form</th><th>Scout grade</th><th>Difficulty</th><th>Reward</th><th>Win chance (est.)</th><th>KO risk</th><th>Status</th><th /></tr></thead>
               <tbody>
-                {rows.slice(0, shown).map((c) => {
+                {rows.slice(0, shown).map((c, ri) => {
                   const v = c.view
                   const scouted = v.knowledge.reports > 0
+                  const bestFit = sort === 'fit' && ri === 0 && c.canApproach && !open
                   return (
-                    <tr key={v.id} className="row" onClick={() => navigate('fighter', v.id)}>
+                    <tr key={v.id} className={`row${c.canApproach ? '' : ' blocked'}${picked.includes(v.id) ? ' sel' : ''}`} data-state={!c.canApproach ? 'unavailable' : picked.includes(v.id) ? 'compared' : 'available'} onClick={() => navigate('fighter', v.id)}>
                       <td className="actions" data-label="Compare" onClick={(e) => e.stopPropagation()}>
                         <input type="checkbox" aria-label={`Compare ${v.name}`} checked={picked.includes(v.id)} disabled={!picked.includes(v.id) && picked.length >= 3}
                           onChange={(e) => setPicked(e.target.checked ? [...picked, v.id] : picked.filter((x) => x !== v.id))} />
                       </td>
                       <td className="primary" data-label="Opponent">
                         <div className="fighter-cell"><Avatar f={v} /><div><div className="fighter-name">{v.name} <Flag code={v.nationKey} /></div>
-                          <div className="fighter-sub">{v.style} · {v.stage}{c.compat === 'catchweight' ? ' · catchweight' : ''}{c.rematch ? ' · rematch' : ''}</div></div></div>
+                          <div className="fighter-sub">{v.style} · {v.stage}{c.compat === 'catchweight' ? ' · catchweight' : ''}{c.rematch ? ' · rematch' : ''}</div>{bestFit && <span className="chip good mm-best" data-testid="best-fit">Best fit</span>}</div></div>
                       </td>
                       <td data-label="Age" className="num">{v.age}</td>
                       <td data-label="Record" className="num">{v.recordText}</td>
