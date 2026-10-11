@@ -91,7 +91,27 @@ export function InboxScreen() {
                 <button className="btn ghost" onClick={() => { remove(sel.id); setSelId(null) }}>Delete</button>
               </div>
             </>
-          ) : <p className="empty">Select a message to read it.</p>}
+          ) : (
+            <>
+            <p className="empty inbox-select-hint">Select a message to read it.</p>
+            <div className="inbox-desk" data-testid="inbox-desk">
+              {waiting.length > 0 ? (
+                <>
+                  <div className="caps red">{waiting.length} decision{waiting.length === 1 ? '' : 's'} waiting for you</div>
+                  <h3 className="display">Start here</h3>
+                  {waiting.slice(0, 4).map((it) => (
+                    <button key={it.msg.id} type="button" className="desk-pick" onClick={() => open(it.msg.id)}>
+                      <span className="dp-s"><span className={`catpill ${KIND_CLASS[msgKind(it.msg)]}`}>{msgKind(it.msg)}</span> {it.msg.subject}</span>
+                      <span className="dim dp-m">{it.msg.from} · {formatDay(it.msg.day, false)}{it.msg.priority !== 'normal' ? ` · ${it.msg.priority}` : ''}</span>
+                      <span className="dp-go">Open ▸</span>
+                    </button>
+                  ))}
+                  <p className="dim">Results and updates never need an answer; they can wait. Select any message in the list to read it.</p>
+                </>
+              ) : <p className="empty">{list.length === 0 ? 'No messages here.' : 'Nothing is waiting for your decision. Select a message to read it.'}</p>}
+            </div>
+            </>
+          )}
         </div>
       </div>
     </>

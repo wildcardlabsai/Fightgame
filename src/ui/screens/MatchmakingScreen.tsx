@@ -88,7 +88,7 @@ export function MatchmakingScreen({ fighterId }: { fighterId?: string }) {
 
           <div className="table-wrap sticky-actions">
             <table className="table stack">
-              <thead><tr><th></th><th>Opponent</th><th>Age</th><th>Record</th><th>Form</th><th>Scout grade</th><th>Difficulty</th><th>Reward</th><th>Win chance (est.)</th><th>KO risk</th><th>Status</th><th /></tr></thead>
+              <thead><tr><th></th><th>Opponent</th><th>Record · age</th><th>Form</th><th>Scout grade</th><th>Difficulty</th><th>Reward</th><th>Win chance (est.) · KO risk</th><th>Status</th><th /></tr></thead>
               <tbody>
                 {rows.slice(0, shown).map((c, ri) => {
                   const v = c.view
@@ -104,14 +104,12 @@ export function MatchmakingScreen({ fighterId }: { fighterId?: string }) {
                         <div className="fighter-cell"><Avatar f={v} /><div><div className="fighter-name">{v.name} <Flag code={v.nationKey} /></div>
                           <div className="fighter-sub">{v.style} · {v.stage}{c.compat === 'catchweight' ? ' · catchweight' : ''}{c.rematch ? ' · rematch' : ''}</div>{bestFit && <span className="chip good mm-best" data-testid="best-fit">Best fit</span>}</div></div>
                       </td>
-                      <td data-label="Age" className="num">{v.age}</td>
-                      <td data-label="Record" className="num">{v.recordText}</td>
+                      <td data-label="Record" className="num"><div>{v.recordText}</div><small className="dim mm-age">age {v.age}</small></td>
                       <td data-label="Form"><FormDots form={v.form} /></td>
                       <td data-label="Scout grade"><RangeText r={v.grade} scouted={scouted} /></td>
                       <td data-label="Difficulty"><StarRating n={c.assessment.difficulty} label="Difficulty" /></td>
                       <td data-label="Reward"><StarRating n={c.assessment.reward} label="Reward" /></td>
-                      <td data-label="Win chance"><span title={`${c.assessment.winLo}–${c.assessment.winHi}%`}>{c.assessment.winLabel}</span> <small className="dim">{c.assessment.winLo}–{c.assessment.winHi}%</small><div><VerdictChip v={c.assessment.verdict} /></div></td>
-                      <td data-label="KO risk" className={c.assessment.koRisk === 'High' ? 'red' : c.assessment.koRisk === 'Moderate' ? 'warn' : 'good'}>{c.assessment.koRisk}</td>
+                      <td data-label="Win chance"><span title={`${c.assessment.winLo}–${c.assessment.winHi}%`}>{c.assessment.winLabel}</span> <small className="dim">{c.assessment.winLo}–{c.assessment.winHi}%</small><div><VerdictChip v={c.assessment.verdict} /></div><div className={`mm-ko ${c.assessment.koRisk === 'High' ? 'red' : c.assessment.koRisk === 'Moderate' ? 'warn' : 'good'}`}>KO risk: {c.assessment.koRisk}</div></td>
                       <td data-label="Status" className="dim" style={{ fontSize: 13 }}>{c.canApproach ? (v.contract.kind === 'none' ? 'Free agent' : v.contract.kind === 'rival' ? v.contract.promotionName : '') : c.blockedReason}{c.canApproach && c.fit.label !== 'No plan set' && <div><span className={`o54-chip ${c.fit.label === 'Suits the plan' ? 'good' : c.fit.objection ? 'red' : c.fit.label === 'A soft touch' || c.fit.label === 'A step up' ? 'gold' : 'warn'}`} data-testid="opponent-fit" title={c.fit.note ?? undefined}>{c.fit.label}</span></div>}</td>
                       <td className="actions" onClick={(e) => e.stopPropagation()}>
                         <span className="action-row">

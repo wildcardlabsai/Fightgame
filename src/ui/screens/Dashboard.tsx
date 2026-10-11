@@ -47,7 +47,8 @@ export function Dashboard() {
   const night = myFights.find((f) => f.statusKey === 'fightNight')
   const nextFightItem = myFights.find((f) => ['scheduled', 'training', 'fightNight'].includes(f.statusKey)) ?? myFights.find((f) => f.statusKey === 'agreed') ?? null
   const nextFight = nextFightItem ? fightView(game, nextFightItem.id) : null
-  const lastResult = fightList(game, 'mine-results').slice(0, 1)[0] ?? null
+  const recentResults = fightList(game, 'mine-results').slice(0, 3)
+  const lastResult = recentResults[0] ?? null
   const attention = attentionItems(game)
   const runway = cashRunwayWeeks(game)
   const burn = weeklyBurn(game)
@@ -279,6 +280,15 @@ export function Dashboard() {
             <button type="button" className="dt-fight" onClick={() => navigate('fight', lastResult.id)}><div className="caps">Latest result</div><div className="dt-res">{lastResult.resultText}</div><div className="dt-sub dim">{lastResult.method} · {formatDay(lastResult.day, true)}</div></button>
           ) : <p className="empty">Nothing booked. Open matchmaking and put a fighter in the ring.</p>}
           {!nextFight && <button className="btn small" data-guide="matchmaking" onClick={() => navigate('matchmaking')}>Make a fight ▸</button>}
+        </section>
+        <section className="dt-col" aria-label="Recent results" data-testid="desk-results">
+          <h3 className="dt-title caps">Recent results <button className="linkbtn" onClick={() => navigate('fights')}>All</button></h3>
+          {recentResults.length === 0 ? <p className="empty">No results yet.</p> : recentResults.map((r) => (
+            <button key={r.id} type="button" className="dt-result" onClick={() => navigate('fight', r.id)}>
+              <span className="dt-res-text">{r.resultText ?? `${r.aName} v ${r.bName}`}</span>
+              <span className="dim dt-res-meta">{r.division} · {formatDay(r.day, false)}</span>
+            </button>
+          ))}
         </section>
       </div>
 

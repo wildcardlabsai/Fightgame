@@ -325,3 +325,96 @@
   .mm-picker .pick > div:nth-child(3) { grid-column: 2; grid-row: 2; align-self: center; }
   .mm-picker .pick .ph { font-size: 10.5px; padding: 2px 6px; white-space: nowrap; }
 }
+
+/* ================================================================ Phase 3: fight-card rows ================================================================ */
+@media (min-width: 861px) {
+  .eb-left .slot { display: grid; grid-template-columns: 96px minmax(0, 1fr); grid-template-areas: "tag body" ". ctl"; column-gap: 14px; row-gap: 8px; align-items: center; padding: 12px 14px 10px; }
+  .eb-left .slot-tag { grid-area: tag; display: grid; gap: 4px; align-content: center; min-width: 0; }
+  .eb-left .slot-tag .caps { font-size: 12px; letter-spacing: .12em; }
+  .eb-left .slot-status { font-size: 12px; line-height: 1.2; }
+  .eb-left .slot-body { grid-area: body; min-width: 0; }
+  .eb-left .slot-ctl { grid-area: ctl; justify-content: flex-end; gap: 6px; flex-wrap: wrap; border-top: 1px solid var(--line); padding-top: 8px; }
+  .eb-left .slot-ctl .btn.small { min-height: 34px; }
+  .eb-left .slot-cards { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); gap: 12px; align-items: center; flex-wrap: nowrap; }
+  .eb-left .slot-cards > .dim { font-family: var(--display); font-weight: 800; font-style: italic; color: var(--red); letter-spacing: .04em; }
+  .eb-left .slot-cards .v-fcard-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; }
+  .eb-left .slot-cards .v-fcard.compact:last-of-type { flex-direction: row-reverse; text-align: right; }
+  .eb-left .slot-cards .v-fcard.compact:last-of-type .v-fcard-sub { justify-content: flex-end; }
+  .eb-left .slot .fighter-sub { margin-top: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: center; }
+  .eb-left .slot .slot-marks { justify-content: center; }
+  .eb-left .slot.main { padding-top: 16px; padding-bottom: 12px; } .eb-left .slot.main .v-fcard-name { font-size: 22px; } .eb-left .slot.main .v-fcard-sub { font-size: 15px; }
+  .eb-left .slot.co .v-fcard-name { font-size: 19px; }
+}
+@media (min-width: 861px) and (max-width: 1100px) {
+  .eb-left .slot { grid-template-columns: 72px minmax(0, 1fr); column-gap: 10px; }
+  .eb-left .slot-cards { gap: 8px; } .eb-left .slot-cards .v-fcard-name { font-size: 16px; } .eb-left .slot.main .v-fcard-name { font-size: 19px; }
+}
+
+/* ================================================================ Phase 3: roster condition ================================================================ */
+.fx-cond { display: grid; gap: 1px; line-height: 1.2; } .fx-cond b { font-family: var(--display); font-weight: 700; font-size: 15px; letter-spacing: .02em; white-space: nowrap; }
+.fx-cond small { font-size: 12px; white-space: nowrap; } .fx-contract.expiring, .fx-contract.ending { color: var(--warn); } .fx-contract.expired { color: var(--red-hot); }
+@media (min-width: 861px) and (max-width: 1100px) { .fc-profit b { font-size: 17px; white-space: nowrap; } }
+
+/* ================================================================ Phase 3: matchmaking, scouting, overview ================================================================ */
+.mm-ko { font-size: 12.5px; margin-top: 2px; } .mm-age { display: block; font-size: 12px; }
+@media (min-width: 861px) {
+  /* matchmaking / market tables: fewer, fuller columns so the whole row is visible at 1280 */
+  .table.stack .fx-div { font-size: 12.5px; letter-spacing: .05em; padding: 2px 8px; }
+  .table.stack td[data-label="Status"] { max-width: 120px; white-space: normal; font-size: 12.5px; line-height: 1.2; }
+  .table.stack .fighter-cell { min-width: 0; }
+  .table.stack .fighter-cell .fighter-sub { max-width: 170px; }
+  .table .stars, .table .star-rating { font-size: 13px; letter-spacing: 1px; }
+  .table .form-dots { gap: 2px; } .table .form-dots b { width: 15px; height: 15px; font-size: 9.5px; }
+  .table.stack td, .table.stack th { padding-left: 5px; padding-right: 5px; }
+  .table.stack .avatar, .table.stack .fighter-cell .v-portrait { width: 34px !important; height: 42px !important; }
+
+  /* overview rail */
+  .dt-result { display: grid; gap: 1px; text-align: left; width: 100%; padding: 6px 0; background: transparent; border: 0; border-bottom: 1px solid var(--line); color: inherit; }
+  .dt-result:last-child { border-bottom: 0; } .dt-result:hover .dt-res-text { color: #fff; }
+  .dt-res-text { font-size: 14px; line-height: 1.25; font-weight: 600; } .dt-res-meta { font-size: 12px; }
+  .desk-grid [data-testid="desk-roster"] .v-fcard { display: none; } /* the roster summary is counts; fighters live in Roster */
+  .needs .attn { border-left-width: 4px; } .needs .attn .go { min-width: 108px; }
+}
+
+/* ================================================================ Phase 3: inbox ================================================================ */
+@media (min-width: 861px) {
+  .inbox-desk { display: grid; gap: 8px; align-content: start; padding: 4px 4px; }
+  .inbox-desk h3 { font-size: 28px; margin-bottom: 2px; }
+  .desk-pick { display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "s go" "m go"; column-gap: 14px; text-align: left; padding: 10px 14px; background: var(--bg-2); border: 1px solid var(--line); border-left: 4px solid var(--red); color: inherit; }
+  .desk-pick:hover { border-color: var(--red); background: rgba(225,29,42,.1); }
+  .dp-s { grid-area: s; font-weight: 600; font-size: 15.5px; } .dp-m { grid-area: m; font-size: 12.5px; } .dp-go { grid-area: go; align-self: center; font-family: var(--display); font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--red-hot); }
+  .msg-row[data-open="true"] { background: linear-gradient(90deg, rgba(225,29,42,.1), transparent 80%); }
+  .msg-row .m .red { font-family: var(--display); font-weight: 700; letter-spacing: .06em; text-transform: uppercase; font-size: 11.5px; padding: 0 6px; border: 1px solid var(--red); }
+  .inbox-group { color: var(--gold); }
+  /* the topic row is a filter, not a second set of tabs */
+  .tabs[aria-label="Topic"] { margin-bottom: 8px; border-bottom: 0; gap: 4px; }
+  .tabs[aria-label="Topic"] .tab { padding: 4px 12px; font-size: 13.5px; border: 1px solid var(--line); border-bottom: 1px solid var(--line); margin-right: 0; }
+  .tabs[aria-label="Topic"] .tab.active { border-color: var(--red); background: rgba(225,29,42,.16); }
+  .inbox-open { color: var(--red-hot); border: 1px solid var(--red); border-left-width: 4px; padding: 8px 12px; background: rgba(225,29,42,.08); }
+}
+/* phone layouts keep what they had: no results panel on the Overview, and the plain hint instead of the decision desk */
+.inbox-desk, .dt-col[data-testid="desk-results"] { display: none; }
+.inbox-select-hint { display: block; }
+@media (min-width: 861px) {
+  .inbox-desk { display: grid; } .dt-col[data-testid="desk-results"] { display: flex; } .inbox-select-hint { display: none; }
+}
+@media (min-width: 861px) {
+  .table.stack th { white-space: normal; line-height: 1.15; vertical-align: bottom; }
+  .table .action-row { gap: 6px; } .table .action-row .btn.small { padding-left: 11px; padding-right: 11px; }
+  .table.stack .fx-div { font-size: 11.5px; letter-spacing: .03em; padding: 2px 6px; white-space: normal; line-height: 1.15; display: inline-block; max-width: 112px; }
+  .table.stack td[data-label="Win chance"] { min-width: 120px; }
+}
+@media (min-width: 861px) {
+  .table.stack td[data-label="Status"] { max-width: 150px; }
+}
+@media (min-width: 861px) and (max-width: 1100px) {
+  /* profile header: actions on one row and the four headline facts in one band instead of two stacked pairs */
+  .ds-actions { flex-wrap: nowrap; gap: 6px; } .ds-actions .btn { padding-left: 14px; padding-right: 14px; font-size: 15px; white-space: nowrap; }
+  .ds-stats { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0 14px; border-left: 0; padding-left: 0; border-top: 1px solid var(--line); padding-top: 8px; }
+  .ds-stats > div { border-bottom: 0; }
+  .dossier .explain { max-width: 100%; }
+}
+@media (min-width: 861px) and (max-width: 1100px) {
+  /* roster at 1024: style is secondary (it is on the profile), so the rank column is not pushed off-screen */
+  .table-wrap.sticky-head th:nth-child(5), .table-wrap.sticky-head td:nth-child(5) { display: none; }
+}

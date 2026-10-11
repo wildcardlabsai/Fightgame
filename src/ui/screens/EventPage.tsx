@@ -367,8 +367,8 @@ function SlotRow({ s, n, editable, eventId }: { s: CardSlot; n: number; editable
   const top = s.slot === 'MAIN EVENT'
   return (
     <div className={`slot ${top ? 'main' : s.slot === 'CO-MAIN' ? 'co' : ''}`}>
-      <div className="slot-tag caps">{s.slot}</div>
-      <div style={{ flex: 1, cursor: 'pointer' }} onClick={() => navigate('fight', s.fightId)}>
+      <div className="slot-tag"><span className="caps">{s.slot}</span>{!s.result && <span className="slot-status dim">{s.status}</span>}</div>
+      <div className="slot-body" style={{ flex: 1, cursor: 'pointer' }} onClick={() => navigate('fight', s.fightId)}>
         <div className="slot-cards">
           <FighterCard f={slotFighter(s.aId, s.aName, s.aRecord, s.division)} size="compact" badge={s.winner === 0 ? <span className="chip gold">WINNER</span> : undefined} />
           <span className="dim">vs</span>
@@ -378,7 +378,6 @@ function SlotRow({ s, n, editable, eventId }: { s: CardSlot; n: number; editable
         {(s.stake || s.aMine || s.bMine) && <div className="slot-marks">{s.stake && <StakeChip label={s.stake.label} name={s.stake.name} />}{(s.aMine || s.bMine) && <span className="chip blue" data-testid="slot-yours">Your fighter: {[s.aMine ? s.aName : null, s.bMine ? s.bName : null].filter(Boolean).join(' · ')}</span>}</div>}
         {s.result && <div className="fighter-sub">{s.result}</div>}
       </div>
-      {!s.result && <span className="dim" style={{ fontSize: 12.5 }}>{s.status}</span>}
       {editable && (
         <div className="slot-ctl">
           <button className="btn small ghost" aria-label="Move up the card" disabled={s.index === n - 1} onClick={() => act('moveFight', eventId, s.fightId, 1)}>▲</button>

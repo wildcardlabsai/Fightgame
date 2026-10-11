@@ -5,9 +5,11 @@ import { money, standingLabel } from '../format'
 import { Avatar, Flag, Meter } from './Bits'
 import { fighterFallback } from '../../assets/registry'
 import { KnowledgePips, RangeText } from './Estimates'
+import { FormDots } from './FightBits'
+import { STAGE_LABEL } from '../../engine/systems/contracts'
 
 export type ColKey =
-  | 'identity' | 'recordBig' | 'style' | 'rank' | 'fighter' | 'division' | 'age' | 'record' | 'stage' | 'rep' | 'pop' | 'grade' | 'ceiling' | 'know' | 'club' | 'ask' | 'tags' | 'actions'
+  | 'identity' | 'recordBig' | 'style' | 'rank' | 'fighter' | 'division' | 'age' | 'record' | 'stage' | 'rep' | 'pop' | 'grade' | 'ceiling' | 'know' | 'club' | 'ask' | 'tags' | 'condition' | 'form' | 'actions'
 
 export type SortKey = 'name' | 'age' | 'record' | 'rep' | 'pop' | 'grade' | 'ceiling' | 'ask' | 'division'
 
@@ -16,7 +18,7 @@ const HEAD: Record<ColKey, { label: string; sort?: SortKey; right?: boolean }> =
   fighter: { label: 'Fighter', sort: 'name' }, division: { label: 'Division', sort: 'division' }, age: { label: 'Age', sort: 'age', right: true },
   record: { label: 'Record', sort: 'record' }, stage: { label: 'Stage' }, rep: { label: 'Reputation', sort: 'rep' }, pop: { label: 'Popularity', sort: 'pop' },
   grade: { label: 'Scout grade', sort: 'grade' }, ceiling: { label: 'Ceiling', sort: 'ceiling' }, know: { label: 'Intel' },
-  club: { label: 'Status' }, ask: { label: 'Typical ask', sort: 'ask' }, tags: { label: 'Market' }, actions: { label: '' },
+  club: { label: 'Status' }, condition: { label: 'Condition' }, form: { label: 'Form' }, ask: { label: 'Typical ask', sort: 'ask' }, tags: { label: 'Market' }, actions: { label: '' },
 }
 
 export function FighterCell({ v }: { v: FighterView }) {
@@ -75,6 +77,14 @@ function cell(v: FighterView, c: ColKey, actions?: (v: FighterView) => ReactNode
     case 'know': return <span className="fx-know"><KnowledgePips level={v.knowledge.level} /><small>{KNOW_TEXT[v.knowledge.level] ?? v.knowledge.level}</small></span>
     case 'club': return <span className={v.contract.kind === 'none' ? 'gold' : 'dim'}>{statusText(v)}</span>
     case 'ask': return <span className="num ask-cell">{money(v.market.askBand.retainerLo, false)}–{money(v.market.askBand.retainerHi, false)}<small className="dim"> /wk</small></span>
+    case 'condition': {
+      // Public facts only: availability and the contract's stage, both already shown on the fighter's profile.
+      const av = v.availability
+      const bad = av.status !== 'available'
+      const c = v.contract.kind === 'own' ? v.contract : null
+      return <span className="fx-cond"><b className={bad ? 'warn' : 'good'}>{av.label}{av.weeks ? ` · ${av.weeks}w` : ''}</b>{c && c.stage !== 'healthy' && <small className={`fx-contract ${c.stage}`}>{STAGE_LABEL[c.stage]} · {c.weeksLeft}w</small>}{c && c.stage === 'healthy' && <small className="dim">{c.weeksLeft} wk contract</small>}</span>
+    }
+    case 'form': return <FormDots form={v.form} />
     case 'tags': return <span className="dim">{v.market.tags.join(' · ')}</span>
     case 'actions': return actions?.(v)
   }
