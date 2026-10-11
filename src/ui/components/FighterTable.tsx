@@ -80,7 +80,9 @@ function cell(v: FighterView, c: ColKey, actions?: (v: FighterView) => ReactNode
   }
 }
 
-export function FighterTable({ rows, cols, sort, dir, onSort, actions, onOpen, emptyText }: {
+export function FighterTable({ rows, cols, sort, dir, onSort, actions, onOpen, emptyText, stickyHead }: {
+  /** Keep the column headers under the page header while scrolling (desktop). Only for column sets that fit the page width: it stops the table scrolling sideways. */
+  stickyHead?: boolean
   rows: FighterView[]
   cols: ColKey[]
   sort?: SortKey
@@ -94,7 +96,7 @@ export function FighterTable({ rows, cols, sort, dir, onSort, actions, onOpen, e
   if (rows.length === 0) return <p className="empty">{emptyText ?? 'No fighters match.'}</p>
   const open = onOpen ?? ((v: FighterView) => navigate('fighter', v.id))
   return (
-    <div className="table-wrap sticky-head">
+    <div className={`table-wrap${stickyHead ? ' sticky-head' : ''}`}>
       <table className="table stack">
         <thead>
           <tr>

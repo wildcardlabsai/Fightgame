@@ -191,3 +191,15 @@
   .m-list { grid-template-columns: 1fr; }
   [data-testid="venue-cards"] .vn-img { flex-basis: 90px; } [data-testid="venue-cards"] .vn-stats { grid-template-columns: repeat(2, 1fr); }
 }
+
+/* ================================================================ Event page hero ================================================================ */
+@media (min-width: 861px) {
+  .v-ehero { grid-template-columns: minmax(0, 1fr) minmax(220px, 300px); gap: 14px; }
+  .v-ehero .hero { padding: 16px 20px 14px; }
+  .v-ehero .hero h1 { font-size: clamp(30px, 3vw, 44px); line-height: 1; }
+  .v-ehero .ev-main { margin-top: 10px; padding-top: 10px; gap: 4px; }
+  .v-ehero .ev-duel { font-size: clamp(22px, 2.4vw, 32px); gap: 10px; }
+  .v-ehero .ev-recs { font-size: 17px; } .v-ehero .ev-stats { margin: 2px 0 6px; gap: 22px; } .v-ehero .ev-stats .num { font-size: 20px; }
+  .v-ehero .v-poster.lead { min-height: 0 !important; }
+  .v-ehero .v-poster.lead .v-portrait { width: 80px !important; }
+}

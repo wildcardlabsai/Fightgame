@@ -214,7 +214,7 @@ describe('playback clock: speed, pause, skip, replay', () => {
 
 describe('navigation structure', () => {
   it('has seven primary destinations in the specified order', () => {
-    expect(NAV.map((g) => g.label)).toEqual(['Home', 'Inbox', 'Roster', 'Events', 'World', 'Finances', 'More'])
+    expect(NAV.map((g) => g.label)).toEqual(['Overview', 'Inbox', 'Roster', 'Events', 'World', 'Finances', 'More'])
   })
 
   it('groups the existing screens as specified, keeping every screen reachable', () => {

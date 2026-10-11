@@ -76,7 +76,7 @@ export function FightersScreen() {
       </div>
 
       <FilterBar f={filter} set={(f) => { setFilter(f); setShown(50) }} />
-      <FighterTable rows={rows.slice(0, shown)} cols={[...cols]} sort={sort} dir={dir} onSort={onSort}
+      <FighterTable stickyHead={tab === 'roster' || tab === 'expiring'} rows={rows.slice(0, shown)} cols={[...cols]} sort={sort} dir={dir} onSort={onSort}
         emptyText={tab === 'roster' ? 'No fighters match.' : tab === 'offers' ? 'No rival has an offer out for a fighter you know about right now.' : tab === 'expiring' ? 'No contracts need attention right now.' : tab === 'signed' ? 'No notable signings in the last 12 weeks that you know about.' : tab === 'released' ? 'Nobody you know of has hit the market in the last 12 weeks.' : 'No fighters match those filters.'} />
       {rows.length > shown && <div style={{ textAlign: 'center', padding: 16 }}><button className="btn ghost" onClick={() => setShown((n) => n + 50)}>Show more ({rows.length - shown} left)</button></div>}
     </>

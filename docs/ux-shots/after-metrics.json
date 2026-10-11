@@ -20,9 +20,9 @@
   "screens": 1.2
  },
  "1280/event": {
-  "height": 2406,
+  "height": 2182,
   "overflowX": false,
-  "screens": 3.01
+  "screens": 2.73
  },
  "1280/finances": {
   "height": 1263,
@@ -130,9 +130,9 @@
   "screens": 1.19
  },
  "1024/event": {
-  "height": 3094,
+  "height": 2915,
   "overflowX": false,
-  "screens": 3.87
+  "screens": 3.64
  },
  "1024/finances": {
   "height": 1635,
@@ -180,9 +180,9 @@
   "screens": 2.2
  },
  "1024/venues": {
-  "height": 11323,
+  "height": 6817,
   "overflowX": false,
-  "screens": 14.15
+  "screens": 8.52
  },
  "1024/sponsors": {
   "height": 1409,
