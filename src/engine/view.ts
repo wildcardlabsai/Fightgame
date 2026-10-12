@@ -113,6 +113,9 @@ export interface FighterView {
   reputation: number
   discovered: boolean
   shortlisted: boolean
+  /** The player's own tags and note on this fighter. */
+  myTags: string[]
+  myNote: string
   bio: string
 
   /** Scout's overall estimate and estimate of the fighter's ceiling (potential). */
@@ -344,7 +347,7 @@ function buildView(state: GameState, f: Fighter): FighterView {
     koRate: f.record.wins ? Math.round((f.record.koWins / f.record.wins) * 100) : 0,
     lastFightWeeksAgo: f.lastFightDay === null ? null : weeksBetween(f.lastFightDay, state.today),
     stage: publicStage(facts), popularity: Math.round(f.popularity), reputation: Math.round(f.reputation),
-    discovered: !!entry, shortlisted: state.shortlist.includes(f.id), bio: f.bio,
+    discovered: !!entry, shortlisted: state.shortlist.includes(f.id), myTags: state.notes?.[f.id]?.tags ?? [], myNote: state.notes?.[f.id]?.text ?? '', bio: f.bio,
     grade, ceiling: range(belief('potential')), marketability: range(belief('marketability')),
     traits: {
       physical: [power, speed, stamina, chin, defence],
@@ -437,3 +440,6 @@ export function viewsOf(state: GameState): Views {
 
 /** Every fighter id in the world (public: ids carry no information). Used to keep portraits distinct. */
 export const fighterIds = (state: GameState): string[] => Object.keys(state.fighters)
+
+/** Tags the player can put on a fighter (they may also type their own). */
+export const FIGHTER_TAGS = ['Watch', 'Sign next year', 'Prospect', 'Main-event material', 'Rival', 'Avoid'] as const

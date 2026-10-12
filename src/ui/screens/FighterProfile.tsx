@@ -1,4 +1,7 @@
 import { useMemo, useState } from 'react'
+import { rivalriesList } from '../../engine/media/views'
+import { RivalryRow } from '../media/MediaBits'
+import { FighterNotes } from '../components/FighterNotes'
 import { StandingChip } from '../components/TitleStanding'
 import { titleStanding } from '../../engine/business/titleStanding'
 import { ObjectivePanel } from '../office/ObjectivePanel'
@@ -34,6 +37,7 @@ export function FighterProfile({ id }: { id: string }) {
   const [scouting, setScouting] = useState(false)
   const [pane, setPane] = useState<Pane>('overview') // all hooks stay above the early return below (a fighter that appears or disappears must not change the hook order)
   const game = useGame((x) => x.game)!
+  const rivalries = useMemo(() => rivalriesList(game, { fighterId: id, limit: 4 }), [game, id])
   const standing = useMemo(() => titleStanding(game, id), [game, id])
   const bv = useMemo(() => fighterBusinessView(game, id), [game, id])
   const upcoming = v?.activeFightId ? fightView(game, v.activeFightId) : null
@@ -200,6 +204,8 @@ export function FighterProfile({ id }: { id: string }) {
           </div>
 
           <div className="ptab" data-on={on('overview')}>
+          <Section title="My notes"><FighterNotes v={v} /></Section>
+          {rivalries.length > 0 && <Section title="Rivalries">{rivalries.map((r) => <RivalryRow key={r.a + r.b} r={r} />)}</Section>}
           <Section title="Personality">
             {v.personality.reveal === 'unknown' && <p className="dim">You don’t know {v.firstName} well enough to say. Deep scouting — or doing business with them — will reveal more.</p>}
             {v.personality.reveal === 'hint' && <p>First impression: <b>{v.personality.hint}</b>. <span className="dim">Not enough to know what really drives them.</span></p>}

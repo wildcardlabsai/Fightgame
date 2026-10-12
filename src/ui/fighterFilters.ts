@@ -46,6 +46,7 @@ export function sortRows(rows: FighterView[], key: SortKey, dir: 1 | -1): Fighte
       case 'ceiling': return v.ceiling.mid
       case 'ask': return askMid(v)
       case 'division': return v.division
+      case 'rank': return v.mediaRank.rank === null ? 9999 : v.mediaRank.rank
     }
   }
   return rows.slice().sort((a, b) => {

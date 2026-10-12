@@ -106,7 +106,7 @@ export function MatchmakingScreen({ fighterId }: { fighterId?: string }) {
                           onChange={(e) => setPicked(e.target.checked ? [...picked, v.id] : picked.filter((x) => x !== v.id))} />
                       </td>
                       <td className="primary" data-label="Opponent">
-                        <div className="fighter-cell"><Avatar f={v} /><div><div className="fighter-name">{v.name} <Flag code={v.nationKey} /></div>
+                        <div className="fighter-cell" data-fighter-id={v.id}><Avatar f={v} /><div><div className="fighter-name">{v.name} <Flag code={v.nationKey} /></div>
                           <div className="fighter-sub">{v.style} · {v.stage}{c.compat === 'catchweight' ? ' · catchweight' : ''}{c.rematch ? ' · rematch' : ''}</div><StandingChip s={c.standing} />{bestFit && <span className="chip good mm-best" data-testid="best-fit">Best fit</span>}</div></div>
                       </td>
                       <td data-label="Record" className="num"><div>{v.recordText}</div><small className="dim mm-age">age {v.age}</small></td>

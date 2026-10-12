@@ -1,4 +1,5 @@
 import { useMemo } from 'react'
+import { MonthlyReviewCard } from '../components/MonthlyReviewCard'
 import { deskAdvice } from '../../engine/advisor'
 import { firstSteps } from '../../engine/onboarding'
 import { objectiveStatuses, scenarioById } from '../../engine/scenarios'
@@ -225,6 +226,7 @@ export function Dashboard() {
             </button>
           ))}
         </section>
+        <MonthlyReviewCard />
         <section aria-label="What to do next" data-testid="desk-advice">
           <div className="sec-head"><h2 className="display">What next?</h2><span className="dim" style={{ fontSize: 13 }}>{restAttention.length ? `${restAttention.length} more item${restAttention.length === 1 ? '' : 's'}` : 'Nothing else'}</span></div>
           <AdvicePanel list={allDesk} cap={3} compact />

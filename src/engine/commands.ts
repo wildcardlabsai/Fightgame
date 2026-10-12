@@ -68,6 +68,17 @@ export function toggleShortlist(state: GameState, fighterId: Id): GameState {
   return toggleShortlistState(state, fighterId)
 }
 
+export { FIGHTER_TAGS } from './view'
+/** Player notes and tags on a fighter. Presentation-side bookkeeping: the simulation never reads it. */
+export function setFighterNote(state: GameState, fighterId: Id, patch: { text?: string; tags?: string[] }): GameState {
+  const cur = state.notes?.[fighterId] ?? {}
+  const text = patch.text !== undefined ? patch.text.slice(0, 600) : cur.text
+  const tags = patch.tags !== undefined ? [...new Set(patch.tags.map((t) => t.trim().slice(0, 24)).filter(Boolean))].slice(0, 8) : cur.tags
+  const notes = { ...(state.notes ?? {}) }
+  if (!text && (!tags || tags.length === 0)) delete notes[fighterId]; else notes[fighterId] = { text, tags }
+  return { ...state, notes }
+}
+
 export function makeOffer(state: GameState, fighterId: Id, offer: Offer, kind: NegotiationKind): NegotiationOutcome {
   return submitOffer(state, fighterId, offer, kind)
 }

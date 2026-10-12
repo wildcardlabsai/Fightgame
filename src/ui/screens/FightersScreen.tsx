@@ -4,7 +4,8 @@ import type { FighterView } from '../../engine/view'
 import { useGame } from '../../store/gameStore'
 import { useViews } from '../../store/hooks'
 import { AdvicePanel } from '../components/Advice'
-import { FighterTable, type SortKey } from '../components/FighterTable'
+import { FighterTable, type ColKey, type SortKey } from '../components/FighterTable'
+import { ViewsMenu } from '../components/ViewsMenu'
 import { applyFilter, EMPTY_FILTER, sortRows, type FighterFilter } from '../fighterFilters'
 import { FilterBar } from './ScoutingScreen'
 import { Explain } from '../components/Explain'
@@ -16,6 +17,9 @@ const TABS: { key: Tab; label: string }[] = [
   { key: 'roster', label: 'My Roster' }, { key: 'free', label: 'Free Agents' }, { key: 'offers', label: 'Offers Pending' }, { key: 'expiring', label: 'Expiring Contracts' },
   { key: 'signed', label: 'Recently Signed' }, { key: 'released', label: 'Recently Released' }, { key: 'known', label: 'All Known' },
 ]
+
+const OWN_COLS: ColKey[] = ['identity', 'star', 'recordBig', 'division', 'age', 'style', 'form', 'grade', 'ceiling', 'condition', 'status', 'mytags', 'rank', 'rep', 'pop']
+const MARKET_COLS: ColKey[] = ['identity', 'star', 'recordBig', 'division', 'age', 'style', 'club', 'rank', 'ask', 'know', 'grade', 'ceiling', 'status', 'mytags', 'rep', 'pop']
 
 export function FightersScreen() {
   const game = useGame((s) => s.game)!
@@ -77,6 +81,8 @@ export function FightersScreen() {
 
       <FilterBar f={filter} set={(f) => { setFilter(f); setShown(50) }} />
       <FighterTable stickyHead={tab === 'roster' || tab === 'expiring'} rows={rows.slice(0, shown)} cols={[...cols]} sort={sort} dir={dir} onSort={onSort}
+        tableId={tab === 'roster' || tab === 'expiring' ? 'roster-mine' : 'roster-market'} available={tab === 'roster' || tab === 'expiring' ? OWN_COLS : MARKET_COLS}
+        toolbar={<ViewsMenu tableId={tab === 'roster' || tab === 'expiring' ? 'roster-mine' : 'roster-market'} defaultCols={[...cols]} sort={sort} dir={dir} filter={filter} onApply={(v) => { setFilter(v.filter); setSort(v.sort as SortKey); setDir(v.dir); setShown(50) }} />}
         emptyText={tab === 'roster' ? 'No fighters match.' : tab === 'offers' ? 'No rival has an offer out for a fighter you know about right now.' : tab === 'expiring' ? 'No contracts need attention right now.' : tab === 'signed' ? 'No notable signings in the last 12 weeks that you know about.' : tab === 'released' ? 'Nobody you know of has hit the market in the last 12 weeks.' : 'No fighters match those filters.'} />
       {rows.length > shown && <div style={{ textAlign: 'center', padding: 16 }}><button className="btn ghost" onClick={() => setShown((n) => n + 50)}>Show more ({rows.length - shown} left)</button></div>}
     </>

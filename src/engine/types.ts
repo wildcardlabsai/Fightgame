@@ -798,6 +798,8 @@ export interface GameState {
   scouts: Scout[]
   scoutOps: ScoutAssignment[]
   shortlist: Id[]
+  /** The player's own notes and tags on fighters (optional: older saves have none). Never read by the simulation. */
+  notes?: Record<Id, { text?: string; tags?: string[] }>
 
   ledger: Transaction[]
   /** Sum of ledger entries that have aged out of `ledger`, so cash always reconciles. */

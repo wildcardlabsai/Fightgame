@@ -5,8 +5,11 @@
   --line: rgba(255, 255, 255, 0.09);
   --line-strong: rgba(255, 255, 255, 0.18);
   --text: #ece8e1;
-  --dim: #8d8b95;
-  --faint: #7c7b85;
+  --dim: #a3a1ab; /* secondary text: ~7.5:1 on the page background (was 5.8:1) */
+  --faint: #8f8d98;
+  --panel: #101016;
+  --panel-hi: #181821;
+  --loss: #d1626c; /* losses and soft negatives; the hot red stays for the brand, the primary action and real problems */
   --red: #e11d2a;
   --red-hot: #ff3a46;
   --red-deep: #6e0d14;

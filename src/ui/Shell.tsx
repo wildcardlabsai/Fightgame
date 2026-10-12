@@ -1,6 +1,10 @@
 import { formatDay, weekOfYear } from '../engine/calendar'
 import { OfficeScreen } from './screens/OfficeScreen'
 import { cashRunwayWeeks, financialHealth, player, unreadCount } from '../engine/selectors'
+import { CommandPalette, SearchButton, ShortcutHelp, useShortcuts } from './components/Palette'
+import { Delta } from './components/Delta'
+import { useDelta } from '../store/trends'
+import { FighterPopover } from './components/FighterPopover'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { lazy, Suspense, useLayoutEffect } from 'react'
 import { useGame } from '../store/gameStore'
@@ -42,6 +46,8 @@ export function Shell() {
   const game = useGame((s) => s.game)!
   const advance = useGame((s) => s.advance)
   const navigate = useGame((s) => s.navigate)
+  useShortcuts()
+  const cashDelta = useDelta((s) => s.cash, game.promotions[game.playerPromotionId].cash)
   const simulating = useGame((s) => s.simulating)
   const p = player(game)
   const runway = cashRunwayWeeks(game)
@@ -71,12 +77,13 @@ export function Shell() {
         </div>
         <div className="hud-stat"><span className="caps">Date</span><span className="v num">{formatDay(game.today)}</span></div>
         <div className="hud-stat hide-sm"><span className="caps">Week</span><span className="v num">{weekOfYear(game.today)}</span></div>
-        <div className="hud-stat"><span className="caps">Cash</span><span className={`v num ${p.cash < 0 ? 'red' : ''}`}>{money(p.cash)}</span></div>
+        <div className="hud-stat"><span className="caps">Cash</span><span className={`v num ${p.cash < 0 ? 'red' : ''}`}>{money(p.cash)}<Delta d={cashDelta} fmt={(n) => money(Math.abs(n))} /></span></div>
         <div className="hud-stat hide-sm"><span className="caps">Runway</span><span className={`v num ${runway !== null && runway < 8 ? 'red' : runway !== null && runway < 26 ? 'warn' : ''}`}>{runway === null ? '—' : `${runway}w`}</span></div>
         <div className="hud-stat hide-sm"><span className="caps">Finances</span><span className={`v num hp ${health.state}`} title={health.reason}>{health.label}</span></div>
         <div className="hud-spacer" />
         <TopActions unread={unread} />
         <div className="hud-actions mobile-only">
+          <SearchButton />
           <AudioToggle compact />
           <button className="btn primary small hud-advance" data-guide="advance" onClick={() => advance(1)} aria-label="Advance one week">Week ▸</button>
         </div>
@@ -91,6 +98,9 @@ export function Shell() {
       <BottomNav unread={unread} />
       {simulating && <div className="sim-flash" />}
       <TierUpNotice />
+      <FighterPopover />
+      <CommandPalette />
+      <ShortcutHelp />
     </div>
   )
 }

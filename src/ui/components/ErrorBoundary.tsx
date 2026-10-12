@@ -1,5 +1,8 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react'
 
+/** The most recent screen failure, for the problem report. */
+export let lastScreenError = ''
+
 interface Props { children: ReactNode; /** Changing this (e.g. the route) clears a previous error. */ resetKey?: string; onBack?: () => void; onReport?: () => void; label?: string }
 interface State { error: Error | null }
 
@@ -11,8 +14,7 @@ export class ErrorBoundary extends Component<Props, State> {
   state: State = { error: null }
   static getDerivedStateFromError(error: Error): State { return { error } }
   componentDidCatch(error: Error, info: ErrorInfo): void {
-    try { (window as unknown as { __lastScreenError?: string }).__lastScreenError = `${error.message}\n${(info.componentStack ?? '').slice(0, 600)}` } catch { /* diagnostics are best effort */ }
-    console.error('Screen failed to render', error)
+    lastScreenError = `${error.message}\n${(info.componentStack ?? '').slice(0, 600)}`
   }
   componentDidUpdate(prev: Props): void { if (this.state.error && prev.resetKey !== this.props.resetKey) this.setState({ error: null }) }
   render(): ReactNode {

@@ -9,7 +9,7 @@ export interface AudioPrefs { enabled: boolean; muted: boolean; master: number; 
 /** How the live fight screen presents a fight. Display only — every mode shows the same recorded result. */
 export type PlayMode = 'watch' | 'key' | 'quick'
 export const PLAY_MODE_IDS: PlayMode[] = ['watch', 'key', 'quick']
-export interface Preferences { advisor: AdvisorMode; audio: AudioPrefs; firstStepsHidden: boolean; fightMode: PlayMode }
+export interface Preferences { advisor: AdvisorMode; audio: AudioPrefs; firstStepsHidden: boolean; fightMode: PlayMode; largeText: boolean }
 
 export const DEFAULT_AUDIO_PREFS: AudioPrefs = { enabled: true, muted: false, master: 60, music: 40, ui: 55, sfx: 65, fight: 70 }
 export const PREFS_KEY = 'fight-empire:prefs:v1'
@@ -21,7 +21,7 @@ const browser = (): PrefStorage | null => {
 }
 
 export function defaultPreferences(): Preferences {
-  return { advisor: DEFAULT_ADVISOR_MODE, audio: { ...DEFAULT_AUDIO_PREFS }, firstStepsHidden: false, fightMode: 'watch' }
+  return { advisor: DEFAULT_ADVISOR_MODE, audio: { ...DEFAULT_AUDIO_PREFS }, firstStepsHidden: false, fightMode: 'watch', largeText: false }
 }
 
 /** Parse untrusted stored text into valid preferences; anything unusable falls back to the default for that field. */
@@ -29,12 +29,13 @@ export function parsePreferences(raw: string | null): Preferences {
   const out = defaultPreferences()
   if (!raw) return out
   try {
-    const j = JSON.parse(raw) as { advisor?: unknown; audio?: Record<string, unknown>; firstStepsHidden?: unknown; fightMode?: unknown }
+    const j = JSON.parse(raw) as { advisor?: unknown; audio?: Record<string, unknown>; firstStepsHidden?: unknown; fightMode?: unknown; largeText?: unknown }
     if (ADVISOR_MODES.includes(j.advisor as AdvisorMode)) out.advisor = j.advisor as AdvisorMode
     for (const k of ['master', 'music', 'ui', 'sfx', 'fight'] as const) { const v = j.audio?.[k]; if (typeof v === 'number' && Number.isFinite(v)) out.audio[k] = Math.max(0, Math.min(100, Math.round(v))) }
     if (typeof j.audio?.enabled === 'boolean') out.audio.enabled = j.audio.enabled
     if (typeof j.audio?.muted === 'boolean') out.audio.muted = j.audio.muted
     out.firstStepsHidden = j.firstStepsHidden === true
+    out.largeText = j.largeText === true
     if (PLAY_MODE_IDS.includes(j.fightMode as PlayMode)) out.fightMode = j.fightMode as PlayMode
   } catch { /* corrupt → defaults */ }
   return out

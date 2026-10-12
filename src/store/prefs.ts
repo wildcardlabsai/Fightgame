@@ -10,18 +10,22 @@ interface Prefs extends Preferences {
   resetAudio: () => void
   hideFirstSteps: (hide: boolean) => void
   setFightMode: (m: PlayMode) => void
+  setLargeText: (on: boolean) => void
 }
 
 const initial = loadPreferences()
 audio.configure(initial.audio)
+const applyText = (on: boolean) => { try { document.documentElement.dataset.text = on ? 'large' : 'normal' } catch { /* no document (tests) */ } }
+applyText(initial.largeText)
 
-const snapshot = (s: Prefs): Preferences => ({ advisor: s.advisor, audio: s.audio, firstStepsHidden: s.firstStepsHidden, fightMode: s.fightMode })
+const snapshot = (s: Prefs): Preferences => ({ advisor: s.advisor, audio: s.audio, firstStepsHidden: s.firstStepsHidden, fightMode: s.fightMode, largeText: s.largeText })
 
 export const usePrefs = create<Prefs>((set, get) => ({
   ...initial,
   setAdvisor: (advisor) => { set({ advisor }); savePreferences(snapshot(get())) },
   setAudio: (patch) => { set({ audio: audio.configure(patch) }); savePreferences(snapshot(get())) },
   resetAudio: () => { set({ audio: audio.configure({ ...DEFAULT_AUDIO }) }); savePreferences(snapshot(get())) },
+  setLargeText: (largeText) => { applyText(largeText); set({ largeText }); savePreferences(snapshot(get())) },
   setFightMode: (fightMode) => { set({ fightMode }); savePreferences(snapshot(get())) },
   hideFirstSteps: (firstStepsHidden) => { set({ firstStepsHidden }); savePreferences(snapshot(get())) },
 }))

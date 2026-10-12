@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { CashOutlook } from '../components/CashOutlook'
 import { formatDay } from '../../engine/calendar'
 import { WEEKLY_COSTS } from '../../engine/config'
 import { allAdvice, breakEven, bridgeView, CONFIDENCE_LABEL, financeAdvisor } from '../../engine/advisor'
@@ -120,6 +121,7 @@ export function FinancesScreen() {
 
       </div>
       <div className="ptab" data-on={on('summary')}>
+      <Section title="Next 12 weeks"><CashOutlook /></Section>
       <div className="grid-2">
         <Section title="Cash over time">
           <AreaChart points={game.financeHistory.map((h) => ({ x: h.day, y: h.cash }))} height={200} />

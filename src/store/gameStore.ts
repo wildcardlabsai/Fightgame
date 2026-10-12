@@ -52,6 +52,8 @@ interface GameStore {
   /** Where saves live: indexeddb | localstorage | memory (unknown until the vault has opened). */
   storageKind: string
   notices: Notice[]
+  /** When the career was last written to storage (display only). */
+  savedAt: number | null
   /** Briefly true after advancing time (drives the UI transition). */
   simulating: boolean
 
@@ -71,6 +73,7 @@ interface GameStore {
   orderReport: (fighterId: Id, depth: ScoutDepth, scoutId: Id) => boolean
   orderSearch: (spec: SearchSpec, scoutId: Id) => boolean
   toggleShortlist: (fighterId: Id) => void
+  setFighterNote: (fighterId: Id, patch: { text?: string; tags?: string[] }) => void
   /** Returns the verdict so the UI can react (e.g. navigate after a signing). */
   makeOffer: (fighterId: Id, offer: Offer, kind: NegotiationKind) => 'accept' | 'counter' | 'reject' | 'error'
   walkAway: (fighterId: Id) => void
@@ -184,7 +187,7 @@ export const useGame = create<GameStore>((set, get) => {
     const v = await vault()
     await v.save(g, opts)
     lastPersisted = g
-    set({ saves: await v.list(), storageKind: v.backend.kind })
+    set({ saves: await v.list(), storageKind: v.backend.kind, savedAt: Date.now() })
   }
   const update = (fn: (g: GameState) => GameState) => {
     const g = get().game
@@ -199,6 +202,7 @@ export const useGame = create<GameStore>((set, get) => {
     saves: [],
     storageKind: 'opening…',
     notices: [],
+    savedAt: null,
     simulating: false,
     justRan: null,
     nightFight: null,
@@ -369,6 +373,7 @@ export const useGame = create<GameStore>((set, get) => {
       return true
     },
     toggleShortlist: (fighterId) => update((g) => commands.toggleShortlist(g, fighterId)),
+    setFighterNote: (fighterId, patch) => update((g) => commands.setFighterNote(g, fighterId, patch)),
     makeOffer: (fighterId, offer, kind) => {
       const g = get().game
       if (!g) return 'error'

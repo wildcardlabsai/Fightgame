@@ -24,6 +24,8 @@ function AdvisorSettings() {
   const setAdvisor = usePrefs((s) => s.setAdvisor)
   const stepsHidden = usePrefs((s) => s.firstStepsHidden)
   const hideSteps = usePrefs((s) => s.hideFirstSteps)
+  const largeText = usePrefs((s) => s.largeText)
+  const setLargeText = usePrefs((s) => s.setLargeText)
   return (
     <Section title="Advisor">
       <p className="dim" style={{ fontSize: 13, marginBottom: 10 }}>Your promoter’s advisor points out financial and career risks. It never changes prices, results or the rules — you can always ignore it.</p>
@@ -33,6 +35,9 @@ function AdvisorSettings() {
       <p className="dim" style={{ fontSize: 13, marginTop: 8 }}>{ADVISOR_BLURB[mode]}</p>
       <label style={{ display: 'flex', gap: 10, alignItems: 'center', margin: '12px 0 0' }}>
         <input type="checkbox" checked={!stepsHidden} onChange={(e) => hideSteps(!e.target.checked)} /> Show “First steps” on the dashboard
+      </label>
+      <label style={{ display: 'flex', gap: 10, alignItems: 'center', margin: '8px 0 0' }}>
+        <input type="checkbox" checked={largeText} onChange={(e) => setLargeText(e.target.checked)} data-testid="large-text" /> Larger text and roomier tables
       </label>
     </Section>
   )

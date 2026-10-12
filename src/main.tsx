@@ -7,6 +7,8 @@ import { WebAudioBackend } from './audio/synth'
 import { initAudio } from './audio/bindings'
 import './store/prefs'
 import './store/artWorld'
+import { startNavHistory } from './store/navHistory'
+import { startTrends } from './store/trends'
 import { installDiagnostics } from './store/diagnostics'
 
 // A lazily loaded screen asks for its stylesheet before it renders. If only the STYLESHEET is missing (blocked, or not published next to the page)
@@ -16,6 +18,8 @@ window.addEventListener('vite:preloadError', (e) => {
   if (/css/i.test(msg)) { e.preventDefault(); console.warn('Stylesheet did not load:', msg) }
 })
 installDiagnostics()
+startNavHistory()
+startTrends()
 audio.setBackend(new WebAudioBackend())
 initAudio()
 // Exposed so browser checks can observe which cues the game asked for (the sounds themselves are not asserted).

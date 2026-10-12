@@ -1,4 +1,6 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { attentionItems } from '../engine/selectors'
+import { HistoryButtons, SearchButton } from './components/Palette'
 import '../styles/desktop.css'
 import { createPortal } from 'react-dom'
 import { useGame } from '../store/gameStore'
@@ -39,6 +41,38 @@ export function SideNav({ unread }: { unread: number }) {
 }
 
 /** Desktop top-bar actions: inbox shortcut, sound, and time controls. (Phones use the bottom bar and the More sheet.) */
+/** History, search, the next-thing-to-do hint and the save status: one strip under the top bar, on every screen. */
+export function NavTools() {
+  const navigate = useGame((s) => s.navigate)
+  const game = useGame((s) => s.game)!
+  const items = useMemo(() => attentionItems(game), [game])
+  const urgent = items.filter((a) => a.severity !== 'info')
+  const top = urgent[0] ?? items[0]
+  const go = () => { if (!top) return navigate('dashboard'); if (top.link?.kind === 'fighter') navigate('fighter', top.link.id); else navigate((top.link?.screen ?? 'dashboard') as never) }
+  return (
+    <div className="nav-tools">
+      <button type="button" className={`hud-next ${top ? top.severity : 'clear'}`} data-testid="continue-hint" onClick={go} title={top ? `${top.title}. ${top.detail}` : 'Nothing needs your attention'}>
+        <span className="hn-dot" aria-hidden="true" />
+        <span className="hn-text">{top ? top.title : 'All clear'}</span>
+        {items.length > 1 && <b className="hn-count">+{items.length - 1}</b>}
+      </button>
+      <SearchButton />
+      <HistoryButtons />
+      <SavedIndicator />
+    </div>
+  )
+}
+
+/** "Saved 2m ago": reassurance that the career is safe on this device. */
+function SavedIndicator() {
+  const at = useGame((s) => s.savedAt)
+  const [, tick] = useState(0)
+  useEffect(() => { const t = window.setInterval(() => tick((n) => n + 1), 30_000); return () => window.clearInterval(t) }, [])
+  if (!at) return <span className="hud-saved" title="Not saved yet">Not saved yet</span>
+  const m = Math.floor((Date.now() - at) / 60_000)
+  return <span className="hud-saved" data-testid="saved-indicator" title={`Last saved ${new Date(at).toLocaleTimeString()}`}>✓ Saved{m < 1 ? '' : ` ${m}m ago`}</span>
+}
+
 export function TopActions({ unread }: { unread: number }) {
   const advance = useGame((s) => s.advance)
   const navigate = useGame((s) => s.navigate)
@@ -59,15 +93,15 @@ export function SectionBar() {
   const route = useGame((s) => s.route)
   const navigate = useGame((s) => s.navigate)
   const { group } = activeItem(route)
-  if (group.items.length < 2) return null
   return (
     <div className="subnav" role="navigation" aria-label={`${group.label} sections`} data-testid="subnav">
       <span className="sn-title caps">{group.label}</span>
-      {group.items.map((it) => (
+      {group.items.length > 1 && group.items.map((it) => (
         <button key={it.id} type="button" data-sfx="tab" disabled={!!it.locked} title={it.locked} data-testid={`sub-${it.id}`}
           className={`sn-item${itemActive(group, it, route) ? ' active' : ''}${it.locked ? ' locked' : ''}`} aria-current={itemActive(group, it, route) ? 'page' : undefined}
           onClick={() => navigate(it.screen, it.param)}>{it.label}{it.locked && <span className="tag">soon</span>}</button>
       ))}
+      <NavTools />
     </div>
   )
 }

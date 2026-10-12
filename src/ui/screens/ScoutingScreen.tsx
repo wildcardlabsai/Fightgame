@@ -9,13 +9,16 @@ import { useGame } from '../../store/gameStore'
 import { useViews } from '../../store/hooks'
 import { Avatar, Section } from '../components/Bits'
 import { RangeText, TraitRow } from '../components/Estimates'
-import { FighterTable, statusText, type SortKey } from '../components/FighterTable'
+import { FighterTable, statusText, type ColKey, type SortKey } from '../components/FighterTable'
+import { ViewsMenu } from '../components/ViewsMenu'
 import { ScoutDialog } from '../components/ScoutDialog'
 import { applyFilter, EMPTY_FILTER, sortRows, type FighterFilter } from '../fighterFilters'
 import { money } from '../format'
 import { Explain } from '../components/Explain'
 
 type Tab = 'market' | 'shortlist' | 'ops'
+const SCOUT_DEFAULT: ColKey[] = ['fighter', 'star', 'division', 'age', 'record', 'grade', 'ceiling', 'know', 'club', 'ask', 'actions']
+const SCOUT_COLS: ColKey[] = ['fighter', 'star', 'division', 'age', 'record', 'rank', 'grade', 'ceiling', 'know', 'club', 'ask', 'status', 'mytags', 'rep', 'pop', 'actions']
 const STAGES: PublicStage[] = ['Debutant', 'Prospect', 'Rising', 'Contender', 'Prime', 'Veteran', 'Declining', 'Journeyman']
 
 export function FilterBar({ f, set, showContract }: { f: FighterFilter; set: (f: FighterFilter) => void; showContract?: boolean }) {
@@ -122,7 +125,8 @@ export function ScoutingScreen() {
           <FilterBar f={filter} set={(f) => { setFilter(f); setShown(40) }} />
           <p className="dim" style={{ marginBottom: 8, fontSize: 13 }}>{rows.length} fighters · “~” marks a rough guess from public information only. Typical ask is what fighters of this standing tend to want; the real number depends on the individual.</p>
           <FighterTable rows={rows.slice(0, shown)} sort={sort} dir={dir} onSort={onSort} actions={actions}
-            cols={['fighter', 'division', 'age', 'record', 'grade', 'ceiling', 'know', 'club', 'ask', 'actions']} />
+            cols={SCOUT_DEFAULT} tableId="scouting" available={SCOUT_COLS}
+            toolbar={<ViewsMenu tableId="scouting" defaultCols={SCOUT_DEFAULT} sort={sort} dir={dir} filter={filter} onApply={(v) => { setFilter(v.filter); setSort(v.sort as SortKey); setDir(v.dir); setShown(40) }} />} />
           {rows.length > shown && <div style={{ textAlign: 'center', padding: 16 }}><button className="btn ghost" onClick={() => setShown((n) => n + 40)}>Show more ({rows.length - shown} left)</button></div>}
         </>
       )}
