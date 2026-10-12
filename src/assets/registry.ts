@@ -11,7 +11,9 @@ export type AssetState = 'real' | 'fallback'
 export interface ManifestEntry { id: string; type: string; entityId: string; path: string; width: number; height: number; format: string; status: string }
 interface ClassDef { dir: string; file: string; width: number; height: number; format: string; status: string; ids: string[] }
 export interface PortraitPool { dir: string; file: string; pad: number; count: number; generator: string; kind: string }
-interface Manifest { version: number; shipped: ManifestEntry[]; artWorld: { seed: string | null }; classes: Record<string, ClassDef>; portraitPool?: PortraitPool }
+/** Photographic portrait library (offline-generated, see scripts/assets/portrait-photos.ts). Dormant until `active` is set after review. */
+export interface PhotoPool { dir: string; ext: string; thumbSuffix: string; count: number; approved: number[]; active: boolean; provider: string }
+interface Manifest { version: number; shipped: ManifestEntry[]; artWorld: { seed: string | null }; classes: Record<string, ClassDef>; portraitPool?: PortraitPool; portraitPhotos?: PhotoPool }
 export const MANIFEST = manifestJson as unknown as Manifest
 
 /** Where static assets are served from. Not bundled into JS: they are plain files under /assets. */
@@ -99,13 +101,49 @@ export function hashString(t: string): number {
  * (age, division, form, contract, rank) — so the same fighter shows the same face on every screen, after every reload and week.
  * Ids are only unique inside one world, so the seed is part of the key.
  */
-export function portraitSlot(fighterId: string, worldSeed: string | null = activeWorld, count: number = portraitPool()?.count ?? 0): number | null {
+const photoPool = (): PhotoPool | null => (poolEnabled && MANIFEST.portraitPhotos?.active && MANIFEST.portraitPhotos.count > 0 ? MANIFEST.portraitPhotos : null)
+let approvedCache: { src: number[]; set: Set<number> } | null = null
+const approvedSet = (p: PhotoPool): Set<number> => { if (approvedCache?.src !== p.approved) approvedCache = { src: p.approved, set: new Set(p.approved) }; return approvedCache.set }
+let rosterSlots: Map<string, number> | null = null
+/**
+ * Gives every fighter in the world a DISTINCT portrait slot while the pool is large enough: fighters are taken in creation order (ids are
+ * a monotonic counter and fighters are never removed), each starts at its hash slot and moves to the next free one on a clash. Existing
+ * fighters therefore never change slot when newcomers arrive. A pure function of world seed and the id set; nothing is stored.
+ */
+export function assignPortraitSlots(ids: string[], worldSeed: string | null, count: number): Map<string, number> {
+  const num = (id: string) => { const n = parseInt(id.slice(id.indexOf('_') + 1), 36); return Number.isNaN(n) ? Infinity : n }
+  const order = ids.slice().sort((a, b) => num(a) - num(b) || (a < b ? -1 : 1))
+  const out = new Map<string, number>(), uses = new Array<number>(count).fill(0)
+  let placed = 0
+  for (const id of order) {
+    let slot = hashString(`${worldSeed ?? ''}|${id}`) % count
+    // Every slot is used once before any is used twice (and so on): when the world outgrows the pool the repeats are spread evenly.
+    const level = Math.floor(placed / count)
+    while (uses[slot] > level) slot = (slot + 1) % count
+    uses[slot]++; placed++; out.set(id, slot)
+  }
+  return out
+}
+/** Tells the registry which fighters exist in the current world so portraits can be kept distinct. Presentation only. */
+export function setPortraitRoster(ids: string[] | null, worldSeed: string | null = activeWorld): void {
+  const c = (photoPool() ?? portraitPool())?.count ?? 0
+  rosterSlots = ids && c > 0 ? assignPortraitSlots(ids, worldSeed, c) : null
+}
+/**
+ * The pool slot for a fighter: a pure function of world seed and fighter id (nothing that changes over a career is an input), kept
+ * distinct from the other fighters of the world when `setPortraitRoster` has been told about them.
+ */
+export function portraitSlot(fighterId: string, worldSeed: string | null = activeWorld, count: number = (photoPool() ?? portraitPool())?.count ?? 0): number | null {
   if (count <= 0) return null
-  return hashString(`${worldSeed ?? ''}|${fighterId}`) % count
+  return rosterSlots?.get(fighterId) ?? hashString(`${worldSeed ?? ''}|${fighterId}`) % count
 }
 export function portraitUrl(slot: number): string {
   const p = MANIFEST.portraitPool as PortraitPool
   return assetUrl(`${p.dir}/${p.file.replace('{n}', String(slot).padStart(p.pad, '0'))}`)
+}
+export function photoUrl(slot: number, thumb = false): string {
+  const p = MANIFEST.portraitPhotos as PhotoPool
+  return assetUrl(`${p.dir}/p${String(slot).padStart(4, '0')}${thumb ? p.thumbSuffix : ''}.${p.ext}`)
 }
 
 export function resolveFighterImage(f: FighterRef, variant: FighterVariant = 'profile'): ResolvedAsset {
@@ -118,7 +156,11 @@ export function resolveFighterImage(f: FighterRef, variant: FighterVariant = 'pr
     return { assetId: `fighter.${variant}.${f.id}`, kind, entityId: f.id, state: 'real', url, thumbUrl, width: cls.width, height: cls.height, fallbackKey, source: 'world' }
   }
   const slot = variant === 'profile' ? portraitSlot(f.id) : null
-  if (slot !== null) {
+  const photos = photoPool()
+  if (slot !== null && photos) {
+    // Photographic library active: a fighter whose slot has no approved photograph yet shows the silhouette, never a mixed style.
+    if (approvedSet(photos).has(slot)) return { assetId: `photo.${String(slot).padStart(4, '0')}`, kind, entityId: f.id, state: 'real', url: photoUrl(slot), thumbUrl: photoUrl(slot, true), width: 480, height: 600, fallbackKey, source: 'pool' }
+  } else if (slot !== null) {
     const url = portraitUrl(slot)
     return { assetId: `portrait.${String(slot).padStart(4, '0')}`, kind, entityId: f.id, state: 'real', url, thumbUrl: url, width: 400, height: 500, fallbackKey, source: 'pool' }
   }

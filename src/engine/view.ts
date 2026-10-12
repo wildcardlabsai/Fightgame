@@ -434,3 +434,6 @@ export function viewsOf(state: GameState): Views {
   cache.set(state, views)
   return views
 }
+
+/** Every fighter id in the world (public: ids carry no information). Used to keep portraits distinct. */
+export const fighterIds = (state: GameState): string[] => Object.keys(state.fighters)
