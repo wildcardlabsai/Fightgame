@@ -3,6 +3,7 @@
  * Providers are configured with environment variables; nothing is hard-coded and no key is ever written to disk.
  */
 import type { GenAsset } from './types'
+import { ReplicateProvider } from './replicate'
 
 export interface ImageRequest { assetId: string; prompt: string; width: number; height: number; seed: number; format: 'webp' | 'png' }
 export interface ImageResult { ok: boolean; data?: Uint8Array; format?: string; error?: string }
@@ -11,6 +12,8 @@ export interface ProviderStatus { configured: boolean; ready: boolean; provider:
 export interface ImageGenerationProvider {
   readonly id: string
   readonly model: string
+  /** Preferred pixel size for a 4:5 portrait request (the pipeline downsizes to 480×600). */
+  readonly portraitSize?: { w: number; h: number }
   checkStatus(): Promise<ProviderStatus>
   generateImage(req: ImageRequest): Promise<ImageResult>
   /** Sequential by default; a provider with real batch support may override. Never throws: failures are reported per image. */
@@ -24,7 +27,7 @@ export class NullProvider implements ImageGenerationProvider {
   readonly id = 'none'
   readonly model = '-'
   async checkStatus(): Promise<ProviderStatus> {
-    return { configured: false, ready: false, provider: 'none', model: '-', detail: 'No image provider configured. Set IMAGE_GEN_PROVIDER=openai-compatible with IMAGE_GEN_API_KEY, IMAGE_GEN_BASE_URL and IMAGE_GEN_MODEL (see docs/ASSETS.md).', costPerImage: null }
+    return { configured: false, ready: false, provider: 'none', model: '-', detail: 'No image provider configured. Set IMAGE_GEN_PROVIDER=replicate with REPLICATE_API_TOKEN, or IMAGE_GEN_PROVIDER=openai-compatible with IMAGE_GEN_API_KEY, IMAGE_GEN_BASE_URL and IMAGE_GEN_MODEL (see docs/ASSETS.md).', costPerImage: null }
   }
   async generateImage(): Promise<ImageResult> { return { ok: false, error: 'No image provider configured' } }
   async generateBatch(reqs: ImageRequest[]): Promise<ImageResult[]> { return reqs.map(() => ({ ok: false, error: 'No image provider configured' })) }
@@ -68,5 +71,6 @@ export class OpenAICompatibleProvider implements ImageGenerationProvider {
 export function providerFromEnv(env: Env): ImageGenerationProvider {
   const id = (env.IMAGE_GEN_PROVIDER ?? '').toLowerCase()
   if (id === 'openai-compatible') return new OpenAICompatibleProvider(env)
+  if (id === 'replicate') return new ReplicateProvider(env)
   return new NullProvider()
 }

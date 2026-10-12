@@ -2,3 +2,7 @@ node_modules
 dist
 *.log
 dist-preview/
+
+# secrets (provider tokens are read from the environment only)
+.env
+.env.*

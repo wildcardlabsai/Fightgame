@@ -89,3 +89,35 @@ See the completion report in the session summary and `docs/identity/*.png` (matc
 * **Tests:** `src/engine/portraitPhotos.test.ts` uses a test double (tiny PNG into a temp folder, never shipped) to prove resumability, failure retry, no overwrite, approval gating, manifest sync, tamper detection, dormant/active registry behaviour and slot distinctness.
 
 **Recommended route to finish.** (1) Either give the environment a provider (an OpenAI-compatible image endpoint set via the four env variables, plus Network access to that host), or run the pipeline on a machine that has one — the repo is the same; commit the output. (2) `--pilot`, then `--contact-sheet pilot.png --only pilot`, review for realism/artefacts (ears, teeth, eyes, uniform lighting), `--reject` the bad ones and `--generate` again. (3) `--approve 0-24`, `--check`, screenshot the app, then scale in priority order with `--generate --world <seed> --weeks 104 --limit 60`. (4) `--activate` only once most of the visible roster is covered; remaining uncovered slots show silhouettes. (5) Publish: ~400 files exceed the hosted preview's 255-per-publish limit (`scripts/preview/files.mjs` batches), and 10+ MB should be checked against the host's budget. Open risks: provider output consistency across 360 prompts and face-artefact rate (budget a reject/redo rate), and licensing terms of the chosen model for commercial game assets.
+
+## 8. Replicate provider (FLUX.2 [pro]) — wired, NOT yet connected or run
+
+**Status:** `src/assetgen/replicate.ts` is implemented and unit-tested against a scripted HTTP double. It has **never** been run against the real service: this sandbox cannot reach `api.replicate.com`, and no token exists here. The request/response details below come from Replicate's published API pages and model schema as summarised by a web search (the pages themselves were not reachable from here), so run `--provider-check` once before spending anything.
+
+| | |
+|---|---|
+| Provider switch | `IMAGE_GEN_PROVIDER=replicate` |
+| Required env | `REPLICATE_API_TOKEN` (your Replicate API token; read from the environment only) |
+| Optional env | `REPLICATE_MODEL` (default `black-forest-labs/flux-2-pro`), `REPLICATE_COST_PER_IMAGE` (USD, overrides the estimate) |
+| Model | `black-forest-labs/flux-2-pro` (FLUX.2 [pro], official model: no version id needed) |
+| Request | `POST https://api.replicate.com/v1/models/black-forest-labs/flux-2-pro/predictions`, `Authorization: Bearer …`, `Prefer: wait=60`, body `{"input": {prompt, aspect_ratio:"custom", width:832, height:1040, seed, output_format:"png", safety_tolerance:2}}` |
+| Response | prediction `{id,status,output,error,urls.get}`; non-terminal → polled on `urls.get` (api.replicate.com only) every 2 s up to 5 min; `429` → waits `retry_after` (≤30 s), up to 4 tries |
+| Output | per the model schema a single string (URI) — the adapter also accepts a list, `{url}` or a data: URI; the https file is downloaded **without** the token, immediately (delivery URLs expire), re-encoded to 480×600 / 96×120 WebP by the existing pipeline |
+| Live schema guard | before the first paid call the adapter reads the model's input schema (free GET) and drops any input it does not declare |
+| Secrets | the token is never logged, written or included in errors (`scrub`); `.env`/`.env.*` are git-ignored |
+
+**Cost estimate, 25-image pilot.** Replicate's published FLUX.2 [pro] price is a base of $0.015 plus about $0.015 per output megapixel; third-party trackers quote $0.03–$0.055 per 1 MP image. A 832×1040 portrait is 0.87 MP, so **about $0.75–$1.40 for the pilot** (the script prints `up to $1.38` using $0.055 as the conservative figure). Redos of rejected images cost the same each. Confirm the current price on the model page first; Replicate bills the account behind the token.
+
+**Run it.**
+
+```bash
+export IMAGE_GEN_PROVIDER=replicate
+export REPLICATE_API_TOKEN=…                       # do not paste it into files or chat
+npx tsx scripts/assets/portrait-photos.ts --provider-check     # free: token accepted, live schema as expected
+npx tsx scripts/assets/portrait-photos.ts --plan --show 3      # read the prompts
+npx tsx scripts/assets/portrait-photos.ts --pilot              # prints the cost estimate and stops
+npx tsx scripts/assets/portrait-photos.ts --pilot --yes        # generates slots 0–24 (resumable; re-run to continue)
+npx tsx scripts/assets/portrait-photos.ts --contact-sheet pilot.png --only pilot
+```
+
+Nothing is activated: the pilot files are recorded with status `pilot`, only `--approve` marks a slot approved, and `--activate` is a separate explicit step. Until then the game keeps its existing artwork. Resumability, per-image record/manifest updates, retries (3 per slot with back-off), `--redo`, `--approve/--reject`, the contact sheet and the 12 MB budget are unchanged.

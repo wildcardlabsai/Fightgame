@@ -4,8 +4,10 @@
  * provider: it only ships the finished files. With no provider configured this script plans, validates and reports; it will not draw
  * anything itself, and it never fabricates a photograph.
  *
- *   IMAGE_GEN_PROVIDER=openai-compatible IMAGE_GEN_API_KEY=… IMAGE_GEN_BASE_URL=… IMAGE_GEN_MODEL=… \
- *   npx tsx scripts/assets/portrait-photos.ts --pilot                 generate the 25-portrait pilot (slots 0–24), status "pilot"
+ *   Replicate:  IMAGE_GEN_PROVIDER=replicate REPLICATE_API_TOKEN=…  [REPLICATE_MODEL=black-forest-labs/flux-2-pro]
+ *   Generic:    IMAGE_GEN_PROVIDER=openai-compatible IMAGE_GEN_API_KEY=… IMAGE_GEN_BASE_URL=… IMAGE_GEN_MODEL=… \
+ *   npx tsx scripts/assets/portrait-photos.ts --provider-check        free, read-only: token accepted? model + live schema as expected? (Replicate)
+ *   npx tsx scripts/assets/portrait-photos.ts --pilot --yes           generate the 25-portrait pilot (slots 0–24), status "pilot"; without --yes it only prints the cost estimate
  *   npx tsx scripts/assets/portrait-photos.ts --generate --limit 40   next 40 missing slots in priority order (resumable)
  *   npx tsx scripts/assets/portrait-photos.ts --generate --slots 7,9  specific slots
  *   npx tsx scripts/assets/portrait-photos.ts --redo 7                regenerate one slot (the only way an existing file is overwritten)
@@ -139,7 +141,7 @@ export async function priorityOrder(opts: { world?: string; weeks?: number }): P
 }
 
 // ------------------------------------------------------------------------------------------------ generation
-export interface GenOptions { slots: number[]; status: Status; provider: ImageGenerationProvider; attempts?: number; redo?: boolean }
+export interface GenOptions { slots: number[]; status: Status; provider: ImageGenerationProvider; attempts?: number; redo?: boolean; backoffMs?: number }
 /** Generates the given slots. Skips finished ones (unless `redo`), records failures, never throws for a single bad image. Returns counts. */
 export async function generate(o: GenOptions): Promise<{ made: number[]; skipped: number[]; failed: number[] }> {
   const st = await o.provider.checkStatus()
@@ -152,7 +154,9 @@ export async function generate(o: GenOptions): Promise<{ made: number[]; skipped
     const prompt = promptFor(slot)
     let ok = false, err = ''
     for (let a = 1; a <= (o.attempts ?? 3) && !ok; a++) {
-      const res = await o.provider.generateImage({ assetId: `portrait.${slot}`, prompt, width: 1024, height: 1280, seed: 100000 + slot, format: 'png' })
+      if (a > 1) await new Promise((r) => setTimeout(r, (o.backoffMs ?? 3000) * (a - 1)))
+      const size = o.provider.portraitSize ?? { w: 1024, h: 1280 }
+      const res = await o.provider.generateImage({ assetId: `portrait.${slot}`, prompt, width: size.w, height: size.h, seed: 100000 + slot, format: 'png' })
       if (!res.ok || !res.data) { err = res.error ?? 'no data'; continue }
       try {
         const { bytes } = encode(res.data, slot)
@@ -162,7 +166,7 @@ export async function generate(o: GenOptions): Promise<{ made: number[]; skipped
         ok = true
       } catch (e) { err = e instanceof Error ? e.message : String(e) }
     }
-    if (ok) made.push(slot); else { failed.push(slot); rec.failures[slot] = { attempts: (rec.failures[slot]?.attempts ?? 0) + (o.attempts ?? 3), error: err.slice(0, 200) } }
+    if (ok) made.push(slot); else { failed.push(slot); rec.failures[slot] = { attempts: (rec.failures[slot]?.attempts ?? 0) + (o.attempts ?? 3), error: err.replace(/r8_[A-Za-z0-9]+/g, '[redacted]').slice(0, 200) } }
     saveRecord(rec) // after every image, so an interrupted run loses nothing
     syncManifest(rec)
   }
@@ -219,6 +223,12 @@ if (process.argv[1] && process.argv[1].endsWith('portrait-photos.ts')) {
   const arg = (k: string): string | undefined => { const i = argv.indexOf(k); return i >= 0 ? argv[i + 1] : undefined }
   const has = (k: string) => argv.includes(k)
   const main = async () => {
+    if (has('--provider-check')) {
+      const prov = providerFromEnv(process.env)
+      const v = (prov as unknown as { verify?: () => Promise<{ ok: boolean; lines: string[] }> }).verify
+      if (!v) { const st = await prov.checkStatus(); console.log(`${st.provider}: ${st.ready ? 'configured' : st.detail} (this provider has no free verification call)`); process.exit(st.ready ? 0 : 1) }
+      const r = await v.call(prov); console.log(r.lines.join('\n')); process.exit(r.ok ? 0 : 1)
+    }
     if (has('--check')) { const p = check(); console.log(p.length ? p.join('\n') : 'photographic portrait library healthy'); process.exit(p.length ? 1 : 0) }
     if (has('--approve') || has('--reject')) { const k = has('--approve') ? '--approve' : '--reject'; console.log(`${setStatus(parseSlots(arg(k)!), k === '--approve' ? 'approved' : 'rejected')} slot(s) updated`); return }
     if (has('--activate')) { const rec = loadRecord(); if (!rec.entries.some((e) => e.status === 'approved')) { console.error('Nothing is approved yet; refusing to activate.'); process.exit(1) } syncManifest(rec, true); console.log('photographic library active'); return }
@@ -239,6 +249,12 @@ if (process.argv[1] && process.argv[1].endsWith('portrait-photos.ts')) {
     else if (arg('--slots')) slots = parseSlots(arg('--slots')!)
     else if (has('--generate')) { const have = new Set(loadRecord().entries.filter((e) => e.status !== 'rejected').map((e) => e.slot)); slots = order.filter((s) => !have.has(s)).slice(0, Number(arg('--limit') ?? 25)) }
     else { console.log('Nothing to do. See the usage notes at the top of this file.'); return }
+    const st = await provider.checkStatus()
+    const redoOnly = !!arg('--redo')
+    const todo = slots.filter((x) => redoOnly || !loadRecord().entries.some((e) => e.slot === x && e.status !== 'rejected'))
+    const est = st.costPerImage === null ? null : todo.length * st.costPerImage
+    console.log(`provider ${st.provider} · model ${st.model} · ${todo.length} image(s) to generate${est === null ? '' : ` · estimated cost up to $${est.toFixed(2)} (${st.costPerImage} per image; verify current pricing)`}`)
+    if (!has('--yes')) { console.log('Not generating: add --yes to confirm and spend. (Use --plan to read the prompts first.)'); process.exit(0) }
     const r = await generate({ slots, status: 'pilot', provider, redo: has('--redo') })
     console.log(`made ${r.made.length}, skipped ${r.skipped.length}, failed ${r.failed.length}${r.failed.length ? ' (' + r.failed.join(',') + ')' : ''}`)
     process.exit(r.failed.length ? 1 : 0)
