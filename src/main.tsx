@@ -9,6 +9,12 @@ import './store/prefs'
 import './store/artWorld'
 import { installDiagnostics } from './store/diagnostics'
 
+// A lazily loaded screen asks for its stylesheet before it renders. If only the STYLESHEET is missing (blocked, or not published next to the page)
+// the screen can still work, so that failure is logged instead of aborting the whole screen (which used to leave a black page).
+window.addEventListener('vite:preloadError', (e) => {
+  const msg = String((e as unknown as { payload?: { message?: string } }).payload?.message ?? '')
+  if (/css/i.test(msg)) { e.preventDefault(); console.warn('Stylesheet did not load:', msg) }
+})
 installDiagnostics()
 audio.setBackend(new WebAudioBackend())
 initAudio()

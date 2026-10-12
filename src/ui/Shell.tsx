@@ -1,6 +1,7 @@
 import { formatDay, weekOfYear } from '../engine/calendar'
 import { OfficeScreen } from './screens/OfficeScreen'
 import { cashRunwayWeeks, financialHealth, player, unreadCount } from '../engine/selectors'
+import { ErrorBoundary } from './components/ErrorBoundary'
 import { lazy, Suspense, useLayoutEffect } from 'react'
 import { useGame } from '../store/gameStore'
 import { BottomNav, SectionBar, SideNav, TopActions } from './Navigation'
@@ -40,6 +41,7 @@ export function Shell() {
   const route = useGame((s) => s.route)
   const game = useGame((s) => s.game)!
   const advance = useGame((s) => s.advance)
+  const navigate = useGame((s) => s.navigate)
   const simulating = useGame((s) => s.simulating)
   const p = player(game)
   const runway = cashRunwayWeeks(game)
@@ -82,7 +84,9 @@ export function Shell() {
       <SectionBar />
       <main className="page fade-in" key={route.screen + (route.param ?? '')}>
         <GuideBar />
-        <Suspense fallback={<div className="dim" style={{ padding: 24 }}>Loading…</div>}><Screen /></Suspense>
+        <ErrorBoundary resetKey={route.screen + (route.param ?? '')} onBack={() => navigate('dashboard')} onReport={() => navigate('feedback')}>
+          <Suspense fallback={<div className="dim" style={{ padding: 24 }}>Loading…</div>}><Screen /></Suspense>
+        </ErrorBoundary>
       </main>
       <BottomNav unread={unread} />
       {simulating && <div className="sim-flash" />}

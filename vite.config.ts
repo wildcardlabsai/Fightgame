@@ -17,6 +17,8 @@ const TIMING = ['src/engine/perf.test.ts', 'src/engine/longrun.test.ts', 'src/en
 
 export default defineConfig({
   plugins: [react()],
+  // The hosted preview publishes one stylesheet inlined into the page, so it builds without per-screen CSS chunks (PREVIEW_BUILD=1).
+  build: { cssCodeSplit: !process.env.PREVIEW_BUILD },
   define: {
     __APP_VERSION__: JSON.stringify(pkg.version),
     __BUILD_COMMIT__: JSON.stringify((git('rev-parse --short=7 HEAD') || 'unknown') + (dirty ? '+local' : '')),

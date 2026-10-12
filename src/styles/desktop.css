@@ -428,3 +428,9 @@
 .mm-mine-standing { margin-left: 8px; vertical-align: middle; }
 .n54-standing { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; margin-left: 10px; font-size: 12px; } .n54-standing .chip { margin-top: 0; }
 .slot-standing { font-size: 12px; margin-top: 3px; }
+
+/* Screen error boundary: never a black page. */
+.screen-error { max-width: 640px; margin: 48px auto; padding: 24px; border: 1px solid var(--line-strong); background: var(--panel, #12121a); }
+.screen-error h1 { font-size: 34px; margin-bottom: 8px; }
+.screen-error-actions { display: flex; flex-wrap: wrap; gap: 10px; margin: 18px 0; }
+.screen-error pre { white-space: pre-wrap; font-size: 12px; margin-top: 8px; }

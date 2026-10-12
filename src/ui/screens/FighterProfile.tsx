@@ -32,6 +32,7 @@ export function FighterProfile({ id }: { id: string }) {
   const views = useViews()
   const v = views.fighter(id)
   const [scouting, setScouting] = useState(false)
+  const [pane, setPane] = useState<Pane>('overview') // all hooks stay above the early return below (a fighter that appears or disappears must not change the hook order)
   const game = useGame((x) => x.game)!
   const standing = useMemo(() => titleStanding(game, id), [game, id])
   const bv = useMemo(() => fighterBusinessView(game, id), [game, id])
@@ -50,7 +51,6 @@ export function FighterProfile({ id }: { id: string }) {
   const scouted = v.knowledge.reports > 0 || mine
   const c = v.contract
   // Desktop shows one pane at a time (phones show them all and the buttons just scroll); a jump opens the pane that holds its target first.
-  const [pane, setPane] = useState<Pane>('overview')
   const on = (k: Pane) => (pane === k ? 1 : 0)
   const jump = (t: string) => { setPane(PANE_OF[t] ?? 'overview'); requestAnimationFrame(() => jumpTo(t)) }
   const jumpTo = (t: string) => { const el = document.getElementById(t); if (!el) return; let reduce = false; try { reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches } catch { /* default */ } el.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' }) }
