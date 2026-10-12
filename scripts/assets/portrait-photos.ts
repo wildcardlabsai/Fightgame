@@ -43,9 +43,11 @@ export const SIZE = { w: 480, h: 600, tw: 96, th: 120 }
 export const BUDGET_BYTES = 12_000_000
 
 export type Status = 'pilot' | 'approved' | 'rejected'
-export interface PhotoEntry { slot: number; status: Status; sha: string; promptSha: string; bytes: number; provider: string; model: string }
+/** `resolution` is about the SOURCE: high ≥ 960 px wide crop (≥2× the 480 target), medium ≥ 640, low below (anything smaller than 480 is upscaled and must not be passed off as high-resolution). */
+export type Resolution = 'high' | 'medium' | 'low'
+export interface PhotoEntry { slot: number; status: Status; sha: string; thumbSha?: string; promptSha: string; bytes: number; provider: string; model: string; resolution?: Resolution; cropWidth?: number; supersedes?: string }
 /** Where a supplied (not provider-generated) portrait came from, including crops that were rejected and so hold no slot. */
-export interface SourceEntry { sheet: string; tile: string; slot: number | null; status: Status; note: string; cropSha: string; flags: string[] }
+export interface SourceEntry { sheet: string; tile: string; slot: number | null; status: Status; note: string; cropSha: string; flags: string[]; resolution?: Resolution; cropWidth?: number; originalSha?: string; originalName?: string; superseded?: boolean; meta?: Record<string, unknown> }
 export interface PhotoRecord { version: 1; entries: PhotoEntry[]; failures: Record<string, { attempts: number; error: string }>; sources?: SourceEntry[] }
 
 const sha = (b: string | Uint8Array): string => createHash('sha256').update(b).digest('hex').slice(0, 16)
@@ -115,33 +117,82 @@ im.resize((TW,TH), Image.LANCZOS).save(thumb, 'WEBP', quality=72, method=6)
 }
 
 // ------------------------------------------------------------------------------------------------ priority
-/** Slots in the order they should be produced. Without a world: 0..n-1. With one: the player's fighters, champions and ranked contenders, then the rest. */
-export async function priorityOrder(opts: { world?: string; weeks?: number }): Promise<number[]> {
-  const n = poolCount()
-  if (!opts.world) return Array.from({ length: n }, (_, i) => i)
+import { NAME_GROUPS } from '../../src/data/namePools'
+const HERITAGE: Record<string, string[]> = {
+  ENG: ['British', 'Black British / Caribbean or African heritage', 'British South Asian', 'Irish heritage', 'Polish heritage', 'Italian heritage'],
+  SCO: ['Scottish', 'British South Asian'], WAL: ['Welsh', 'mixed heritage'], USA: ['African American', 'Anglo American', 'Latino', 'Italian American', 'Irish American', 'Eastern European heritage', 'East / Southeast Asian heritage'],
+  GER: ['German', 'Turkish heritage', 'Russian-German'], AUS: ['Anglo Australian', 'Pacific Islander heritage', 'Vietnamese heritage'], ARG: ['Argentine', 'Italian-Argentine'],
+}
+/** Casting hint from the NAME pool the fighter's names were drawn from (a fictional name, not a fact about appearance). */
+export function heritageOf(nation: string, first: string, last: string): string {
+  const gs = NAME_GROUPS[nation] ?? [], labels = HERITAGE[nation] ?? []
+  const label = (i: number) => labels[i] ?? ({ MEX: 'Mexican', PUR: 'Puerto Rican', CUB: 'Cuban', DOM: 'Dominican', UKR: 'Ukrainian', POL: 'Polish', NGA: 'Nigerian', GHA: 'Ghanaian', JPN: 'Japanese', PHI: 'Filipino', KAZ: 'Kazakh', IRL: 'Irish' } as Record<string, string>)[nation] ?? nation
+  const fi = gs.findIndex((g) => g.first.includes(first)), li = gs.findIndex((g) => g.last.includes(last))
+  if (fi >= 0 && fi === li) return label(fi)
+  if (fi >= 0 && li >= 0) return `${label(fi)} given name, ${label(li)} surname`
+  return label(Math.max(fi, li, 0))
+}
+export const bracket = (age: number): string => (age < 23 ? 'early 20s' : age < 27 ? 'mid 20s' : age < 31 ? 'late 20s' : age < 35 ? 'early 30s' : 'mid to late 30s')
+
+export interface PriorityFighter { rank: number; id: string; name: string; group: string; why: string; slot: number; slotState: string; nationality: string; heritage: string; age: number; division: string; heightCm: number; record: string; nickname: string | null }
+export interface LoadedWorld { g: import('../../src/engine/types').GameState; label: string }
+/** A world to plan against: an exported save (the player's real career), or a seed (+ weeks of simulation). */
+export async function loadWorld(o: { save?: string; world?: string; weeks?: number }): Promise<LoadedWorld> {
+  if (o.save) {
+    const { deserialiseGame } = await import('../../src/engine/save')
+    const g = deserialiseGame(readFileSync(o.save, 'utf8'))
+    if (!g) throw new Error(`${o.save} is not a readable save`)
+    return { g, label: `save ${g.seed}` }
+  }
   const { createNewGame } = await import('../../src/engine/worldgen')
   const { advanceOneWeek } = await import('../../src/engine/tick')
+  let g = createNewGame({ seed: o.world ?? 'promoter-ref', promotionName: 'P', promoterName: 'T', homeCountry: 'ENG', difficulty: 'standard', logo: { monogram: 'P', color: '#fff', emblem: 'bolt' } }, 1_700_000_000_000)
+  for (let w = 0; w < (o.weeks ?? 0); w++) g = advanceOneWeek(g)
+  return { g, label: `seed ${g.seed} after ${o.weeks ?? 0} weeks` }
+}
+
+/** Fighters in the order portraits should be supplied: contracted, champions, contenders, main-event, then prospects and the rest. */
+export async function priorityFighters(g: LoadedWorld['g'], limit = 12): Promise<PriorityFighter[]> {
   const { standingIndex } = await import('../../src/engine/business/titleStanding')
   const { assignPortraitSlots } = await import('../../src/assets/registry')
-  let g = createNewGame({ seed: opts.world, promotionName: 'P', promoterName: 'T', homeCountry: 'ENG', difficulty: 'standard', logo: { monogram: 'P', color: '#fff', emblem: 'bolt' } }, 1_700_000_000_000)
-  for (let w = 0; w < (opts.weeks ?? 0); w++) g = advanceOneWeek(g)
-  const slots = assignPortraitSlots(Object.keys(g.fighters), g.seed, n)
+  const { cardSlots } = await import('../../src/engine/eventViews')
+  const { weightClassLabel } = await import('../../src/data/weightClasses')
+  const { fighterAge } = await import('../../src/engine/fighters')
+  const slots = assignPortraitSlots(Object.keys(g.fighters), g.seed, poolCount())
   const stand = standingIndex(g)
-  const mine = new Set(Object.values(g.contracts).filter((c) => c.promotionId === g.playerPromotionId).map((c) => c.fighterId))
-  const tier = (id: string): number => {
-    const f = g.fighters[id]
-    if (mine.has(id)) return 0
-    const r = stand(id).role
-    if (r === 'champion') return 1
-    if (r === 'mandatory' || r === 'eliminator' || r === 'contender') return 2
-    const main = Object.values(g.fights).some((x) => !x.result && (x.sideA.fighterId === id || x.sideB.fighterId === id) && x.scheduledRounds >= 10)
-    if (main || f.reputation >= 55) return 3
-    if (f.record.wins + f.record.losses + f.record.draws <= 6 && f.potential >= 60) return 4
-    return 5
+  const rec = loadRecord()
+  const mine = new Set(Object.values(g.contracts).filter((c) => c.promotionId === g.playerPromotionId && c.status === 'active').map((c) => c.fighterId))
+  const main = new Set<string>()
+  for (const ev of Object.values(g.events)) {
+    if (ev.status === 'completed' || ev.status === 'cancelled') continue
+    const cs = cardSlots(g, ev)
+    for (const x of cs) if (x.slot === 'MAIN EVENT') { main.add(x.aId); main.add(x.bId) }
   }
-  const ids = Object.keys(g.fighters).sort((a, b) => tier(a) - tier(b) || g.fighters[b].reputation - g.fighters[a].reputation)
+  const LEVEL = ['area', 'domestic', 'european', 'world']
+  const info = (id: string): { group: number; why: string; key: number } => {
+    const f = g.fighters[id], s = stand(id)
+    if (mine.has(id)) return { group: 0, why: 'contracted to you', key: -f.reputation }
+    if (s.role === 'champion') return { group: 1, why: `champion: ${s.held.map((h) => h.short).join(' / ')} ${s.held[0]?.division ?? ''}`, key: -(LEVEL.indexOf(s.level ?? 'area') * 1000 + s.held.length * 100 + f.reputation) }
+    if (s.role === 'mandatory' || s.role === 'eliminator' || s.role === 'contender') return { group: 2, why: `${s.role === 'contender' ? 'ranked contender' : s.role + ' challenger'}: ${s.label}`, key: (s.role === 'mandatory' ? 0 : s.role === 'eliminator' ? 1 : 2) * 1000 + (s.ranked?.rank ?? 99) * 10 - f.reputation / 100 }
+    if (main.has(id)) return { group: 3, why: 'in an upcoming main event', key: -f.reputation }
+    return { group: 4, why: 'other', key: -f.reputation }
+  }
+  const act = Object.values(g.fighters).filter((f) => f.status === 'active')
+  const order = act.map((f) => ({ f, ...info(f.id) })).sort((a, b) => a.group - b.group || a.key - b.key).filter((x) => x.group < 4).slice(0, limit)
+  return order.map((x, i) => {
+    const slot = slots.get(x.f.id)!, e = rec.entries.find((y) => y.slot === slot)
+    return { rank: i + 1, id: x.f.id, name: `${x.f.firstName} ${x.f.lastName}`, group: ['contracted', 'champion', 'contender', 'main-event'][x.group], why: x.why, slot, slotState: e ? `pilot photo (${e.status}${e.provider === 'supplied-artwork' ? ', low-res' : ''})` : 'empty', nationality: x.f.nationality, heritage: heritageOf(x.f.nationality, x.f.firstName, x.f.lastName), age: fighterAge(x.f, g.today), division: weightClassLabel(x.f.weightClass), heightCm: x.f.heightCm, record: `${x.f.record.wins}-${x.f.record.losses}-${x.f.record.draws}`, nickname: x.f.nickname }
+  })
+}
+
+/** Slots in the order they should be produced. Without a world: 0..n-1. With one: the priority fighters' slots first, then the rest. */
+export async function priorityOrder(opts: { world?: string; weeks?: number; save?: string }): Promise<number[]> {
+  const n = poolCount()
+  if (!opts.world && !opts.save) return Array.from({ length: n }, (_, i) => i)
+  const { g } = await loadWorld(opts)
+  const first = (await priorityFighters(g, 400)).map((p) => p.slot)
   const seen = new Set<number>(), out: number[] = []
-  for (const id of ids) { const s = slots.get(id)!; if (!seen.has(s)) { seen.add(s); out.push(s) } }
+  for (const s of first) if (!seen.has(s)) { seen.add(s); out.push(s) }
   for (let i = 0; i < n; i++) if (!seen.has(i)) out.push(i)
   return out
 }
@@ -166,7 +217,7 @@ export async function generate(o: GenOptions): Promise<{ made: number[]; skipped
       if (!res.ok || !res.data) { err = res.error ?? 'no data'; continue }
       try {
         const { bytes } = encode(res.data, slot)
-        const entry: PhotoEntry = { slot, status: o.status, sha: sha(readFileSync(join(DIR, fileOf(slot)))), promptSha: sha(prompt), bytes, provider: st.provider, model: st.model }
+        const entry: PhotoEntry = { slot, status: o.status, sha: sha(readFileSync(join(DIR, fileOf(slot)))), thumbSha: sha(readFileSync(join(DIR, fileOf(slot, true)))), promptSha: sha(prompt), bytes, provider: st.provider, model: st.model, resolution: resolutionOf(size.w), cropWidth: size.w }
         rec.entries = rec.entries.filter((e) => e.slot !== slot).concat(entry)
         delete rec.failures[slot]
         ok = true
@@ -179,8 +230,13 @@ export async function generate(o: GenOptions): Promise<{ made: number[]; skipped
   return { made, skipped, failed }
 }
 
-export function setStatus(slots: number[], status: Status): number {
+/** Changes review status. Approving a LOW-resolution source (upscaled from under 640 px) is refused unless `allowLowRes` is set: it must be a deliberate choice. */
+export function setStatus(slots: number[], status: Status, opts: { allowLowRes?: boolean } = {}): number {
   const rec = loadRecord()
+  if (status === 'approved' && !opts.allowLowRes) {
+    const low = rec.entries.filter((e) => slots.includes(e.slot) && (e.resolution ?? 'low') === 'low').map((e) => e.slot)
+    if (low.length) throw new Error(`Slot(s) ${low.join(',')} come from low-resolution sources (upscaled). Replace them with high-resolution images, or pass --allow-lowres to approve them anyway.`)
+  }
   let n = 0
   for (const e of rec.entries) if (slots.includes(e.slot) && e.status !== status) { e.status = status; n++ }
   saveRecord(rec); syncManifest(rec)
@@ -197,7 +253,7 @@ export const SOURCE_DIR = process.env.PORTRAIT_SOURCE_DIR ?? join(ROOT, 'asset-p
  */
 export function ingestSheet(sheet: string, opts: { startSlot?: number } = {}): { added: SourceEntry[]; kept: SourceEntry[]; rejected: SourceEntry[] } {
   const base = join(SOURCE_DIR, sheet.replace(/\.png$/, ''))
-  const tiles = (JSON.parse(readFileSync(`${base}.tiles.json`, 'utf8')) as { tiles: { id: string; flags: string[] }[] }).tiles
+  const tiles = (JSON.parse(readFileSync(`${base}.tiles.json`, 'utf8')) as { tiles: { id: string; flags: string[]; crop_size?: number[] }[] }).tiles
   const review = existsSync(`${base}.review.json`) ? (JSON.parse(readFileSync(`${base}.review.json`, 'utf8')) as { tiles: Record<string, { status: Status; note: string }>; default?: Status }) : { tiles: {}, default: 'pilot' as Status }
   const rec = loadRecord()
   rec.sources ??= []
@@ -215,13 +271,74 @@ export function ingestSheet(sheet: string, opts: { startSlot?: number } = {}): {
     if (src.status === 'rejected') { rejected.push(src); rec.sources.push(src); continue }
     const slot = nextFree()
     const { bytes: size } = encode(bytes, slot)
-    rec.entries = rec.entries.filter((e) => e.slot !== slot).concat({ slot, status: 'pilot', sha: sha(readFileSync(join(DIR, fileOf(slot)))), promptSha: src.cropSha, bytes: size, provider: 'supplied-artwork', model: `contact sheet ${sheet}, tile ${t.id}` })
+    const cropWidth = Number((tiles.find((x) => x.id === t.id) as unknown as { crop_size?: number[] }).crop_size?.[0] ?? 0)
+    src.cropWidth = cropWidth; src.resolution = resolutionOf(cropWidth)
+    rec.entries = rec.entries.filter((e) => e.slot !== slot).concat({ slot, status: 'pilot', sha: sha(readFileSync(join(DIR, fileOf(slot)))), thumbSha: sha(readFileSync(join(DIR, fileOf(slot, true)))), promptSha: src.cropSha, bytes: size, provider: 'supplied-artwork', model: `contact sheet ${sheet}, tile ${t.id}`, resolution: src.resolution, cropWidth })
     src.slot = slot
     rec.sources.push(src); added.push(src)
     saveRecord(rec); syncManifest(rec)
   }
   saveRecord(rec); syncManifest(rec)
   return { added, kept, rejected }
+}
+
+export const resolutionOf = (cropWidth: number): Resolution => (cropWidth >= 960 ? 'high' : cropWidth >= 640 ? 'medium' : 'low')
+const IMG_EXT = /\.(png|jpe?g|webp)$/i
+export const INCOMING_RE = /^slot-(\d{4})(?:__([\w.-]+))?\.(png|jpe?g|webp)$/i
+
+export interface IncomingResult { ingested: { file: string; slot: number; resolution: Resolution; flags: string[] }[]; skipped: { file: string; reason: string }[] }
+/**
+ * Ingests individually supplied images from `<source>/incoming/`. File name: `slot-NNNN.png` (NNNN = the target slot, 4 digits; .png/.jpg/.webp),
+ * optionally `slot-NNNN__<fighterId>.png` (the id is recorded, the SLOT is what maps). An optional sidecar `slot-NNNN.json` may hold
+ * {"fighter","world","tags":{…},"crop":{"y":0.08}} (y = top of the 4:5 window as a fraction of the image height).
+ * Per file: the original is moved UNCHANGED to `originals/`, an exact 4:5 native-resolution crop is made (never scaled up or padded), the crop is
+ * downscaled to 480×600 + 96×120 WebP, hashed and recorded as "pilot" (unapproved). A slot that already holds a photograph is skipped unless
+ * `replace`: then the old files are moved to `superseded/` (outside public/) and the slot's status resets to unapproved. Resolution is recorded
+ * (high ≥ 960 px crop width, medium ≥ 640, low) and low sources cannot be approved without --allow-lowres.
+ */
+export function ingestIncoming(opts: { replace?: boolean; minWidth?: number } = {}): IncomingResult {
+  const inc = join(SOURCE_DIR, 'incoming')
+  const out: IncomingResult = { ingested: [], skipped: [] }
+  if (!existsSync(inc)) return out
+  const n = poolCount()
+  const files = readdirSync(inc).filter((f) => IMG_EXT.test(f)).sort()
+  const rec = loadRecord(); rec.sources ??= []
+  for (const f of files) {
+    const m = INCOMING_RE.exec(f)
+    if (!m) { out.skipped.push({ file: f, reason: 'name must be slot-NNNN.png (or slot-NNNN__fighterId.png)' }); continue }
+    const slot = Number(m[1])
+    if (slot >= n) { out.skipped.push({ file: f, reason: `slot ${slot} is outside the pool (0–${n - 1})` }); continue }
+    const prior = rec.entries.find((e) => e.slot === slot)
+    if (prior && !opts.replace) { out.skipped.push({ file: f, reason: `slot ${slot} already holds a photograph (${prior.status}); use --replace to supersede it` }); continue }
+    const orig = join(inc, f), bytes = readFileSync(orig)
+    const meta = existsSync(join(inc, `slot-${m[1]}.json`)) ? (JSON.parse(readFileSync(join(inc, `slot-${m[1]}.json`), 'utf8')) as { fighter?: string; crop?: { y?: number } } & Record<string, unknown>) : {}
+    mkdirSync(join(SOURCE_DIR, 'crops'), { recursive: true }); mkdirSync(join(SOURCE_DIR, 'originals'), { recursive: true })
+    const cropPath = join(SOURCE_DIR, 'crops', `slot-${m[1]}.png`)
+    const args = ['-I', join(ROOT, 'scripts', 'assets', 'portrait_ingest.py'), 'single', orig, cropPath, ...(meta.crop?.y !== undefined ? [String(meta.crop.y)] : [])]
+    const info = JSON.parse(execFileSync('python3', args).toString()) as { size: number[]; crop_size: number[]; resolution: Resolution; flags: string[] }
+    if (info.crop_size[0] < (opts.minWidth ?? 0)) { out.skipped.push({ file: f, reason: `crop is only ${info.crop_size[0]} px wide (minimum ${opts.minWidth})` }); rmSync(cropPath, { force: true }); continue }
+    // Budget guard before anything is written to the library.
+    const used = rec.entries.reduce((a, e) => a + e.bytes, 0)
+    if (used > BUDGET_BYTES) { out.skipped.push({ file: f, reason: 'asset budget exhausted' }); continue }
+    let supersedes: string | undefined
+    if (prior) {
+      mkdirSync(join(SOURCE_DIR, 'superseded'), { recursive: true })
+      supersedes = prior.sha
+      for (const th of [false, true]) { const p = join(DIR, fileOf(slot, th)); if (existsSync(p)) writeFileSync(join(SOURCE_DIR, 'superseded', `p${String(slot).padStart(4, '0')}${th ? '_t' : ''}.${prior.sha}.webp`), readFileSync(p)) }
+      for (const x of rec.sources.filter((y) => y.slot === slot)) x.superseded = true
+    }
+    const ext = (m[3] ?? 'png').toLowerCase()
+    const origSha = sha(bytes)
+    writeFileSync(join(SOURCE_DIR, 'originals', `slot-${m[1]}.${origSha.slice(0, 8)}.${ext}`), bytes)
+    rmSync(orig, { force: true })
+    const { bytes: size } = encode(readFileSync(cropPath), slot)
+    const entry: PhotoEntry = { slot, status: 'pilot', sha: sha(readFileSync(join(DIR, fileOf(slot)))), thumbSha: sha(readFileSync(join(DIR, fileOf(slot, true)))), promptSha: sha(readFileSync(cropPath)), bytes: size, provider: 'supplied-artwork', model: `individual image ${f}`, resolution: info.resolution, cropWidth: info.crop_size[0], supersedes }
+    rec.entries = rec.entries.filter((e) => e.slot !== slot).concat(entry)
+    rec.sources.push({ sheet: 'individual', tile: `slot-${m[1]}`, slot, status: 'pilot', note: '', cropSha: entry.promptSha, flags: info.flags, resolution: info.resolution, cropWidth: info.crop_size[0], originalSha: origSha, originalName: f, meta: { fighter: m[2] ?? meta.fighter, ...meta } })
+    saveRecord(rec); syncManifest(rec)
+    out.ingested.push({ file: f, slot, resolution: info.resolution, flags: info.flags })
+  }
+  return out
 }
 
 export function check(): string[] {
@@ -235,6 +352,8 @@ export function check(): string[] {
     if (e.slot < 0 || e.slot >= n) problems.push(`slot ${e.slot} outside the pool`)
     for (const f of [fileOf(e.slot), fileOf(e.slot, true)]) { if (!files.has(f)) problems.push(`missing ${f}`); files.delete(f) }
     const p = join(DIR, fileOf(e.slot))
+    const tp = join(DIR, fileOf(e.slot, true))
+    if (e.thumbSha && existsSync(tp) && sha(readFileSync(tp)) !== e.thumbSha) problems.push(`${fileOf(e.slot, true)} changed since it was recorded`)
     if (existsSync(p)) { const b = readFileSync(p); total += b.length + (existsSync(join(DIR, fileOf(e.slot, true))) ? statSync(join(DIR, fileOf(e.slot, true))).size : 0); if (sha(b) !== e.sha) problems.push(`${fileOf(e.slot)} changed since it was recorded`) }
   }
   for (const f of files) problems.push(`orphan ${f}`)
@@ -243,7 +362,8 @@ export function check(): string[] {
     const crop = join(SOURCE_DIR, 'crops', `${x.tile}.png`)
     if (existsSync(crop) && sha(readFileSync(crop)) !== x.cropSha) problems.push(`source crop ${x.tile} changed since it was recorded`)
     if (x.status === 'rejected' && x.slot !== null) problems.push(`rejected source ${x.tile} still holds slot ${x.slot}`)
-    if (x.slot !== null && !rec.entries.some((e) => e.slot === x.slot)) problems.push(`source ${x.tile} points at missing slot ${x.slot}`)
+    if (x.slot !== null && !x.superseded && !rec.entries.some((e) => e.slot === x.slot)) problems.push(`source ${x.tile} points at missing slot ${x.slot}`)
+    if (x.originalSha && x.originalName) { const o = join(SOURCE_DIR, 'originals', `slot-${x.tile.slice(5)}.${x.originalSha.slice(0, 8)}.${(x.originalName.split('.').pop() ?? 'png').toLowerCase()}`); if (!existsSync(o)) problems.push(`original for ${x.tile} is missing`); else if (sha(readFileSync(o)) !== x.originalSha) problems.push(`original for ${x.tile} changed`) }
   }
   if (total > BUDGET_BYTES) problems.push(`photo library is ${(total / 1e6).toFixed(1)} MB, over the ${BUDGET_BYTES / 1e6} MB budget`)
   const m = JSON.parse(readFileSync(MANIFEST, 'utf8')).portraitPhotos
@@ -279,15 +399,30 @@ if (process.argv[1] && process.argv[1].endsWith('portrait-photos.ts')) {
       const r = await v.call(prov); console.log(r.lines.join('\n')); process.exit(r.ok ? 0 : 1)
     }
     if (has('--check')) { const p = check(); console.log(p.length ? p.join('\n') : 'photographic portrait library healthy'); process.exit(p.length ? 1 : 0) }
+    if (has('--priority')) {
+      const w = await loadWorld({ world: arg('--world'), weeks: arg('--weeks') ? Number(arg('--weeks')) : undefined, save: arg('--save') })
+      const list = await priorityFighters(w.g, Number(arg('--count') ?? 12))
+      console.log(`Priority fighters for ${w.label} (pool of ${poolCount()} slots; slot is a pure function of the seed and the fighter id)`)
+      for (const p of list) console.log(`${String(p.rank).padStart(2)}. ${p.id.padEnd(8)} slot ${String(p.slot).padStart(3)} [${p.slotState}] ${p.name}${p.nickname ? ` "${p.nickname}"` : ''} · ${p.why} · ${p.age} (${bracket(p.age)}) · ${p.division} ${p.heightCm} cm · ${p.nationality}/${p.heritage} · ${p.record}`)
+      if (arg('--out')) writeFileSync(arg('--out')!, JSON.stringify({ world: w.label, seed: w.g.seed, poolSize: poolCount(), fighters: list }, null, 1) + '\n')
+      return
+    }
+    if (has('--ingest-incoming')) {
+      const r = ingestIncoming({ replace: has('--replace'), minWidth: arg('--min-width') ? Number(arg('--min-width')) : undefined })
+      for (const x of r.ingested) console.log(`ingested ${x.file} → slot ${x.slot} (${x.resolution}-resolution${x.flags.length ? ', flags: ' + x.flags.join(',') : ''}) — unapproved`)
+      for (const x of r.skipped) console.log(`skipped ${x.file}: ${x.reason}`)
+      console.log(`${r.ingested.length} ingested, ${r.skipped.length} skipped`)
+      return
+    }
     if (has('--ingest-sheet')) {
       const r = ingestSheet(arg('--ingest-sheet')!, { startSlot: arg('--start-slot') ? Number(arg('--start-slot')) : 0 })
       console.log(`ingested ${r.added.length} (slots ${r.added.map((a) => a.slot).join(',')}), already present ${r.kept.length}, rejected ${r.rejected.length}${r.rejected.length ? ' (' + r.rejected.map((x) => x.tile).join(', ') + ')' : ''}`)
       return
     }
-    if (has('--approve') || has('--reject')) { const k = has('--approve') ? '--approve' : '--reject'; console.log(`${setStatus(parseSlots(arg(k)!), k === '--approve' ? 'approved' : 'rejected')} slot(s) updated`); return }
+    if (has('--approve') || has('--reject')) { const k = has('--approve') ? '--approve' : '--reject'; console.log(`${setStatus(parseSlots(arg(k)!), k === '--approve' ? 'approved' : 'rejected', { allowLowRes: has('--allow-lowres') })} slot(s) updated`); return }
     if (has('--activate')) { const rec = loadRecord(); if (!rec.entries.some((e) => e.status === 'approved')) { console.error('Nothing is approved yet; refusing to activate.'); process.exit(1) } syncManifest(rec, true); console.log('photographic library active'); return }
     if (has('--contact-sheet')) { await contactSheet(arg('--contact-sheet')!, arg('--only')); console.log('contact sheet written'); return }
-    const order = await priorityOrder({ world: arg('--world'), weeks: arg('--weeks') ? Number(arg('--weeks')) : undefined })
+    const order = await priorityOrder({ world: arg('--world'), weeks: arg('--weeks') ? Number(arg('--weeks')) : undefined, save: arg('--save') })
     if (has('--plan')) {
       const rec = loadRecord(), have = new Set(rec.entries.map((e) => e.slot))
       const status = await providerFromEnv(process.env).checkStatus()

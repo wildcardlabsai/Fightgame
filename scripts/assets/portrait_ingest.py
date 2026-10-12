@@ -70,8 +70,29 @@ def extract(sheet):
     json.dump({'sheet': os.path.basename(sheet), 'tiles': out}, open(base + '.tiles.json', 'w'), indent=1)
     print(f'{len(out)} tiles extracted; flags: ' + json.dumps({t["id"]: t["flags"] for t in out if t["flags"]}))
 
+def single(path, out_crop, y_frac=None):
+    """One individually supplied image -> an exact 4:5 window at NATIVE resolution (a crop only: nothing is scaled up or padded).
+    Taller than 4:5 (e.g. 2:3): full width, the window follows the top of the head (or the sidecar's y fraction). Wider than 4:5: full height,
+    horizontally centred (flagged, because the sides are lost)."""
+    im = Image.open(path).convert('RGB'); W, H = im.size; flags = []
+    if W / H > 0.8 + 1e-6:
+        cw = int(round(H * 0.8)); x = (W - cw) // 2; box = (x, 0, x + cw, H)
+        flags.append('cropped_sides' if W / H > 0.95 else 'minor_side_crop')
+    else:
+        ch = int(round(W * 1.25)); ch = min(ch, H)
+        if y_frac is not None: y = int(round(y_frac * H))
+        else:
+            scale = 200.0 / W; small = np.array(im.convert('L').resize((200, max(1, int(H * scale))), Image.BILINEAR)).astype(float)
+            y = int(round(max(0, head_top(small) - 8) / scale))
+        y = max(0, min(H - ch, y)); box = (0, y, W, y + ch)
+    crop = im.crop(box); crop.save(out_crop)
+    cw_, ch_ = crop.size
+    res = 'high' if cw_ >= 960 else 'medium' if cw_ >= 640 else 'low'
+    print(json.dumps({'size': [W, H], 'crop_box': list(box), 'crop_size': [cw_, ch_], 'resolution': res, 'flags': flags}))
+
 if __name__ == '__main__':
     cmd, path = sys.argv[1], sys.argv[2]
     if cmd == 'detect': print(json.dumps(detect(path, 8, 3)))
     elif cmd == 'extract': extract(path)
-    else: sys.exit('usage: portrait_ingest.py extract|detect <sheet.png>')
+    elif cmd == 'single': single(path, sys.argv[3], float(sys.argv[4]) if len(sys.argv) > 4 else None)
+    else: sys.exit('usage: portrait_ingest.py extract|detect <sheet.png> | single <image> <out.png> [y_fraction]')

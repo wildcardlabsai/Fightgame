@@ -166,3 +166,7 @@ Artwork source: one 1586×992 contact sheet of 24 fictional boxer portraits gene
 * **Coverage.** The pool has 360 slots and the pilot fills 23, so once activated a fighter whose slot has no approved photograph shows the silhouette (never a cartoon). Until activation the game is unchanged.
 
 **Verification (production build, base `/play/`, pilot temporarily approved + active with the pool size set to 23 so every fighter maps to a photograph; the committed manifest was restored afterwards):** `scripts/browser/photo-shots.mjs` 18/18 — photographs load (naturalWidth > 0) in roster, profile, matchmaking, event card and the fight page at 1280 and 390 (thumbnails in lists, full file on the profile), same file on every screen, silhouettes when every photograph is blocked, no failed asset requests. Screenshots: `docs/identity/photo-pilot/`. Tests: `src/engine/portraitPilot.test.ts` (provenance, slots, 480×600 / 96×120, budget, nothing approved/active).
+
+## 10. Next batch (individual high-resolution images)
+
+See `docs/PORTRAIT_BATCH_1.md`: priority list, slot caveat, pilot replacements, `slot-NNNN.png` naming, `--ingest-incoming` workflow, dimensions and the resolution/approval rules.

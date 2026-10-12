@@ -8,7 +8,10 @@
    "promptSha": "b4a0762bed7ba1f1",
    "bytes": 19064,
    "provider": "supplied-artwork",
-   "model": "contact sheet pilot-sheet-1.png, tile pilot-sheet-1_r0c1"
+   "model": "contact sheet pilot-sheet-1.png, tile pilot-sheet-1_r0c1",
+   "thumbSha": "1dc3332d32339a61",
+   "cropWidth": 187,
+   "resolution": "low"
   },
   {
    "slot": 1,
@@ -17,7 +20,10 @@
    "promptSha": "fa5c646bb0b98742",
    "bytes": 17442,
    "provider": "supplied-artwork",
-   "model": "contact sheet pilot-sheet-1.png, tile pilot-sheet-1_r0c2"
+   "model": "contact sheet pilot-sheet-1.png, tile pilot-sheet-1_r0c2",
+   "thumbSha": "c06699dc1359d051",
+   "cropWidth": 186,
+   "resolution": "low"
   },
   {
    "slot": 2,
@@ -26,7 +32,10 @@
    "promptSha": "d85f287b63e98153",
    "bytes": 20982,
    "provider": "supplied-artwork",
-   "model": "contact sheet pilot-sheet-1.png, tile pilot-sheet-1_r0c3"
+   "model": "contact sheet pilot-sheet-1.png, tile pilot-sheet-1_r0c3",
+   "thumbSha": "446e8032d4cdac77",
+   "cropWidth": 190,
+   "resolution": "low"
   },
   {
    "slot": 3,
@@ -35,7 +44,10 @@
    "promptSha": "0d331b7fc142ac64",
    "bytes": 17448,
    "provider": "supplied-artwork",
-   "model": "contact sheet pilot-sheet-1.png, tile pilot-sheet-1_r0c4"
+   "model": "contact sheet pilot-sheet-1.png, tile pilot-sheet-1_r0c4",
+   "thumbSha": "bebfcdd76c93d8ac",
+   "cropWidth": 188,
+   "resolution": "low"
   },
   {
    "slot": 4,
@@ -44,7 +56,10 @@
    "promptSha": "d1e09178e9d51632",
    "bytes": 20362,
    "provider": "supplied-artwork",
-   "model": "contact sheet pilot-sheet-1.png, tile pilot-sheet-1_r0c5"
+   "model": "contact sheet pilot-sheet-1.png, tile pilot-sheet-1_r0c5",
+   "thumbSha": "3402ee1e733ee743",
+   "cropWidth": 188,
+   "resolution": "low"
   },
   {
    "slot": 5,
@@ -53,7 +68,10 @@
    "promptSha": "153e1717662d83e6",
    "bytes": 17860,
    "provider": "supplied-artwork",
-   "model": "contact sheet pilot-sheet-1.png, tile pilot-sheet-1_r0c6"
+   "model": "contact sheet pilot-sheet-1.png, tile pilot-sheet-1_r0c6",
+   "thumbSha": "29ad6812e20b520f",
+   "cropWidth": 189,
+   "resolution": "low"
   },
   {
    "slot": 6,
@@ -62,7 +80,10 @@
    "promptSha": "dce02b95d90bdaf8",
    "bytes": 15868,
    "provider": "supplied-artwork",
-   "model": "contact sheet pilot-sheet-1.png, tile pilot-sheet-1_r0c7"
+   "model": "contact sheet pilot-sheet-1.png, tile pilot-sheet-1_r0c7",
+   "thumbSha": "65353778bafa82cf",
+   "cropWidth": 189,
+   "resolution": "low"
   },
   {
    "slot": 7,
@@ -71,7 +92,10 @@
    "promptSha": "7e33362fed70c3de",
    "bytes": 13220,
    "provider": "supplied-artwork",
-   "model": "contact sheet pilot-sheet-1.png, tile pilot-sheet-1_r1c0"
+   "model": "contact sheet pilot-sheet-1.png, tile pilot-sheet-1_r1c0",
+   "thumbSha": "3d827510e75b9d27",
+   "cropWidth": 191,
+   "resolution": "low"
   },
   {
    "slot": 8,
@@ -80,7 +104,10 @@
    "promptSha": "9506a5a29da2a7a8",
    "bytes": 16074,
    "provider": "supplied-artwork",
-   "model": "contact sheet pilot-sheet-1.png, tile pilot-sheet-1_r1c1"
+   "model": "contact sheet pilot-sheet-1.png, tile pilot-sheet-1_r1c1",
+   "thumbSha": "c096ad03ad59c9a1",
+   "cropWidth": 187,
+   "resolution": "low"
   },
   {
    "slot": 9,
@@ -89,7 +116,10 @@
    "promptSha": "7fbe88b7aa7f36d7",
    "bytes": 22778,
    "provider": "supplied-artwork",
-   "model": "contact sheet pilot-sheet-1.png, tile pilot-sheet-1_r1c2"
+   "model": "contact sheet pilot-sheet-1.png, tile pilot-sheet-1_r1c2",
+   "thumbSha": "582ff2e40feef79d",
+   "cropWidth": 186,
+   "resolution": "low"
   },
   {
    "slot": 10,
@@ -98,7 +128,10 @@
    "promptSha": "dd6277c364232c22",
    "bytes": 18250,
    "provider": "supplied-artwork",
-   "model": "contact sheet pilot-sheet-1.png, tile pilot-sheet-1_r1c3"
+   "model": "contact sheet pilot-sheet-1.png, tile pilot-sheet-1_r1c3",
+   "thumbSha": "348b6c3e77360be2",
+   "cropWidth": 190,
+   "resolution": "low"
   },
   {
    "slot": 11,
@@ -107,7 +140,10 @@
    "promptSha": "ab463f35db73d83f",
    "bytes": 19884,
    "provider": "supplied-artwork",
-   "model": "contact sheet pilot-sheet-1.png, tile pilot-sheet-1_r1c4"
+   "model": "contact sheet pilot-sheet-1.png, tile pilot-sheet-1_r1c4",
+   "thumbSha": "b495650c3b3e14fc",
+   "cropWidth": 188,
+   "resolution": "low"
   },
   {
    "slot": 12,
@@ -116,7 +152,10 @@
    "promptSha": "0fc72e9b4e1dcaf7",
    "bytes": 19166,
    "provider": "supplied-artwork",
-   "model": "contact sheet pilot-sheet-1.png, tile pilot-sheet-1_r1c5"
+   "model": "contact sheet pilot-sheet-1.png, tile pilot-sheet-1_r1c5",
+   "thumbSha": "e4aa64bbaae6aa7d",
+   "cropWidth": 188,
+   "resolution": "low"
   },
   {
    "slot": 13,
@@ -125,7 +164,10 @@
    "promptSha": "44e0b876cdd2dc18",
    "bytes": 16706,
    "provider": "supplied-artwork",
-   "model": "contact sheet pilot-sheet-1.png, tile pilot-sheet-1_r1c6"
+   "model": "contact sheet pilot-sheet-1.png, tile pilot-sheet-1_r1c6",
+   "thumbSha": "3b59998d24bb59a9",
+   "cropWidth": 189,
+   "resolution": "low"
   },
   {
    "slot": 14,
@@ -134,7 +176,10 @@
    "promptSha": "2c228a04d1d59474",
    "bytes": 18956,
    "provider": "supplied-artwork",
-   "model": "contact sheet pilot-sheet-1.png, tile pilot-sheet-1_r1c7"
+   "model": "contact sheet pilot-sheet-1.png, tile pilot-sheet-1_r1c7",
+   "thumbSha": "005e3a4cd0c6998b",
+   "cropWidth": 189,
+   "resolution": "low"
   },
   {
    "slot": 15,
@@ -143,7 +188,10 @@
    "promptSha": "5f6d1f3cee1e5061",
    "bytes": 18914,
    "provider": "supplied-artwork",
-   "model": "contact sheet pilot-sheet-1.png, tile pilot-sheet-1_r2c0"
+   "model": "contact sheet pilot-sheet-1.png, tile pilot-sheet-1_r2c0",
+   "thumbSha": "e1beaeaa77ea5d14",
+   "cropWidth": 191,
+   "resolution": "low"
   },
   {
    "slot": 16,
@@ -152,7 +200,10 @@
    "promptSha": "0ef758835787c200",
    "bytes": 16410,
    "provider": "supplied-artwork",
-   "model": "contact sheet pilot-sheet-1.png, tile pilot-sheet-1_r2c1"
+   "model": "contact sheet pilot-sheet-1.png, tile pilot-sheet-1_r2c1",
+   "thumbSha": "2c8cd40a1a618333",
+   "cropWidth": 187,
+   "resolution": "low"
   },
   {
    "slot": 17,
@@ -161,7 +212,10 @@
    "promptSha": "0526a82fc9f6cf9c",
    "bytes": 16670,
    "provider": "supplied-artwork",
-   "model": "contact sheet pilot-sheet-1.png, tile pilot-sheet-1_r2c2"
+   "model": "contact sheet pilot-sheet-1.png, tile pilot-sheet-1_r2c2",
+   "thumbSha": "9e10ec089f24d371",
+   "cropWidth": 186,
+   "resolution": "low"
   },
   {
    "slot": 18,
@@ -170,7 +224,10 @@
    "promptSha": "ca56acbc233479f1",
    "bytes": 19862,
    "provider": "supplied-artwork",
-   "model": "contact sheet pilot-sheet-1.png, tile pilot-sheet-1_r2c3"
+   "model": "contact sheet pilot-sheet-1.png, tile pilot-sheet-1_r2c3",
+   "thumbSha": "71ee295afd7c4e7e",
+   "cropWidth": 190,
+   "resolution": "low"
   },
   {
    "slot": 19,
@@ -179,7 +236,10 @@
    "promptSha": "eaa547e4b1135ef9",
    "bytes": 18170,
    "provider": "supplied-artwork",
-   "model": "contact sheet pilot-sheet-1.png, tile pilot-sheet-1_r2c4"
+   "model": "contact sheet pilot-sheet-1.png, tile pilot-sheet-1_r2c4",
+   "thumbSha": "3ffaaea18578f1ee",
+   "cropWidth": 188,
+   "resolution": "low"
   },
   {
    "slot": 20,
@@ -188,7 +248,10 @@
    "promptSha": "b5dc6522c3f31bee",
    "bytes": 21154,
    "provider": "supplied-artwork",
-   "model": "contact sheet pilot-sheet-1.png, tile pilot-sheet-1_r2c5"
+   "model": "contact sheet pilot-sheet-1.png, tile pilot-sheet-1_r2c5",
+   "thumbSha": "d473dda86b2902e0",
+   "cropWidth": 188,
+   "resolution": "low"
   },
   {
    "slot": 21,
@@ -197,7 +260,10 @@
    "promptSha": "37254e1fdc83f59d",
    "bytes": 17366,
    "provider": "supplied-artwork",
-   "model": "contact sheet pilot-sheet-1.png, tile pilot-sheet-1_r2c6"
+   "model": "contact sheet pilot-sheet-1.png, tile pilot-sheet-1_r2c6",
+   "thumbSha": "2cea18b7dc0ede46",
+   "cropWidth": 189,
+   "resolution": "low"
   },
   {
    "slot": 22,
@@ -206,7 +272,10 @@
    "promptSha": "eb4462f251949bcc",
    "bytes": 19044,
    "provider": "supplied-artwork",
-   "model": "contact sheet pilot-sheet-1.png, tile pilot-sheet-1_r2c7"
+   "model": "contact sheet pilot-sheet-1.png, tile pilot-sheet-1_r2c7",
+   "thumbSha": "3b2e08c06e73f285",
+   "cropWidth": 189,
+   "resolution": "low"
   }
  ],
  "failures": {},
@@ -218,7 +287,9 @@
    "status": "rejected",
    "note": "cannot be extracted cleanly at 4:5: the face fills the tile width so the left ear is clipped, and the beard runs off the bottom edge",
    "cropSha": "195016d213f10c38",
-   "flags": []
+   "flags": [],
+   "cropWidth": 191,
+   "resolution": "low"
   },
   {
    "sheet": "pilot-sheet-1.png",
@@ -227,7 +298,9 @@
    "status": "pilot",
    "note": "",
    "cropSha": "b4a0762bed7ba1f1",
-   "flags": []
+   "flags": [],
+   "cropWidth": 187,
+   "resolution": "low"
   },
   {
    "sheet": "pilot-sheet-1.png",
@@ -236,7 +309,9 @@
    "status": "pilot",
    "note": "borderline: the goatee tip touches the bottom edge",
    "cropSha": "fa5c646bb0b98742",
-   "flags": []
+   "flags": [],
+   "cropWidth": 186,
+   "resolution": "low"
   },
   {
    "sheet": "pilot-sheet-1.png",
@@ -245,7 +320,9 @@
    "status": "pilot",
    "note": "likeness check needed: red hair, freckled fair skin and stern pose may read as a real professional boxer; recommend NOT approving unless you are satisfied it is fictional",
    "cropSha": "d85f287b63e98153",
-   "flags": []
+   "flags": [],
+   "cropWidth": 190,
+   "resolution": "low"
   },
   {
    "sheet": "pilot-sheet-1.png",
@@ -254,7 +331,9 @@
    "status": "pilot",
    "note": "",
    "cropSha": "0d331b7fc142ac64",
-   "flags": []
+   "flags": [],
+   "cropWidth": 188,
+   "resolution": "low"
   },
   {
    "sheet": "pilot-sheet-1.png",
@@ -263,7 +342,9 @@
    "status": "pilot",
    "note": "",
    "cropSha": "d1e09178e9d51632",
-   "flags": []
+   "flags": [],
+   "cropWidth": 188,
+   "resolution": "low"
   },
   {
    "sheet": "pilot-sheet-1.png",
@@ -272,7 +353,9 @@
    "status": "pilot",
    "note": "",
    "cropSha": "153e1717662d83e6",
-   "flags": []
+   "flags": [],
+   "cropWidth": 189,
+   "resolution": "low"
   },
   {
    "sheet": "pilot-sheet-1.png",
@@ -281,7 +364,9 @@
    "status": "pilot",
    "note": "",
    "cropSha": "dce02b95d90bdaf8",
-   "flags": []
+   "flags": [],
+   "cropWidth": 189,
+   "resolution": "low"
   },
   {
    "sheet": "pilot-sheet-1.png",
@@ -290,7 +375,9 @@
    "status": "pilot",
    "note": "",
    "cropSha": "7e33362fed70c3de",
-   "flags": []
+   "flags": [],
+   "cropWidth": 191,
+   "resolution": "low"
   },
   {
    "sheet": "pilot-sheet-1.png",
@@ -299,7 +386,9 @@
    "status": "pilot",
    "note": "",
    "cropSha": "9506a5a29da2a7a8",
-   "flags": []
+   "flags": [],
+   "cropWidth": 187,
+   "resolution": "low"
   },
   {
    "sheet": "pilot-sheet-1.png",
@@ -308,7 +397,9 @@
    "status": "pilot",
    "note": "",
    "cropSha": "7fbe88b7aa7f36d7",
-   "flags": []
+   "flags": [],
+   "cropWidth": 186,
+   "resolution": "low"
   },
   {
    "sheet": "pilot-sheet-1.png",
@@ -317,7 +408,9 @@
    "status": "pilot",
    "note": "",
    "cropSha": "dd6277c364232c22",
-   "flags": []
+   "flags": [],
+   "cropWidth": 190,
+   "resolution": "low"
   },
   {
    "sheet": "pilot-sheet-1.png",
@@ -326,7 +419,9 @@
    "status": "pilot",
    "note": "",
    "cropSha": "ab463f35db73d83f",
-   "flags": []
+   "flags": [],
+   "cropWidth": 188,
+   "resolution": "low"
   },
   {
    "sheet": "pilot-sheet-1.png",
@@ -335,7 +430,9 @@
    "status": "pilot",
    "note": "borderline: the beard is slightly clipped at the bottom edge",
    "cropSha": "0fc72e9b4e1dcaf7",
-   "flags": []
+   "flags": [],
+   "cropWidth": 188,
+   "resolution": "low"
   },
   {
    "sheet": "pilot-sheet-1.png",
@@ -344,7 +441,9 @@
    "status": "pilot",
    "note": "",
    "cropSha": "44e0b876cdd2dc18",
-   "flags": []
+   "flags": [],
+   "cropWidth": 189,
+   "resolution": "low"
   },
   {
    "sheet": "pilot-sheet-1.png",
@@ -353,7 +452,9 @@
    "status": "pilot",
    "note": "",
    "cropSha": "2c228a04d1d59474",
-   "flags": []
+   "flags": [],
+   "cropWidth": 189,
+   "resolution": "low"
   },
   {
    "sheet": "pilot-sheet-1.png",
@@ -362,7 +463,9 @@
    "status": "pilot",
    "note": "",
    "cropSha": "5f6d1f3cee1e5061",
-   "flags": []
+   "flags": [],
+   "cropWidth": 191,
+   "resolution": "low"
   },
   {
    "sheet": "pilot-sheet-1.png",
@@ -371,7 +474,9 @@
    "status": "pilot",
    "note": "",
    "cropSha": "0ef758835787c200",
-   "flags": []
+   "flags": [],
+   "cropWidth": 187,
+   "resolution": "low"
   },
   {
    "sheet": "pilot-sheet-1.png",
@@ -380,7 +485,9 @@
    "status": "pilot",
    "note": "",
    "cropSha": "0526a82fc9f6cf9c",
-   "flags": []
+   "flags": [],
+   "cropWidth": 186,
+   "resolution": "low"
   },
   {
    "sheet": "pilot-sheet-1.png",
@@ -389,7 +496,9 @@
    "status": "pilot",
    "note": "",
    "cropSha": "ca56acbc233479f1",
-   "flags": []
+   "flags": [],
+   "cropWidth": 190,
+   "resolution": "low"
   },
   {
    "sheet": "pilot-sheet-1.png",
@@ -398,7 +507,9 @@
    "status": "pilot",
    "note": "borderline: the beard is slightly clipped at the bottom edge",
    "cropSha": "eaa547e4b1135ef9",
-   "flags": []
+   "flags": [],
+   "cropWidth": 188,
+   "resolution": "low"
   },
   {
    "sheet": "pilot-sheet-1.png",
@@ -407,7 +518,9 @@
    "status": "pilot",
    "note": "",
    "cropSha": "b5dc6522c3f31bee",
-   "flags": []
+   "flags": [],
+   "cropWidth": 188,
+   "resolution": "low"
   },
   {
    "sheet": "pilot-sheet-1.png",
@@ -416,7 +529,9 @@
    "status": "pilot",
    "note": "",
    "cropSha": "37254e1fdc83f59d",
-   "flags": []
+   "flags": [],
+   "cropWidth": 189,
+   "resolution": "low"
   },
   {
    "sheet": "pilot-sheet-1.png",
@@ -425,7 +540,9 @@
    "status": "pilot",
    "note": "",
    "cropSha": "eb4462f251949bcc",
-   "flags": []
+   "flags": [],
+   "cropWidth": 189,
+   "resolution": "low"
   }
  ]
 }
