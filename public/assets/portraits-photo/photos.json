@@ -1,0 +1,431 @@
+{
+ "version": 1,
+ "entries": [
+  {
+   "slot": 0,
+   "status": "pilot",
+   "sha": "14a1cb8351887799",
+   "promptSha": "b4a0762bed7ba1f1",
+   "bytes": 19064,
+   "provider": "supplied-artwork",
+   "model": "contact sheet pilot-sheet-1.png, tile pilot-sheet-1_r0c1"
+  },
+  {
+   "slot": 1,
+   "status": "pilot",
+   "sha": "a895e59fb8281800",
+   "promptSha": "fa5c646bb0b98742",
+   "bytes": 17442,
+   "provider": "supplied-artwork",
+   "model": "contact sheet pilot-sheet-1.png, tile pilot-sheet-1_r0c2"
+  },
+  {
+   "slot": 2,
+   "status": "pilot",
+   "sha": "e5b0e042e4d42af8",
+   "promptSha": "d85f287b63e98153",
+   "bytes": 20982,
+   "provider": "supplied-artwork",
+   "model": "contact sheet pilot-sheet-1.png, tile pilot-sheet-1_r0c3"
+  },
+  {
+   "slot": 3,
+   "status": "pilot",
+   "sha": "7d7a5b53b2481e3a",
+   "promptSha": "0d331b7fc142ac64",
+   "bytes": 17448,
+   "provider": "supplied-artwork",
+   "model": "contact sheet pilot-sheet-1.png, tile pilot-sheet-1_r0c4"
+  },
+  {
+   "slot": 4,
+   "status": "pilot",
+   "sha": "b6b4bf8cefe87a2b",
+   "promptSha": "d1e09178e9d51632",
+   "bytes": 20362,
+   "provider": "supplied-artwork",
+   "model": "contact sheet pilot-sheet-1.png, tile pilot-sheet-1_r0c5"
+  },
+  {
+   "slot": 5,
+   "status": "pilot",
+   "sha": "4b9f5da81ac9e716",
+   "promptSha": "153e1717662d83e6",
+   "bytes": 17860,
+   "provider": "supplied-artwork",
+   "model": "contact sheet pilot-sheet-1.png, tile pilot-sheet-1_r0c6"
+  },
+  {
+   "slot": 6,
+   "status": "pilot",
+   "sha": "dc9e7d0134a4bb23",
+   "promptSha": "dce02b95d90bdaf8",
+   "bytes": 15868,
+   "provider": "supplied-artwork",
+   "model": "contact sheet pilot-sheet-1.png, tile pilot-sheet-1_r0c7"
+  },
+  {
+   "slot": 7,
+   "status": "pilot",
+   "sha": "06fc626bbb434ed6",
+   "promptSha": "7e33362fed70c3de",
+   "bytes": 13220,
+   "provider": "supplied-artwork",
+   "model": "contact sheet pilot-sheet-1.png, tile pilot-sheet-1_r1c0"
+  },
+  {
+   "slot": 8,
+   "status": "pilot",
+   "sha": "99689458cd567896",
+   "promptSha": "9506a5a29da2a7a8",
+   "bytes": 16074,
+   "provider": "supplied-artwork",
+   "model": "contact sheet pilot-sheet-1.png, tile pilot-sheet-1_r1c1"
+  },
+  {
+   "slot": 9,
+   "status": "pilot",
+   "sha": "8058f3dde8c00d89",
+   "promptSha": "7fbe88b7aa7f36d7",
+   "bytes": 22778,
+   "provider": "supplied-artwork",
+   "model": "contact sheet pilot-sheet-1.png, tile pilot-sheet-1_r1c2"
+  },
+  {
+   "slot": 10,
+   "status": "pilot",
+   "sha": "2f8aba4217fa9d4f",
+   "promptSha": "dd6277c364232c22",
+   "bytes": 18250,
+   "provider": "supplied-artwork",
+   "model": "contact sheet pilot-sheet-1.png, tile pilot-sheet-1_r1c3"
+  },
+  {
+   "slot": 11,
+   "status": "pilot",
+   "sha": "3fd4dc88598088ab",
+   "promptSha": "ab463f35db73d83f",
+   "bytes": 19884,
+   "provider": "supplied-artwork",
+   "model": "contact sheet pilot-sheet-1.png, tile pilot-sheet-1_r1c4"
+  },
+  {
+   "slot": 12,
+   "status": "pilot",
+   "sha": "a70865a92fa3c1ac",
+   "promptSha": "0fc72e9b4e1dcaf7",
+   "bytes": 19166,
+   "provider": "supplied-artwork",
+   "model": "contact sheet pilot-sheet-1.png, tile pilot-sheet-1_r1c5"
+  },
+  {
+   "slot": 13,
+   "status": "pilot",
+   "sha": "76414b2231c12d2e",
+   "promptSha": "44e0b876cdd2dc18",
+   "bytes": 16706,
+   "provider": "supplied-artwork",
+   "model": "contact sheet pilot-sheet-1.png, tile pilot-sheet-1_r1c6"
+  },
+  {
+   "slot": 14,
+   "status": "pilot",
+   "sha": "da87482b252a11bf",
+   "promptSha": "2c228a04d1d59474",
+   "bytes": 18956,
+   "provider": "supplied-artwork",
+   "model": "contact sheet pilot-sheet-1.png, tile pilot-sheet-1_r1c7"
+  },
+  {
+   "slot": 15,
+   "status": "pilot",
+   "sha": "3b3ec65bbefbf052",
+   "promptSha": "5f6d1f3cee1e5061",
+   "bytes": 18914,
+   "provider": "supplied-artwork",
+   "model": "contact sheet pilot-sheet-1.png, tile pilot-sheet-1_r2c0"
+  },
+  {
+   "slot": 16,
+   "status": "pilot",
+   "sha": "f27193983b388091",
+   "promptSha": "0ef758835787c200",
+   "bytes": 16410,
+   "provider": "supplied-artwork",
+   "model": "contact sheet pilot-sheet-1.png, tile pilot-sheet-1_r2c1"
+  },
+  {
+   "slot": 17,
+   "status": "pilot",
+   "sha": "0e889d47f4ec4ba8",
+   "promptSha": "0526a82fc9f6cf9c",
+   "bytes": 16670,
+   "provider": "supplied-artwork",
+   "model": "contact sheet pilot-sheet-1.png, tile pilot-sheet-1_r2c2"
+  },
+  {
+   "slot": 18,
+   "status": "pilot",
+   "sha": "4f86ed704aa808fe",
+   "promptSha": "ca56acbc233479f1",
+   "bytes": 19862,
+   "provider": "supplied-artwork",
+   "model": "contact sheet pilot-sheet-1.png, tile pilot-sheet-1_r2c3"
+  },
+  {
+   "slot": 19,
+   "status": "pilot",
+   "sha": "d73a19f977396600",
+   "promptSha": "eaa547e4b1135ef9",
+   "bytes": 18170,
+   "provider": "supplied-artwork",
+   "model": "contact sheet pilot-sheet-1.png, tile pilot-sheet-1_r2c4"
+  },
+  {
+   "slot": 20,
+   "status": "pilot",
+   "sha": "ef53388cb64ec433",
+   "promptSha": "b5dc6522c3f31bee",
+   "bytes": 21154,
+   "provider": "supplied-artwork",
+   "model": "contact sheet pilot-sheet-1.png, tile pilot-sheet-1_r2c5"
+  },
+  {
+   "slot": 21,
+   "status": "pilot",
+   "sha": "40ef5b0927d74334",
+   "promptSha": "37254e1fdc83f59d",
+   "bytes": 17366,
+   "provider": "supplied-artwork",
+   "model": "contact sheet pilot-sheet-1.png, tile pilot-sheet-1_r2c6"
+  },
+  {
+   "slot": 22,
+   "status": "pilot",
+   "sha": "fd319222b4b92a34",
+   "promptSha": "eb4462f251949bcc",
+   "bytes": 19044,
+   "provider": "supplied-artwork",
+   "model": "contact sheet pilot-sheet-1.png, tile pilot-sheet-1_r2c7"
+  }
+ ],
+ "failures": {},
+ "sources": [
+  {
+   "sheet": "pilot-sheet-1.png",
+   "tile": "pilot-sheet-1_r0c0",
+   "slot": null,
+   "status": "rejected",
+   "note": "cannot be extracted cleanly at 4:5: the face fills the tile width so the left ear is clipped, and the beard runs off the bottom edge",
+   "cropSha": "195016d213f10c38",
+   "flags": []
+  },
+  {
+   "sheet": "pilot-sheet-1.png",
+   "tile": "pilot-sheet-1_r0c1",
+   "slot": 0,
+   "status": "pilot",
+   "note": "",
+   "cropSha": "b4a0762bed7ba1f1",
+   "flags": []
+  },
+  {
+   "sheet": "pilot-sheet-1.png",
+   "tile": "pilot-sheet-1_r0c2",
+   "slot": 1,
+   "status": "pilot",
+   "note": "borderline: the goatee tip touches the bottom edge",
+   "cropSha": "fa5c646bb0b98742",
+   "flags": []
+  },
+  {
+   "sheet": "pilot-sheet-1.png",
+   "tile": "pilot-sheet-1_r0c3",
+   "slot": 2,
+   "status": "pilot",
+   "note": "likeness check needed: red hair, freckled fair skin and stern pose may read as a real professional boxer; recommend NOT approving unless you are satisfied it is fictional",
+   "cropSha": "d85f287b63e98153",
+   "flags": []
+  },
+  {
+   "sheet": "pilot-sheet-1.png",
+   "tile": "pilot-sheet-1_r0c4",
+   "slot": 3,
+   "status": "pilot",
+   "note": "",
+   "cropSha": "0d331b7fc142ac64",
+   "flags": []
+  },
+  {
+   "sheet": "pilot-sheet-1.png",
+   "tile": "pilot-sheet-1_r0c5",
+   "slot": 4,
+   "status": "pilot",
+   "note": "",
+   "cropSha": "d1e09178e9d51632",
+   "flags": []
+  },
+  {
+   "sheet": "pilot-sheet-1.png",
+   "tile": "pilot-sheet-1_r0c6",
+   "slot": 5,
+   "status": "pilot",
+   "note": "",
+   "cropSha": "153e1717662d83e6",
+   "flags": []
+  },
+  {
+   "sheet": "pilot-sheet-1.png",
+   "tile": "pilot-sheet-1_r0c7",
+   "slot": 6,
+   "status": "pilot",
+   "note": "",
+   "cropSha": "dce02b95d90bdaf8",
+   "flags": []
+  },
+  {
+   "sheet": "pilot-sheet-1.png",
+   "tile": "pilot-sheet-1_r1c0",
+   "slot": 7,
+   "status": "pilot",
+   "note": "",
+   "cropSha": "7e33362fed70c3de",
+   "flags": []
+  },
+  {
+   "sheet": "pilot-sheet-1.png",
+   "tile": "pilot-sheet-1_r1c1",
+   "slot": 8,
+   "status": "pilot",
+   "note": "",
+   "cropSha": "9506a5a29da2a7a8",
+   "flags": []
+  },
+  {
+   "sheet": "pilot-sheet-1.png",
+   "tile": "pilot-sheet-1_r1c2",
+   "slot": 9,
+   "status": "pilot",
+   "note": "",
+   "cropSha": "7fbe88b7aa7f36d7",
+   "flags": []
+  },
+  {
+   "sheet": "pilot-sheet-1.png",
+   "tile": "pilot-sheet-1_r1c3",
+   "slot": 10,
+   "status": "pilot",
+   "note": "",
+   "cropSha": "dd6277c364232c22",
+   "flags": []
+  },
+  {
+   "sheet": "pilot-sheet-1.png",
+   "tile": "pilot-sheet-1_r1c4",
+   "slot": 11,
+   "status": "pilot",
+   "note": "",
+   "cropSha": "ab463f35db73d83f",
+   "flags": []
+  },
+  {
+   "sheet": "pilot-sheet-1.png",
+   "tile": "pilot-sheet-1_r1c5",
+   "slot": 12,
+   "status": "pilot",
+   "note": "borderline: the beard is slightly clipped at the bottom edge",
+   "cropSha": "0fc72e9b4e1dcaf7",
+   "flags": []
+  },
+  {
+   "sheet": "pilot-sheet-1.png",
+   "tile": "pilot-sheet-1_r1c6",
+   "slot": 13,
+   "status": "pilot",
+   "note": "",
+   "cropSha": "44e0b876cdd2dc18",
+   "flags": []
+  },
+  {
+   "sheet": "pilot-sheet-1.png",
+   "tile": "pilot-sheet-1_r1c7",
+   "slot": 14,
+   "status": "pilot",
+   "note": "",
+   "cropSha": "2c228a04d1d59474",
+   "flags": []
+  },
+  {
+   "sheet": "pilot-sheet-1.png",
+   "tile": "pilot-sheet-1_r2c0",
+   "slot": 15,
+   "status": "pilot",
+   "note": "",
+   "cropSha": "5f6d1f3cee1e5061",
+   "flags": []
+  },
+  {
+   "sheet": "pilot-sheet-1.png",
+   "tile": "pilot-sheet-1_r2c1",
+   "slot": 16,
+   "status": "pilot",
+   "note": "",
+   "cropSha": "0ef758835787c200",
+   "flags": []
+  },
+  {
+   "sheet": "pilot-sheet-1.png",
+   "tile": "pilot-sheet-1_r2c2",
+   "slot": 17,
+   "status": "pilot",
+   "note": "",
+   "cropSha": "0526a82fc9f6cf9c",
+   "flags": []
+  },
+  {
+   "sheet": "pilot-sheet-1.png",
+   "tile": "pilot-sheet-1_r2c3",
+   "slot": 18,
+   "status": "pilot",
+   "note": "",
+   "cropSha": "ca56acbc233479f1",
+   "flags": []
+  },
+  {
+   "sheet": "pilot-sheet-1.png",
+   "tile": "pilot-sheet-1_r2c4",
+   "slot": 19,
+   "status": "pilot",
+   "note": "borderline: the beard is slightly clipped at the bottom edge",
+   "cropSha": "eaa547e4b1135ef9",
+   "flags": []
+  },
+  {
+   "sheet": "pilot-sheet-1.png",
+   "tile": "pilot-sheet-1_r2c5",
+   "slot": 20,
+   "status": "pilot",
+   "note": "",
+   "cropSha": "b5dc6522c3f31bee",
+   "flags": []
+  },
+  {
+   "sheet": "pilot-sheet-1.png",
+   "tile": "pilot-sheet-1_r2c6",
+   "slot": 21,
+   "status": "pilot",
+   "note": "",
+   "cropSha": "37254e1fdc83f59d",
+   "flags": []
+  },
+  {
+   "sheet": "pilot-sheet-1.png",
+   "tile": "pilot-sheet-1_r2c7",
+   "slot": 22,
+   "status": "pilot",
+   "note": "",
+   "cropSha": "eb4462f251949bcc",
+   "flags": []
+  }
+ ]
+}

@@ -11,6 +11,10 @@
  *   npx tsx scripts/assets/portrait-photos.ts --generate --limit 40   next 40 missing slots in priority order (resumable)
  *   npx tsx scripts/assets/portrait-photos.ts --generate --slots 7,9  specific slots
  *   npx tsx scripts/assets/portrait-photos.ts --redo 7                regenerate one slot (the only way an existing file is overwritten)
+ *   python3 -I scripts/assets/portrait_ingest.py extract asset-pipeline/portrait-source/SHEET.png   cut a supplied contact sheet into 4:5 crops (no provider)
+ *   npx tsx scripts/assets/portrait-photos.ts --ingest-sheet SHEET.png   slot, encode and record the accepted crops as "pilot" (rejected crops get no slot)
+ *   python3 -I scripts/assets/portrait_ingest.py extract asset-pipeline/portrait-source/SHEET.png   cut a SUPPLIED contact sheet into 4:5 crops (no provider needed)
+ *   npx tsx scripts/assets/portrait-photos.ts --ingest-sheet SHEET.png   slot + encode the accepted crops as "pilot" (rejected crops get no slot, no file)
  *   npx tsx scripts/assets/portrait-photos.ts --approve 0-24          mark reviewed slots approved (only approved slots are ever shown)
  *   npx tsx scripts/assets/portrait-photos.ts --reject 3,8            mark slots rejected (they are queued for --generate again)
  *   npx tsx scripts/assets/portrait-photos.ts --activate              switch the game from the cartoon pool to the photographic library
@@ -40,7 +44,9 @@ export const BUDGET_BYTES = 12_000_000
 
 export type Status = 'pilot' | 'approved' | 'rejected'
 export interface PhotoEntry { slot: number; status: Status; sha: string; promptSha: string; bytes: number; provider: string; model: string }
-export interface PhotoRecord { version: 1; entries: PhotoEntry[]; failures: Record<string, { attempts: number; error: string }> }
+/** Where a supplied (not provider-generated) portrait came from, including crops that were rejected and so hold no slot. */
+export interface SourceEntry { sheet: string; tile: string; slot: number | null; status: Status; note: string; cropSha: string; flags: string[] }
+export interface PhotoRecord { version: 1; entries: PhotoEntry[]; failures: Record<string, { attempts: number; error: string }>; sources?: SourceEntry[] }
 
 const sha = (b: string | Uint8Array): string => createHash('sha256').update(b).digest('hex').slice(0, 16)
 export const fileOf = (slot: number, thumb = false): string => `p${String(slot).padStart(4, '0')}${thumb ? '_t' : ''}.webp`
@@ -181,6 +187,43 @@ export function setStatus(slots: number[], status: Status): number {
   return n
 }
 
+// ------------------------------------------------------------------------------------------------ supplied artwork
+export const SOURCE_DIR = process.env.PORTRAIT_SOURCE_DIR ?? join(ROOT, 'asset-pipeline', 'portrait-source')
+/**
+ * Brings portraits cut from a supplied contact sheet into the library. Run `python3 -I scripts/assets/portrait_ingest.py extract <sheet>` first
+ * (it writes <sheet>.tiles.json and the 4:5 crops); this step reads `<sheet>.review.json` for each tile's decision, gives every accepted crop a
+ * stable slot (the lowest free one; a tile that already has a slot keeps it), encodes it to the standard WebP sizes and records it as "pilot".
+ * Rejected crops get no slot and no file. Nothing is approved or activated here, and an existing slot's file is never overwritten.
+ */
+export function ingestSheet(sheet: string, opts: { startSlot?: number } = {}): { added: SourceEntry[]; kept: SourceEntry[]; rejected: SourceEntry[] } {
+  const base = join(SOURCE_DIR, sheet.replace(/\.png$/, ''))
+  const tiles = (JSON.parse(readFileSync(`${base}.tiles.json`, 'utf8')) as { tiles: { id: string; flags: string[] }[] }).tiles
+  const review = existsSync(`${base}.review.json`) ? (JSON.parse(readFileSync(`${base}.review.json`, 'utf8')) as { tiles: Record<string, { status: Status; note: string }>; default?: Status }) : { tiles: {}, default: 'pilot' as Status }
+  const rec = loadRecord()
+  rec.sources ??= []
+  const added: SourceEntry[] = [], kept: SourceEntry[] = [], rejected: SourceEntry[] = []
+  const taken = new Set(rec.entries.map((e) => e.slot))
+  let next = opts.startSlot ?? 0
+  const nextFree = (): number => { while (taken.has(next)) next++; taken.add(next); return next }
+  for (const t of tiles) {
+    const crop = join(SOURCE_DIR, 'crops', `${t.id}.png`)
+    const bytes = readFileSync(crop)
+    const rv = review.tiles[t.id] ?? { status: review.default ?? 'pilot', note: '' }
+    const prior = rec.sources.find((x) => x.tile === t.id)
+    if (prior) { kept.push(prior); continue }
+    const src: SourceEntry = { sheet, tile: t.id, slot: null, status: rv.status === 'rejected' ? 'rejected' : 'pilot', note: rv.note, cropSha: sha(bytes), flags: t.flags }
+    if (src.status === 'rejected') { rejected.push(src); rec.sources.push(src); continue }
+    const slot = nextFree()
+    const { bytes: size } = encode(bytes, slot)
+    rec.entries = rec.entries.filter((e) => e.slot !== slot).concat({ slot, status: 'pilot', sha: sha(readFileSync(join(DIR, fileOf(slot)))), promptSha: src.cropSha, bytes: size, provider: 'supplied-artwork', model: `contact sheet ${sheet}, tile ${t.id}` })
+    src.slot = slot
+    rec.sources.push(src); added.push(src)
+    saveRecord(rec); syncManifest(rec)
+  }
+  saveRecord(rec); syncManifest(rec)
+  return { added, kept, rejected }
+}
+
 export function check(): string[] {
   const problems: string[] = []
   if (!existsSync(RECORD)) return existsSync(DIR) ? ['photos.json is missing'] : []
@@ -196,6 +239,12 @@ export function check(): string[] {
   }
   for (const f of files) problems.push(`orphan ${f}`)
   if (new Set(rec.entries.map((e) => e.slot)).size !== rec.entries.length) problems.push('duplicate slot entries')
+  for (const x of rec.sources ?? []) {
+    const crop = join(SOURCE_DIR, 'crops', `${x.tile}.png`)
+    if (existsSync(crop) && sha(readFileSync(crop)) !== x.cropSha) problems.push(`source crop ${x.tile} changed since it was recorded`)
+    if (x.status === 'rejected' && x.slot !== null) problems.push(`rejected source ${x.tile} still holds slot ${x.slot}`)
+    if (x.slot !== null && !rec.entries.some((e) => e.slot === x.slot)) problems.push(`source ${x.tile} points at missing slot ${x.slot}`)
+  }
   if (total > BUDGET_BYTES) problems.push(`photo library is ${(total / 1e6).toFixed(1)} MB, over the ${BUDGET_BYTES / 1e6} MB budget`)
   const m = JSON.parse(readFileSync(MANIFEST, 'utf8')).portraitPhotos
   const approved = rec.entries.filter((e) => e.status === 'approved').map((e) => e.slot).sort((a, b) => a - b)
@@ -230,6 +279,11 @@ if (process.argv[1] && process.argv[1].endsWith('portrait-photos.ts')) {
       const r = await v.call(prov); console.log(r.lines.join('\n')); process.exit(r.ok ? 0 : 1)
     }
     if (has('--check')) { const p = check(); console.log(p.length ? p.join('\n') : 'photographic portrait library healthy'); process.exit(p.length ? 1 : 0) }
+    if (has('--ingest-sheet')) {
+      const r = ingestSheet(arg('--ingest-sheet')!, { startSlot: arg('--start-slot') ? Number(arg('--start-slot')) : 0 })
+      console.log(`ingested ${r.added.length} (slots ${r.added.map((a) => a.slot).join(',')}), already present ${r.kept.length}, rejected ${r.rejected.length}${r.rejected.length ? ' (' + r.rejected.map((x) => x.tile).join(', ') + ')' : ''}`)
+      return
+    }
     if (has('--approve') || has('--reject')) { const k = has('--approve') ? '--approve' : '--reject'; console.log(`${setStatus(parseSlots(arg(k)!), k === '--approve' ? 'approved' : 'rejected')} slot(s) updated`); return }
     if (has('--activate')) { const rec = loadRecord(); if (!rec.entries.some((e) => e.status === 'approved')) { console.error('Nothing is approved yet; refusing to activate.'); process.exit(1) } syncManifest(rec, true); console.log('photographic library active'); return }
     if (has('--contact-sheet')) { await contactSheet(arg('--contact-sheet')!, arg('--only')); console.log('contact sheet written'); return }

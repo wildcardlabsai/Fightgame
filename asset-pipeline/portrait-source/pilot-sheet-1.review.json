@@ -1,0 +1,11 @@
+{
+  "reviewer": "automated crop checks + visual inspection of the contact sheet (not an approval: approval is the --approve command)",
+  "tiles": {
+    "pilot-sheet-1_r0c0": { "status": "rejected", "note": "cannot be extracted cleanly at 4:5: the face fills the tile width so the left ear is clipped, and the beard runs off the bottom edge" },
+    "pilot-sheet-1_r0c2": { "status": "pilot", "note": "borderline: the goatee tip touches the bottom edge" },
+    "pilot-sheet-1_r1c5": { "status": "pilot", "note": "borderline: the beard is slightly clipped at the bottom edge" },
+    "pilot-sheet-1_r2c4": { "status": "pilot", "note": "borderline: the beard is slightly clipped at the bottom edge" },
+    "pilot-sheet-1_r0c3": { "status": "pilot", "note": "likeness check needed: red hair, freckled fair skin and stern pose may read as a real professional boxer; recommend NOT approving unless you are satisfied it is fictional" }
+  },
+  "default": "pilot"
+}

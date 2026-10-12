@@ -121,3 +121,48 @@ npx tsx scripts/assets/portrait-photos.ts --contact-sheet pilot.png --only pilot
 ```
 
 Nothing is activated: the pilot files are recorded with status `pilot`, only `--approve` marks a slot approved, and `--activate` is a separate explicit step. Until then the game keeps its existing artwork. Resumability, per-image record/manifest updates, retries (3 per slot with back-off), `--redo`, `--approve/--reject`, the contact sheet and the 12 MB budget are unchanged.
+
+## 9. Pilot photographic portraits from a supplied contact sheet (status: ingested, NOT approved, NOT active)
+
+Artwork source: one 1586×992 contact sheet of 24 fictional boxer portraits generated in ChatGPT and supplied as an image file (no provider, API or credentials involved). It is kept **unchanged** at `asset-pipeline/portrait-source/pilot-sheet-1.png` (sha-256 in `pilot-sheet-1.source.json`; outside `public/`, so it is not shipped). Provenance of the generator beyond "supplied artwork" is not recorded and the images carry no usage-rights information: confirm the terms that apply to using them in a commercial game.
+
+**Workflow** (no generation, no inpainting, plain crops only):
+1. `python3 -I scripts/assets/portrait_ingest.py extract asset-pipeline/portrait-source/pilot-sheet-1.png` — grid in `pilot-sheet-1.grid.json` (divider bands found by variance analysis, then checked against an overlay: columns 197–202, 394–400, 591–596, 791–795, 988–993, 1186–1191, 1385–1390; rows 327–331, 646–650), 2 px inset so no divider or neighbour can bleed in. Writes native-resolution `tiles/` and exact-4:5 `crops/` (full tile width, window positioned from the top of the head) plus `pilot-sheet-1.tiles.json` with automatic flags (head touches top, edge bleed, near-duplicates).
+2. `npx tsx scripts/assets/portrait-photos.ts --ingest-sheet pilot-sheet-1.png` — decisions come from `pilot-sheet-1.review.json`; accepted crops take the lowest free slots, are encoded to `pNNNN.webp` 480×600 (q80) and `pNNNN_t.webp` 96×120 (q72) and recorded in `photos.json` as `pilot` with their source tile and crop hash; rejected crops get no slot and no file. An existing slot is never overwritten. Re-running is a no-op.
+3. Review `docs/identity/photo-pilot-contact-sheet.png`, then approve: `--approve 0-22` (or a chosen subset), `--check`, and only then `--activate`.
+
+**Result:** 24 tiles cut, **23 usable, 1 rejected**. Rejected: `r0c0` (the face fills the tile width so the left ear is clipped and the beard runs off the bottom). Library size **466 KB** for 23 portraits plus thumbnails (budget 12 MB). Zero automatic flags (no edge bleed, no near-duplicates).
+
+| Slot | Source tile | Note |
+|---|---|---|
+| 0 | r0c1 |  |
+| 1 | r0c2 | borderline: the goatee tip touches the bottom edge |
+| 2 | r0c3 | likeness check needed: red hair, freckled fair skin and stern pose may read as a real professional boxer; recommend NOT approving unless you are satisfied it is fictional |
+| 3 | r0c4 |  |
+| 4 | r0c5 |  |
+| 5 | r0c6 |  |
+| 6 | r0c7 |  |
+| 7 | r1c0 |  |
+| 8 | r1c1 |  |
+| 9 | r1c2 |  |
+| 10 | r1c3 |  |
+| 11 | r1c4 |  |
+| 12 | r1c5 | borderline: the beard is slightly clipped at the bottom edge |
+| 13 | r1c6 |  |
+| 14 | r1c7 |  |
+| 15 | r2c0 |  |
+| 16 | r2c1 |  |
+| 17 | r2c2 |  |
+| 18 | r2c3 |  |
+| 19 | r2c4 | borderline: the beard is slightly clipped at the bottom edge |
+| 20 | r2c5 |  |
+| 21 | r2c6 |  |
+| 22 | r2c7 |  |
+
+**Honest limitations**
+* **Resolution.** Each portrait is only ~188×235 px in the sheet. The 480×600 files are upscaled about 2.5× (Lanczos, no sharpening or AI upscaling), so they are visibly soft at the 240×300 profile size and on high-DPI screens. They are fine in lists and cards. Final-quality assets should be generated individually at ≥1024 px; the same `--ingest` route takes them (one image per tile of a 1×1 grid, or a `--sheet` of any grid).
+* **Framing.** The sheet's 0.59 aspect holds head and shoulders; the game's 4:5 window keeps the whole head and ears but little shoulder. Three borderline crops lose a little beard at the bottom edge (r0c2, r1c5, r2c4; recorded in the review file).
+* **Likeness.** Tile r0c3 (red hair, freckled fair skin, stern pose) may read as a real professional boxer. Recommended: do not approve it unless you are satisfied it is fictional. No other tile was flagged, but this is a visual judgement, not a check.
+* **Coverage.** The pool has 360 slots and the pilot fills 23, so once activated a fighter whose slot has no approved photograph shows the silhouette (never a cartoon). Until activation the game is unchanged.
+
+**Verification (production build, base `/play/`, pilot temporarily approved + active with the pool size set to 23 so every fighter maps to a photograph; the committed manifest was restored afterwards):** `scripts/browser/photo-shots.mjs` 18/18 — photographs load (naturalWidth > 0) in roster, profile, matchmaking, event card and the fight page at 1280 and 390 (thumbnails in lists, full file on the profile), same file on every screen, silhouettes when every photograph is blocked, no failed asset requests. Screenshots: `docs/identity/photo-pilot/`. Tests: `src/engine/portraitPilot.test.ts` (provenance, slots, 480×600 / 96×120, budget, nothing approved/active).

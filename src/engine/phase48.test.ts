@@ -32,10 +32,11 @@ describe('asset registry', () => {
       expect(e.width).toBeGreaterThan(0); expect(e.height).toBeGreaterThan(0)
       expect(['real', 'fallback']).toContain(e.status)
     }
-    const sum = (d: string, skip = ''): number => readdirSync(d).reduce((n, f) => { const p = join(d, f); return n + (statSync(p).isDirectory() ? (f === skip ? 0 : sum(p, skip)) : statSync(p).size) }, 0)
+    const sum = (d: string, skip: string[] = []): number => readdirSync(d).reduce((n, f) => { const p = join(d, f); return n + (statSync(p).isDirectory() ? (skip.includes(f) ? 0 : sum(p, skip)) : statSync(p).size) }, 0)
     const root = join(__dirname, '../../public/assets')
-    expect(sum(root, 'portraits')).toBeLessThan(400_000) // placeholder art stays tiny: the build never depends on hundreds of images
+    expect(sum(root, ['portraits', 'portraits-photo'])).toBeLessThan(400_000) // placeholder art stays tiny: the build never depends on hundreds of images
     expect(sum(join(root, 'portraits'))).toBeLessThan(2_500_000) // the shared illustrated portrait pool has its own budget (see tests in identity.test.ts)
+    expect(existsSync(join(root, 'portraits-photo')) ? sum(join(root, 'portraits-photo')) : 0).toBeLessThan(12_000_000) // the photographic library: 12 MB (enforced per file set by portrait-photos --check)
   })
 
   it('the asset structure from the spec exists', () => {
